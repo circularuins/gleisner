@@ -137,15 +137,85 @@
   .ex-media canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
   .ex-play{position:relative;z-index:2;width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;border:1px solid rgba(255,255,255,.15)}
   .ex-dur{position:absolute;bottom:8px;right:10px;z-index:2;font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.7);padding:3px 8px;border-radius:4px;color:var(--text)}
-  .ex-body{padding:14px 16px 36px}
+  .ex-body{padding:14px 16px 16px}
   .ex-tag{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:10px}
   .ex-title{font-size:19px;font-weight:600;line-height:1.35;margin-bottom:8px}
   .ex-desc{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px}
   .ex-reacts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
   .ex-rpill{display:flex;align-items:center;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:4px 10px 4px 6px;font-size:14px}
   .ex-rpill .erc{font-family:var(--mono);font-size:11px;color:var(--text2)}
-  .ex-stats{font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;gap:12px;margin-bottom:8px}
   .ex-meta{font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;gap:12px}
+
+  /* Media type badge & track tag on media */
+  .ex-media-tag{position:absolute;top:8px;left:10px;z-index:3;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border-radius:4px;display:flex;align-items:center;gap:4px}
+  .ex-media-type{position:absolute;top:8px;right:10px;z-index:3;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.05em;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);color:var(--text2);padding:3px 7px;border-radius:4px}
+  .ex-play{cursor:pointer;transition:transform .15s}
+  .ex-play:active{transform:scale(.9)}
+
+  /* Reaction pills - interactive */
+  .ex-rpill{cursor:pointer;transition:all .15s;user-select:none}
+  .ex-rpill:active{transform:scale(.9)}
+  .ex-rpill.reacted{border-color:currentColor;background:rgba(255,255,255,.1)}
+  @keyframes rpill-bounce{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+  .ex-rpill.bounce{animation:rpill-bounce .25s ease}
+
+  /* Add reaction button */
+  .ex-add-react{display:flex;align-items:center;gap:3px;background:transparent;border:1px dashed var(--border);border-radius:14px;padding:4px 10px;font-size:12px;color:var(--text3);cursor:pointer;transition:all .15s;user-select:none}
+  .ex-add-react:hover{border-color:var(--text2);color:var(--text2)}
+
+  /* Emoji palette popover */
+  .emoji-palette{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:6px 8px;display:flex;gap:4px;z-index:10;box-shadow:0 -4px 20px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;transform:translateX(-50%) translateY(6px)}
+  .emoji-palette.vis{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+  .emoji-palette button{background:none;border:none;font-size:18px;cursor:pointer;padding:4px;border-radius:6px;transition:background .1s;line-height:1}
+  .emoji-palette button:hover{background:rgba(255,255,255,.1)}
+  .emoji-palette button:active{transform:scale(.85)}
+
+  /* Section divider */
+  .ex-divider{height:1px;background:var(--border);margin:14px 0}
+
+  /* Stats bar */
+  .ex-stats{font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;gap:12px;margin-bottom:0}
+
+  /* Comments section */
+  .ex-comments-hdr{font-size:14px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .ex-comments-hdr .cnt{font-family:var(--mono);font-size:11px;color:var(--text3);font-weight:400}
+  .ex-comment{display:flex;gap:8px;margin-bottom:12px}
+  .ex-comment-avatar{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .ex-comment-body{flex:1;min-width:0}
+  .ex-comment-head{display:flex;align-items:baseline;gap:6px;margin-bottom:2px}
+  .ex-comment-user{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--text)}
+  .ex-comment-time{font-family:var(--mono);font-size:9px;color:var(--text3)}
+  .ex-comment-text{font-size:13px;color:var(--text2);line-height:1.5}
+  .ex-view-all{font-family:var(--mono);font-size:11px;color:var(--text3);cursor:pointer;padding:4px 0;margin-bottom:8px}
+  .ex-view-all:hover{color:var(--text2)}
+
+  /* Comment input (sticky) */
+  .ex-comment-input{position:sticky;bottom:0;background:var(--bg2);border-top:1px solid var(--border);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;align-items:center;z-index:5}
+  .ex-comment-input input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:8px 14px;font-family:var(--font);font-size:13px;color:var(--text);outline:none;transition:border-color .15s}
+  .ex-comment-input input::placeholder{color:var(--text3)}
+  .ex-comment-input input:focus{border-color:var(--text3)}
+  .ex-comment-input button{width:32px;height:32px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;cursor:pointer;transition:opacity .15s;flex-shrink:0}
+  .ex-comment-input button:disabled{opacity:.3;cursor:default}
+
+  /* Connected posts section */
+  .ex-connected-hdr{font-size:14px;font-weight:600;margin-bottom:10px}
+  .ex-connected-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .ex-connected-scroll::-webkit-scrollbar{display:none}
+  .ex-conn-card{flex-shrink:0;width:140px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:10px;cursor:pointer;transition:transform .15s,border-color .15s;user-select:none}
+  .ex-conn-card:active{transform:scale(.96)}
+  .ex-conn-card:hover{border-color:var(--text3)}
+  .ex-conn-node{width:48px;height:48px;border-radius:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-size:20px;position:relative;overflow:hidden}
+  .ex-conn-node canvas{position:absolute;inset:0;width:100%;height:100%}
+  .ex-conn-node .icon-ov{position:relative;z-index:2}
+  .ex-conn-title{font-size:11px;font-weight:500;line-height:1.3;margin-bottom:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .ex-conn-track{font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+  .ex-conn-badge{font-size:8px;font-family:var(--mono);color:var(--text3);margin-top:4px;display:flex;align-items:center;gap:3px}
+  .ex-view-thread{font-family:var(--mono);font-size:11px;color:var(--text3);cursor:pointer;padding:8px 0 0;display:flex;align-items:center;gap:4px}
+  .ex-view-thread:hover{color:var(--text2)}
+
+  /* Back button for navigation */
+  .ex-back{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:11px;color:var(--text3);cursor:pointer;padding:0 16px;margin-top:8px;transition:color .15s;user-select:none}
+  .ex-back:hover{color:var(--text2)}
 
   .bn{position:fixed;bottom:0;left:0;right:0;background:rgba(5,5,9,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:100}
   .ni{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--text3);cursor:pointer;padding:4px 12px}
@@ -168,16 +238,32 @@
   <div class="ni"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</div>
 </div>
 <div class="ov" id="ov" onclick="closeEx()">
-  <div class="ex" onclick="event.stopPropagation()">
+  <div class="ex" id="exSheet" onclick="event.stopPropagation()">
     <div class="ex-handle"></div>
-    <div class="ex-media" id="exM"><div class="ex-play">&#9654;</div><span class="ex-dur" id="exD"></span></div>
-    <div class="ex-body">
+    <div id="exBack" class="ex-back" style="display:none" onclick="goBackEx()">&#8592; Back</div>
+    <div class="ex-media" id="exM">
+      <span class="ex-media-tag" id="exMTag"></span>
+      <span class="ex-media-type" id="exMType"></span>
+      <div class="ex-play" id="exPlay">&#9654;</div>
+      <span class="ex-dur" id="exD"></span>
+    </div>
+    <div class="ex-body" id="exBody">
       <div class="ex-tag" id="exTag"></div>
       <div class="ex-title" id="exT"></div>
       <div class="ex-desc" id="exDe"></div>
-      <div class="ex-reacts" id="exR"></div>
-      <div class="ex-stats" id="exS"></div>
       <div class="ex-meta" id="exMe"></div>
+      <div class="ex-divider"></div>
+      <div class="ex-reacts" id="exR" style="position:relative"></div>
+      <div class="ex-divider"></div>
+      <div class="ex-stats" id="exS"></div>
+      <div class="ex-divider"></div>
+      <div id="exComments"></div>
+      <div class="ex-divider"></div>
+      <div id="exConnected"></div>
+    </div>
+    <div class="ex-comment-input" id="exInput">
+      <input type="text" id="exCmtInput" placeholder="Add a comment..." />
+      <button id="exCmtSend" disabled>&#10148;</button>
     </div>
   </div>
 </div>
@@ -235,6 +321,33 @@ const DATA=[
   {d:28,h:20,t:'play',icon:'🎸',type:'AUD',title:'Evening jam circle',desc:'All 50 guitarists playing together. Goosebumps.',dur:'12:00',imp:.85,reacts:{'🔥':189,'❤️':134,'😭':67,'🎵':45},comments:38,views:2100},
   {d:28,h:22,t:'life',icon:'🌙',type:'IMG',title:'Stars from the workshop venue',desc:'Tired but so inspired. Best day ever.',dur:null,imp:.3,reacts:{'✨':56,'❤️':43,'🌙':21},comments:7,views:390},
 ];
+
+// Dummy comment data
+const USERS=['luna_synth','beat_wanderer','echo_drift','neon_arc','sol_wave'];
+const AVATARS=['#e879f9','#60a5fa','#34d399','#fbbf24','#f87171'];
+const COMMENT_POOL=[
+  'This is incredible! 🔥','Love the tone on this one.','How long did it take to learn this?',
+  'Chills. Literal chills.','The groove is unreal.','Been waiting for this!',
+  'Your best work yet honestly.','That bridge section though 😭','Play this live please!!',
+  'Shared this with all my friends.','The production quality keeps getting better.',
+  'This inspired me to pick up my guitar again.'
+];
+function genComments(item){
+  const rng=mkRng('cmt-'+item.title);
+  const n=Math.min(item.comments||0,5);
+  const comments=[];
+  for(let i=0;i<n;i++){
+    const ui=Math.floor(rng()*USERS.length);
+    const ci=Math.floor(rng()*COMMENT_POOL.length);
+    const mins=Math.floor(rng()*1440);
+    comments.push({user:USERS[ui],avatar:AVATARS[ui],text:COMMENT_POOL[ci],mins});
+  }
+  return comments;
+}
+
+const EMOJI_PRESET=['🔥','❤️','👏','✨','😍','🎵','💪','🙏'];
+// Runtime reaction state (tracks user's own reactions)
+const userReacts=new Map(); // key: item title, value: Set of emoji
 
 const state={solo:null,muted:new Set()};
 function mkRng(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return()=>{h=(h*16807)%2147483647;return(h&0x7fffffff)/0x7fffffff}}
@@ -538,26 +651,278 @@ function updateVis(){
   });
 }
 
-function openEx(item){
+// Navigation history for sheet
+const exHistory=[];
+let currentExItem=null;
+
+function openEx(item,pushHistory=true){
+  if(pushHistory&&currentExItem){exHistory.push(currentExItem)}
+  currentExItem=item;
   const c=TC[item.t];
+
+  // Back button
+  document.getElementById('exBack').style.display=exHistory.length>0?'flex':'none';
+
+  // Media
+  const m=document.getElementById('exM');let cv=m.querySelector('canvas');
+  if(!cv){cv=document.createElement('canvas');m.insertBefore(cv,m.firstChild)}
+  drawThumb(cv,item,400,225);cv.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:block';
+
+  // Media tag (track name, top-left)
+  const mTag=document.getElementById('exMTag');
+  mTag.textContent=TN[item.t].toUpperCase();
+  mTag.style.background=`rgba(${c.rgb},0.25)`;mTag.style.color=c.c;
+
+  // Media type badge (top-right)
+  document.getElementById('exMType').textContent=item.type;
+
+  // Play button visibility
+  const playBtn=document.getElementById('exPlay');
+  playBtn.style.display=(item.type==='VID'||item.type==='AUD')?'flex':'none';
+
+  // Duration
+  const de=document.getElementById('exD');de.textContent=item.dur||'';de.style.display=item.dur?'block':'none';
+
+  // Meta: tag + title + desc + date line
   document.getElementById('exTag').textContent=TN[item.t].toUpperCase();
   document.getElementById('exTag').style.background=`rgba(${c.rgb},0.2)`;
   document.getElementById('exTag').style.color=c.c;
   document.getElementById('exT').textContent=item.title;
   document.getElementById('exDe').textContent=item.desc;
-  const de=document.getElementById('exD');de.textContent=item.dur||'';de.style.display=item.dur?'block':'none';
-  const er=document.getElementById('exR');er.innerHTML='';
-  Object.entries(item.reacts||{}).sort((a,b)=>b[1]-a[1]).forEach(([e,cnt])=>{const p=document.createElement('div');p.className='ex-rpill';p.innerHTML=`${e}<span class="erc">${cnt}</span>`;er.appendChild(p)});
-  document.getElementById('exS').textContent=`💬 ${item.comments} comments · 👁 ${(item.views||0).toLocaleString()} views`;
   const d=new Date();d.setDate(d.getDate()-item.d);
   document.getElementById('exMe').textContent=d.toLocaleDateString('en',{month:'short',day:'numeric'})+' · '+item.type+(item.dur?' · '+item.dur:'');
-  const m=document.getElementById('exM');let cv=m.querySelector('canvas');
-  if(!cv){cv=document.createElement('canvas');m.insertBefore(cv,m.firstChild)}
-  drawThumb(cv,item,400,225);cv.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:block';
+
+  // Reactions
+  renderReactions(item);
+
+  // Stats
+  document.getElementById('exS').innerHTML=`<span>💬 ${item.comments} comments</span><span>👁 ${(item.views||0).toLocaleString()} views</span>`;
+
+  // Comments
+  renderComments(item);
+
+  // Connected posts
+  renderConnected(item);
+
+  // Comment input accent color
+  const sendBtn=document.getElementById('exCmtSend');
+  sendBtn.style.background=c.c;
+
+  // Scroll sheet to top
+  document.getElementById('exSheet').scrollTop=0;
   document.getElementById('ov').classList.add('vis');
 }
-function closeEx(){document.getElementById('ov').classList.remove('vis')}
+
+function renderReactions(item){
+  const er=document.getElementById('exR');er.innerHTML='';
+  const myReacts=userReacts.get(item.title)||new Set();
+
+  Object.entries(item.reacts||{}).sort((a,b)=>b[1]-a[1]).forEach(([emoji,cnt])=>{
+    const p=document.createElement('div');
+    p.className='ex-rpill'+(myReacts.has(emoji)?' reacted':'');
+    if(myReacts.has(emoji))p.style.color=TC[item.t].c;
+    p.innerHTML=`${emoji}<span class="erc">${cnt}</span>`;
+    p.onclick=()=>toggleReaction(item,emoji,p);
+    er.appendChild(p);
+  });
+
+  // Add reaction button with palette
+  const addWrap=document.createElement('div');addWrap.style.cssText='position:relative;display:inline-flex';
+  const addBtn=document.createElement('div');addBtn.className='ex-add-react';addBtn.textContent='+ Add';
+  const palette=document.createElement('div');palette.className='emoji-palette';palette.id='emojiPalette';
+  EMOJI_PRESET.forEach(em=>{
+    const b=document.createElement('button');b.textContent=em;
+    b.onclick=(e)=>{e.stopPropagation();addNewReaction(item,em);palette.classList.remove('vis')};
+    palette.appendChild(b);
+  });
+  addBtn.onclick=(e)=>{e.stopPropagation();palette.classList.toggle('vis')};
+  addWrap.appendChild(palette);addWrap.appendChild(addBtn);
+  er.appendChild(addWrap);
+
+  // Close palette on outside click
+  document.addEventListener('click',function closePalette(e){
+    if(!addWrap.contains(e.target)){palette.classList.remove('vis');document.removeEventListener('click',closePalette)}
+  });
+}
+
+function toggleReaction(item,emoji,el){
+  const key=item.title;
+  if(!userReacts.has(key))userReacts.set(key,new Set());
+  const my=userReacts.get(key);
+  if(my.has(emoji)){
+    my.delete(emoji);item.reacts[emoji]=Math.max(0,(item.reacts[emoji]||1)-1);
+  }else{
+    my.add(emoji);item.reacts[emoji]=(item.reacts[emoji]||0)+1;
+  }
+  el.classList.add('bounce');
+  setTimeout(()=>el.classList.remove('bounce'),250);
+  renderReactions(item);
+}
+
+function addNewReaction(item,emoji){
+  const key=item.title;
+  if(!userReacts.has(key))userReacts.set(key,new Set());
+  userReacts.get(key).add(emoji);
+  if(!item.reacts[emoji])item.reacts[emoji]=0;
+  item.reacts[emoji]++;
+  renderReactions(item);
+}
+
+function renderComments(item){
+  const wrap=document.getElementById('exComments');wrap.innerHTML='';
+  const comments=genComments(item);
+  const total=item.comments||0;
+
+  // Header
+  const hdr=document.createElement('div');hdr.className='ex-comments-hdr';
+  hdr.innerHTML=`Comments <span class="cnt">${total}</span>`;
+  wrap.appendChild(hdr);
+
+  if(comments.length===0){
+    const empty=document.createElement('div');empty.style.cssText='font-size:12px;color:var(--text3);margin-bottom:12px';
+    empty.textContent='No comments yet. Be the first!';wrap.appendChild(empty);return;
+  }
+
+  // Show up to 3 comments
+  const shown=comments.slice(0,3);
+  shown.forEach(cmt=>{
+    const row=document.createElement('div');row.className='ex-comment';
+    const timeStr=cmt.mins<60?`${cmt.mins}m ago`:cmt.mins<1440?`${Math.floor(cmt.mins/60)}h ago`:'1d ago';
+    row.innerHTML=`
+      <div class="ex-comment-avatar" style="background:${cmt.avatar}">${cmt.user[0].toUpperCase()}</div>
+      <div class="ex-comment-body">
+        <div class="ex-comment-head"><span class="ex-comment-user">${cmt.user}</span><span class="ex-comment-time">${timeStr}</span></div>
+        <div class="ex-comment-text">${cmt.text}</div>
+      </div>`;
+    wrap.appendChild(row);
+  });
+
+  if(total>3){
+    const more=document.createElement('div');more.className='ex-view-all';
+    more.textContent=`View all ${total} comments`;
+    more.onclick=()=>{/* future: expand all */};
+    wrap.appendChild(more);
+  }
+}
+
+function renderConnected(item){
+  const wrap=document.getElementById('exConnected');wrap.innerHTML='';
+
+  // Header
+  const hdr=document.createElement('div');hdr.className='ex-connected-hdr';hdr.textContent='Connected Posts';
+  wrap.appendChild(hdr);
+
+  // Find connected posts: same track ±2 days + same day different track
+  const connected=[];
+  DATA.forEach(other=>{
+    if(other===item)return;
+    if(other.t===item.t&&Math.abs(other.d-item.d)<=2){
+      connected.push({item:other,type:'linked',label:'🔗 Linked'});
+    }else if(other.d===item.d&&other.t!==item.t){
+      connected.push({item:other,type:'audience',label:'👥 Audience'});
+    }else if(Math.abs(other.d-item.d)<=1&&other.t!==item.t){
+      const engA=totalR(item.reacts),engB=totalR(other.reacts);
+      if(engA>100&&engB>100)connected.push({item:other,type:'related',label:'✨ Related'});
+    }
+  });
+
+  // Limit and sort by engagement
+  connected.sort((a,b)=>totalR(b.item.reacts)-totalR(a.item.reacts));
+  const shown=connected.slice(0,8);
+
+  if(shown.length===0){
+    const empty=document.createElement('div');empty.style.cssText='font-size:12px;color:var(--text3);margin-bottom:12px';
+    empty.textContent='No connected posts found.';wrap.appendChild(empty);return;
+  }
+
+  // Horizontal scroll container
+  const scroll=document.createElement('div');scroll.className='ex-connected-scroll';
+
+  shown.forEach(({item:other,label})=>{
+    const card=document.createElement('div');card.className='ex-conn-card';
+    const c=TC[other.t];
+
+    // Mini node with glow
+    const node=document.createElement('div');node.className='ex-conn-node';
+    node.style.boxShadow=`0 0 12px rgba(${c.rgb},0.3)`;
+    const miniCv=document.createElement('canvas');
+    drawThumb(miniCv,other,48,48);miniCv.style.cssText='position:absolute;inset:0;width:100%;height:100%;border-radius:inherit';
+    const iconOv=document.createElement('span');iconOv.className='icon-ov';iconOv.textContent=other.icon;
+    node.appendChild(miniCv);node.appendChild(iconOv);
+
+    const title=document.createElement('div');title.className='ex-conn-title';title.textContent=other.title;
+    const track=document.createElement('div');track.className='ex-conn-track';track.style.color=c.c;track.textContent=TN[other.t];
+    const badge=document.createElement('div');badge.className='ex-conn-badge';badge.textContent=label;
+
+    card.appendChild(node);card.appendChild(title);card.appendChild(track);card.appendChild(badge);
+    card.onclick=()=>openEx(other,true);
+    scroll.appendChild(card);
+  });
+
+  wrap.appendChild(scroll);
+
+  // View thread button
+  const threadBtn=document.createElement('div');threadBtn.className='ex-view-thread';
+  threadBtn.innerHTML='View thread &#8594;';
+  threadBtn.onclick=()=>{
+    const toast=document.createElement('div');
+    toast.style.cssText='position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--text2);z-index:1000;font-family:var(--mono);box-shadow:0 4px 20px rgba(0,0,0,.5)';
+    toast.textContent='Thread view coming soon';document.body.appendChild(toast);
+    setTimeout(()=>toast.remove(),2000);
+  };
+  wrap.appendChild(threadBtn);
+}
+
+function goBackEx(){
+  if(exHistory.length>0){
+    const prev=exHistory.pop();
+    openEx(prev,false);
+  }
+}
+
+function closeEx(){
+  document.getElementById('ov').classList.remove('vis');
+  exHistory.length=0;currentExItem=null;
+}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeEx()});
+
+// Comment input handling
+document.addEventListener('DOMContentLoaded',()=>{
+  const input=document.getElementById('exCmtInput');
+  const send=document.getElementById('exCmtSend');
+  input.addEventListener('input',()=>{send.disabled=!input.value.trim()});
+  input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!send.disabled)submitComment()});
+  send.addEventListener('click',submitComment);
+});
+
+function submitComment(){
+  const input=document.getElementById('exCmtInput');
+  const text=input.value.trim();if(!text||!currentExItem)return;
+  // Add dummy comment
+  currentExItem.comments=(currentExItem.comments||0)+1;
+  // Re-render comments with the new one prepended
+  const wrap=document.getElementById('exComments');
+  const hdr=wrap.querySelector('.ex-comments-hdr');
+  if(hdr)hdr.innerHTML=`Comments <span class="cnt">${currentExItem.comments}</span>`;
+
+  // Insert new comment at top of list
+  const first=wrap.querySelector('.ex-comment');
+  const row=document.createElement('div');row.className='ex-comment';
+  const c=TC[currentExItem.t];
+  row.innerHTML=`
+    <div class="ex-comment-avatar" style="background:${c.c}">Y</div>
+    <div class="ex-comment-body">
+      <div class="ex-comment-head"><span class="ex-comment-user">you</span><span class="ex-comment-time">now</span></div>
+      <div class="ex-comment-text">${text.replace(/</g,'&lt;')}</div>
+    </div>`;
+  row.style.opacity='0';row.style.transform='translateY(-8px)';
+  if(first)wrap.insertBefore(row,first);else{const h=wrap.querySelector('.ex-comments-hdr');h?h.after(row):wrap.appendChild(row)}
+  requestAnimationFrame(()=>{row.style.transition='opacity .2s,transform .2s';row.style.opacity='1';row.style.transform='translateY(0)'});
+
+  // Update stats
+  document.getElementById('exS').innerHTML=`<span>💬 ${currentExItem.comments} comments</span><span>👁 ${(currentExItem.views||0).toLocaleString()} views</span>`;
+  input.value='';document.getElementById('exCmtSend').disabled=true;
+}
 
 buildChips();layout();
 window.addEventListener('resize',()=>layout());

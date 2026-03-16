@@ -70,11 +70,14 @@ SVG curves connect related items, creating the neural network / constellation ef
 
 ### Detail View
 
-Bottom-sheet style expansion on tap, showing:
-- Large media preview
-- Full reaction breakdown (all emoji types with counts)
-- Comment count and view count
-- Track label, date, content type, duration
+Bottom-sheet (85dvh, internal scroll) preserving timeline context. Sections from top to bottom:
+
+1. **Handle + Media area** — 16:9 seed-generated art, play button (VID/AUD), duration badge, track tag (top-left), media type badge (top-right). Media tap reserved for future fullscreen playback.
+2. **Meta info** — Track color tag, title (19px), description, date + type + duration (mono).
+3. **Reaction area** — Tappable emoji pills (+1 toggle with scale bounce), "Add reaction" button opening an 8-emoji preset palette popover.
+4. **Stats bar** — Comment count, view count.
+5. **Comments** — Up to 3 inline comments (avatar + username + time + body), "View all N comments" link, sticky bottom input with track-colored send button.
+6. **Connected Posts** — Horizontal-scroll mini cards showing related items with connection-type badges (🔗 Linked / ✨ Related / 👥 Audience). Tapping a card navigates within the sheet (with back button). "View thread →" button (future thread view).
 
 ## Performance Strategy
 
