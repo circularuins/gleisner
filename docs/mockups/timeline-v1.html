@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gleisner — Timeline v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #06060a;
+    --bg2: #0e0e14;
+    --bg3: #17171f;
+    --text: #f0f0f0;
+    --text2: #9a9aa8;
+    --text3: #4a4a58;
+    --border: #1a1a24;
+    --c-play: #f97316;
+    --c-compose: #a855f7;
+    --c-life: #22d3ee;
+    --c-english: #84cc16;
+    --font: 'Outfit', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+  * { margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:hidden; }
+
+  /* Header */
+  .hdr {
+    position:sticky;top:0;z-index:100;
+    background:rgba(6,6,10,.92);
+    backdrop-filter:blur(24px) saturate(1.4);
+    -webkit-backdrop-filter:blur(24px) saturate(1.4);
+    border-bottom:1px solid var(--border);
+    padding:10px 14px 8px;
+  }
+  .hdr-top { display:flex;align-items:center;justify-content:space-between;margin-bottom:8px; }
+  .artist { font-size:17px;font-weight:600;letter-spacing:-.02em; }
+  .live { display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--text3); }
+  .live-dot { width:5px;height:5px;border-radius:50%;background:#ef4444;animation:p 2s ease-in-out infinite; }
+  @keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .chips { display:flex;gap:4px;flex-wrap:wrap; }
+  .chip {
+    display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:16px;
+    border:1px solid var(--border);background:var(--bg2);font-size:11px;font-weight:500;
+    cursor:pointer;transition:all .2s;user-select:none;white-space:nowrap;
+  }
+  .chip .d { width:7px;height:7px;border-radius:50%;flex-shrink:0; }
+  .chip.muted { opacity:.2; }
+  .chip.solo { border-color:var(--cc);box-shadow:0 0 10px var(--cg); }
+  .chip .sb,.chip .mb {
+    font-family:var(--mono);font-size:7px;font-weight:700;width:15px;height:15px;border-radius:3px;
+    border:1px solid var(--border);background:transparent;color:var(--text3);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .12s;
+  }
+  .chip .sb.on { background:#facc15;color:#000;border-color:#facc15; }
+  .chip .mb.on { background:#ef4444;color:#fff;border-color:#ef4444; }
+
+  /* Timeline area */
+  .tl {
+    position:relative;
+    display:flex;
+    padding-bottom:90px;
+  }
+
+  /* Date spine */
+  .spine {
+    width:36px;
+    flex-shrink:0;
+    position:relative;
+  }
+
+  .spine-line {
+    position:absolute;
+    left:50%;
+    top:0;bottom:0;
+    width:1px;
+    background:linear-gradient(to bottom, var(--border) 0%, rgba(239,68,68,0.4) 100%);
+  }
+
+  .spine-mark {
+    position:absolute;
+    left:0;width:100%;
+    display:flex;flex-direction:column;align-items:center;
+    transform:translateY(-50%);
+    z-index:2;
+  }
+
+  .spine-mark .dy {
+    font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);line-height:1;
+    background:var(--bg);padding:2px 0;
+  }
+  .spine-mark .mo {
+    font-family:var(--mono);font-size:7px;color:var(--text3);letter-spacing:.05em;text-transform:uppercase;
+  }
+  .spine-mark.today .dy { color:#ef4444; }
+  .spine-mark .now-dot {
+    width:7px;height:7px;border-radius:50%;background:#ef4444;
+    margin-top:3px;animation:p 2s ease-in-out infinite;
+  }
+
+  /* Canvas area for items */
+  .canvas {
+    flex:1;
+    position:relative;
+    min-height:100px;
+  }
+
+  /* Item */
+  .it {
+    position:absolute;
+    border-radius:10px;
+    overflow:hidden;
+    cursor:pointer;
+    background:var(--bg2);
+    transition:transform .18s ease,box-shadow .18s ease,opacity .25s;
+    border:1px solid rgba(255,255,255,0.04);
+  }
+  .it:hover { transform:scale(1.06);z-index:50; }
+  .it:active { transform:scale(0.97); }
+  .it.hidden { opacity:0;pointer-events:none;transform:scale(0.8); }
+
+  /* Track accent glow (left edge) */
+  .it::after {
+    content:'';position:absolute;top:0;bottom:0;left:0;width:3px;z-index:5;
+  }
+  .it[data-t="play"]::after    { background:var(--c-play);    box-shadow:0 0 8px var(--c-play); }
+  .it[data-t="compose"]::after { background:var(--c-compose); box-shadow:0 0 8px var(--c-compose); }
+  .it[data-t="life"]::after    { background:var(--c-life);    box-shadow:0 0 8px var(--c-life); }
+  .it[data-t="english"]::after { background:var(--c-english); box-shadow:0 0 8px var(--c-english); }
+
+  .it-media { position:relative;overflow:hidden; }
+  .it-media canvas { display:block;width:100%;height:100%; }
+
+  .it-icon {
+    position:absolute;top:4px;left:7px;
+    width:18px;height:18px;border-radius:5px;
+    background:rgba(0,0,0,.65);backdrop-filter:blur(4px);
+    display:flex;align-items:center;justify-content:center;
+    font-size:10px;line-height:1;z-index:6;
+  }
+
+  .it-dur {
+    position:absolute;bottom:3px;right:4px;
+    font-family:var(--mono);font-size:7px;font-weight:600;
+    background:rgba(0,0,0,.7);color:var(--text);
+    padding:1px 4px;border-radius:3px;z-index:6;
+  }
+
+  /* Likes bloom effect */
+  .it .bloom {
+    position:absolute;inset:-4px;border-radius:14px;
+    pointer-events:none;z-index:-1;
+    opacity:0;
+    transition:opacity .3s;
+  }
+  .it.has-bloom .bloom { opacity:1; }
+
+  /* Title overlay on bigger items */
+  .it-info {
+    padding:5px 7px;background:var(--bg2);
+  }
+  .it-info-t {
+    font-size:10px;font-weight:500;line-height:1.25;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .it-info-track {
+    font-family:var(--mono);font-size:6px;font-weight:600;
+    letter-spacing:.06em;text-transform:uppercase;opacity:.5;margin-bottom:1px;
+  }
+
+  /* Likes counter */
+  .it-likes {
+    position:absolute;top:4px;right:4px;z-index:6;
+    font-family:var(--mono);font-size:7px;font-weight:600;
+    background:rgba(0,0,0,.65);backdrop-filter:blur(4px);
+    color:var(--text2);padding:2px 5px;border-radius:4px;
+    display:flex;align-items:center;gap:2px;
+  }
+  .it-likes .heart { color:#ef4444;font-size:8px; }
+
+  /* Overlay */
+  .ov {
+    position:fixed;inset:0;background:rgba(0,0,0,.92);
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    z-index:500;display:none;align-items:flex-end;justify-content:center;
+  }
+  .ov.vis { display:flex; }
+  .ex {
+    background:var(--bg2);border-radius:20px 20px 0 0;
+    width:100%;max-width:420px;max-height:85dvh;overflow-y:auto;
+    animation:su .3s ease;
+  }
+  @keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .ex-handle { width:36px;height:4px;border-radius:2px;background:var(--text3);margin:10px auto 0; }
+  .ex-media {
+    margin:12px 14px 0;border-radius:12px;overflow:hidden;
+    aspect-ratio:16/9;background:var(--bg3);display:flex;align-items:center;justify-content:center;position:relative;
+  }
+  .ex-media canvas { position:absolute;inset:0;width:100%;height:100%;display:block; }
+  .ex-play {
+    position:relative;z-index:2;width:52px;height:52px;border-radius:50%;
+    background:rgba(255,255,255,.12);backdrop-filter:blur(8px);
+    display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;
+    border:1px solid rgba(255,255,255,.15);
+  }
+  .ex-dur { position:absolute;bottom:8px;right:10px;z-index:2;font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.7);padding:3px 8px;border-radius:4px;color:var(--text); }
+  .ex-body { padding:14px 16px 36px; }
+  .ex-tag { font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:10px; }
+  .ex-title { font-size:19px;font-weight:600;line-height:1.35;margin-bottom:8px; }
+  .ex-desc { font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px; }
+  .ex-likes-row { display:flex;align-items:center;gap:6px;margin-bottom:12px; }
+  .ex-likes-hearts { color:#ef4444;font-size:14px; }
+  .ex-likes-count { font-family:var(--mono);font-size:12px;color:var(--text2); }
+  .ex-meta { font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;gap:12px; }
+
+  /* Bottom nav */
+  .bn {
+    position:fixed;bottom:0;left:0;right:0;
+    background:rgba(6,6,10,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border-top:1px solid var(--border);display:flex;justify-content:space-around;
+    padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:100;
+  }
+  .ni { display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--text3);cursor:pointer;padding:4px 12px; }
+  .ni.a { color:var(--text); }
+  .ni svg { width:20px;height:20px;stroke:currentColor;stroke-width:1.5;fill:none; }
+
+  ::-webkit-scrollbar { width:0; }
+
+  body::before {
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(ellipse 500px 400px at 15% 85%, rgba(249,115,22,.025), transparent),
+      radial-gradient(ellipse 400px 500px at 85% 15%, rgba(168,85,247,.025), transparent),
+      radial-gradient(ellipse 600px 300px at 50% 50%, rgba(34,211,238,.015), transparent);
+  }
+  .tl { position:relative;z-index:1; }
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="artist">Artist Name</div>
+    <div class="live"><div class="live-dot"></div>LIVE</div>
+  </div>
+  <div class="chips" id="chips"></div>
+</div>
+<div class="tl" id="tl">
+  <div class="spine" id="spine"><div class="spine-line"></div></div>
+  <div class="canvas" id="canvas"></div>
+</div>
+<div class="bn">
+  <div class="ni a"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Timeline</div>
+  <div class="ni"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover</div>
+  <div class="ni"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</div>
+</div>
+<div class="ov" id="ov" onclick="closeEx()">
+  <div class="ex" onclick="event.stopPropagation()">
+    <div class="ex-handle"></div>
+    <div class="ex-media" id="exM"><div class="ex-play">&#9654;</div><span class="ex-dur" id="exD"></span></div>
+    <div class="ex-body">
+      <div class="ex-tag" id="exTag"></div>
+      <div class="ex-title" id="exT"></div>
+      <div class="ex-desc" id="exDe"></div>
+      <div class="ex-likes-row" id="exLR"><span class="ex-likes-hearts" id="exLH"></span><span class="ex-likes-count" id="exLC"></span></div>
+      <div class="ex-meta" id="exMe"></div>
+    </div>
+  </div>
+</div>
+<script>
+const TK=['play','compose','life','english'];
+const TN={play:'Play',compose:'Compose',life:'Life',english:'English'};
+const TC={
+  play:{c:'#f97316',g:'rgba(249,115,22,'},
+  compose:{c:'#a855f7',g:'rgba(168,85,247,'},
+  life:{c:'#22d3ee',g:'rgba(34,211,238,'},
+  english:{c:'#84cc16',g:'rgba(132,204,22,'},
+};
+
+// importance: 0.0-1.0 (artist sets), likes: number of fan likes
+const DATA=[
+  {d:0,h:14.5,t:'play',icon:'🎸',type:'VID',title:'Flamenco studio session',desc:'New rasgueado pattern — finally nailing the triplet feel. Recording went smooth. The room acoustic was perfect.',dur:'3:24',imp:1.0,likes:342},
+  {d:0,h:11,t:'compose',icon:'💻',type:'AUD',title:'Final mix: "Sunrise Protocol"',desc:'Master bus done. Stereo wide and clean. Ready for release?',dur:'3:42',imp:.8,likes:156},
+  {d:0,h:8,t:'life',icon:'☀️',type:'IMG',title:'Studio morning',desc:'Coffee and cables.',dur:null,imp:.2,likes:45},
+  {d:1,h:20,t:'english',icon:'🌍',type:'VID',title:'1K followers — thank you!',desc:'Special message for international fans. What\'s coming next.',dur:'2:11',imp:.9,likes:523},
+  {d:1,h:16,t:'life',icon:'🎤',type:'VID',title:'Talent show rehearsal',desc:'Nervous but excited!',dur:'1:55',imp:.5,likes:89},
+  {d:1,h:10,t:'compose',icon:'📝',type:'TXT',title:'Mix notes',desc:'EQ and reverb chain decisions.',dur:null,imp:.15,likes:12},
+  {d:2,h:9,t:'play',icon:'🎸',type:'VID',title:'Fingerstyle cover',desc:'New harmonics technique on an acoustic classic.',dur:'3:24',imp:.6,likes:201},
+  {d:3,h:17,t:'play',icon:'🔥',type:'VID',title:'Blues jam with friends',desc:'Someone brought a harmonica! Pure magic. We played for hours and forgot to eat.',dur:'8:33',imp:1.0,likes:687},
+  {d:3,h:15,t:'life',icon:'🎒',type:'IMG',title:'Park hangout',desc:'After the jam.',dur:null,imp:.1,likes:34},
+  {d:3,h:12,t:'compose',icon:'💻',type:'AUD',title:'Sidechain experiment',desc:'Pumping bass on "Sunrise Protocol".',dur:'0:48',imp:.3,likes:28},
+  {d:4,h:10,t:'compose',icon:'💻',type:'AUD',title:'WIP: "Sunrise Protocol"',desc:'Synth pads over acoustic loop.',dur:'1:47',imp:.65,likes:97},
+  {d:5,h:19,t:'play',icon:'🎸',type:'AUD',title:'Jazz: "Autumn Leaves"',desc:'Chord melody — bridge section nailed.',dur:'4:52',imp:.7,likes:178},
+  {d:5,h:7,t:'life',icon:'☀️',type:'IMG',title:'Morning routine',desc:'Practice + hot chocolate.',dur:null,imp:.15,likes:56},
+  {d:6,h:21,t:'compose',icon:'✍️',type:'TXT',title:'Lyrics: "Digital Citizen"',desc:'Identity in virtual spaces. First verse.',dur:null,imp:.4,likes:67},
+  {d:7,h:18,t:'play',icon:'🎸',type:'VID',title:'Rasgueado drill',desc:'Triplet at increasing BPM.',dur:'4:15',imp:.55,likes:134},
+  {d:7,h:12,t:'english',icon:'🌍',type:'VID',title:'Q&A: How I started',desc:'Fan questions in English.',dur:'3:45',imp:.6,likes:245},
+  {d:8,h:15,t:'life',icon:'📷',type:'IMG',title:'New gear day!',desc:'Audio interface unboxing.',dur:null,imp:.5,likes:189},
+  {d:8,h:11,t:'compose',icon:'🎹',type:'AUD',title:'Sketch: "Neon Garden"',desc:'Lo-fi Rhodes + tape hiss.',dur:'1:12',imp:.35,likes:41},
+  {d:9,h:8,t:'play',icon:'🎸',type:'VID',title:'Blues scale workout',desc:'Pentatonic phrasing.',dur:'2:30',imp:.25,likes:52},
+  {d:11,h:17,t:'play',icon:'🎸',type:'AUD',title:'Fingerpicking exercise',desc:'Travis picking 120 BPM.',dur:'5:10',imp:.2,likes:38},
+  {d:11,h:13,t:'life',icon:'🏫',type:'IMG',title:'School festival',desc:'Decorating the classroom.',dur:null,imp:.25,likes:73},
+  {d:13,h:20,t:'compose',icon:'🎧',type:'AUD',title:'Beat tape vol.3',desc:'Unused beats collection.',dur:'6:22',imp:.55,likes:112},
+  {d:13,h:10,t:'english',icon:'📖',type:'TXT',title:'English diary #5',desc:'Favorite guitar players.',dur:null,imp:.2,likes:29},
+  {d:15,h:21,t:'play',icon:'🔥',type:'VID',title:'Live at open mic',desc:'First "Sunrise Protocol" performance. Crowd went wild. Best night of my life.',dur:'7:44',imp:1.0,likes:891},
+  {d:17,h:12,t:'life',icon:'🎂',type:'IMG',title:'Birthday!',desc:'Thanks for all the messages!',dur:null,imp:.6,likes:412},
+  {d:19,h:16,t:'compose',icon:'💻',type:'AUD',title:'Demo: "Glass Ocean"',desc:'Ambient guitar + granular synth.',dur:'2:58',imp:.65,likes:87},
+  {d:19,h:10,t:'play',icon:'🎸',type:'VID',title:'Recuerdos de la Alhambra',desc:'Tremolo section. Beautiful and brutal.',dur:'5:30',imp:.7,likes:267},
+  {d:21,h:14,t:'english',icon:'🌍',type:'VID',title:'Studio tour',desc:'Home studio for international fans.',dur:'4:15',imp:.55,likes:198},
+  {d:24,h:19,t:'play',icon:'🎸',type:'AUD',title:'Improv session',desc:'Looper + alternate tunings.',dur:'9:10',imp:.5,likes:76},
+  {d:24,h:11,t:'compose',icon:'📝',type:'TXT',title:'EP structure',desc:'Mapping sections for the release.',dur:null,imp:.2,likes:19},
+  {d:27,h:15,t:'play',icon:'🔥',type:'VID',title:'Flamenco × beatbox',desc:'Two worlds colliding. Wild experiment that worked beautifully.',dur:'6:12',imp:.95,likes:534},
+  {d:27,h:9,t:'life',icon:'✈️',type:'IMG',title:'Travel day',desc:'Off to a music workshop.',dur:null,imp:.3,likes:91},
+];
+
+const state={solo:null,muted:new Set()};
+const SPINE_W=36;
+
+// Seeded RNG from string
+function mkRng(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return()=>{h=(h*16807)%2147483647;return(h&0x7fffffff)/0x7fffffff;};}
+
+function drawThumb(cv,item,w,h){
+  cv.width=w*2;cv.height=h*2;
+  const ctx=cv.getContext('2d'),cw=cv.width,ch=cv.height;
+  const hex=TC[item.t].c.replace('#','');
+  const cr=parseInt(hex.substring(0,2),16),cg=parseInt(hex.substring(2,4),16),cb=parseInt(hex.substring(4,6),16);
+  const rng=mkRng(item.title+item.d);
+
+  ctx.fillStyle=`rgb(${14+rng()*8|0},${14+rng()*8|0},${18+rng()*8|0})`;
+  ctx.fillRect(0,0,cw,ch);
+
+  for(let i=0;i<4;i++){
+    const g=ctx.createRadialGradient(cw*(.15+rng()*.7),ch*(.15+rng()*.7),0,cw*.5,ch*.5,cw*(.3+rng()*.5));
+    g.addColorStop(0,`rgba(${cr},${cg},${cb},${.12+rng()*.2})`);
+    g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.fillRect(0,0,cw,ch);
+  }
+
+  for(let i=0;i<6+rng()*8;i++){
+    ctx.save();ctx.globalAlpha=.03+rng()*.1;
+    ctx.fillStyle=`rgb(${cr+rng()*50-25|0},${cg+rng()*50-25|0},${cb+rng()*50-25|0})`;
+    ctx.translate(rng()*cw,rng()*ch);ctx.rotate(rng()*Math.PI*2);
+    ctx.beginPath();
+    const s=8+rng()*50;
+    rng()>.4?ctx.ellipse(0,0,s,s*(.4+rng()*.6),0,0,Math.PI*2):ctx.roundRect(-s/2,-s/2,s,s*(.5+rng()),3);
+    ctx.fill();ctx.restore();
+  }
+
+  const id=ctx.getImageData(0,0,cw,ch),dd=id.data;
+  for(let i=0;i<dd.length;i+=4){const n=(rng()-.5)*14;dd[i]+=n;dd[i+1]+=n;dd[i+2]+=n;}
+  ctx.putImageData(id,0,0);
+}
+
+// Compute item visual size from importance + likes
+function itemSize(imp, likes){
+  // Base from importance (0-1), boosted by likes
+  const likeBoost = Math.min(likes / 500, 1) * 0.3;
+  const score = Math.min(imp + likeBoost, 1.0);
+  // Map to pixel size range: min 44, max 160
+  const size = 44 + score * 116;
+  return Math.round(size);
+}
+
+function buildChips(){
+  const el=document.getElementById('chips');el.innerHTML='';
+  TK.forEach(t=>{
+    const c=document.createElement('div');c.className='chip';c.dataset.track=t;
+    c.style.setProperty('--cc',TC[t].c);c.style.setProperty('--cg',TC[t].g+'0.35)');
+    c.innerHTML=`<span class="d" style="background:${TC[t].c}"></span>${TN[t]}
+      <button class="sb" data-t="${t}" onclick="event.stopPropagation();toggleSolo('${t}')">S</button>
+      <button class="mb" data-t="${t}" onclick="event.stopPropagation();toggleMute('${t}')">M</button>`;
+    el.appendChild(c);
+  });
+}
+
+function layout(){
+  const canvas=document.getElementById('canvas');
+  const spine=document.getElementById('spine');
+  canvas.innerHTML='';
+
+  // Sort: oldest first (highest d, lowest h) → newest last
+  const sorted=[...DATA].sort((a,b)=> (b.d-a.d) || (a.h-b.h));
+
+  // Group by day to compute vertical positions
+  // Each day gets vertical space proportional to its content density
+  const dayMap={};
+  sorted.forEach(it=>{if(!dayMap[it.d])dayMap[it.d]=[];dayMap[it.d].push(it);});
+  const dayKeys=Object.keys(dayMap).map(Number).sort((a,b)=>b-a); // oldest first
+
+  // Compute y positions: accumulate, compress empty days
+  const PX_PER_ACTIVE_DAY = 140; // base height for a day with content
+  const PX_BETWEEN = 20; // compressed gap for skipped days
+  let dayY = {}; // dayKey -> {top, bottom}
+  let y = 20;
+
+  for(let i=0;i<dayKeys.length;i++){
+    const dk = dayKeys[i];
+    // Check gap from previous day
+    if(i>0){
+      const gap = dayKeys[i-1] - dk;
+      if(gap>1) y += PX_BETWEEN; // compressed gap
+    }
+
+    const items = dayMap[dk];
+    // Height scales with number of items and max importance
+    const maxImp = Math.max(...items.map(it=>it.imp));
+    const density = items.length;
+    const dayHeight = Math.max(PX_PER_ACTIVE_DAY, density * 60 + maxImp * 40);
+
+    dayY[dk] = { top:y, height:dayHeight };
+    y += dayHeight;
+  }
+
+  const totalHeight = y + 40;
+  canvas.style.height = totalHeight + 'px';
+  spine.style.height = totalHeight + 'px';
+
+  // Spine date marks
+  const existingMarks = spine.querySelectorAll('.spine-mark');
+  existingMarks.forEach(m=>m.remove());
+  const today=new Date();
+
+  dayKeys.forEach(dk=>{
+    const info = dayY[dk];
+    const d=new Date(today);d.setDate(today.getDate()-dk);
+    const mark=document.createElement('div');
+    mark.className='spine-mark'+(dk===0?' today':'');
+    mark.style.top=(info.top+10)+'px';
+    mark.innerHTML=`<span class="dy">${d.getDate()}</span><span class="mo">${d.toLocaleString('en',{month:'short'})}</span>`;
+    if(dk===0) mark.innerHTML+='<div class="now-dot"></div>';
+    spine.appendChild(mark);
+  });
+
+  // Place items with overlap avoidance
+  const canvasW = canvas.offsetWidth || (window.innerWidth - SPINE_W);
+  const rng = mkRng('layout-seed-42');
+  const placed = []; // {x, y, w, h} of placed items for collision check
+
+  function overlaps(x, y, w, h) {
+    const pad = 6;
+    for (const p of placed) {
+      if (x < p.x + p.w + pad && x + w + pad > p.x &&
+          y < p.y + p.h + pad && y + h + pad > p.y) return true;
+    }
+    return false;
+  }
+
+  sorted.forEach(item=>{
+    const dInfo = dayY[item.d];
+    if(!dInfo) return;
+
+    const sz = itemSize(item.imp, item.likes);
+    const isWide = sz > 100;
+    const w = isWide ? Math.min(sz * 1.4, canvasW - 16) : sz;
+    const h = isWide ? sz * 0.75 : sz;
+
+    // Y: within the day, position by hour
+    const hourFrac = item.h / 24;
+    const yBase = dInfo.top + hourFrac * (dInfo.height - h);
+
+    // X: spread across full width, no center bias
+    // Try several random positions and pick the first non-overlapping one
+    let x;
+    const margin = 6;
+    let found = false;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const xCand = margin + rng() * (canvasW - w - margin * 2);
+      if (!overlaps(xCand, yBase, w, h)) {
+        x = xCand;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      // Fallback: just use the random position
+      x = margin + rng() * (canvasW - w - margin * 2);
+    }
+    placed.push({ x, y: yBase, w, h });
+
+    const el = document.createElement('div');
+    el.className = 'it' + (item.likes > 200 ? ' has-bloom' : '');
+    el.dataset.t = item.t;
+    el.style.cssText = `left:${x}px;top:${yBase}px;width:${w}px;`;
+    el.onclick = ()=>openEx(item);
+
+    // Bloom glow for popular items
+    if(item.likes > 200){
+      const bloomAlpha = Math.min((item.likes - 200) / 600, 0.5);
+      const bloom = document.createElement('div');
+      bloom.className = 'bloom';
+      bloom.style.boxShadow = `0 0 ${20+item.likes/30}px ${TC[item.t].g}${bloomAlpha})`;
+      el.appendChild(bloom);
+    }
+
+    // Shadow scales with importance
+    const shadowAlpha = 0.2 + item.imp * 0.3;
+    el.style.boxShadow = `0 ${2+item.imp*4}px ${8+item.imp*16}px rgba(0,0,0,${shadowAlpha})`;
+
+    // Media
+    const media = document.createElement('div');
+    media.className = 'it-media';
+    media.style.height = (isWide ? h - (sz > 80 ? 32 : 0) : h - (sz > 70 ? 28 : 0)) + 'px';
+
+    const cv = document.createElement('canvas');
+    drawThumb(cv, item, w, h);
+    cv.style.cssText='width:100%;height:100%;display:block;';
+    media.appendChild(cv);
+
+    const icon = document.createElement('div');
+    icon.className='it-icon';
+    if(sz<60){icon.style.width='14px';icon.style.height='14px';icon.style.fontSize='8px';}
+    icon.textContent=item.icon;
+    media.appendChild(icon);
+
+    if(item.dur){
+      const dur=document.createElement('div');dur.className='it-dur';
+      if(sz<60)dur.style.fontSize='6px';
+      dur.textContent=item.dur;media.appendChild(dur);
+    }
+
+    // Likes indicator
+    if(item.likes>50){
+      const lk=document.createElement('div');lk.className='it-likes';
+      lk.innerHTML=`<span class="heart">♥</span>${item.likes>=1000?(item.likes/1000).toFixed(1)+'k':item.likes}`;
+      if(sz<60){lk.style.fontSize='6px';lk.style.padding='1px 3px';}
+      media.appendChild(lk);
+    }
+
+    el.appendChild(media);
+
+    // Info strip (only for larger items)
+    if(sz > 70){
+      const info=document.createElement('div');info.className='it-info';
+      info.innerHTML=`<div class="it-info-track" style="color:${TC[item.t].c}">${TN[item.t]}</div><div class="it-info-t">${item.title}</div>`;
+      el.appendChild(info);
+    }
+
+    canvas.appendChild(el);
+  });
+}
+
+function toggleSolo(t){state.solo=state.solo===t?null:t;state.muted.delete(t);updateVis();}
+function toggleMute(t){if(state.solo===t)state.solo=null;state.muted.has(t)?state.muted.delete(t):state.muted.add(t);updateVis();}
+function updateVis(){
+  TK.forEach(t=>{
+    const off=state.muted.has(t)||(state.solo&&state.solo!==t);
+    document.querySelectorAll(`.it[data-t="${t}"]`).forEach(e=>e.classList.toggle('hidden',off));
+    document.querySelectorAll(`.chip[data-track="${t}"]`).forEach(e=>{e.classList.toggle('muted',off);e.classList.toggle('solo',state.solo===t);});
+    document.querySelectorAll(`.sb[data-t="${t}"]`).forEach(e=>e.classList.toggle('on',state.solo===t));
+    document.querySelectorAll(`.mb[data-t="${t}"]`).forEach(e=>e.classList.toggle('on',state.muted.has(t)));
+  });
+}
+
+function openEx(item){
+  const c=TC[item.t];
+  const tag=document.getElementById('exTag');
+  tag.textContent=TN[item.t].toUpperCase();
+  tag.style.background=c.g+'0.35)';tag.style.color=c.c;
+  document.getElementById('exT').textContent=item.title;
+  document.getElementById('exDe').textContent=item.desc;
+  const de=document.getElementById('exD');de.textContent=item.dur||'';de.style.display=item.dur?'block':'none';
+  // Likes
+  document.getElementById('exLH').textContent='♥';
+  document.getElementById('exLC').textContent=item.likes+' likes';
+  const d=new Date();d.setDate(d.getDate()-item.d);
+  document.getElementById('exMe').textContent=d.toLocaleDateString('en',{month:'short',day:'numeric'})+' · '+item.type+(item.dur?' · '+item.dur:'');
+  const m=document.getElementById('exM');
+  let cv=m.querySelector('canvas');
+  if(!cv){cv=document.createElement('canvas');m.insertBefore(cv,m.firstChild);}
+  drawThumb(cv,item,400,225);cv.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:block;';
+  document.getElementById('ov').classList.add('vis');
+}
+function closeEx(){document.getElementById('ov').classList.remove('vis');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeEx();});
+
+buildChips();
+layout();
+// Scroll to bottom (today)
+window.scrollTo(0,document.body.scrollHeight);
+// Re-layout on resize
+window.addEventListener('resize',()=>{layout();});
+</script>
+</body>
+</html>
