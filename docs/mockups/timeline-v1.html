@@ -7,248 +7,160 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #06060a;
-    --bg2: #0e0e14;
-    --bg3: #17171f;
-    --text: #f0f0f0;
-    --text2: #9a9aa8;
-    --text3: #4a4a58;
-    --border: #1a1a24;
-    --c-play: #f97316;
-    --c-compose: #a855f7;
-    --c-life: #22d3ee;
-    --c-english: #84cc16;
-    --font: 'Outfit', sans-serif;
-    --mono: 'JetBrains Mono', monospace;
+  :root{
+    --bg:#050509;--bg2:#0c0c12;--bg3:#151520;
+    --text:#eee;--text2:#8888a0;--text3:#444460;--border:#1a1a28;
+    --c-play:#f97316;--c-compose:#a78bfa;--c-life:#22d3ee;--c-english:#84cc16;
+    --font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;
   }
-  * { margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent; }
-  body { background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:hidden; }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:hidden}
 
   /* Header */
-  .hdr {
-    position:sticky;top:0;z-index:100;
-    background:rgba(6,6,10,.92);
-    backdrop-filter:blur(24px) saturate(1.4);
-    -webkit-backdrop-filter:blur(24px) saturate(1.4);
-    border-bottom:1px solid var(--border);
-    padding:10px 14px 8px;
-  }
-  .hdr-top { display:flex;align-items:center;justify-content:space-between;margin-bottom:8px; }
-  .artist { font-size:17px;font-weight:600;letter-spacing:-.02em; }
-  .live { display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--text3); }
-  .live-dot { width:5px;height:5px;border-radius:50%;background:#ef4444;animation:p 2s ease-in-out infinite; }
-  @keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+  .hdr{position:sticky;top:0;z-index:100;background:rgba(5,5,9,.94);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border-bottom:1px solid var(--border);padding:10px 14px 8px}
+  .hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .artist{font-size:17px;font-weight:600;letter-spacing:-.02em}
+  .live{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--text3)}
+  .live-dot{width:5px;height:5px;border-radius:50%;background:#ef4444;animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .chips{display:flex;gap:4px;flex-wrap:wrap}
+  .chip{display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:16px;border:1px solid var(--border);background:var(--bg2);font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;user-select:none;white-space:nowrap}
+  .chip .d{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .chip.muted{opacity:.2}.chip.solo{border-color:var(--cc);box-shadow:0 0 10px var(--cg)}
+  .chip .sb,.chip .mb{font-family:var(--mono);font-size:7px;font-weight:700;width:15px;height:15px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--text3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .12s}
+  .chip .sb.on{background:#facc15;color:#000;border-color:#facc15}
+  .chip .mb.on{background:#ef4444;color:#fff;border-color:#ef4444}
 
-  .chips { display:flex;gap:4px;flex-wrap:wrap; }
-  .chip {
-    display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:16px;
-    border:1px solid var(--border);background:var(--bg2);font-size:11px;font-weight:500;
-    cursor:pointer;transition:all .2s;user-select:none;white-space:nowrap;
-  }
-  .chip .d { width:7px;height:7px;border-radius:50%;flex-shrink:0; }
-  .chip.muted { opacity:.2; }
-  .chip.solo { border-color:var(--cc);box-shadow:0 0 10px var(--cg); }
-  .chip .sb,.chip .mb {
-    font-family:var(--mono);font-size:7px;font-weight:700;width:15px;height:15px;border-radius:3px;
-    border:1px solid var(--border);background:transparent;color:var(--text3);
-    display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .12s;
-  }
-  .chip .sb.on { background:#facc15;color:#000;border-color:#facc15; }
-  .chip .mb.on { background:#ef4444;color:#fff;border-color:#ef4444; }
+  /* Timeline */
+  .tl{position:relative;display:flex;padding-bottom:90px;z-index:1}
+  .spine{width:36px;flex-shrink:0;position:relative}
+  .spine-line{position:absolute;left:50%;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,rgba(239,68,68,0.3) 0%,var(--border) 8%,var(--border) 100%)}
+  .spine-mark{position:absolute;left:0;width:100%;display:flex;flex-direction:column;align-items:center;transform:translateY(-50%);z-index:2}
+  .spine-mark .dy{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);line-height:1;background:var(--bg);padding:2px 0}
+  .spine-mark .mo{font-family:var(--mono);font-size:7px;color:var(--text3);letter-spacing:.05em;text-transform:uppercase}
+  .spine-mark.today .dy{color:#ef4444}
+  .spine-mark .now-dot{width:7px;height:7px;border-radius:50%;background:#ef4444;margin-top:3px;animation:pulse 2s ease-in-out infinite}
+  .canvas{flex:1;position:relative;min-height:100px}
 
-  /* Timeline area */
-  .tl {
-    position:relative;
-    display:flex;
-    padding-bottom:90px;
-  }
+  /* Synapse SVG */
+  .syn-layer{position:absolute;inset:0;pointer-events:none;z-index:1}
 
-  /* Date spine */
-  .spine {
-    width:36px;
-    flex-shrink:0;
-    position:relative;
+  /* Item node */
+  .node{
+    position:absolute;z-index:3;cursor:pointer;
+    transition:transform .2s ease,box-shadow .2s ease,opacity .3s;
+    overflow:visible;
   }
+  .node:hover{transform:scale(1.05);z-index:50}
+  .node:active{transform:scale(0.97)}
+  .node.hidden{opacity:0;pointer-events:none;transform:scale(0.8)}
 
-  .spine-line {
-    position:absolute;
-    left:50%;
-    top:0;bottom:0;
-    width:1px;
-    background:linear-gradient(to bottom, var(--border) 0%, rgba(239,68,68,0.4) 100%);
-  }
-
-  .spine-mark {
-    position:absolute;
-    left:0;width:100%;
-    display:flex;flex-direction:column;align-items:center;
-    transform:translateY(-50%);
-    z-index:2;
-  }
-
-  .spine-mark .dy {
-    font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);line-height:1;
-    background:var(--bg);padding:2px 0;
-  }
-  .spine-mark .mo {
-    font-family:var(--mono);font-size:7px;color:var(--text3);letter-spacing:.05em;text-transform:uppercase;
-  }
-  .spine-mark.today .dy { color:#ef4444; }
-  .spine-mark .now-dot {
-    width:7px;height:7px;border-radius:50%;background:#ef4444;
-    margin-top:3px;animation:p 2s ease-in-out infinite;
-  }
-
-  /* Canvas area for items */
-  .canvas {
-    flex:1;
-    position:relative;
-    min-height:100px;
-  }
-
-  /* Item */
-  .it {
-    position:absolute;
-    border-radius:10px;
-    overflow:hidden;
-    cursor:pointer;
+  .node-card{
+    position:relative;overflow:hidden;
     background:var(--bg2);
-    transition:transform .18s ease,box-shadow .18s ease,opacity .25s;
-    border:1px solid rgba(255,255,255,0.04);
-  }
-  .it:hover { transform:scale(1.06);z-index:50; }
-  .it:active { transform:scale(0.97); }
-  .it.hidden { opacity:0;pointer-events:none;transform:scale(0.8); }
-
-  /* Track accent glow (left edge) */
-  .it::after {
-    content:'';position:absolute;top:0;bottom:0;left:0;width:3px;z-index:5;
-  }
-  .it[data-t="play"]::after    { background:var(--c-play);    box-shadow:0 0 8px var(--c-play); }
-  .it[data-t="compose"]::after { background:var(--c-compose); box-shadow:0 0 8px var(--c-compose); }
-  .it[data-t="life"]::after    { background:var(--c-life);    box-shadow:0 0 8px var(--c-life); }
-  .it[data-t="english"]::after { background:var(--c-english); box-shadow:0 0 8px var(--c-english); }
-
-  .it-media { position:relative;overflow:hidden; }
-  .it-media canvas { display:block;width:100%;height:100%; }
-
-  .it-icon {
-    position:absolute;top:4px;left:7px;
-    width:18px;height:18px;border-radius:5px;
-    background:rgba(0,0,0,.65);backdrop-filter:blur(4px);
-    display:flex;align-items:center;justify-content:center;
-    font-size:10px;line-height:1;z-index:6;
+    border:1px solid rgba(255,255,255,.06);
   }
 
-  .it-dur {
-    position:absolute;bottom:3px;right:4px;
-    font-family:var(--mono);font-size:7px;font-weight:600;
-    background:rgba(0,0,0,.7);color:var(--text);
-    padding:1px 4px;border-radius:3px;z-index:6;
-  }
+  /* Track-specific border radius: organic variation without blob ugliness */
+  .node[data-t="play"] .node-card{border-radius:16px 8px 16px 8px}
+  .node[data-t="compose"] .node-card{border-radius:8px 16px 8px 16px}
+  .node[data-t="life"] .node-card{border-radius:20px}
+  .node[data-t="english"] .node-card{border-radius:12px}
 
-  /* Likes bloom effect */
-  .it .bloom {
-    position:absolute;inset:-4px;border-radius:14px;
+  /* Glow aura (outside the card, not clipping content) */
+  .node-aura{
+    position:absolute;inset:-3px;border-radius:inherit;
     pointer-events:none;z-index:-1;
-    opacity:0;
-    transition:opacity .3s;
+    opacity:0;transition:opacity .3s;
   }
-  .it.has-bloom .bloom { opacity:1; }
+  .node.glow .node-aura{opacity:1}
 
-  /* Title overlay on bigger items */
-  .it-info {
-    padding:5px 7px;background:var(--bg2);
-  }
-  .it-info-t {
-    font-size:10px;font-weight:500;line-height:1.25;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-  }
-  .it-info-track {
-    font-family:var(--mono);font-size:6px;font-weight:600;
-    letter-spacing:.06em;text-transform:uppercase;opacity:.5;margin-bottom:1px;
-  }
+  /* Media area */
+  .node-media{position:relative;overflow:hidden;border-radius:inherit;border-bottom-left-radius:0;border-bottom-right-radius:0}
+  .node-media canvas{display:block;width:100%;height:100%}
 
-  /* Likes counter */
-  .it-likes {
-    position:absolute;top:4px;right:4px;z-index:6;
+  .node-icon{
+    position:absolute;top:5px;left:6px;z-index:6;
+    width:20px;height:20px;border-radius:50%;
+    background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;line-height:1;
+    border:1px solid rgba(255,255,255,.08);
+  }
+  .node-sm .node-icon{width:16px;height:16px;font-size:9px}
+
+  .node-dur{
+    position:absolute;bottom:4px;right:5px;z-index:6;
     font-family:var(--mono);font-size:7px;font-weight:600;
-    background:rgba(0,0,0,.65);backdrop-filter:blur(4px);
-    color:var(--text2);padding:2px 5px;border-radius:4px;
+    background:rgba(0,0,0,.75);color:var(--text);padding:2px 5px;border-radius:4px;
+  }
+  .node-sm .node-dur{font-size:6px;padding:1px 3px}
+
+  .node-comments{
+    position:absolute;top:5px;right:5px;z-index:6;
+    font-family:var(--mono);font-size:7px;font-weight:600;
+    background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+    color:var(--text2);padding:2px 5px;border-radius:8px;
     display:flex;align-items:center;gap:2px;
+    border:1px solid rgba(255,255,255,.06);
   }
-  .it-likes .heart { color:#ef4444;font-size:8px; }
+  .node-sm .node-comments{font-size:6px;padding:1px 3px}
 
-  /* Overlay */
-  .ov {
-    position:fixed;inset:0;background:rgba(0,0,0,.92);
-    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-    z-index:500;display:none;align-items:flex-end;justify-content:center;
+  /* Info bar (below media) */
+  .node-info{padding:5px 7px;background:var(--bg2)}
+  .node-info-track{font-family:var(--mono);font-size:6px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.6;margin-bottom:1px}
+  .node-info-title{font-size:10px;font-weight:500;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+  /* Reaction pills (below card, not clipped) */
+  .node-reacts{
+    display:flex;gap:2px;justify-content:center;
+    margin-top:4px;white-space:nowrap;
   }
-  .ov.vis { display:flex; }
-  .ex {
-    background:var(--bg2);border-radius:20px 20px 0 0;
-    width:100%;max-width:420px;max-height:85dvh;overflow-y:auto;
-    animation:su .3s ease;
+  .rpill{
+    display:flex;align-items:center;gap:1px;
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:10px;padding:2px 5px 2px 3px;
+    font-size:10px;line-height:1;
   }
+  .rpill .rc{font-family:var(--mono);font-size:7px;font-weight:600;color:var(--text2)}
+  .node-sm .rpill{font-size:8px;padding:1px 3px 1px 2px}
+  .node-sm .rpill .rc{font-size:6px}
+
+  /* Expanded overlay */
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);z-index:500;display:none;align-items:flex-end;justify-content:center}
+  .ov.vis{display:flex}
+  .ex{background:var(--bg2);border-radius:20px 20px 0 0;width:100%;max-width:420px;max-height:85dvh;overflow-y:auto;animation:su .3s ease}
   @keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
-  .ex-handle { width:36px;height:4px;border-radius:2px;background:var(--text3);margin:10px auto 0; }
-  .ex-media {
-    margin:12px 14px 0;border-radius:12px;overflow:hidden;
-    aspect-ratio:16/9;background:var(--bg3);display:flex;align-items:center;justify-content:center;position:relative;
-  }
-  .ex-media canvas { position:absolute;inset:0;width:100%;height:100%;display:block; }
-  .ex-play {
-    position:relative;z-index:2;width:52px;height:52px;border-radius:50%;
-    background:rgba(255,255,255,.12);backdrop-filter:blur(8px);
-    display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;
-    border:1px solid rgba(255,255,255,.15);
-  }
-  .ex-dur { position:absolute;bottom:8px;right:10px;z-index:2;font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.7);padding:3px 8px;border-radius:4px;color:var(--text); }
-  .ex-body { padding:14px 16px 36px; }
-  .ex-tag { font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:10px; }
-  .ex-title { font-size:19px;font-weight:600;line-height:1.35;margin-bottom:8px; }
-  .ex-desc { font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px; }
-  .ex-likes-row { display:flex;align-items:center;gap:6px;margin-bottom:12px; }
-  .ex-likes-hearts { color:#ef4444;font-size:14px; }
-  .ex-likes-count { font-family:var(--mono);font-size:12px;color:var(--text2); }
-  .ex-meta { font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;gap:12px; }
+  .ex-handle{width:36px;height:4px;border-radius:2px;background:var(--text3);margin:10px auto 0}
+  .ex-media{margin:12px 14px 0;border-radius:12px;overflow:hidden;aspect-ratio:16/9;background:var(--bg3);display:flex;align-items:center;justify-content:center;position:relative}
+  .ex-media canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .ex-play{position:relative;z-index:2;width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;border:1px solid rgba(255,255,255,.15)}
+  .ex-dur{position:absolute;bottom:8px;right:10px;z-index:2;font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.7);padding:3px 8px;border-radius:4px;color:var(--text)}
+  .ex-body{padding:14px 16px 36px}
+  .ex-tag{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:4px;display:inline-block;margin-bottom:10px}
+  .ex-title{font-size:19px;font-weight:600;line-height:1.35;margin-bottom:8px}
+  .ex-desc{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px}
+  .ex-reacts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .ex-rpill{display:flex;align-items:center;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:4px 10px 4px 6px;font-size:14px}
+  .ex-rpill .erc{font-family:var(--mono);font-size:11px;color:var(--text2)}
+  .ex-stats{font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;gap:12px;margin-bottom:8px}
+  .ex-meta{font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;gap:12px}
 
-  /* Bottom nav */
-  .bn {
-    position:fixed;bottom:0;left:0;right:0;
-    background:rgba(6,6,10,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-    border-top:1px solid var(--border);display:flex;justify-content:space-around;
-    padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:100;
-  }
-  .ni { display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--text3);cursor:pointer;padding:4px 12px; }
-  .ni.a { color:var(--text); }
-  .ni svg { width:20px;height:20px;stroke:currentColor;stroke-width:1.5;fill:none; }
-
-  ::-webkit-scrollbar { width:0; }
-
-  body::before {
-    content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-    background:
-      radial-gradient(ellipse 500px 400px at 15% 85%, rgba(249,115,22,.025), transparent),
-      radial-gradient(ellipse 400px 500px at 85% 15%, rgba(168,85,247,.025), transparent),
-      radial-gradient(ellipse 600px 300px at 50% 50%, rgba(34,211,238,.015), transparent);
-  }
-  .tl { position:relative;z-index:1; }
+  .bn{position:fixed;bottom:0;left:0;right:0;background:rgba(5,5,9,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:100}
+  .ni{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--text3);cursor:pointer;padding:4px 12px}
+  .ni.a{color:var(--text)}.ni svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.5;fill:none}
+  ::-webkit-scrollbar{width:0}
 </style>
 </head>
 <body>
 <div class="hdr">
-  <div class="hdr-top">
-    <div class="artist">Artist Name</div>
-    <div class="live"><div class="live-dot"></div>LIVE</div>
-  </div>
+  <div class="hdr-top"><div class="artist">Artist Name</div><div class="live"><div class="live-dot"></div>LIVE</div></div>
   <div class="chips" id="chips"></div>
 </div>
-<div class="tl" id="tl">
+<div class="tl">
   <div class="spine" id="spine"><div class="spine-line"></div></div>
-  <div class="canvas" id="canvas"></div>
+  <div class="canvas" id="canvas"><svg class="syn-layer" id="syn"></svg></div>
 </div>
 <div class="bn">
   <div class="ni a"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Timeline</div>
@@ -263,7 +175,8 @@
       <div class="ex-tag" id="exTag"></div>
       <div class="ex-title" id="exT"></div>
       <div class="ex-desc" id="exDe"></div>
-      <div class="ex-likes-row" id="exLR"><span class="ex-likes-hearts" id="exLH"></span><span class="ex-likes-count" id="exLC"></span></div>
+      <div class="ex-reacts" id="exR"></div>
+      <div class="ex-stats" id="exS"></div>
       <div class="ex-meta" id="exMe"></div>
     </div>
   </div>
@@ -272,281 +185,354 @@
 const TK=['play','compose','life','english'];
 const TN={play:'Play',compose:'Compose',life:'Life',english:'English'};
 const TC={
-  play:{c:'#f97316',g:'rgba(249,115,22,'},
-  compose:{c:'#a855f7',g:'rgba(168,85,247,'},
-  life:{c:'#22d3ee',g:'rgba(34,211,238,'},
-  english:{c:'#84cc16',g:'rgba(132,204,22,'},
+  play:{c:'#f97316',rgb:'249,115,22'},
+  compose:{c:'#a78bfa',rgb:'167,139,250'},
+  life:{c:'#22d3ee',rgb:'34,211,238'},
+  english:{c:'#84cc16',rgb:'132,204,22'},
 };
 
-// importance: 0.0-1.0 (artist sets), likes: number of fan likes
 const DATA=[
-  {d:0,h:14.5,t:'play',icon:'🎸',type:'VID',title:'Flamenco studio session',desc:'New rasgueado pattern — finally nailing the triplet feel. Recording went smooth. The room acoustic was perfect.',dur:'3:24',imp:1.0,likes:342},
-  {d:0,h:11,t:'compose',icon:'💻',type:'AUD',title:'Final mix: "Sunrise Protocol"',desc:'Master bus done. Stereo wide and clean. Ready for release?',dur:'3:42',imp:.8,likes:156},
-  {d:0,h:8,t:'life',icon:'☀️',type:'IMG',title:'Studio morning',desc:'Coffee and cables.',dur:null,imp:.2,likes:45},
-  {d:1,h:20,t:'english',icon:'🌍',type:'VID',title:'1K followers — thank you!',desc:'Special message for international fans. What\'s coming next.',dur:'2:11',imp:.9,likes:523},
-  {d:1,h:16,t:'life',icon:'🎤',type:'VID',title:'Talent show rehearsal',desc:'Nervous but excited!',dur:'1:55',imp:.5,likes:89},
-  {d:1,h:10,t:'compose',icon:'📝',type:'TXT',title:'Mix notes',desc:'EQ and reverb chain decisions.',dur:null,imp:.15,likes:12},
-  {d:2,h:9,t:'play',icon:'🎸',type:'VID',title:'Fingerstyle cover',desc:'New harmonics technique on an acoustic classic.',dur:'3:24',imp:.6,likes:201},
-  {d:3,h:17,t:'play',icon:'🔥',type:'VID',title:'Blues jam with friends',desc:'Someone brought a harmonica! Pure magic. We played for hours and forgot to eat.',dur:'8:33',imp:1.0,likes:687},
-  {d:3,h:15,t:'life',icon:'🎒',type:'IMG',title:'Park hangout',desc:'After the jam.',dur:null,imp:.1,likes:34},
-  {d:3,h:12,t:'compose',icon:'💻',type:'AUD',title:'Sidechain experiment',desc:'Pumping bass on "Sunrise Protocol".',dur:'0:48',imp:.3,likes:28},
-  {d:4,h:10,t:'compose',icon:'💻',type:'AUD',title:'WIP: "Sunrise Protocol"',desc:'Synth pads over acoustic loop.',dur:'1:47',imp:.65,likes:97},
-  {d:5,h:19,t:'play',icon:'🎸',type:'AUD',title:'Jazz: "Autumn Leaves"',desc:'Chord melody — bridge section nailed.',dur:'4:52',imp:.7,likes:178},
-  {d:5,h:7,t:'life',icon:'☀️',type:'IMG',title:'Morning routine',desc:'Practice + hot chocolate.',dur:null,imp:.15,likes:56},
-  {d:6,h:21,t:'compose',icon:'✍️',type:'TXT',title:'Lyrics: "Digital Citizen"',desc:'Identity in virtual spaces. First verse.',dur:null,imp:.4,likes:67},
-  {d:7,h:18,t:'play',icon:'🎸',type:'VID',title:'Rasgueado drill',desc:'Triplet at increasing BPM.',dur:'4:15',imp:.55,likes:134},
-  {d:7,h:12,t:'english',icon:'🌍',type:'VID',title:'Q&A: How I started',desc:'Fan questions in English.',dur:'3:45',imp:.6,likes:245},
-  {d:8,h:15,t:'life',icon:'📷',type:'IMG',title:'New gear day!',desc:'Audio interface unboxing.',dur:null,imp:.5,likes:189},
-  {d:8,h:11,t:'compose',icon:'🎹',type:'AUD',title:'Sketch: "Neon Garden"',desc:'Lo-fi Rhodes + tape hiss.',dur:'1:12',imp:.35,likes:41},
-  {d:9,h:8,t:'play',icon:'🎸',type:'VID',title:'Blues scale workout',desc:'Pentatonic phrasing.',dur:'2:30',imp:.25,likes:52},
-  {d:11,h:17,t:'play',icon:'🎸',type:'AUD',title:'Fingerpicking exercise',desc:'Travis picking 120 BPM.',dur:'5:10',imp:.2,likes:38},
-  {d:11,h:13,t:'life',icon:'🏫',type:'IMG',title:'School festival',desc:'Decorating the classroom.',dur:null,imp:.25,likes:73},
-  {d:13,h:20,t:'compose',icon:'🎧',type:'AUD',title:'Beat tape vol.3',desc:'Unused beats collection.',dur:'6:22',imp:.55,likes:112},
-  {d:13,h:10,t:'english',icon:'📖',type:'TXT',title:'English diary #5',desc:'Favorite guitar players.',dur:null,imp:.2,likes:29},
-  {d:15,h:21,t:'play',icon:'🔥',type:'VID',title:'Live at open mic',desc:'First "Sunrise Protocol" performance. Crowd went wild. Best night of my life.',dur:'7:44',imp:1.0,likes:891},
-  {d:17,h:12,t:'life',icon:'🎂',type:'IMG',title:'Birthday!',desc:'Thanks for all the messages!',dur:null,imp:.6,likes:412},
-  {d:19,h:16,t:'compose',icon:'💻',type:'AUD',title:'Demo: "Glass Ocean"',desc:'Ambient guitar + granular synth.',dur:'2:58',imp:.65,likes:87},
-  {d:19,h:10,t:'play',icon:'🎸',type:'VID',title:'Recuerdos de la Alhambra',desc:'Tremolo section. Beautiful and brutal.',dur:'5:30',imp:.7,likes:267},
-  {d:21,h:14,t:'english',icon:'🌍',type:'VID',title:'Studio tour',desc:'Home studio for international fans.',dur:'4:15',imp:.55,likes:198},
-  {d:24,h:19,t:'play',icon:'🎸',type:'AUD',title:'Improv session',desc:'Looper + alternate tunings.',dur:'9:10',imp:.5,likes:76},
-  {d:24,h:11,t:'compose',icon:'📝',type:'TXT',title:'EP structure',desc:'Mapping sections for the release.',dur:null,imp:.2,likes:19},
-  {d:27,h:15,t:'play',icon:'🔥',type:'VID',title:'Flamenco × beatbox',desc:'Two worlds colliding. Wild experiment that worked beautifully.',dur:'6:12',imp:.95,likes:534},
-  {d:27,h:9,t:'life',icon:'✈️',type:'IMG',title:'Travel day',desc:'Off to a music workshop.',dur:null,imp:.3,likes:91},
+  {d:0,h:14.5,t:'play',icon:'🎸',type:'VID',title:'Flamenco studio session',desc:'New rasgueado pattern — finally nailing the triplet feel.',dur:'3:24',imp:1.0,reacts:{'🔥':187,'❤️':98,'👏':57},comments:42,views:2840},
+  {d:0,h:11,t:'compose',icon:'💻',type:'AUD',title:'Final mix: "Sunrise Protocol"',desc:'Master bus done. Stereo wide and clean.',dur:'3:42',imp:.8,reacts:{'🎧':72,'❤️':51,'✨':33},comments:18,views:1230},
+  {d:0,h:8,t:'life',icon:'☀️',type:'IMG',title:'Studio morning',desc:'Coffee and cables.',dur:null,imp:.2,reacts:{'☕':28,'😊':17},comments:3,views:310},
+  {d:1,h:20,t:'english',icon:'🌍',type:'VID',title:'1K followers — thank you!',desc:'Special message for international fans.',dur:'2:11',imp:.9,reacts:{'❤️':312,'🎉':145,'🙏':66},comments:89,views:4520},
+  {d:1,h:16,t:'life',icon:'🎤',type:'VID',title:'Talent show rehearsal',desc:'Nervous but excited!',dur:'1:55',imp:.5,reacts:{'💪':41,'❤️':32,'😍':16},comments:11,views:670},
+  {d:1,h:10,t:'compose',icon:'📝',type:'TXT',title:'Mix notes',desc:'EQ and reverb chain decisions.',dur:null,imp:.15,reacts:{'📝':8,'👍':4},comments:1,views:95},
+  {d:2,h:9,t:'play',icon:'🎸',type:'VID',title:'Fingerstyle cover',desc:'New harmonics technique.',dur:'3:24',imp:.6,reacts:{'👏':102,'❤️':67,'🎸':32},comments:24,views:1870},
+  {d:3,h:17,t:'play',icon:'🔥',type:'VID',title:'Blues jam with friends',desc:'Someone brought a harmonica! Pure magic.',dur:'8:33',imp:1.0,reacts:{'🔥':389,'❤️':198,'🎵':100},comments:67,views:5230},
+  {d:3,h:15,t:'life',icon:'🎒',type:'IMG',title:'Park hangout',desc:'After the jam.',dur:null,imp:.1,reacts:{'😊':22,'☀️':12},comments:2,views:210},
+  {d:3,h:12,t:'compose',icon:'💻',type:'AUD',title:'Sidechain experiment',desc:'Pumping bass on "Sunrise Protocol".',dur:'0:48',imp:.3,reacts:{'🎧':15,'👍':13},comments:4,views:180},
+  {d:4,h:10,t:'compose',icon:'💻',type:'AUD',title:'WIP: "Sunrise Protocol"',desc:'Synth pads over acoustic loop.',dur:'1:47',imp:.65,reacts:{'✨':48,'❤️':31,'🎵':18},comments:9,views:720},
+  {d:5,h:19,t:'play',icon:'🎸',type:'AUD',title:'Jazz: "Autumn Leaves"',desc:'Chord melody — bridge nailed.',dur:'4:52',imp:.7,reacts:{'👏':89,'❤️':56,'🎸':33},comments:15,views:1340},
+  {d:5,h:7,t:'life',icon:'☀️',type:'IMG',title:'Morning routine',desc:'Practice + hot chocolate.',dur:null,imp:.15,reacts:{'☕':34,'😊':22},comments:5,views:380},
+  {d:6,h:21,t:'compose',icon:'✍️',type:'TXT',title:'Lyrics: "Digital Citizen"',desc:'Identity in virtual spaces.',dur:null,imp:.4,reacts:{'📝':35,'❤️':20,'💡':12},comments:8,views:410},
+  {d:7,h:18,t:'play',icon:'🎸',type:'VID',title:'Rasgueado drill',desc:'Triplet at increasing BPM.',dur:'4:15',imp:.55,reacts:{'🔥':72,'💪':40,'👏':22},comments:10,views:980},
+  {d:7,h:12,t:'english',icon:'🌍',type:'VID',title:'Q&A: How I started',desc:'Fan questions in English.',dur:'3:45',imp:.6,reacts:{'❤️':134,'🙏':67,'😍':44},comments:31,views:2100},
+  {d:8,h:15,t:'life',icon:'📷',type:'IMG',title:'New gear day!',desc:'Audio interface unboxing.',dur:null,imp:.5,reacts:{'😍':98,'🔥':56,'✨':35},comments:22,views:1450},
+  {d:8,h:11,t:'compose',icon:'🎹',type:'AUD',title:'Sketch: "Neon Garden"',desc:'Lo-fi Rhodes + tape hiss.',dur:'1:12',imp:.35,reacts:{'🎧':23,'✨':18},comments:3,views:290},
+  {d:9,h:8,t:'play',icon:'🎸',type:'VID',title:'Blues scale workout',desc:'Pentatonic phrasing.',dur:'2:30',imp:.25,reacts:{'💪':28,'👍':24},comments:4,views:410},
+  {d:11,h:17,t:'play',icon:'🎸',type:'AUD',title:'Fingerpicking exercise',desc:'Travis picking 120 BPM.',dur:'5:10',imp:.2,reacts:{'👍':21,'🎸':17},comments:2,views:250},
+  {d:11,h:13,t:'life',icon:'🏫',type:'IMG',title:'School festival',desc:'Decorating the classroom.',dur:null,imp:.25,reacts:{'😊':42,'❤️':31},comments:7,views:530},
+  {d:13,h:20,t:'compose',icon:'🎧',type:'AUD',title:'Beat tape vol.3',desc:'Unused beats collection.',dur:'6:22',imp:.55,reacts:{'🎧':62,'🔥':33,'❤️':17},comments:12,views:840},
+  {d:13,h:10,t:'english',icon:'📖',type:'TXT',title:'English diary #5',desc:'Favorite guitar players.',dur:null,imp:.2,reacts:{'📝':16,'❤️':13},comments:3,views:190},
+  {d:15,h:21,t:'play',icon:'🔥',type:'VID',title:'Live at open mic',desc:'First "Sunrise Protocol" performance. Best night ever.',dur:'7:44',imp:1.0,reacts:{'🔥':501,'❤️':234,'😭':89,'👏':67},comments:103,views:8920},
+  {d:17,h:12,t:'life',icon:'🎂',type:'IMG',title:'Birthday!',desc:'Thanks for all the messages!',dur:null,imp:.6,reacts:{'🎉':234,'❤️':122,'🎂':56},comments:48,views:3200},
+  {d:19,h:16,t:'compose',icon:'💻',type:'AUD',title:'Demo: "Glass Ocean"',desc:'Ambient guitar + granular synth.',dur:'2:58',imp:.65,reacts:{'✨':45,'❤️':28,'🎧':14},comments:8,views:560},
+  {d:19,h:10,t:'play',icon:'🎸',type:'VID',title:'Recuerdos de la Alhambra',desc:'Tremolo section.',dur:'5:30',imp:.7,reacts:{'👏':142,'❤️':87,'😭':38},comments:29,views:2340},
+  {d:21,h:14,t:'english',icon:'🌍',type:'VID',title:'Studio tour',desc:'Home studio for international fans.',dur:'4:15',imp:.55,reacts:{'😍':108,'❤️':58,'🔥':32},comments:19,views:1680},
+  {d:24,h:19,t:'play',icon:'🎸',type:'AUD',title:'Improv session',desc:'Looper + alternate tunings.',dur:'9:10',imp:.5,reacts:{'🎵':39,'❤️':24,'✨':13},comments:6,views:480},
+  {d:24,h:11,t:'compose',icon:'📝',type:'TXT',title:'EP structure',desc:'Mapping sections for the release.',dur:null,imp:.2,reacts:{'📝':11,'👍':8},comments:2,views:120},
+  {d:27,h:15,t:'play',icon:'🔥',type:'VID',title:'Flamenco × beatbox',desc:'Two worlds colliding beautifully.',dur:'6:12',imp:.95,reacts:{'🔥':298,'❤️':156,'🤯':80},comments:54,views:4670},
+  {d:27,h:9,t:'life',icon:'✈️',type:'IMG',title:'Travel day',desc:'Off to a music workshop.',dur:null,imp:.3,reacts:{'✈️':48,'😊':43},comments:9,views:620},
+  // Dense day: workshop with many posts
+  {d:28,h:9,t:'life',icon:'🎒',type:'IMG',title:'Workshop arrival',desc:'Beautiful venue. Ready to learn!',dur:null,imp:.4,reacts:{'😍':67,'✨':34},comments:8,views:520},
+  {d:28,h:10,t:'play',icon:'🎸',type:'VID',title:'Warm-up with other guitarists',desc:'Meeting amazing players from all over.',dur:'2:15',imp:.6,reacts:{'🔥':89,'❤️':45,'🎸':28},comments:12,views:890},
+  {d:28,h:11.5,t:'english',icon:'🌍',type:'VID',title:'Workshop vlog pt.1',desc:'Showing international fans what a music workshop looks like.',dur:'4:30',imp:.5,reacts:{'😍':56,'❤️':41,'🙏':19},comments:15,views:780},
+  {d:28,h:13,t:'compose',icon:'📝',type:'TXT',title:'New technique notes',desc:'The instructor showed a polyrhythm pattern I never heard of.',dur:null,imp:.35,reacts:{'📝':22,'💡':18},comments:4,views:210},
+  {d:28,h:14.5,t:'play',icon:'🔥',type:'VID',title:'Masterclass performance',desc:'Playing in front of 50 guitarists. Heart was pounding.',dur:'5:45',imp:.95,reacts:{'🔥':234,'❤️':167,'👏':89,'😭':34},comments:45,views:3400},
+  {d:28,h:16,t:'life',icon:'🍕',type:'IMG',title:'Pizza break with new friends',desc:'Everyone sharing music stories over food.',dur:null,imp:.15,reacts:{'😊':38,'🍕':27},comments:5,views:280},
+  {d:28,h:18,t:'compose',icon:'💻',type:'AUD',title:'Collab sketch with workshop mate',desc:'We jammed and recorded a spontaneous idea.',dur:'1:33',imp:.7,reacts:{'✨':78,'❤️':52,'🎵':31},comments:14,views:640},
+  {d:28,h:20,t:'play',icon:'🎸',type:'AUD',title:'Evening jam circle',desc:'All 50 guitarists playing together. Goosebumps.',dur:'12:00',imp:.85,reacts:{'🔥':189,'❤️':134,'😭':67,'🎵':45},comments:38,views:2100},
+  {d:28,h:22,t:'life',icon:'🌙',type:'IMG',title:'Stars from the workshop venue',desc:'Tired but so inspired. Best day ever.',dur:null,imp:.3,reacts:{'✨':56,'❤️':43,'🌙':21},comments:7,views:390},
 ];
 
 const state={solo:null,muted:new Set()};
-const SPINE_W=36;
-
-// Seeded RNG from string
-function mkRng(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return()=>{h=(h*16807)%2147483647;return(h&0x7fffffff)/0x7fffffff;};}
-
-function drawThumb(cv,item,w,h){
-  cv.width=w*2;cv.height=h*2;
-  const ctx=cv.getContext('2d'),cw=cv.width,ch=cv.height;
-  const hex=TC[item.t].c.replace('#','');
-  const cr=parseInt(hex.substring(0,2),16),cg=parseInt(hex.substring(2,4),16),cb=parseInt(hex.substring(4,6),16);
-  const rng=mkRng(item.title+item.d);
-
-  ctx.fillStyle=`rgb(${14+rng()*8|0},${14+rng()*8|0},${18+rng()*8|0})`;
-  ctx.fillRect(0,0,cw,ch);
-
-  for(let i=0;i<4;i++){
-    const g=ctx.createRadialGradient(cw*(.15+rng()*.7),ch*(.15+rng()*.7),0,cw*.5,ch*.5,cw*(.3+rng()*.5));
-    g.addColorStop(0,`rgba(${cr},${cg},${cb},${.12+rng()*.2})`);
-    g.addColorStop(1,'transparent');
-    ctx.fillStyle=g;ctx.fillRect(0,0,cw,ch);
-  }
-
-  for(let i=0;i<6+rng()*8;i++){
-    ctx.save();ctx.globalAlpha=.03+rng()*.1;
-    ctx.fillStyle=`rgb(${cr+rng()*50-25|0},${cg+rng()*50-25|0},${cb+rng()*50-25|0})`;
-    ctx.translate(rng()*cw,rng()*ch);ctx.rotate(rng()*Math.PI*2);
-    ctx.beginPath();
-    const s=8+rng()*50;
-    rng()>.4?ctx.ellipse(0,0,s,s*(.4+rng()*.6),0,0,Math.PI*2):ctx.roundRect(-s/2,-s/2,s,s*(.5+rng()),3);
-    ctx.fill();ctx.restore();
-  }
-
-  const id=ctx.getImageData(0,0,cw,ch),dd=id.data;
-  for(let i=0;i<dd.length;i+=4){const n=(rng()-.5)*14;dd[i]+=n;dd[i+1]+=n;dd[i+2]+=n;}
-  ctx.putImageData(id,0,0);
+function mkRng(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return()=>{h=(h*16807)%2147483647;return(h&0x7fffffff)/0x7fffffff}}
+function totalR(r){return Object.values(r||{}).reduce((a,b)=>a+b,0)}
+function topR(r,n){return Object.entries(r||{}).sort((a,b)=>b[1]-a[1]).slice(0,n)}
+function nodeSize(it){
+  const eng=totalR(it.reacts)+(it.comments||0)*3+(it.views||0)*.01;
+  return Math.round(46+Math.min(it.imp+Math.min(Math.log10(eng+1)/4,.35),1)*124);
 }
 
-// Compute item visual size from importance + likes
-function itemSize(imp, likes){
-  // Base from importance (0-1), boosted by likes
-  const likeBoost = Math.min(likes / 500, 1) * 0.3;
-  const score = Math.min(imp + likeBoost, 1.0);
-  // Map to pixel size range: min 44, max 160
-  const size = 44 + score * 116;
-  return Math.round(size);
+function drawThumb(cv,it,w,h){
+  cv.width=w*2;cv.height=h*2;
+  const ctx=cv.getContext('2d'),cw=cv.width,ch=cv.height;
+  const[cr,cg,cb]=TC[it.t].rgb.split(',').map(Number);
+  const rng=mkRng(it.title+it.d);
+  ctx.fillStyle=`rgb(${12+rng()*8|0},${12+rng()*8|0},${16+rng()*8|0})`;ctx.fillRect(0,0,cw,ch);
+  for(let i=0;i<4;i++){const g=ctx.createRadialGradient(cw*(.1+rng()*.8),ch*(.1+rng()*.8),0,cw*.5,ch*.5,cw*(.3+rng()*.5));g.addColorStop(0,`rgba(${cr},${cg},${cb},${.1+rng()*.2})`);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,cw,ch)}
+  for(let i=0;i<5+rng()*6;i++){ctx.save();ctx.globalAlpha=.03+rng()*.08;ctx.fillStyle=`rgb(${cr+rng()*40-20|0},${cg+rng()*40-20|0},${cb+rng()*40-20|0})`;ctx.translate(rng()*cw,rng()*ch);ctx.rotate(rng()*Math.PI*2);ctx.beginPath();const s=8+rng()*40;ctx.ellipse(0,0,s,s*(.4+rng()*.6),0,0,Math.PI*2);ctx.fill();ctx.restore()}
+  const id=ctx.getImageData(0,0,cw,ch),dd=id.data;for(let i=0;i<dd.length;i+=4){const n=(rng()-.5)*12;dd[i]+=n;dd[i+1]+=n;dd[i+2]+=n}ctx.putImageData(id,0,0);
 }
 
 function buildChips(){
   const el=document.getElementById('chips');el.innerHTML='';
-  TK.forEach(t=>{
-    const c=document.createElement('div');c.className='chip';c.dataset.track=t;
-    c.style.setProperty('--cc',TC[t].c);c.style.setProperty('--cg',TC[t].g+'0.35)');
-    c.innerHTML=`<span class="d" style="background:${TC[t].c}"></span>${TN[t]}
-      <button class="sb" data-t="${t}" onclick="event.stopPropagation();toggleSolo('${t}')">S</button>
-      <button class="mb" data-t="${t}" onclick="event.stopPropagation();toggleMute('${t}')">M</button>`;
-    el.appendChild(c);
-  });
+  TK.forEach(t=>{const c=document.createElement('div');c.className='chip';c.dataset.track=t;c.style.setProperty('--cc',TC[t].c);c.style.setProperty('--cg',`rgba(${TC[t].rgb},0.35)`);c.innerHTML=`<span class="d" style="background:${TC[t].c}"></span>${TN[t]}<button class="sb" data-t="${t}" onclick="event.stopPropagation();toggleSolo('${t}')">S</button><button class="mb" data-t="${t}" onclick="event.stopPropagation();toggleMute('${t}')">M</button>`;el.appendChild(c)});
 }
 
 function layout(){
   const canvas=document.getElementById('canvas');
-  const spine=document.getElementById('spine');
-  canvas.innerHTML='';
+  canvas.querySelectorAll('.node').forEach(e=>e.remove());
+  const sorted=[...DATA].sort((a,b)=>(a.d-b.d)||(b.h-a.h));
+  const dayMap={};sorted.forEach(it=>{if(!dayMap[it.d])dayMap[it.d]=[];dayMap[it.d].push(it)});
+  const dayKeys=Object.keys(dayMap).map(Number).sort((a,b)=>a-b);
 
-  // Sort: oldest first (highest d, lowest h) → newest last
-  const sorted=[...DATA].sort((a,b)=> (b.d-a.d) || (a.h-b.h));
+  // === TWO-PASS LAYOUT ===
+  // Pass 1: Place items with generous initial day heights
+  // Pass 2: Compact — shrink each day to tightly fit actual placed items
 
-  // Group by day to compute vertical positions
-  // Each day gets vertical space proportional to its content density
-  const dayMap={};
-  sorted.forEach(it=>{if(!dayMap[it.d])dayMap[it.d]=[];dayMap[it.d].push(it);});
-  const dayKeys=Object.keys(dayMap).map(Number).sort((a,b)=>b-a); // oldest first
+  const cW=Math.max(window.innerWidth-36, 200);
+  const PAD=12;
 
-  // Compute y positions: accumulate, compress empty days
-  const PX_PER_ACTIVE_DAY = 140; // base height for a day with content
-  const PX_BETWEEN = 20; // compressed gap for skipped days
-  let dayY = {}; // dayKey -> {top, bottom}
-  let y = 20;
-
+  // Initial generous height per day (will be compacted)
+  let dayY={},y=20;
   for(let i=0;i<dayKeys.length;i++){
-    const dk = dayKeys[i];
-    // Check gap from previous day
-    if(i>0){
-      const gap = dayKeys[i-1] - dk;
-      if(gap>1) y += PX_BETWEEN; // compressed gap
-    }
-
-    const items = dayMap[dk];
-    // Height scales with number of items and max importance
-    const maxImp = Math.max(...items.map(it=>it.imp));
-    const density = items.length;
-    const dayHeight = Math.max(PX_PER_ACTIVE_DAY, density * 60 + maxImp * 40);
-
-    dayY[dk] = { top:y, height:dayHeight };
-    y += dayHeight;
+    const dk=dayKeys[i];
+    if(i>0&&dk-dayKeys[i-1]>1)y+=20;
+    const items=dayMap[dk];
+    // Generous: tallest item height × number of items (enough for vertical spread)
+    let maxItemH=0;
+    items.forEach(it=>{
+      const sz=nodeSize(it);
+      const h=sz>110?sz*0.7+30+18:sz*0.85+(sz>70?30:0)+(sz>=50?18:0);
+      maxItemH=Math.max(maxItemH,h);
+    });
+    const h=Math.max(100, maxItemH*items.length*0.7);
+    dayY[dk]={top:y,height:h};y+=h;
   }
 
-  const totalHeight = y + 40;
-  canvas.style.height = totalHeight + 'px';
-  spine.style.height = totalHeight + 'px';
+  // Place items (pass 1)
+  const rng=mkRng('constellation-v3');
+  const placedItems=[]; // {x,y,w,h,item,day}
 
-  // Spine date marks
-  const existingMarks = spine.querySelectorAll('.spine-mark');
-  existingMarks.forEach(m=>m.remove());
+  function ovAmt(x,y,w,h){
+    const pad=10;let worst=0;
+    for(const p of placedItems){const ox=Math.max(0,Math.min(x+w,p.x+p.w)-Math.max(x,p.x)+pad);const oy=Math.max(0,Math.min(y+h,p.y+p.h)-Math.max(y,p.y)+pad);if(ox>0&&oy>0)worst=Math.max(worst,ox*oy)}
+    return worst;
+  }
+
+  const bySize=[...sorted].sort((a,b)=>nodeSize(b)-nodeSize(a));
+
+  bySize.forEach(item=>{
+    const dI=dayY[item.d];if(!dI)return;
+    const sz=nodeSize(item);
+    const w=sz>110?Math.min(sz*1.25,cW-20):sz;
+    const mediaH=sz>110?sz*0.7:sz*0.85;
+    const infoH=sz>70?30:0;
+    const reactH=sz>=50?18:0;
+    const h=mediaH+infoH;
+    const totalNodeH=h+reactH;
+
+    const hourFrac=item.h/24;
+    const yBase=dI.top+hourFrac*(dI.height-totalNodeH);
+    const margin=8;
+
+    let bx=margin+rng()*(cW-w-margin*2),by=yBase,bo=Infinity;
+    for(let a=0;a<28;a++){
+      const xC=margin+rng()*(cW-w-margin*2);
+      const yN=(rng()-.5)*60;
+      const yC=Math.max(dI.top+4,Math.min(dI.top+dI.height-totalNodeH-4,yBase+yN));
+      const ov=ovAmt(xC,yC,w,totalNodeH);
+      if(ov<bo){bo=ov;bx=xC;by=yC;if(ov===0)break}
+    }
+    placedItems.push({x:bx,y:by,w,h:totalNodeH,item,day:item.d});
+  });
+
+  // === Pass 2: Compact ===
+  // For each day, find actual min/max Y of placed items, then shift everything up
+  const TIGHT_PAD=14; // padding above/below tightest items
+  let compactY=20;
+  const dayCompact={}; // dk -> {newTop, newHeight, shift}
+
+  dayKeys.forEach((dk,i)=>{
+    if(i>0&&dk-dayKeys[i-1]>1)compactY+=20;
+    const dayItems=placedItems.filter(p=>p.day===dk);
+    if(dayItems.length===0){
+      dayCompact[dk]={newTop:compactY,newHeight:40,shift:0};
+      compactY+=40;return;
+    }
+    const minY=Math.min(...dayItems.map(p=>p.y));
+    const maxY=Math.max(...dayItems.map(p=>p.y+p.h));
+    const actualH=maxY-minY;
+    const newHeight=actualH+TIGHT_PAD*2;
+    const shift=compactY+TIGHT_PAD-minY; // how much to shift items down/up
+    dayCompact[dk]={newTop:compactY,newHeight,shift};
+    compactY+=newHeight;
+  });
+
+  // Apply compaction: shift all item positions
+  placedItems.forEach(p=>{
+    const dc=dayCompact[p.day];
+    if(dc) p.y+=dc.shift;
+  });
+
+  const totalH=compactY+40;
+  canvas.style.height=totalH+'px';
+  document.getElementById('spine').style.height=totalH+'px';
+
+  // Spine marks at compacted positions
+  const spine=document.getElementById('spine');
+  spine.querySelectorAll('.spine-mark').forEach(m=>m.remove());
   const today=new Date();
-
   dayKeys.forEach(dk=>{
-    const info = dayY[dk];
+    const dc=dayCompact[dk];if(!dc)return;
     const d=new Date(today);d.setDate(today.getDate()-dk);
-    const mark=document.createElement('div');
-    mark.className='spine-mark'+(dk===0?' today':'');
-    mark.style.top=(info.top+10)+'px';
+    const mark=document.createElement('div');mark.className='spine-mark'+(dk===0?' today':'');
+    mark.style.top=(dc.newTop+6)+'px';
     mark.innerHTML=`<span class="dy">${d.getDate()}</span><span class="mo">${d.toLocaleString('en',{month:'short'})}</span>`;
-    if(dk===0) mark.innerHTML+='<div class="now-dot"></div>';
+    if(dk===0)mark.innerHTML+='<div class="now-dot"></div>';
     spine.appendChild(mark);
   });
 
-  // Place items with overlap avoidance
-  const canvasW = canvas.offsetWidth || (window.innerWidth - SPINE_W);
-  const rng = mkRng('layout-seed-42');
-  const placed = []; // {x, y, w, h} of placed items for collision check
+  // Render nodes from placedItems
+  const placed=[]; // alias for synapse drawing
+  const positions=[];
 
-  function overlaps(x, y, w, h) {
-    const pad = 6;
-    for (const p of placed) {
-      if (x < p.x + p.w + pad && x + w + pad > p.x &&
-          y < p.y + p.h + pad && y + h + pad > p.y) return true;
-    }
-    return false;
-  }
+  placedItems.forEach(({x:bx,y:by,w,h:totalNodeH,item})=>{
+    const sz=nodeSize(item);
+    const mediaH=sz>110?sz*0.7:sz*0.85;
+    const infoH=sz>70?30:0;
+    const h=mediaH+infoH;
 
-  sorted.forEach(item=>{
-    const dInfo = dayY[item.d];
-    if(!dInfo) return;
+    const reactions=totalR(item.reacts);
+    const hasGlow=reactions>100;
 
-    const sz = itemSize(item.imp, item.likes);
-    const isWide = sz > 100;
-    const w = isWide ? Math.min(sz * 1.4, canvasW - 16) : sz;
-    const h = isWide ? sz * 0.75 : sz;
+    const node=document.createElement('div');
+    node.className='node'+(hasGlow?' glow':'')+(sz<60?' node-sm':'');
+    node.dataset.t=item.t;
+    node.style.cssText=`left:${bx}px;top:${by}px;width:${w}px;`;
+    node.onclick=()=>openEx(item);
 
-    // Y: within the day, position by hour
-    const hourFrac = item.h / 24;
-    const yBase = dInfo.top + hourFrac * (dInfo.height - h);
-
-    // X: spread across full width, no center bias
-    // Try several random positions and pick the first non-overlapping one
-    let x;
-    const margin = 6;
-    let found = false;
-    for (let attempt = 0; attempt < 12; attempt++) {
-      const xCand = margin + rng() * (canvasW - w - margin * 2);
-      if (!overlaps(xCand, yBase, w, h)) {
-        x = xCand;
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      // Fallback: just use the random position
-      x = margin + rng() * (canvasW - w - margin * 2);
-    }
-    placed.push({ x, y: yBase, w, h });
-
-    const el = document.createElement('div');
-    el.className = 'it' + (item.likes > 200 ? ' has-bloom' : '');
-    el.dataset.t = item.t;
-    el.style.cssText = `left:${x}px;top:${yBase}px;width:${w}px;`;
-    el.onclick = ()=>openEx(item);
-
-    // Bloom glow for popular items
-    if(item.likes > 200){
-      const bloomAlpha = Math.min((item.likes - 200) / 600, 0.5);
-      const bloom = document.createElement('div');
-      bloom.className = 'bloom';
-      bloom.style.boxShadow = `0 0 ${20+item.likes/30}px ${TC[item.t].g}${bloomAlpha})`;
-      el.appendChild(bloom);
+    // Aura glow
+    if(hasGlow){
+      const aura=document.createElement('div');aura.className='node-aura';
+      const intensity=Math.min(reactions/1000,.6);
+      aura.style.boxShadow=`0 0 ${12+reactions/50}px rgba(${TC[item.t].rgb},${intensity}), 0 0 ${30+reactions/25}px rgba(${TC[item.t].rgb},${intensity*.3})`;
+      aura.style.borderRadius='inherit';
+      node.appendChild(aura);
     }
 
-    // Shadow scales with importance
-    const shadowAlpha = 0.2 + item.imp * 0.3;
-    el.style.boxShadow = `0 ${2+item.imp*4}px ${8+item.imp*16}px rgba(0,0,0,${shadowAlpha})`;
+    // Card
+    const card=document.createElement('div');card.className='node-card';
+    card.style.borderColor=`rgba(${TC[item.t].rgb},${.1+item.imp*.15})`;
 
     // Media
-    const media = document.createElement('div');
-    media.className = 'it-media';
-    media.style.height = (isWide ? h - (sz > 80 ? 32 : 0) : h - (sz > 70 ? 28 : 0)) + 'px';
+    const media=document.createElement('div');media.className='node-media';
+    media.style.height=mediaH+'px';
+    const cv=document.createElement('canvas');drawThumb(cv,item,w,mediaH);
+    cv.style.cssText='width:100%;height:100%;display:block';media.appendChild(cv);
 
-    const cv = document.createElement('canvas');
-    drawThumb(cv, item, w, h);
-    cv.style.cssText='width:100%;height:100%;display:block;';
-    media.appendChild(cv);
+    const icon=document.createElement('div');icon.className='node-icon';icon.textContent=item.icon;media.appendChild(icon);
+    if(item.dur){const dur=document.createElement('div');dur.className='node-dur';dur.textContent=item.dur;media.appendChild(dur)}
+    if(item.comments>5){const cm=document.createElement('div');cm.className='node-comments';cm.textContent='💬 '+item.comments;media.appendChild(cm)}
+    card.appendChild(media);
 
-    const icon = document.createElement('div');
-    icon.className='it-icon';
-    if(sz<60){icon.style.width='14px';icon.style.height='14px';icon.style.fontSize='8px';}
-    icon.textContent=item.icon;
-    media.appendChild(icon);
+    // Info
+    if(sz>70){
+      const info=document.createElement('div');info.className='node-info';
+      info.innerHTML=`<div class="node-info-track" style="color:${TC[item.t].c}">${TN[item.t]}</div><div class="node-info-title">${item.title}</div>`;
+      card.appendChild(info);
+    }
+    node.appendChild(card);
 
-    if(item.dur){
-      const dur=document.createElement('div');dur.className='it-dur';
-      if(sz<60)dur.style.fontSize='6px';
-      dur.textContent=item.dur;media.appendChild(dur);
+    // Reactions (outside card, never clipped)
+    const top3=topR(item.reacts,3);
+    if(top3.length>0&&sz>=50){
+      const rDiv=document.createElement('div');rDiv.className='node-reacts';
+      top3.forEach(([emoji,cnt])=>{const p=document.createElement('div');p.className='rpill';p.innerHTML=`${emoji}<span class="rc">${cnt>=1000?(cnt/1000).toFixed(1)+'k':cnt}</span>`;rDiv.appendChild(p)});
+      node.appendChild(rDiv);
     }
 
-    // Likes indicator
-    if(item.likes>50){
-      const lk=document.createElement('div');lk.className='it-likes';
-      lk.innerHTML=`<span class="heart">♥</span>${item.likes>=1000?(item.likes/1000).toFixed(1)+'k':item.likes}`;
-      if(sz<60){lk.style.fontSize='6px';lk.style.padding='1px 3px';}
-      media.appendChild(lk);
+    canvas.appendChild(node);
+    positions.push({item,cx:bx+w/2,cy:by+h/2});
+  });
+
+  drawSynapses(positions,totalH);
+}
+
+function drawSynapses(pos,totalH){
+  const svg=document.getElementById('syn');svg.innerHTML='';
+  svg.setAttribute('width','100%');svg.setAttribute('height',totalH);svg.style.height=totalH+'px';
+
+  // SVG defs for glow filters
+  const defs=document.createElementNS('http://www.w3.org/2000/svg','defs');
+  TK.forEach(t=>{
+    const filter=document.createElementNS('http://www.w3.org/2000/svg','filter');
+    filter.setAttribute('id','glow-'+t);filter.setAttribute('x','-50%');filter.setAttribute('y','-50%');filter.setAttribute('width','200%');filter.setAttribute('height','200%');
+    const blur=document.createElementNS('http://www.w3.org/2000/svg','feGaussianBlur');blur.setAttribute('stdDeviation','3');blur.setAttribute('result','blur');filter.appendChild(blur);
+    const merge=document.createElementNS('http://www.w3.org/2000/svg','feMerge');
+    const n1=document.createElementNS('http://www.w3.org/2000/svg','feMergeNode');n1.setAttribute('in','blur');merge.appendChild(n1);
+    const n2=document.createElementNS('http://www.w3.org/2000/svg','feMergeNode');n2.setAttribute('in','SourceGraphic');merge.appendChild(n2);
+    filter.appendChild(merge);defs.appendChild(filter);
+  });
+  svg.appendChild(defs);
+
+  // Same-track temporal connections
+  TK.forEach(track=>{
+    const items=pos.filter(p=>p.item.t===track).sort((a,b)=>a.item.d-b.item.d||b.item.h-a.item.h);
+    const rgb=TC[track].rgb;
+    for(let i=0;i<items.length-1;i++){
+      const a=items[i],b=items[i+1];
+      const dist=Math.sqrt((a.cx-b.cx)**2+(a.cy-b.cy)**2);
+      if(dist>500)continue;
+      const eng=(totalR(a.item.reacts)+totalR(b.item.reacts))/2;
+      const opacity=Math.min(.08+eng/1500,.4);
+      const width=.8+Math.min(eng/300,2.5);
+
+      const mx=(a.cx+b.cx)/2;const dy=(b.cy-a.cy);
+      const cx1=a.cx+(b.cx-a.cx)*.25+(dy*.15);
+      const cy1=a.cy+(b.cy-a.cy)*.25;
+      const cx2=a.cx+(b.cx-a.cx)*.75-(dy*.15);
+      const cy2=a.cy+(b.cy-a.cy)*.75;
+
+      const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d',`M${a.cx},${a.cy} C${cx1},${cy1} ${cx2},${cy2} ${b.cx},${b.cy}`);
+      path.setAttribute('stroke',`rgba(${rgb},${opacity})`);
+      path.setAttribute('stroke-width',width);
+      path.setAttribute('fill','none');
+      path.setAttribute('stroke-linecap','round');
+      path.setAttribute('filter',`url(#glow-${track})`);
+      svg.appendChild(path);
     }
+  });
 
-    el.appendChild(media);
+  // Cross-track connections (same day or ±1 day, different tracks)
+  // Simulates "AI-detected thematic links + shared audience correlation"
+  const crossPairs=[];
+  for(let i=0;i<pos.length;i++)for(let j=i+1;j<pos.length;j++){
+    const a=pos[i],b=pos[j];
+    if(a.item.t===b.item.t)continue;
+    if(Math.abs(a.item.d-b.item.d)>1)continue; // same day or adjacent
+    const dist=Math.sqrt((a.cx-b.cx)**2+(a.cy-b.cy)**2);
+    if(dist>450)continue;
+    // "Shared audience" strength: average engagement similarity
+    const engA=totalR(a.item.reacts),engB=totalR(b.item.reacts);
+    const strength=Math.min((engA+engB)/800,1);
+    crossPairs.push({a,b,strength,dist});
+  }
 
-    // Info strip (only for larger items)
-    if(sz > 70){
-      const info=document.createElement('div');info.className='it-info';
-      info.innerHTML=`<div class="it-info-track" style="color:${TC[item.t].c}">${TN[item.t]}</div><div class="it-info-t">${item.title}</div>`;
-      el.appendChild(info);
-    }
+  crossPairs.forEach(({a,b,strength})=>{
+    // Blend the two track colors
+    const rgbA=TC[a.item.t].rgb.split(',').map(Number);
+    const rgbB=TC[b.item.t].rgb.split(',').map(Number);
+    const mr=((rgbA[0]+rgbB[0])/2)|0;
+    const mg=((rgbA[1]+rgbB[1])/2)|0;
+    const mb=((rgbA[2]+rgbB[2])/2)|0;
 
-    canvas.appendChild(el);
+    const opacity=.06+strength*.12; // 0.06 ~ 0.18
+    const width=.5+strength*1;
+
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    const mx=(a.cx+b.cx)/2,my=(a.cy+b.cy)/2;
+    const curve=(a.cx-b.cx)*.2;
+    path.setAttribute('d',`M${a.cx},${a.cy} Q${mx+curve},${my},${b.cx},${b.cy}`);
+    path.setAttribute('stroke',`rgba(${mr},${mg},${mb},${opacity})`);
+    path.setAttribute('stroke-width',width);
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke-dasharray','6,6');
+    path.setAttribute('stroke-linecap','round');
+    svg.appendChild(path);
   });
 }
 
-function toggleSolo(t){state.solo=state.solo===t?null:t;state.muted.delete(t);updateVis();}
-function toggleMute(t){if(state.solo===t)state.solo=null;state.muted.has(t)?state.muted.delete(t):state.muted.add(t);updateVis();}
+function toggleSolo(t){state.solo=state.solo===t?null:t;state.muted.delete(t);updateVis()}
+function toggleMute(t){if(state.solo===t)state.solo=null;state.muted.has(t)?state.muted.delete(t):state.muted.add(t);updateVis()}
 function updateVis(){
   TK.forEach(t=>{
     const off=state.muted.has(t)||(state.solo&&state.solo!==t);
-    document.querySelectorAll(`.it[data-t="${t}"]`).forEach(e=>e.classList.toggle('hidden',off));
-    document.querySelectorAll(`.chip[data-track="${t}"]`).forEach(e=>{e.classList.toggle('muted',off);e.classList.toggle('solo',state.solo===t);});
+    document.querySelectorAll(`.node[data-t="${t}"]`).forEach(e=>e.classList.toggle('hidden',off));
+    document.querySelectorAll(`.chip[data-track="${t}"]`).forEach(e=>{e.classList.toggle('muted',off);e.classList.toggle('solo',state.solo===t)});
     document.querySelectorAll(`.sb[data-t="${t}"]`).forEach(e=>e.classList.toggle('on',state.solo===t));
     document.querySelectorAll(`.mb[data-t="${t}"]`).forEach(e=>e.classList.toggle('on',state.muted.has(t)));
   });
@@ -554,32 +540,27 @@ function updateVis(){
 
 function openEx(item){
   const c=TC[item.t];
-  const tag=document.getElementById('exTag');
-  tag.textContent=TN[item.t].toUpperCase();
-  tag.style.background=c.g+'0.35)';tag.style.color=c.c;
+  document.getElementById('exTag').textContent=TN[item.t].toUpperCase();
+  document.getElementById('exTag').style.background=`rgba(${c.rgb},0.2)`;
+  document.getElementById('exTag').style.color=c.c;
   document.getElementById('exT').textContent=item.title;
   document.getElementById('exDe').textContent=item.desc;
   const de=document.getElementById('exD');de.textContent=item.dur||'';de.style.display=item.dur?'block':'none';
-  // Likes
-  document.getElementById('exLH').textContent='♥';
-  document.getElementById('exLC').textContent=item.likes+' likes';
+  const er=document.getElementById('exR');er.innerHTML='';
+  Object.entries(item.reacts||{}).sort((a,b)=>b[1]-a[1]).forEach(([e,cnt])=>{const p=document.createElement('div');p.className='ex-rpill';p.innerHTML=`${e}<span class="erc">${cnt}</span>`;er.appendChild(p)});
+  document.getElementById('exS').textContent=`💬 ${item.comments} comments · 👁 ${(item.views||0).toLocaleString()} views`;
   const d=new Date();d.setDate(d.getDate()-item.d);
   document.getElementById('exMe').textContent=d.toLocaleDateString('en',{month:'short',day:'numeric'})+' · '+item.type+(item.dur?' · '+item.dur:'');
-  const m=document.getElementById('exM');
-  let cv=m.querySelector('canvas');
-  if(!cv){cv=document.createElement('canvas');m.insertBefore(cv,m.firstChild);}
-  drawThumb(cv,item,400,225);cv.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:block;';
+  const m=document.getElementById('exM');let cv=m.querySelector('canvas');
+  if(!cv){cv=document.createElement('canvas');m.insertBefore(cv,m.firstChild)}
+  drawThumb(cv,item,400,225);cv.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:block';
   document.getElementById('ov').classList.add('vis');
 }
-function closeEx(){document.getElementById('ov').classList.remove('vis');}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeEx();});
+function closeEx(){document.getElementById('ov').classList.remove('vis')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeEx()});
 
-buildChips();
-layout();
-// Scroll to bottom (today)
-window.scrollTo(0,document.body.scrollHeight);
-// Re-layout on resize
-window.addEventListener('resize',()=>{layout();});
+buildChips();layout();
+window.addEventListener('resize',()=>layout());
 </script>
 </body>
 </html>
