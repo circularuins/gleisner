@@ -217,6 +217,57 @@
   .ex-back{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:11px;color:var(--text3);cursor:pointer;padding:0 16px;margin-top:8px;transition:color .15s;user-select:none}
   .ex-back:hover{color:var(--text2)}
 
+  /* FAB (Artist Mode only) */
+  .fab{position:fixed;bottom:calc(64px + env(safe-area-inset-bottom));right:16px;width:56px;height:56px;border-radius:50%;background:var(--c-compose);border:none;color:#fff;font-size:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:200;box-shadow:0 4px 20px rgba(167,139,250,.4);transition:transform .15s,opacity .2s;user-select:none}
+  .fab:active{transform:scale(.9)}
+  .fab.hidden{opacity:0;pointer-events:none;transform:scale(.6)}
+
+  /* Mode badge */
+  .mode-badge{font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;background:rgba(167,139,250,.2);color:var(--c-compose);padding:2px 7px;border-radius:10px;margin-left:8px;display:none}
+  .mode-badge.vis{display:inline-block}
+
+  /* Quick-switch avatar button */
+  .qs-btn{width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;transition:border-color .15s;user-select:none;flex-shrink:0}
+  .qs-btn:hover{border-color:var(--text3)}
+  .qs-btn:active{transform:scale(.9)}
+
+  /* Context menu */
+  .ctx-menu{position:fixed;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:4px;z-index:600;box-shadow:0 8px 32px rgba(0,0,0,.6);min-width:160px;display:none}
+  .ctx-menu.vis{display:block}
+  .ctx-item{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;font-size:13px;color:var(--text);cursor:pointer;transition:background .1s;user-select:none}
+  .ctx-item:hover{background:rgba(255,255,255,.06)}
+  .ctx-item:active{background:rgba(255,255,255,.1)}
+  .ctx-item.danger{color:#ef4444}
+
+  /* Confirm dialog */
+  .confirm-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:700;display:none;align-items:center;justify-content:center}
+  .confirm-ov.vis{display:flex}
+  .confirm-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:300px;width:90%;text-align:center}
+  .confirm-card h3{font-size:16px;font-weight:600;margin-bottom:8px}
+  .confirm-card p{font-size:13px;color:var(--text2);margin-bottom:20px}
+  .confirm-btns{display:flex;gap:10px;justify-content:center}
+  .confirm-btns button{flex:1;padding:10px;border-radius:10px;border:none;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:opacity .15s}
+  .confirm-btns .cb-cancel{background:var(--bg3);color:var(--text)}
+  .confirm-btns .cb-delete{background:#ef4444;color:#fff}
+  .confirm-btns button:active{opacity:.7}
+
+  /* Bottom sheet more button */
+  .ex-more-btn{position:absolute;top:12px;right:14px;width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:none;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--text2);z-index:6;transition:background .15s}
+  .ex-more-btn:hover{background:rgba(255,255,255,.1)}
+  .ex-more-btn.vis{display:flex}
+
+  /* Edit mode */
+  .edit-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-family:var(--font);font-size:inherit;color:var(--text);outline:none;transition:border-color .15s;resize:vertical}
+  .edit-input:focus{border-color:var(--text3)}
+  .edit-bar{display:flex;gap:8px;margin-top:10px}
+  .edit-bar button{padding:8px 18px;border-radius:8px;border:none;font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;transition:opacity .15s}
+  .edit-bar .eb-save{background:var(--c-compose);color:#fff}
+  .edit-bar .eb-cancel{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+  .edit-bar button:active{opacity:.7}
+
+  /* Toast */
+  .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--text2);z-index:1000;font-family:var(--mono);box-shadow:0 4px 20px rgba(0,0,0,.5);transition:opacity .3s;pointer-events:none}
+
   .bn{position:fixed;bottom:0;left:0;right:0;background:rgba(5,5,9,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:100}
   .ni{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--text3);cursor:pointer;padding:4px 12px}
   .ni.a{color:var(--text)}.ni svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.5;fill:none}
@@ -225,7 +276,16 @@
 </head>
 <body>
 <div class="hdr">
-  <div class="hdr-top"><div class="artist">Artist Name</div><div class="live"><div class="live-dot"></div>LIVE</div></div>
+  <div class="hdr-top">
+    <div style="display:flex;align-items:center">
+      <div class="artist" id="artistName">Artist Name</div>
+      <span class="mode-badge" id="modeBadge">ARTIST</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="live"><div class="live-dot"></div>LIVE</div>
+      <div class="qs-btn" id="qsBtn" onclick="toggleArtistMode()" title="Switch to your timeline">🎨</div>
+    </div>
+  </div>
   <div class="chips" id="chips"></div>
 </div>
 <div class="tl">
@@ -237,9 +297,26 @@
   <div class="ni"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover</div>
   <div class="ni"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</div>
 </div>
+<button class="fab hidden" id="fab" onclick="onFabTap()">+</button>
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item" onclick="enterEditMode()">✏️ Edit</div>
+  <div class="ctx-item" onclick="showImportanceEdit()">📊 Change Importance</div>
+  <div class="ctx-item danger" onclick="deleteNode()">🗑 Delete</div>
+</div>
+<div class="confirm-ov" id="confirmOv">
+  <div class="confirm-card">
+    <h3>Delete post?</h3>
+    <p>この投稿を削除しますか？</p>
+    <div class="confirm-btns">
+      <button class="cb-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="cb-delete" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
 <div class="ov" id="ov" onclick="closeEx()">
   <div class="ex" id="exSheet" onclick="event.stopPropagation()">
     <div class="ex-handle"></div>
+    <div class="ex-more-btn" id="exMoreBtn" onclick="showSheetMenu(event)">⋮</div>
     <div id="exBack" class="ex-back" style="display:none" onclick="goBackEx()">&#8592; Back</div>
     <div class="ex-media" id="exM">
       <span class="ex-media-tag" id="exMTag"></span>
@@ -547,6 +624,11 @@ function layout(){
       node.appendChild(rDiv);
     }
 
+    // Artist Mode: attach long-press handler
+    if(typeof isArtistMode!=='undefined'&&isArtistMode){
+      attachLongPress(node,item);
+    }
+
     canvas.appendChild(node);
     positions.push({item,cx:bx+w/2,cy:by+h/2});
   });
@@ -708,6 +790,10 @@ function openEx(item,pushHistory=true){
   const sendBtn=document.getElementById('exCmtSend');
   sendBtn.style.background=c.c;
 
+  // Artist mode: show/hide more button
+  const moreBtn=document.getElementById('exMoreBtn');
+  if(moreBtn)moreBtn.classList.toggle('vis',typeof isArtistMode!=='undefined'&&isArtistMode);
+
   // Scroll sheet to top
   document.getElementById('exSheet').scrollTop=0;
   document.getElementById('ov').classList.add('vis');
@@ -864,12 +950,7 @@ function renderConnected(item){
   // View thread button
   const threadBtn=document.createElement('div');threadBtn.className='ex-view-thread';
   threadBtn.innerHTML='View thread &#8594;';
-  threadBtn.onclick=()=>{
-    const toast=document.createElement('div');
-    toast.style.cssText='position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--text2);z-index:1000;font-family:var(--mono);box-shadow:0 4px 20px rgba(0,0,0,.5)';
-    toast.textContent='Thread view coming soon';document.body.appendChild(toast);
-    setTimeout(()=>toast.remove(),2000);
-  };
+  threadBtn.onclick=()=>showToast('Thread view coming soon');
   wrap.appendChild(threadBtn);
 }
 
@@ -924,7 +1005,173 @@ function submitComment(){
   input.value='';document.getElementById('exCmtSend').disabled=true;
 }
 
+// === Artist Mode ===
+let isArtistMode=localStorage.getItem('gleisner-artist-mode')==='true';
+let ctxTarget=null; // item targeted by context menu or deletion
+
+function toggleArtistMode(){
+  isArtistMode=!isArtistMode;
+  localStorage.setItem('gleisner-artist-mode',isArtistMode);
+  updateModeUI();
+  // Re-layout to attach/detach long-press handlers
+  layout();
+}
+
+function updateModeUI(){
+  document.getElementById('fab').classList.toggle('hidden',!isArtistMode);
+  document.getElementById('modeBadge').classList.toggle('vis',isArtistMode);
+  document.getElementById('artistName').textContent=isArtistMode?'Your Timeline':'Artist Name';
+  document.getElementById('qsBtn').style.borderColor=isArtistMode?'var(--c-compose)':'var(--border)';
+  // Bottom sheet more button
+  const moreBtn=document.getElementById('exMoreBtn');
+  if(moreBtn)moreBtn.classList.toggle('vis',isArtistMode);
+}
+
+// === FAB ===
+function onFabTap(){
+  // Navigate to post-v2.html or show toast
+  if(document.querySelector('a[href="post-v2.html"]')){
+    window.location.href='post-v2.html';
+  }else{
+    showToast('Posting flow → post-v2.html');
+  }
+}
+
+// === Toast (shared utility) ===
+function showToast(msg,duration=2000){
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300)},duration);
+}
+
+// === Long Press Handler ===
+function attachLongPress(nodeEl,item){
+  let timer=null,moved=false,sx=0,sy=0;
+  const start=(x,y)=>{sx=x;sy=y;moved=false;timer=setTimeout(()=>{if(!moved)showCtxMenu(x,y,item)},500)};
+  const move=(x,y)=>{if(Math.abs(x-sx)>10||Math.abs(y-sy)>10){moved=true;clearTimeout(timer)}};
+  const end=()=>clearTimeout(timer);
+  nodeEl.addEventListener('touchstart',e=>{const t=e.touches[0];start(t.clientX,t.clientY)},{passive:true});
+  nodeEl.addEventListener('touchmove',e=>{const t=e.touches[0];move(t.clientX,t.clientY)},{passive:true});
+  nodeEl.addEventListener('touchend',end);
+  nodeEl.addEventListener('touchcancel',end);
+  // Mouse fallback
+  nodeEl.addEventListener('mousedown',e=>{if(e.button===0)start(e.clientX,e.clientY)});
+  nodeEl.addEventListener('mousemove',e=>move(e.clientX,e.clientY));
+  nodeEl.addEventListener('mouseup',end);
+}
+
+// === Context Menu ===
+function showCtxMenu(x,y,item){
+  ctxTarget=item;
+  const menu=document.getElementById('ctxMenu');
+  // Position with viewport clamping
+  menu.style.display='block';
+  const mw=menu.offsetWidth,mh=menu.offsetHeight;
+  const vw=window.innerWidth,vh=window.innerHeight;
+  let mx=Math.min(x,vw-mw-8),my=Math.min(y,vh-mh-8);
+  mx=Math.max(8,mx);my=Math.max(8,my);
+  menu.style.left=mx+'px';menu.style.top=my+'px';
+  menu.classList.add('vis');
+  // Prevent the node click from firing
+  setTimeout(()=>{
+    document.addEventListener('click',closeCtxMenu,{once:true});
+  },10);
+}
+function closeCtxMenu(){
+  document.getElementById('ctxMenu').classList.remove('vis');
+  document.getElementById('ctxMenu').style.display='none';
+}
+
+// === Sheet "⋮" menu (reuse context menu at sheet position) ===
+function showSheetMenu(e){
+  e.stopPropagation();
+  if(!currentExItem)return;
+  ctxTarget=currentExItem;
+  const btn=document.getElementById('exMoreBtn');
+  const rect=btn.getBoundingClientRect();
+  showCtxMenu(rect.left-120,rect.bottom+4,currentExItem);
+}
+
+// === Delete Flow ===
+function deleteNode(){
+  closeCtxMenu();
+  if(!ctxTarget)return;
+  document.getElementById('confirmOv').classList.add('vis');
+}
+function closeConfirm(){
+  document.getElementById('confirmOv').classList.remove('vis');
+}
+function confirmDelete(){
+  closeConfirm();
+  if(!ctxTarget)return;
+  // Fade out the node if visible
+  document.querySelectorAll('.node').forEach(n=>{
+    // Match by checking onclick bound item title
+    const info=n.querySelector('.node-info-title');
+    if(info&&info.textContent===ctxTarget.title){
+      n.style.transition='opacity .3s,transform .3s';n.style.opacity='0';n.style.transform='scale(0.8)';
+    }
+  });
+  // Remove from DATA
+  const idx=DATA.findIndex(d=>d===ctxTarget);
+  if(idx>-1)DATA.splice(idx,1);
+  // Close bottom sheet if it was showing this item
+  if(currentExItem===ctxTarget)closeEx();
+  ctxTarget=null;
+  showToast('Post deleted');
+  // Re-layout after animation
+  setTimeout(()=>layout(),350);
+}
+
+// === Importance Edit (placeholder) ===
+function showImportanceEdit(){
+  closeCtxMenu();
+  showToast('Importance editor coming soon');
+}
+
+// === Edit Mode ===
+let editingItem=null;
+function enterEditMode(){
+  closeCtxMenu();
+  const item=ctxTarget||currentExItem;
+  if(!item)return;
+  editingItem=item;
+  // If bottom sheet is not open, open it first
+  if(!currentExItem)openEx(item);
+  // Replace title and desc with editable fields
+  const titleEl=document.getElementById('exT');
+  const descEl=document.getElementById('exDe');
+  titleEl.innerHTML=`<input class="edit-input" id="editTitle" value="${item.title.replace(/"/g,'&quot;')}" style="font-size:19px;font-weight:600"/>`;
+  descEl.innerHTML=`<textarea class="edit-input" id="editDesc" rows="3" style="font-size:13px">${item.desc}</textarea>`;
+  // Add save/cancel bar
+  const bar=document.createElement('div');bar.className='edit-bar';bar.id='editBar';
+  bar.innerHTML=`<button class="eb-save" onclick="saveEdit()">Save</button><button class="eb-cancel" onclick="cancelEdit()">Cancel</button>`;
+  descEl.after(bar);
+}
+function saveEdit(){
+  if(!editingItem)return;
+  const title=document.getElementById('editTitle').value.trim();
+  const desc=document.getElementById('editDesc').value.trim();
+  if(title)editingItem.title=title;
+  editingItem.desc=desc;
+  exitEditMode();
+  openEx(editingItem,false);
+  layout();
+  showToast('Changes saved');
+}
+function cancelEdit(){
+  exitEditMode();
+  if(editingItem)openEx(editingItem,false);
+}
+function exitEditMode(){
+  const bar=document.getElementById('editBar');
+  if(bar)bar.remove();
+  editingItem=null;
+}
+
+// === Init ===
 buildChips();layout();
+updateModeUI();
 window.addEventListener('resize',()=>layout());
 </script>
 </body>
