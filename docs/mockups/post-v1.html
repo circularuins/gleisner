@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gleisner — Post Screen v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050509;--bg2:#0c0c12;--bg3:#151520;--bg4:#1e1e2a;
+    --text:#eee;--text2:#8888a0;--text3:#444460;--border:#1a1a28;
+    --accent:#a78bfa;
+    --font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100dvh;display:flex;flex-direction:column}
+
+  /* Header */
+  .hdr{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;
+    border-bottom:1px solid var(--border);
+    background:rgba(5,5,9,.95);
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    position:sticky;top:0;z-index:100;
+  }
+  .hdr-cancel{font-size:14px;color:var(--text2);cursor:pointer;background:none;border:none;font-family:var(--font)}
+  .hdr-title{font-size:15px;font-weight:600}
+  .hdr-post{
+    font-size:13px;font-weight:600;
+    padding:7px 18px;border-radius:20px;
+    background:var(--accent);color:#000;
+    border:none;cursor:pointer;
+    font-family:var(--font);
+    transition:opacity .15s;
+  }
+  .hdr-post:disabled{opacity:.3;cursor:default}
+
+  /* Content */
+  .content{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:20px;padding-bottom:100px}
+
+  /* Section */
+  .section{display:flex;flex-direction:column;gap:8px}
+  .section-label{
+    font-family:var(--mono);font-size:10px;font-weight:600;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--text3);
+  }
+
+  /* Track selector */
+  .track-selector{display:flex;gap:6px;flex-wrap:wrap}
+
+  .track-opt{
+    display:flex;align-items:center;gap:5px;
+    padding:8px 12px;border-radius:20px;
+    border:1.5px solid var(--border);background:var(--bg2);
+    font-size:12px;font-weight:500;
+    cursor:pointer;transition:all .2s;user-select:none;
+  }
+  .track-opt .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .track-opt.selected{border-color:var(--tc);background:var(--tc-dim);box-shadow:0 0 12px var(--tc-dim)}
+  .track-opt.add{border-style:dashed;color:var(--text3)}
+  .track-opt.add:hover{border-color:var(--text2);color:var(--text2)}
+
+  /* New track inline creator */
+  .new-track-form{
+    display:none;align-items:center;gap:8px;
+    padding:8px 12px;border-radius:16px;
+    border:1.5px dashed var(--accent);background:var(--bg2);
+    animation:fade-in .2s ease;
+  }
+  .new-track-form.visible{display:flex}
+  @keyframes fade-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+  .new-track-form input{
+    background:transparent;border:none;outline:none;
+    color:var(--text);font-family:var(--font);font-size:12px;
+    width:100px;
+  }
+  .new-track-form input::placeholder{color:var(--text3)}
+
+  .color-dots{display:flex;gap:4px}
+  .color-dot{
+    width:16px;height:16px;border-radius:50%;cursor:pointer;
+    border:2px solid transparent;transition:border-color .15s;
+  }
+  .color-dot.picked{border-color:#fff}
+
+  .new-track-confirm{
+    font-size:11px;font-weight:600;
+    padding:4px 10px;border-radius:10px;
+    background:var(--accent);color:#000;border:none;
+    cursor:pointer;font-family:var(--font);white-space:nowrap;
+  }
+
+  /* Media attachment */
+  .media-area{
+    border:1.5px dashed var(--border);border-radius:16px;
+    padding:24px 16px;display:flex;flex-direction:column;
+    align-items:center;gap:10px;cursor:pointer;
+    transition:border-color .2s,background .2s;
+    background:var(--bg2);
+  }
+  .media-area:hover{border-color:var(--text3);background:var(--bg3)}
+  .media-area.has-media{border-style:solid;padding:12px}
+
+  .media-types{display:flex;gap:8px}
+  .media-type{
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    padding:12px 16px;border-radius:12px;
+    background:var(--bg3);border:1px solid var(--border);
+    cursor:pointer;transition:all .2s;font-size:22px;
+  }
+  .media-type:hover{border-color:var(--text3);background:var(--bg4)}
+  .media-type.selected{border-color:var(--accent);background:rgba(167,139,250,.1)}
+  .media-type span{font-size:9px;color:var(--text3);font-family:var(--mono);letter-spacing:.05em}
+
+  .media-hint{font-size:11px;color:var(--text3)}
+
+  /* Media preview */
+  .media-preview{
+    width:100%;border-radius:12px;overflow:hidden;
+    background:var(--bg3);position:relative;
+  }
+  .media-preview-img{
+    width:100%;aspect-ratio:16/9;
+    display:flex;align-items:center;justify-content:center;
+    font-size:48px;opacity:.4;
+  }
+  .media-preview-remove{
+    position:absolute;top:8px;right:8px;
+    width:28px;height:28px;border-radius:50%;
+    background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.1);
+    color:var(--text);font-size:14px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+
+  /* Text inputs */
+  .input-title{
+    width:100%;background:var(--bg2);border:1px solid var(--border);
+    border-radius:12px;padding:12px 14px;
+    color:var(--text);font-family:var(--font);font-size:15px;font-weight:500;
+    outline:none;transition:border-color .2s;
+  }
+  .input-title:focus{border-color:var(--accent)}
+  .input-title::placeholder{color:var(--text3)}
+
+  .input-desc{
+    width:100%;background:var(--bg2);border:1px solid var(--border);
+    border-radius:12px;padding:12px 14px;
+    color:var(--text);font-family:var(--font);font-size:13px;
+    outline:none;resize:none;min-height:80px;
+    line-height:1.5;transition:border-color .2s;
+  }
+  .input-desc:focus{border-color:var(--accent)}
+  .input-desc::placeholder{color:var(--text3)}
+
+  /* Importance slider */
+  .imp-row{display:flex;align-items:center;gap:12px}
+
+  .imp-slider{
+    flex:1;-webkit-appearance:none;appearance:none;
+    height:4px;border-radius:2px;
+    background:linear-gradient(to right,var(--border) 0%,var(--accent) 100%);
+    outline:none;
+  }
+  .imp-slider::-webkit-slider-thumb{
+    -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+    background:var(--accent);cursor:pointer;
+    box-shadow:0 0 10px rgba(167,139,250,.4);
+    border:2px solid var(--bg);
+  }
+
+  .imp-value{
+    font-family:var(--mono);font-size:12px;font-weight:600;
+    color:var(--accent);min-width:32px;text-align:right;
+  }
+
+  .imp-labels{
+    display:flex;justify-content:space-between;
+    font-family:var(--mono);font-size:8px;color:var(--text3);
+    letter-spacing:.04em;margin-top:-4px;
+  }
+
+  /* Preview card */
+  .preview-section{
+    background:var(--bg2);border-radius:16px;
+    border:1px solid var(--border);overflow:hidden;
+  }
+
+  .preview-header{
+    padding:10px 14px;border-bottom:1px solid var(--border);
+    font-family:var(--mono);font-size:9px;font-weight:600;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--text3);
+    display:flex;align-items:center;gap:6px;
+  }
+
+  .preview-body{
+    padding:16px;display:flex;align-items:center;justify-content:center;
+    min-height:120px;position:relative;
+    background:radial-gradient(ellipse at center,rgba(167,139,250,.03),transparent);
+  }
+
+  .preview-node{
+    position:relative;overflow:hidden;
+    background:var(--bg3);
+    border:1px solid rgba(255,255,255,.06);
+    transition:all .3s ease;
+  }
+
+  .preview-node-media{
+    width:100%;height:100%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:24px;opacity:.5;
+    overflow:hidden;position:relative;
+  }
+
+  .preview-node-icon{
+    position:absolute;top:4px;left:5px;
+    width:16px;height:16px;border-radius:50%;
+    background:rgba(0,0,0,.7);
+    display:flex;align-items:center;justify-content:center;
+    font-size:9px;z-index:2;
+  }
+
+  .preview-node-info{
+    position:absolute;bottom:0;left:0;right:0;
+    padding:4px 6px;
+    background:linear-gradient(transparent,rgba(12,12,18,.9));
+    z-index:2;
+  }
+  .preview-node-info .pn-track{
+    font-family:var(--mono);font-size:5px;font-weight:600;
+    letter-spacing:.06em;text-transform:uppercase;opacity:.6;
+  }
+  .preview-node-info .pn-title{
+    font-size:8px;font-weight:500;line-height:1.2;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+
+  .preview-aura{
+    position:absolute;inset:-4px;border-radius:inherit;
+    pointer-events:none;z-index:-1;
+    transition:box-shadow .3s ease;
+  }
+
+  .preview-hint{
+    font-family:var(--mono);font-size:9px;color:var(--text3);
+    text-align:center;margin-top:8px;padding:0 14px 12px;
+  }
+
+  /* Mode indicator */
+  .mode-bar{
+    position:fixed;bottom:0;left:0;right:0;
+    background:rgba(5,5,9,.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border-top:1px solid var(--border);
+    padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    z-index:100;
+  }
+  .mode-badge{
+    font-family:var(--mono);font-size:9px;font-weight:600;
+    letter-spacing:.06em;text-transform:uppercase;
+    padding:4px 10px;border-radius:10px;
+    background:rgba(167,139,250,.15);color:var(--accent);
+    border:1px solid rgba(167,139,250,.25);
+  }
+  .mode-text{font-size:11px;color:var(--text3)}
+
+  /* Related post */
+  .related-empty{
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    padding:16px;border-radius:14px;
+    border:1.5px dashed var(--border);background:var(--bg2);
+    cursor:pointer;transition:border-color .2s,background .2s;
+  }
+  .related-empty:hover{border-color:var(--text3);background:var(--bg3)}
+  .related-icon{font-size:20px;opacity:.5}
+  .related-text{font-size:12px;color:var(--text2)}
+  .related-hint{font-size:10px;color:var(--text3)}
+
+  .related-selected{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 10px;border-radius:14px;
+    border:1.5px solid rgba(167,139,250,.25);background:rgba(167,139,250,.06);
+  }
+  .related-card{
+    flex:1;display:flex;align-items:center;gap:8px;
+    font-size:12px;min-width:0;
+  }
+  .related-card .rc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .related-card .rc-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .related-card .rc-date{font-family:var(--mono);font-size:9px;color:var(--text3);flex-shrink:0}
+  .related-remove{
+    width:24px;height:24px;border-radius:50%;flex-shrink:0;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);
+    color:var(--text2);font-size:14px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+
+  /* Related picker modal */
+  .picker-ov{
+    position:fixed;inset:0;background:rgba(0,0,0,.9);
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    z-index:600;display:none;align-items:flex-end;justify-content:center;
+  }
+  .picker-ov.vis{display:flex}
+
+  .picker{
+    background:var(--bg2);border-radius:20px 20px 0 0;
+    width:100%;max-width:420px;max-height:75dvh;
+    display:flex;flex-direction:column;
+    animation:su .3s ease;
+  }
+
+  .picker-header{
+    padding:14px 16px 10px;border-bottom:1px solid var(--border);
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .picker-header-row{display:flex;align-items:center;justify-content:space-between}
+  .picker-title{font-size:15px;font-weight:600}
+  .picker-close{background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:4px}
+
+  .picker-search{
+    width:100%;background:var(--bg3);border:1px solid var(--border);
+    border-radius:10px;padding:8px 12px;
+    color:var(--text);font-family:var(--font);font-size:13px;
+    outline:none;
+  }
+  .picker-search::placeholder{color:var(--text3)}
+
+  .picker-filter{display:flex;gap:4px;flex-wrap:wrap}
+  .picker-filter-chip{
+    font-size:10px;padding:4px 8px;border-radius:12px;
+    border:1px solid var(--border);background:var(--bg3);
+    color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:3px;
+    transition:all .15s;
+  }
+  .picker-filter-chip.active{border-color:var(--fc);color:var(--text);background:var(--fcbg)}
+  .picker-filter-chip .fd{width:6px;height:6px;border-radius:50%}
+
+  .picker-list{
+    flex:1;overflow-y:auto;padding:8px 0;
+  }
+
+  .picker-item{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 16px;cursor:pointer;
+    transition:background .15s;
+  }
+  .picker-item:hover{background:var(--bg3)}
+  .picker-item .pi-thumb{
+    width:40px;height:40px;border-radius:8px;
+    background:var(--bg3);display:flex;align-items:center;justify-content:center;
+    font-size:18px;flex-shrink:0;border:1px solid rgba(255,255,255,.04);
+  }
+  .picker-item .pi-body{flex:1;min-width:0}
+  .picker-item .pi-title{font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .picker-item .pi-meta{font-family:var(--mono);font-size:9px;color:var(--text3);display:flex;gap:6px;margin-top:2px}
+  .picker-item .pi-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;align-self:center}
+  .picker-item.thread-hint{opacity:.5;padding-left:32px}
+  .picker-item.thread-hint::before{content:'↳';color:var(--text3);margin-right:4px;font-size:12px}
+
+  ::-webkit-scrollbar{width:0}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <button class="hdr-cancel">Cancel</button>
+  <div class="hdr-title">New Post</div>
+  <button class="hdr-post" id="postBtn" disabled>Post</button>
+</div>
+
+<div class="content">
+
+  <!-- Track Selection -->
+  <div class="section">
+    <div class="section-label">Track</div>
+    <div class="track-selector" id="trackSelector">
+      <div class="track-opt" data-track="play" style="--tc:#f97316;--tc-dim:rgba(249,115,22,.12)" onclick="selectTrack(this)">
+        <span class="dot" style="background:#f97316"></span>Play
+      </div>
+      <div class="track-opt" data-track="compose" style="--tc:#a78bfa;--tc-dim:rgba(167,139,250,.12)" onclick="selectTrack(this)">
+        <span class="dot" style="background:#a78bfa"></span>Compose
+      </div>
+      <div class="track-opt" data-track="life" style="--tc:#22d3ee;--tc-dim:rgba(34,211,238,.12)" onclick="selectTrack(this)">
+        <span class="dot" style="background:#22d3ee"></span>Life
+      </div>
+      <div class="track-opt" data-track="english" style="--tc:#84cc16;--tc-dim:rgba(132,204,22,.12)" onclick="selectTrack(this)">
+        <span class="dot" style="background:#84cc16"></span>English
+      </div>
+      <div class="track-opt add" onclick="showNewTrack()">+ New</div>
+    </div>
+
+    <!-- Inline new track creator -->
+    <div class="new-track-form" id="newTrackForm">
+      <input type="text" id="newTrackName" placeholder="Track name" maxlength="16">
+      <div class="color-dots" id="colorDots"></div>
+      <button class="new-track-confirm" onclick="createTrack()">Add</button>
+    </div>
+  </div>
+
+  <!-- Media -->
+  <div class="section">
+    <div class="section-label">Media</div>
+    <div class="media-area" id="mediaArea">
+      <div class="media-types" id="mediaTypes">
+        <div class="media-type" data-type="VID" onclick="selectMedia('VID',this)">🎬<span>VIDEO</span></div>
+        <div class="media-type" data-type="AUD" onclick="selectMedia('AUD',this)">🎵<span>AUDIO</span></div>
+        <div class="media-type" data-type="IMG" onclick="selectMedia('IMG',this)">📷<span>IMAGE</span></div>
+        <div class="media-type" data-type="TXT" onclick="selectMedia('TXT',this)">📝<span>TEXT</span></div>
+      </div>
+      <div class="media-hint">Choose media type to attach</div>
+    </div>
+  </div>
+
+  <!-- Title -->
+  <div class="section">
+    <div class="section-label">Title</div>
+    <input class="input-title" id="titleInput" type="text" placeholder="Give this post a title..." maxlength="100" oninput="updatePreview()">
+  </div>
+
+  <!-- Description -->
+  <div class="section">
+    <div class="section-label">Description</div>
+    <textarea class="input-desc" id="descInput" placeholder="What's the story behind this?" oninput="updatePreview()"></textarea>
+  </div>
+
+  <!-- Related Post -->
+  <div class="section">
+    <div class="section-label">Related Post <span style="opacity:.5">(optional)</span></div>
+    <div id="relatedArea">
+      <div class="related-empty" id="relatedEmpty" onclick="openRelatedPicker()">
+        <span class="related-icon">🔗</span>
+        <span class="related-text">Link to a previous post</span>
+        <span class="related-hint">Creates a visible connection on your timeline</span>
+      </div>
+      <div class="related-selected" id="relatedSelected" style="display:none">
+        <div class="related-card" id="relatedCard"></div>
+        <button class="related-remove" onclick="removeRelated()">×</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Importance -->
+  <div class="section">
+    <div class="section-label">Importance — controls size on your timeline</div>
+    <div class="imp-row">
+      <input class="imp-slider" id="impSlider" type="range" min="0" max="100" value="50" oninput="updateImportance()">
+      <div class="imp-value" id="impValue">0.50</div>
+    </div>
+    <div class="imp-labels">
+      <span>quiet note</span>
+      <span>hero moment</span>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="section">
+    <div class="section-label">Timeline Preview</div>
+    <div class="preview-section">
+      <div class="preview-header">
+        <span>👁</span> How it will look on your timeline
+      </div>
+      <div class="preview-body">
+        <div class="preview-node" id="previewNode">
+          <div class="preview-aura" id="previewAura"></div>
+          <div class="preview-node-media" id="previewMedia">📷</div>
+          <div class="preview-node-icon" id="previewIcon"></div>
+          <div class="preview-node-info" id="previewInfo" style="display:none">
+            <div class="pn-track" id="previewTrack"></div>
+            <div class="pn-title" id="previewTitle"></div>
+          </div>
+        </div>
+      </div>
+      <div class="preview-hint">Size will grow as fans react ✨</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Related post picker -->
+<div class="picker-ov" id="pickerOv" onclick="closeRelatedPicker()">
+  <div class="picker" onclick="event.stopPropagation()">
+    <div class="picker-header">
+      <div class="picker-header-row">
+        <div class="picker-title">Link to post</div>
+        <button class="picker-close" onclick="closeRelatedPicker()">×</button>
+      </div>
+      <input class="picker-search" placeholder="Search your posts..." oninput="filterPosts(this.value)">
+      <div class="picker-filter" id="pickerFilter"></div>
+    </div>
+    <div class="picker-list" id="pickerList"></div>
+  </div>
+</div>
+
+<!-- Artist mode bar -->
+<div class="mode-bar">
+  <div class="mode-badge">Artist Mode</div>
+  <div class="mode-text">Posting to your timeline</div>
+</div>
+
+<script>
+  const TRACK_COLORS=[
+    '#f97316','#a78bfa','#22d3ee','#84cc16',
+    '#f43f5e','#eab308','#06b6d4','#ec4899','#14b8a6','#8b5cf6'
+  ];
+
+  const state={
+    track:null,trackColor:null,
+    media:null,
+    importance:0.5,
+    newTrackColor:null,
+  };
+
+  // Init color dots for new track
+  const usedColors=new Set(['#f97316','#a78bfa','#22d3ee','#84cc16']);
+  function renderColorDots(){
+    const el=document.getElementById('colorDots');el.innerHTML='';
+    TRACK_COLORS.filter(c=>!usedColors.has(c)).forEach((c,i)=>{
+      const d=document.createElement('div');d.className='color-dot';
+      d.style.background=c;
+      d.onclick=()=>{
+        el.querySelectorAll('.color-dot').forEach(x=>x.classList.remove('picked'));
+        d.classList.add('picked');
+        state.newTrackColor=c;
+      };
+      if(i===0){d.classList.add('picked');state.newTrackColor=c;}
+      el.appendChild(d);
+    });
+  }
+  renderColorDots();
+
+  function selectTrack(el){
+    document.querySelectorAll('.track-opt').forEach(e=>e.classList.remove('selected'));
+    el.classList.add('selected');
+    state.track=el.dataset.track;
+    state.trackColor=getComputedStyle(el).getPropertyValue('--tc').trim();
+    document.getElementById('newTrackForm').classList.remove('visible');
+    updatePreview();updatePostBtn();
+  }
+
+  function showNewTrack(){
+    document.getElementById('newTrackForm').classList.toggle('visible');
+    document.getElementById('newTrackName').focus();
+  }
+
+  function createTrack(){
+    const name=document.getElementById('newTrackName').value.trim();
+    if(!name||!state.newTrackColor)return;
+    const slug=name.toLowerCase().replace(/\s+/g,'-');
+    const c=state.newTrackColor;
+    usedColors.add(c);
+
+    // Add chip
+    const sel=document.getElementById('trackSelector');
+    const addBtn=sel.querySelector('.add');
+    const chip=document.createElement('div');
+    chip.className='track-opt';
+    chip.dataset.track=slug;
+    chip.style.setProperty('--tc',c);
+    chip.style.setProperty('--tc-dim',c.replace(')',',0.12)').replace('rgb','rgba').replace('#','')); // simplified
+    const hexToRgba=(hex,a)=>{const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgba(${r},${g},${b},${a})`};
+    chip.style.setProperty('--tc-dim',hexToRgba(c,0.12));
+    chip.innerHTML=`<span class="dot" style="background:${c}"></span>${name}`;
+    chip.onclick=()=>selectTrack(chip);
+    sel.insertBefore(chip,addBtn);
+
+    // Auto-select
+    selectTrack(chip);
+
+    // Reset form
+    document.getElementById('newTrackName').value='';
+    document.getElementById('newTrackForm').classList.remove('visible');
+    renderColorDots();
+  }
+
+  function selectMedia(type,el){
+    document.querySelectorAll('.media-type').forEach(e=>e.classList.remove('selected'));
+    el.classList.add('selected');
+    state.media=type;
+
+    // Show preview
+    const area=document.getElementById('mediaArea');
+    area.classList.add('has-media');
+
+    const icons={VID:'🎬',AUD:'🎵',IMG:'📷',TXT:'📝'};
+    const existing=area.querySelector('.media-preview');
+    if(existing)existing.remove();
+
+    if(type!=='TXT'){
+      const preview=document.createElement('div');preview.className='media-preview';
+      preview.innerHTML=`
+        <div class="media-preview-img">${icons[type]}</div>
+        <div class="media-preview-remove" onclick="removeMedia(event)">×</div>
+      `;
+      area.insertBefore(preview,area.querySelector('.media-types'));
+      area.querySelector('.media-types').style.display='none';
+      area.querySelector('.media-hint').textContent='Tap × to change';
+    }
+
+    updatePreview();updatePostBtn();
+  }
+
+  function removeMedia(e){
+    e.stopPropagation();
+    state.media=null;
+    const area=document.getElementById('mediaArea');
+    area.classList.remove('has-media');
+    const preview=area.querySelector('.media-preview');
+    if(preview)preview.remove();
+    area.querySelector('.media-types').style.display='flex';
+    area.querySelector('.media-hint').textContent='Choose media type to attach';
+    document.querySelectorAll('.media-type').forEach(e=>e.classList.remove('selected'));
+    updatePreview();updatePostBtn();
+  }
+
+  function updateImportance(){
+    const v=document.getElementById('impSlider').value/100;
+    state.importance=v;
+    document.getElementById('impValue').textContent=v.toFixed(2);
+    updatePreview();
+  }
+
+  function updatePostBtn(){
+    document.getElementById('postBtn').disabled=!(state.track&&(state.media||document.getElementById('titleInput').value.trim()));
+  }
+
+  function updatePreview(){
+    const node=document.getElementById('previewNode');
+    const imp=state.importance;
+
+    // Size: 46-170 range mapped from importance
+    const sz=Math.round(46+imp*124);
+    const w=sz>110?Math.min(sz*1.25,200):sz;
+    const h=sz>110?sz*0.85:sz;
+
+    node.style.width=w+'px';
+    node.style.height=h+'px';
+
+    // Border radius per track
+    const radiusMap={
+      play:'16px 8px 16px 8px',compose:'8px 16px 8px 16px',
+      life:'20px',english:'12px'
+    };
+    node.style.borderRadius=radiusMap[state.track]||'14px';
+
+    // Color
+    const color=state.trackColor||'#666';
+    const aura=document.getElementById('previewAura');
+    aura.style.borderRadius='inherit';
+    const glowIntensity=.2+imp*.4;
+    aura.style.boxShadow=`0 0 ${8+imp*20}px rgba(${hexToRgb(color)},${glowIntensity})`;
+
+    node.style.borderColor=`rgba(${hexToRgb(color)},${.1+imp*.15})`;
+
+    // Media icon
+    const icons={VID:'🎬',AUD:'🎵',IMG:'📷',TXT:'📝'};
+    document.getElementById('previewMedia').textContent=icons[state.media]||'';
+    document.getElementById('previewMedia').style.fontSize=sz>80?'24px':'16px';
+
+    // Track icon
+    const trackIcons={play:'🎸',compose:'💻',life:'☀️',english:'🌍'};
+    document.getElementById('previewIcon').textContent=trackIcons[state.track]||'•';
+    document.getElementById('previewIcon').style.display=state.track?'flex':'none';
+
+    // Info overlay (only for bigger sizes)
+    const info=document.getElementById('previewInfo');
+    const title=document.getElementById('titleInput').value.trim();
+    if(sz>80&&(state.track||title)){
+      info.style.display='block';
+      document.getElementById('previewTrack').textContent=state.track||'';
+      document.getElementById('previewTrack').style.color=color;
+      document.getElementById('previewTitle').textContent=title||'Untitled';
+    }else{
+      info.style.display='none';
+    }
+
+    updatePostBtn();
+  }
+
+  function hexToRgb(hex){
+    hex=hex.replace('#','');
+    return parseInt(hex.substring(0,2),16)+','+parseInt(hex.substring(2,4),16)+','+parseInt(hex.substring(4,6),16);
+  }
+
+  // === Related Post Picker ===
+  const RECENT_POSTS=[
+    {id:1,track:'play',color:'#f97316',icon:'🎸',title:'Flamenco studio session',date:'Today',type:'VID'},
+    {id:2,track:'compose',color:'#a78bfa',icon:'💻',title:'Final mix: "Sunrise Protocol"',date:'Today',type:'AUD'},
+    {id:3,track:'life',color:'#22d3ee',icon:'☀️',title:'Studio morning',date:'Today',type:'IMG'},
+    {id:4,track:'english',color:'#84cc16',icon:'🌍',title:'1K followers — thank you!',date:'Yesterday',type:'VID'},
+    {id:5,track:'life',color:'#22d3ee',icon:'🎤',title:'Talent show rehearsal',date:'Yesterday',type:'VID'},
+    {id:6,track:'compose',color:'#a78bfa',icon:'📝',title:'Mix notes',date:'Yesterday',type:'TXT'},
+    {id:7,track:'play',color:'#f97316',icon:'🎸',title:'Fingerstyle cover',date:'Mar 14',type:'VID'},
+    {id:8,track:'play',color:'#f97316',icon:'🔥',title:'Blues jam with friends',date:'Mar 13',type:'VID'},
+    {id:9,track:'compose',color:'#a78bfa',icon:'💻',title:'WIP: "Sunrise Protocol"',date:'Mar 12',type:'AUD',threadParent:2},
+    {id:10,track:'compose',color:'#a78bfa',icon:'💻',title:'Sidechain experiment',date:'Mar 13',type:'AUD',threadParent:9},
+    {id:11,track:'play',color:'#f97316',icon:'🎸',title:'Jazz: "Autumn Leaves"',date:'Mar 11',type:'AUD'},
+    {id:12,track:'compose',color:'#a78bfa',icon:'✍️',title:'Lyrics: "Digital Citizen"',date:'Mar 10',type:'TXT'},
+    {id:13,track:'play',color:'#f97316',icon:'🎸',title:'Rasgueado drill',date:'Mar 9',type:'VID'},
+    {id:14,track:'english',color:'#84cc16',icon:'🌍',title:'Q&A: How I started',date:'Mar 9',type:'VID'},
+    {id:15,track:'play',color:'#f97316',icon:'🔥',title:'Live at open mic',date:'Mar 1',type:'VID'},
+  ];
+
+  let pickerTrackFilter=null;
+
+  function openRelatedPicker(){
+    document.getElementById('pickerOv').classList.add('vis');
+    buildPickerFilter();
+    renderPickerList(RECENT_POSTS);
+  }
+
+  function closeRelatedPicker(){
+    document.getElementById('pickerOv').classList.remove('vis');
+  }
+
+  function buildPickerFilter(){
+    const el=document.getElementById('pickerFilter');el.innerHTML='';
+    const tracks=[...new Set(RECENT_POSTS.map(p=>p.track))];
+    // All
+    const all=document.createElement('div');all.className='picker-filter-chip'+(pickerTrackFilter===null?' active':'');
+    all.textContent='All';all.onclick=()=>{pickerTrackFilter=null;buildPickerFilter();renderPickerList(RECENT_POSTS)};
+    el.appendChild(all);
+    tracks.forEach(t=>{
+      const post=RECENT_POSTS.find(p=>p.track===t);
+      const chip=document.createElement('div');chip.className='picker-filter-chip'+(pickerTrackFilter===t?' active':'');
+      chip.style.setProperty('--fc',post.color);chip.style.setProperty('--fcbg',post.color+'20');
+      chip.innerHTML=`<span class="fd" style="background:${post.color}"></span>${t.charAt(0).toUpperCase()+t.slice(1)}`;
+      chip.onclick=()=>{pickerTrackFilter=t;buildPickerFilter();renderPickerList(RECENT_POSTS)};
+      el.appendChild(chip);
+    });
+  }
+
+  function renderPickerList(posts){
+    const el=document.getElementById('pickerList');el.innerHTML='';
+    let filtered=pickerTrackFilter?posts.filter(p=>p.track===pickerTrackFilter):posts;
+    const search=document.querySelector('.picker-search').value.toLowerCase();
+    if(search)filtered=filtered.filter(p=>p.title.toLowerCase().includes(search));
+
+    filtered.forEach(post=>{
+      const item=document.createElement('div');
+      item.className='picker-item'+(post.threadParent?' thread-hint':'');
+      item.innerHTML=`
+        <div class="pi-thumb" style="border-color:${post.color}22">${post.icon}</div>
+        <div class="pi-body">
+          <div class="pi-title">${post.title}</div>
+          <div class="pi-meta"><span class="pi-dot" style="background:${post.color}"></span>${post.track} · ${post.date} · ${post.type}</div>
+        </div>
+      `;
+      item.onclick=()=>selectRelated(post);
+      el.appendChild(item);
+    });
+
+    if(filtered.length===0){
+      el.innerHTML='<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px">No matching posts</div>';
+    }
+  }
+
+  function filterPosts(query){renderPickerList(RECENT_POSTS)}
+
+  function selectRelated(post){
+    state.related=post;
+    document.getElementById('relatedEmpty').style.display='none';
+    const sel=document.getElementById('relatedSelected');sel.style.display='flex';
+    document.getElementById('relatedCard').innerHTML=`
+      <span class="rc-dot" style="background:${post.color}"></span>
+      <span class="rc-title">${post.title}</span>
+      <span class="rc-date">${post.date}</span>
+    `;
+    closeRelatedPicker();
+  }
+
+  function removeRelated(){
+    state.related=null;
+    document.getElementById('relatedEmpty').style.display='flex';
+    document.getElementById('relatedSelected').style.display='none';
+  }
+
+  // Init
+  updateImportance();
+  updatePreview();
+
+  // Enter on new track name
+  document.getElementById('newTrackName').addEventListener('keydown',e=>{if(e.key==='Enter')createTrack()});
+</script>
+</body>
+</html>
