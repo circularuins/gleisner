@@ -78,6 +78,22 @@
   /* Empty state */
   .empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px}
 
+  /* Disclosure link */
+  .disclosure{text-align:center;padding:16px 14px 8px}
+  .disclosure a{font-family:var(--mono);font-size:10px;color:var(--text3);text-decoration:none;transition:color .15s}
+  .disclosure a:hover{color:var(--text2)}
+
+  /* Disclosure sheet */
+  .disc-ov{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);z-index:500;display:none;align-items:flex-end;justify-content:center}
+  .disc-ov.vis{display:flex}
+  .disc-sheet{background:var(--bg2);border-radius:20px 20px 0 0;width:100%;max-width:420px;max-height:70dvh;overflow-y:auto;padding:20px 20px calc(20px + env(safe-area-inset-bottom));animation:su .3s ease}
+  @keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .disc-sheet h3{font-size:16px;font-weight:600;margin-bottom:14px}
+  .disc-sheet p{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:12px}
+  .disc-sheet .dl-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+  .disc-close{font-family:var(--mono);font-size:12px;color:var(--text3);cursor:pointer;text-align:center;padding:12px 0 0;transition:color .15s}
+  .disc-close:hover{color:var(--text2)}
+
   /* Toast */
   .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--text2);z-index:1000;font-family:var(--mono);box-shadow:0 4px 20px rgba(0,0,0,.5);transition:opacity .3s;pointer-events:none}
 
@@ -102,6 +118,24 @@
 
 <div class="main" id="main"></div>
 
+<!-- Disclosure bottom sheet (ADR 011: transparency) -->
+<div class="disc-ov" id="discOv" onclick="closeDisc()">
+  <div class="disc-sheet" onclick="event.stopPropagation()">
+    <h3>発見の仕組み</h3>
+    <div class="dl-label">ジャンルについて</div>
+    <p>ジャンルはアーティスト本人が自分で選択しています。プラットフォームやアルゴリズムによる分類ではありません。1人あたり最大5つまで設定できます。</p>
+    <div class="dl-label">Discover の表示基準</div>
+    <p>一定数以上のアーティストが選択したジャンルがフィルタチップとして表示されます。各チップの数字はそのジャンルのアーティスト数です。</p>
+    <div class="dl-label">ジャンル候補の提案</div>
+    <p>ジャンル入力時の候補は、既存ジャンルとの類似性に基づいて提案されます。最終的な選択は常にアーティスト自身が行います。</p>
+    <div class="dl-label">HIGH SIGNAL</div>
+    <p>トレンド表示はエンゲージメント量（リアクション・コメント・閲覧数）に基づいています。アルゴリズムによる推薦ではありません。</p>
+    <div class="dl-label">RECENTLY JOINED</div>
+    <p>新着アーティストは参加日の時系列順に表示されます。ランキングやスコアリングは行いません。</p>
+    <div class="disc-close" onclick="closeDisc()">閉じる</div>
+  </div>
+</div>
+
 <div class="bn">
   <a class="ni" href="timeline-v1.html"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Timeline</a>
   <div class="ni a"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover</div>
@@ -109,37 +143,74 @@
 </div>
 
 <script>
-// === Genre color mapping ===
-const GENRE_C={
+// === Genre color palette ===
+// Known genres get curated colors; unknown genres get a deterministic hash color
+const GENRE_PALETTE={
   Music:{c:'#f97316',rgb:'249,115,22'},
+  Flamenco:{c:'#ef4444',rgb:'239,68,68'},
+  Electronic:{c:'#06b6d4',rgb:'6,182,212'},
+  Ambient:{c:'#6366f1',rgb:'99,102,241'},
+  'Lo-fi':{c:'#78716c',rgb:'120,113,108'},
+  Jazz:{c:'#eab308',rgb:'234,179,8'},
+  'Singer-Songwriter':{c:'#fb923c',rgb:'251,146,60'},
   'Visual Art':{c:'#a78bfa',rgb:'167,139,250'},
+  'Digital Art':{c:'#c084fc',rgb:'192,132,252'},
+  'Generative Art':{c:'#818cf8',rgb:'129,140,248'},
+  Illustration:{c:'#a78bfa',rgb:'167,139,250'},
   Writing:{c:'#22d3ee',rgb:'34,211,238'},
+  Poetry:{c:'#67e8f9',rgb:'103,232,249'},
+  Essay:{c:'#2dd4bf',rgb:'45,212,191'},
   Film:{c:'#84cc16',rgb:'132,204,22'},
+  'Short Film':{c:'#a3e635',rgb:'163,230,53'},
+  Documentary:{c:'#65a30d',rgb:'101,163,13'},
+  'Motion Graphics':{c:'#bef264',rgb:'190,242,100'},
   Photography:{c:'#e879f9',rgb:'232,121,249'},
-  Multi:{c:'#fbbf24',rgb:'251,191,36'},
+  'Street Photography':{c:'#f0abfc',rgb:'240,171,252'},
+  'Hardware Art':{c:'#fbbf24',rgb:'251,191,36'},
+  DIY:{c:'#f59e0b',rgb:'245,158,11'},
 };
+function genreColor(genre){
+  if(GENRE_PALETTE[genre])return GENRE_PALETTE[genre];
+  // Deterministic hash color for unknown genres
+  let h=0;for(let i=0;i<genre.length;i++)h=((h<<5)-h+genre.charCodeAt(i))|0;
+  const hue=((h%360)+360)%360;
+  const r=Math.round(180+50*Math.cos(hue*Math.PI/180));
+  const g=Math.round(180+50*Math.cos((hue-120)*Math.PI/180));
+  const b=Math.round(180+50*Math.cos((hue+120)*Math.PI/180));
+  return{c:`rgb(${r},${g},${b})`,rgb:`${r},${g},${b}`};
+}
 
 // === Dummy data: 15 artists ===
+// genres[] = self-declared (ADR 011), max 5 per artist
+// tracks[] = personal timeline tracks (ADR 012), separate concept
 const ARTISTS=[
-  {id:'a01',name:'yuta_flamenco',displayName:'Yuta',tagline:'Flamenco × electronic. Building bridges between worlds.',tracks:['Music','Film'],genre:'Music',followers:12400,trending:true,trendingTrack:'Music',isNew:false,latestPost:'Rasgueado drill session',joinedDaysAgo:180},
-  {id:'a02',name:'luna_synth',displayName:'Luna Synth',tagline:'Ambient textures and modular synthesis. Sound as architecture.',tracks:['Music','Visual Art'],genre:'Music',followers:8700,trending:true,trendingTrack:'Music',isNew:false,latestPost:'Patch from scratch vol.12',joinedDaysAgo:95},
-  {id:'a03',name:'echo_drift',displayName:'Echo Drift',tagline:'Lo-fi beats and field recordings from Tokyo streets.',tracks:['Music'],genre:'Music',followers:5300,trending:false,trendingTrack:null,isNew:false,latestPost:'Shibuya rain loop',joinedDaysAgo:210},
-  {id:'a04',name:'neon_arc',displayName:'Neon Arc',tagline:'Digital painter. Generative art meets human emotion.',tracks:['Visual Art'],genre:'Visual Art',followers:15200,trending:true,trendingTrack:'Visual Art',isNew:false,latestPost:'Series: Polycosmos #47',joinedDaysAgo:310},
-  {id:'a05',name:'sol_wave',displayName:'Sol Wave',tagline:'Singer-songwriter. Stories from the coastline.',tracks:['Music','Writing'],genre:'Music',followers:3100,trending:false,trendingTrack:null,isNew:false,latestPost:'Acoustic demo: Tidal',joinedDaysAgo:150},
-  {id:'a06',name:'prism_lens',displayName:'Prism Lens',tagline:'Street photography. Finding beauty in the mundane.',tracks:['Photography'],genre:'Photography',followers:9800,trending:true,trendingTrack:'Photography',isNew:false,latestPost:'Golden hour series #8',joinedDaysAgo:270},
-  {id:'a07',name:'ink_flow',displayName:'Ink Flow',tagline:'Poetry and prose. Words as constellations.',tracks:['Writing'],genre:'Writing',followers:2400,trending:false,trendingTrack:null,isNew:false,latestPost:'Micro-fiction: The Last Polis',joinedDaysAgo:120},
-  {id:'a08',name:'frame_ghost',displayName:'Frame Ghost',tagline:'Experimental short films. Reality is a rough cut.',tracks:['Film','Photography'],genre:'Film',followers:6100,trending:true,trendingTrack:'Film',isNew:false,latestPost:'48hr film challenge entry',joinedDaysAgo:85},
-  {id:'a09',name:'moss_garden',displayName:'Moss Garden',tagline:'Botanical illustrations and nature journaling.',tracks:['Visual Art','Writing'],genre:'Visual Art',followers:4200,trending:false,trendingTrack:null,isNew:false,latestPost:'Fern study watercolor',joinedDaysAgo:190},
-  {id:'a10',name:'circuit_poet',displayName:'Circuit Poet',tagline:'Hardware hacking as art. Bending signals into songs.',tracks:['Music','Visual Art','Film'],genre:'Multi',followers:7600,trending:false,trendingTrack:null,isNew:false,latestPost:'DIY synth build log',joinedDaysAgo:60},
-  {id:'a11',name:'pixel_rain',displayName:'Pixel Rain',tagline:'Motion graphics and visual storytelling.',tracks:['Film','Visual Art'],genre:'Film',followers:1800,trending:false,trendingTrack:null,isNew:true,latestPost:'First upload: Glitch manifesto',joinedDaysAgo:3},
-  {id:'a12',name:'dawn_chorus',displayName:'Dawn Chorus',tagline:'Classical guitar meets jazz harmony.',tracks:['Music'],genre:'Music',followers:920,trending:false,trendingTrack:null,isNew:true,latestPost:'Chord melody: Autumn Leaves',joinedDaysAgo:5},
-  {id:'a13',name:'still_light',displayName:'Still Light',tagline:'Minimalist photography. Less is everything.',tracks:['Photography'],genre:'Photography',followers:1400,trending:false,trendingTrack:null,isNew:true,latestPost:'Series: Empty rooms',joinedDaysAgo:7},
-  {id:'a14',name:'verse_walker',displayName:'Verse Walker',tagline:'Essays on creativity, identity, and digital existence.',tracks:['Writing'],genre:'Writing',followers:650,trending:false,trendingTrack:null,isNew:true,latestPost:'On being a digital citizen',joinedDaysAgo:2},
-  {id:'a15',name:'deep_frame',displayName:'Deep Frame',tagline:'Documentary filmmaker. Stories that need to be told.',tracks:['Film','Photography','Writing'],genre:'Visual Art',followers:3800,trending:false,trendingTrack:null,isNew:false,latestPost:'Behind the scenes: Diaspora doc',joinedDaysAgo:140},
+  {id:'a01',name:'yuta_flamenco',displayName:'Yuta',tagline:'Flamenco × electronic. Building bridges between worlds.',genres:['Music','Flamenco','Electronic'],tracks:['Play','Compose','Life','English'],followers:12400,trending:true,isNew:false,latestPost:'Rasgueado drill session',joinedDaysAgo:180},
+  {id:'a02',name:'luna_synth',displayName:'Luna Synth',tagline:'Ambient textures and modular synthesis. Sound as architecture.',genres:['Music','Ambient','Generative Art'],tracks:['Synth','Visual','Journal'],followers:8700,trending:true,isNew:false,latestPost:'Patch from scratch vol.12',joinedDaysAgo:95},
+  {id:'a03',name:'echo_drift',displayName:'Echo Drift',tagline:'Lo-fi beats and field recordings from Tokyo streets.',genres:['Music','Lo-fi'],tracks:['Beats','Field Recording','Life'],followers:5300,trending:false,isNew:false,latestPost:'Shibuya rain loop',joinedDaysAgo:210},
+  {id:'a04',name:'neon_arc',displayName:'Neon Arc',tagline:'Digital painter. Generative art meets human emotion.',genres:['Digital Art','Generative Art'],tracks:['Works','Process','Thoughts'],followers:15200,trending:true,isNew:false,latestPost:'Series: Polycosmos #47',joinedDaysAgo:310},
+  {id:'a05',name:'sol_wave',displayName:'Sol Wave',tagline:'Singer-songwriter. Stories from the coastline.',genres:['Music','Singer-Songwriter','Poetry'],tracks:['Songs','Writing','Life'],followers:3100,trending:false,isNew:false,latestPost:'Acoustic demo: Tidal',joinedDaysAgo:150},
+  {id:'a06',name:'prism_lens',displayName:'Prism Lens',tagline:'Street photography. Finding beauty in the mundane.',genres:['Photography','Street Photography'],tracks:['Shots','Edits','BTS'],followers:9800,trending:true,isNew:false,latestPost:'Golden hour series #8',joinedDaysAgo:270},
+  {id:'a07',name:'ink_flow',displayName:'Ink Flow',tagline:'Poetry and prose. Words as constellations.',genres:['Writing','Poetry'],tracks:['Poetry','Prose','Thoughts'],followers:2400,trending:false,isNew:false,latestPost:'Micro-fiction: The Last Polis',joinedDaysAgo:120},
+  {id:'a08',name:'frame_ghost',displayName:'Frame Ghost',tagline:'Experimental short films. Reality is a rough cut.',genres:['Film','Short Film','Photography'],tracks:['Films','Photos','Log'],followers:6100,trending:true,isNew:false,latestPost:'48hr film challenge entry',joinedDaysAgo:85},
+  {id:'a09',name:'moss_garden',displayName:'Moss Garden',tagline:'Botanical illustrations and nature journaling.',genres:['Illustration','Writing'],tracks:['Drawings','Journal'],followers:4200,trending:false,isNew:false,latestPost:'Fern study watercolor',joinedDaysAgo:190},
+  {id:'a10',name:'circuit_poet',displayName:'Circuit Poet',tagline:'Hardware hacking as art. Bending signals into songs.',genres:['Music','Hardware Art','DIY','Visual Art'],tracks:['Builds','Sound','Visual','Log'],followers:7600,trending:false,isNew:false,latestPost:'DIY synth build log',joinedDaysAgo:60},
+  {id:'a11',name:'pixel_rain',displayName:'Pixel Rain',tagline:'Motion graphics and visual storytelling.',genres:['Motion Graphics','Digital Art'],tracks:['Works','Process'],followers:1800,trending:false,isNew:true,latestPost:'First upload: Glitch manifesto',joinedDaysAgo:3},
+  {id:'a12',name:'dawn_chorus',displayName:'Dawn Chorus',tagline:'Classical guitar meets jazz harmony.',genres:['Music','Jazz'],tracks:['Play','Practice','Life'],followers:920,trending:false,isNew:true,latestPost:'Chord melody: Autumn Leaves',joinedDaysAgo:5},
+  {id:'a13',name:'still_light',displayName:'Still Light',tagline:'Minimalist photography. Less is everything.',genres:['Photography'],tracks:['Photos','Words'],followers:1400,trending:false,isNew:true,latestPost:'Series: Empty rooms',joinedDaysAgo:7},
+  {id:'a14',name:'verse_walker',displayName:'Verse Walker',tagline:'Essays on creativity, identity, and digital existence.',genres:['Writing','Essay'],tracks:['Essays','Notes'],followers:650,trending:false,isNew:true,latestPost:'On being a digital citizen',joinedDaysAgo:2},
+  {id:'a15',name:'deep_frame',displayName:'Deep Frame',tagline:'Documentary filmmaker. Stories that need to be told.',genres:['Film','Documentary','Photography'],tracks:['Films','Stills','Writing','BTS'],followers:3800,trending:false,isNew:false,latestPost:'Behind the scenes: Diaspora doc',joinedDaysAgo:140},
 ];
 
-const CATEGORIES=['All','Music','Visual Art','Writing','Film','Photography'];
-let activeCategory='All';
+// === Dynamic genre chips from artist data (ADR 011) ===
+// Genres appearing on 1+ artists are shown (in production: threshold is N=3-5)
+function buildGenreChips(){
+  const counts={};
+  ARTISTS.forEach(a=>a.genres.forEach(g=>{counts[g]=(counts[g]||0)+1}));
+  // Sort by count desc, then alphabetical
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+}
+
+let activeGenre='All';
 let searchQuery='';
 
 // === Utilities (same as timeline-v1) ===
@@ -204,17 +275,17 @@ function fmtFollowers(n){
 }
 
 function getColor(artist){
-  const g=artist.trendingTrack||artist.genre;
-  return GENRE_C[g]||GENRE_C[artist.tracks[0]]||GENRE_C.Music;
+  // Use first genre for primary color
+  return genreColor(artist.genres[0]||'Music');
 }
 
 // === Filtering ===
 function filtered(){
   return ARTISTS.filter(a=>{
-    if(activeCategory!=='All'&&a.genre!==activeCategory&&!a.tracks.includes(activeCategory))return false;
+    if(activeGenre!=='All'&&!a.genres.includes(activeGenre))return false;
     if(searchQuery){
       const q=searchQuery.toLowerCase();
-      if(!a.displayName.toLowerCase().includes(q)&&!a.name.toLowerCase().includes(q)&&!a.tagline.toLowerCase().includes(q))return false;
+      if(!a.displayName.toLowerCase().includes(q)&&!a.name.toLowerCase().includes(q)&&!a.tagline.toLowerCase().includes(q)&&!a.genres.some(g=>g.toLowerCase().includes(q)))return false;
     }
     return true;
   });
@@ -251,7 +322,7 @@ function render(){
       card.appendChild(badge);
 
       const info=document.createElement('div');info.className='trend-info';
-      const dots=a.tracks.map(t=>{const gc=GENRE_C[t];return gc?`<span class="td" style="background:${gc.c}"></span>`:'';}).join('');
+      const dots=a.genres.map(g=>{const gc=genreColor(g);return`<span class="td" style="background:${gc.c}" title="${g}"></span>`;}).join('');
       info.innerHTML=`<div class="trend-name">${a.displayName}</div><div class="trend-meta"><span class="trend-dots">${dots}</span><span class="trend-followers">${fmtFollowers(a.followers)} followers</span></div>`;
       card.appendChild(info);
       scroll.appendChild(card);
@@ -259,13 +330,21 @@ function render(){
     main.appendChild(scroll);
   }
 
-  // Category chips
+  // Genre chips (dynamic, ADR 011)
+  const genreChips=buildGenreChips();
   const catWrap=document.createElement('div');catWrap.className='cats';catWrap.id='cats';
-  CATEGORIES.forEach(c=>{
+  // "All" chip
+  const allChip=document.createElement('div');
+  allChip.className='cat'+(activeGenre==='All'?' a':'');
+  allChip.textContent=`All (${ARTISTS.length})`;
+  allChip.onclick=()=>{activeGenre='All';render()};
+  catWrap.appendChild(allChip);
+  // Genre chips with counts
+  genreChips.forEach(([g,count])=>{
     const chip=document.createElement('div');
-    chip.className='cat'+(activeCategory===c?' a':'');
-    chip.textContent=c;
-    chip.onclick=()=>{activeCategory=c;render()};
+    chip.className='cat'+(activeGenre===g?' a':'');
+    chip.textContent=`${g} (${count})`;
+    chip.onclick=()=>{activeGenre=g;render()};
     catWrap.appendChild(chip);
   });
   main.appendChild(catWrap);
@@ -297,9 +376,9 @@ function render(){
       card.appendChild(name);
 
       const dots=document.createElement('div');dots.className='grid-dots';
-      a.tracks.forEach(t=>{
-        const gc=GENRE_C[t];if(!gc)return;
-        const d=document.createElement('span');d.className='td';d.style.background=gc.c;d.title=t;
+      a.genres.forEach(g=>{
+        const gc=genreColor(g);
+        const d=document.createElement('span');d.className='td';d.style.background=gc.c;d.title=g;
         dots.appendChild(d);
       });
       card.appendChild(dots);
@@ -352,6 +431,11 @@ function render(){
     empty.textContent='No artists found.';
     main.appendChild(empty);
   }
+
+  // Disclosure link (ADR 011: transparency)
+  const disc=document.createElement('div');disc.className='disclosure';
+  disc.innerHTML='<a href="#" onclick="event.preventDefault();openDisc()">How discovery works — 発見の仕組み</a>';
+  main.appendChild(disc);
 }
 
 // === Search ===
@@ -370,11 +454,15 @@ function selectArtist(a){
     setTimeout(()=>{window.location.href='timeline-v1.html'},800);
     return;
   }
-  const payload={id:a.id,name:a.name,displayName:a.displayName,genre:a.genre,tracks:a.tracks};
+  const payload={id:a.id,name:a.name,displayName:a.displayName,genres:a.genres};
   localStorage.setItem('gleisner_selected_artist',JSON.stringify(payload));
   showToast(a.displayName+' のタイムラインへ移動');
   setTimeout(()=>{window.location.href='timeline-v1.html'},800);
 }
+
+// === Disclosure sheet ===
+function openDisc(){document.getElementById('discOv').classList.add('vis')}
+function closeDisc(){document.getElementById('discOv').classList.remove('vis')}
 
 // === Toast ===
 function showToast(msg,duration=2000){
