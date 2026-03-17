@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gleisner — Artist Page v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050509;--bg2:#0c0c12;--bg3:#151520;
+    --text:#eee;--text2:#8888a0;--text3:#444460;--border:#1a1a28;
+    --c-play:#f97316;--c-compose:#a78bfa;--c-life:#22d3ee;--c-english:#84cc16;
+    --font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:hidden}
+
+  /* Header */
+  .hdr{position:sticky;top:0;z-index:100;background:rgba(5,5,9,.94);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border-bottom:1px solid var(--border);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;min-height:48px}
+  .hdr-title{font-size:18px;font-weight:600;letter-spacing:-.02em}
+  .hdr-btn{font-size:14px;color:var(--text2);cursor:pointer;transition:all .15s;user-select:none;padding:6px 2px}
+  .hdr-btn:active{opacity:.6}
+  .hdr-back{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;color:var(--text2)}
+  .hdr-back:active{transform:scale(.9)}
+  .hdr-back svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.5;fill:none}
+  .hdr-spacer{width:36px}
+
+  /* Artist Header */
+  .artist-hdr{text-align:center;position:relative}
+  .artist-cover{width:100%;height:140px;position:relative;overflow:hidden}
+  .artist-cover canvas{width:100%;height:100%;display:block;object-fit:cover}
+  .artist-cover-fade{position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(transparent,var(--bg))}
+  .artist-hdr-body{padding:0 14px 20px;margin-top:-44px;position:relative;z-index:1}
+  .artist-avatar{width:80px;height:80px;border-radius:50%;overflow:hidden;margin:0 auto 14px;border:3px solid var(--bg);position:relative;box-shadow:0 2px 12px rgba(0,0,0,.5)}
+  .artist-avatar canvas{width:100%;height:100%;display:block}
+  .artist-name{font-size:24px;font-weight:700;letter-spacing:-.02em;margin-bottom:2px}
+  .artist-handle{font-family:var(--mono);font-size:12px;color:var(--text2);margin-bottom:10px}
+  .artist-tuned{font-family:var(--mono);font-size:13px;color:var(--text2);margin-bottom:16px}
+  .artist-tuned strong{color:var(--text);font-weight:600}
+  .artist-actions{display:flex;justify-content:center;gap:8px}
+  .btn{padding:9px 22px;border-radius:10px;border:none;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;user-select:none}
+  .btn:active{transform:scale(.95)}
+  .btn-tunein{background:var(--c-compose);color:#fff}
+  .btn-tunedin{background:var(--bg3);color:var(--c-compose);border:1px solid rgba(167,139,250,.3)}
+  .btn-timeline{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+
+  /* Section dividers */
+  .section{padding:0 14px 16px;border-top:1px solid var(--border);margin-top:4px;padding-top:16px}
+  .section:first-of-type{border-top:none;margin-top:0}
+  .sec-label{font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+
+  /* Genres */
+  .genre-chips{display:flex;gap:6px;flex-wrap:wrap}
+  .genre-chip{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);font-size:12px;font-weight:500;white-space:nowrap}
+  .genre-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+  /* About */
+  .about-meta{font-family:var(--mono);font-size:12px;color:var(--text2);margin-bottom:10px}
+  .about-text{font-size:14px;color:var(--text2);line-height:1.7}
+
+  /* Links */
+  .link-sub{font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;margin-top:10px}
+  .link-sub:first-of-type{margin-top:0}
+  .link-chips{display:flex;gap:6px;flex-wrap:wrap}
+  .link-chip{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);font-size:11px;font-weight:500;white-space:nowrap;cursor:pointer;transition:all .15s;user-select:none;color:var(--text2)}
+  .link-chip:active{transform:scale(.95);background:var(--bg3)}
+
+  /* Tracks */
+  .track-chips{display:flex;gap:6px;flex-wrap:wrap}
+  .track-chip{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);font-size:12px;font-weight:500;white-space:nowrap}
+  .track-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+  /* Recent Posts */
+  .posts-sub{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;margin-top:12px}
+  .posts-sub:first-of-type{margin-top:0}
+  .post-card{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+  .post-card:last-child{border-bottom:none}
+  .post-card:active{background:rgba(255,255,255,.02);border-radius:8px}
+  .post-thumb{width:52px;height:52px;border-radius:10px;overflow:hidden;flex-shrink:0;position:relative}
+  .post-thumb canvas{width:100%;height:100%;display:block}
+  .post-body{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center}
+  .post-track{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
+  .post-title{font-size:13px;font-weight:500;line-height:1.3;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .post-meta{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;color:var(--text3)}
+  .post-reactions{display:flex;gap:4px}
+  .post-rpill{font-size:10px}
+
+  /* Demo switcher */
+  .switcher{display:flex;gap:6px;overflow-x:auto;padding:0 14px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .switcher::-webkit-scrollbar{display:none}
+  .sw-chip{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;user-select:none;white-space:nowrap;flex-shrink:0}
+  .sw-chip.a{background:var(--text);color:var(--bg);border-color:var(--text)}
+  .sw-chip:active{transform:scale(.95)}
+  .sw-avatar{width:20px;height:20px;border-radius:50%;overflow:hidden}
+  .sw-avatar canvas{width:100%;height:100%;display:block}
+
+  /* Toast */
+  .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--text2);z-index:1000;font-family:var(--mono);box-shadow:0 4px 20px rgba(0,0,0,.5);transition:opacity .3s;pointer-events:none}
+
+  /* Bottom nav */
+  .bn{position:fixed;bottom:0;left:0;right:0;background:rgba(5,5,9,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:100}
+  .ni{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--text3);cursor:pointer;padding:4px 12px;text-decoration:none}
+  .ni.a{color:var(--text)}.ni svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.5;fill:none}
+
+  .main{padding-bottom:calc(70px + env(safe-area-inset-bottom))}
+
+  ::-webkit-scrollbar{width:0}
+</style>
+</head>
+<body>
+<div class="hdr" id="hdr"></div>
+
+<div class="main" id="main"></div>
+
+<div class="bn">
+  <a class="ni" href="timeline-v1.html"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Timeline</a>
+  <a class="ni" href="discover-v1.html"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover</a>
+  <a class="ni" href="profile-v1.html"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</a>
+</div>
+
+<script>
+// === Genre Color Palette (from discover-v1) ===
+const GENRE_PALETTE={
+  Music:{c:'#f97316',rgb:'249,115,22'},
+  Flamenco:{c:'#ef4444',rgb:'239,68,68'},
+  Electronic:{c:'#06b6d4',rgb:'6,182,212'},
+  Ambient:{c:'#6366f1',rgb:'99,102,241'},
+  'Lo-fi':{c:'#78716c',rgb:'120,113,108'},
+  Jazz:{c:'#eab308',rgb:'234,179,8'},
+  'Singer-Songwriter':{c:'#fb923c',rgb:'251,146,60'},
+  'Visual Art':{c:'#a78bfa',rgb:'167,139,250'},
+  'Digital Art':{c:'#c084fc',rgb:'192,132,252'},
+  'Generative Art':{c:'#818cf8',rgb:'129,140,248'},
+  Illustration:{c:'#a78bfa',rgb:'167,139,250'},
+  Writing:{c:'#22d3ee',rgb:'34,211,238'},
+  Poetry:{c:'#67e8f9',rgb:'103,232,249'},
+  Essay:{c:'#2dd4bf',rgb:'45,212,191'},
+  Film:{c:'#84cc16',rgb:'132,204,22'},
+  'Short Film':{c:'#a3e635',rgb:'163,230,53'},
+  Documentary:{c:'#65a30d',rgb:'101,163,13'},
+  'Motion Graphics':{c:'#bef264',rgb:'190,242,100'},
+  Photography:{c:'#e879f9',rgb:'232,121,249'},
+  'Street Photography':{c:'#f0abfc',rgb:'240,171,252'},
+  'Hardware Art':{c:'#fbbf24',rgb:'251,191,36'},
+  DIY:{c:'#f59e0b',rgb:'245,158,11'},
+};
+function genreColor(genre){
+  if(GENRE_PALETTE[genre])return GENRE_PALETTE[genre];
+  let h=0;for(let i=0;i<genre.length;i++)h=((h<<5)-h+genre.charCodeAt(i))|0;
+  const hue=((h%360)+360)%360;
+  const r=Math.round(180+50*Math.cos(hue*Math.PI/180));
+  const g=Math.round(180+50*Math.cos((hue-120)*Math.PI/180));
+  const b=Math.round(180+50*Math.cos((hue+120)*Math.PI/180));
+  return{c:`rgb(${r},${g},${b})`,rgb:`${r},${g},${b}`};
+}
+
+// Track colors (from timeline-v1)
+const TRACK_COLORS={
+  Play:{c:'#f97316',rgb:'249,115,22'},
+  Compose:{c:'#a78bfa',rgb:'167,139,250'},
+  Life:{c:'#22d3ee',rgb:'34,211,238'},
+  English:{c:'#84cc16',rgb:'132,204,22'},
+  Synth:{c:'#06b6d4',rgb:'6,182,212'},
+  Visual:{c:'#c084fc',rgb:'192,132,252'},
+  Journal:{c:'#818cf8',rgb:'129,140,248'},
+  Beats:{c:'#78716c',rgb:'120,113,108'},
+  'Field Recording':{c:'#a3e635',rgb:'163,230,53'},
+  Works:{c:'#e879f9',rgb:'232,121,249'},
+  Process:{c:'#fb923c',rgb:'251,146,60'},
+  Thoughts:{c:'#67e8f9',rgb:'103,232,249'},
+  Songs:{c:'#f97316',rgb:'249,115,22'},
+  Writing:{c:'#22d3ee',rgb:'34,211,238'},
+  Shots:{c:'#e879f9',rgb:'232,121,249'},
+  Edits:{c:'#c084fc',rgb:'192,132,252'},
+  BTS:{c:'#fbbf24',rgb:'251,191,36'},
+  Poetry:{c:'#67e8f9',rgb:'103,232,249'},
+  Prose:{c:'#2dd4bf',rgb:'45,212,191'},
+  Films:{c:'#84cc16',rgb:'132,204,22'},
+  Photos:{c:'#e879f9',rgb:'232,121,249'},
+  Log:{c:'#78716c',rgb:'120,113,108'},
+  Drawings:{c:'#a78bfa',rgb:'167,139,250'},
+  Builds:{c:'#fbbf24',rgb:'251,191,36'},
+  Sound:{c:'#f97316',rgb:'249,115,22'},
+  Practice:{c:'#fb923c',rgb:'251,146,60'},
+  Words:{c:'#22d3ee',rgb:'34,211,238'},
+  Essays:{c:'#2dd4bf',rgb:'45,212,191'},
+  Notes:{c:'#818cf8',rgb:'129,140,248'},
+  Stills:{c:'#f0abfc',rgb:'240,171,252'},
+};
+function trackColor(track){
+  if(TRACK_COLORS[track])return TRACK_COLORS[track];
+  return genreColor(track);
+}
+
+// === Utilities (from discover-v1 / profile-v1) ===
+function mkRng(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return()=>{h=(h*16807)%2147483647;return(h&0x7fffffff)/0x7fffffff}}
+
+function drawAvatar(cv,seed,size,color){
+  const w=size*2;cv.width=w;cv.height=w;
+  const ctx=cv.getContext('2d'),rng=mkRng(seed);
+  const [cr,cg,cb]=color.split(',').map(Number);
+  ctx.fillStyle=`rgb(${12+rng()*8|0},${12+rng()*8|0},${16+rng()*8|0})`;
+  ctx.fillRect(0,0,w,w);
+  for(let i=0;i<3;i++){
+    const g=ctx.createRadialGradient(w*(.2+rng()*.6),w*(.2+rng()*.6),0,w*.5,w*.5,w*(.3+rng()*.4));
+    g.addColorStop(0,`rgba(${cr},${cg},${cb},${.15+rng()*.25})`);
+    g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,w);
+  }
+  for(let i=0;i<4+rng()*4;i++){
+    ctx.save();ctx.globalAlpha=.04+rng()*.1;
+    ctx.fillStyle=`rgb(${cr+rng()*40-20|0},${cg+rng()*40-20|0},${cb+rng()*40-20|0})`;
+    ctx.translate(rng()*w,rng()*w);ctx.rotate(rng()*Math.PI*2);
+    ctx.beginPath();const s=6+rng()*20;
+    ctx.ellipse(0,0,s,s*(.4+rng()*.6),0,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  const id=ctx.getImageData(0,0,w,w),dd=id.data;
+  for(let i=0;i<dd.length;i+=4){const n=(rng()-.5)*10;dd[i]+=n;dd[i+1]+=n;dd[i+2]+=n}
+  ctx.putImageData(id,0,0);
+}
+
+function drawTrendBg(cv,seed,color,w,h){
+  cv.width=w*2;cv.height=h*2;
+  const ctx=cv.getContext('2d'),cw=cv.width,ch=cv.height,rng=mkRng(seed);
+  const [cr,cg,cb]=color.split(',').map(Number);
+  ctx.fillStyle=`rgb(${12+rng()*8|0},${12+rng()*8|0},${16+rng()*8|0})`;
+  ctx.fillRect(0,0,cw,ch);
+  for(let i=0;i<5;i++){
+    const g=ctx.createRadialGradient(cw*(.1+rng()*.8),ch*(.1+rng()*.8),0,cw*.5,ch*.5,cw*(.3+rng()*.5));
+    g.addColorStop(0,`rgba(${cr},${cg},${cb},${.1+rng()*.2})`);
+    g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.fillRect(0,0,cw,ch);
+  }
+  for(let i=0;i<6+rng()*5;i++){
+    ctx.save();ctx.globalAlpha=.03+rng()*.08;
+    ctx.fillStyle=`rgb(${cr+rng()*40-20|0},${cg+rng()*40-20|0},${cb+rng()*40-20|0})`;
+    ctx.translate(rng()*cw,rng()*ch);ctx.rotate(rng()*Math.PI*2);
+    ctx.beginPath();const s=8+rng()*40;
+    ctx.ellipse(0,0,s,s*(.4+rng()*.6),0,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  const id=ctx.getImageData(0,0,cw,ch),dd=id.data;
+  for(let i=0;i<dd.length;i+=4){const n=(rng()-.5)*12;dd[i]+=n;dd[i+1]+=n;dd[i+2]+=n}
+  ctx.putImageData(id,0,0);
+}
+
+function fmtN(n){
+  if(n>=10000)return(n/1000).toFixed(1)+'k';
+  if(n>=1000)return(n/1000).toFixed(1)+'k';
+  return n.toString();
+}
+
+function showToast(msg,duration=2000){
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300)},duration);
+}
+
+// === Artist Data (from discover-v1 ARTISTS) ===
+const ARTISTS=[
+  {id:'a01',name:'yuta_flamenco',displayName:'Yuta',tagline:'Flamenco × electronic. Building bridges between worlds.',genres:['Music','Flamenco','Electronic'],tracks:['Play','Compose','Life','English'],followers:12400,tunedInCount:12400,color:'239,68,68',
+    location:'Osaka, Japan',activeSince:2019,
+    bio:'大阪を拠点にフラメンコギターとエレクトロニックミュージックを融合させるアーティスト。伝統的なコンパスのリズムにシンセサイザーやビートを重ね、新しいフラメンコの形を追求している。スペイン留学での経験を軸に、東西の音楽文化を橋渡しする作品を制作。ライブではループペダルを駆使した即興パフォーマンスが特徴。',
+    links:{sns:[{type:'instagram',url:'https://instagram.com/yuta_flamenco',label:'@yuta_flamenco'},{type:'x',url:'https://x.com/yuta_flam',label:'@yuta_flam'},{type:'youtube',url:'https://youtube.com/@yutaflamenco',label:'Yuta Flamenco'}],music:[{type:'spotify',url:'https://open.spotify.com/artist/yuta',label:'Spotify'},{type:'apple-music',url:'https://music.apple.com/artist/yuta',label:'Apple Music'},{type:'soundcloud',url:'https://soundcloud.com/yuta_flamenco',label:'SoundCloud'},{type:'bandcamp',url:'https://yutaflamenco.bandcamp.com',label:'Bandcamp'}]}},
+  {id:'a02',name:'luna_synth',displayName:'Luna Synth',tagline:'Ambient textures and modular synthesis. Sound as architecture.',genres:['Music','Ambient','Generative Art'],tracks:['Synth','Visual','Journal'],followers:8700,tunedInCount:8700,color:'99,102,241',
+    location:'Berlin, Germany',activeSince:2017,
+    bio:'モジュラーシンセシスとジェネラティブ・ビジュアルを組み合わせた音響建築家。Mutable Instruments と自作モジュールを中心としたセットアップで、空間的なアンビエント作品を制作。音と映像のリアルタイム連動にこだわり、ライブでは全てがパッチケーブルから生まれる。ベルリンのアンダーグラウンドシーンで定期的に演奏。',
+    links:{sns:[{type:'instagram',url:'https://instagram.com/luna_synth',label:'@luna_synth'},{type:'x',url:'https://x.com/lunasynth',label:'@lunasynth'}],music:[{type:'spotify',url:'https://open.spotify.com/artist/luna',label:'Spotify'},{type:'bandcamp',url:'https://lunasynth.bandcamp.com',label:'Bandcamp'},{type:'soundcloud',url:'https://soundcloud.com/luna_synth',label:'SoundCloud'}]}},
+  {id:'a03',name:'echo_drift',displayName:'Echo Drift',tagline:'Lo-fi beats and field recordings from Tokyo streets.',genres:['Music','Lo-fi'],tracks:['Beats','Field Recording','Life'],followers:5300,tunedInCount:5300,color:'120,113,108',
+    location:'Tokyo, Japan',activeSince:2021,
+    bio:'東京の街をフィールドレコーダー片手に歩き回り、都市の音風景をローファイビートに変換するプロデューサー。SP-404 とカセットテープを愛用し、デジタルでは出せない質感を追求。渋谷の雨音、山手線の始発、築地の朝——日常の音が全てサンプルソースになる。',
+    links:{sns:[{type:'instagram',url:'https://instagram.com/echo_drift',label:'@echo_drift'},{type:'x',url:'https://x.com/echodrift',label:'@echodrift'},{type:'youtube',url:'https://youtube.com/@echodrift',label:'Echo Drift'}],music:[{type:'spotify',url:'https://open.spotify.com/artist/echo',label:'Spotify'},{type:'soundcloud',url:'https://soundcloud.com/echo_drift',label:'SoundCloud'},{type:'bandcamp',url:'https://echodrift.bandcamp.com',label:'Bandcamp'}]}},
+  {id:'a04',name:'neon_arc',displayName:'Neon Arc',tagline:'Digital painter. Generative art meets human emotion.',genres:['Digital Art','Generative Art'],tracks:['Works','Process','Thoughts'],followers:15200,tunedInCount:15200,color:'192,132,252',
+    location:'New York, USA',activeSince:2016,
+    bio:'TouchDesigner とカスタムシェーダーを駆使するジェネラティブ・アーティスト。アルゴリズムと人間の感情の交差点を探求し、インタラクティブなインスタレーションからNFTアートまで幅広く手がける。「コードは筆であり、データは絵の具」をモットーに、テクノロジーと美の新しい関係を提示し続けている。',
+    links:{sns:[{type:'instagram',url:'https://instagram.com/neon_arc',label:'@neon_arc'},{type:'x',url:'https://x.com/neonarc',label:'@neonarc'},{type:'youtube',url:'https://youtube.com/@neonarc',label:'Neon Arc'}],music:[]}},
+  {id:'a05',name:'sol_wave',displayName:'Sol Wave',tagline:'Singer-songwriter. Stories from the coastline.',genres:['Music','Singer-Songwriter','Poetry'],tracks:['Songs','Writing','Life'],followers:3100,tunedInCount:3100,color:'251,146,60',
+    location:'Kamakura, Japan',activeSince:2020,
+    bio:'鎌倉の海沿いに暮らすシンガーソングライター。アコースティックギターと声だけで紡ぐ、海と記憶の歌。歌詞は日本語と英語を行き来し、詩の朗読ライブも行う。Neil Young、Elliott Smith に影響を受けつつ、湘南の風景が全ての楽曲の通奏低音になっている。',
+    links:{sns:[{type:'instagram',url:'https://instagram.com/sol_wave',label:'@sol_wave'},{type:'x',url:'https://x.com/solwave',label:'@solwave'}],music:[{type:'spotify',url:'https://open.spotify.com/artist/sol',label:'Spotify'},{type:'apple-music',url:'https://music.apple.com/artist/sol',label:'Apple Music'},{type:'bandcamp',url:'https://solwave.bandcamp.com',label:'Bandcamp'}]}},
+  {id:'a06',name:'prism_lens',displayName:'Prism Lens',tagline:'Street photography. Finding beauty in the mundane.',genres:['Photography','Street Photography'],tracks:['Shots','Edits','BTS'],followers:9800,tunedInCount:9800,color:'232,121,249',
+    location:'Tokyo, Japan',activeSince:2018,
+    bio:'フィルムとデジタルの両方で東京のストリートを切り取るフォトグラファー。下北沢の路地裏、銀座のネオン、浅草の人々——何気ない日常の一瞬に宿る美しさを追いかけている。2026年になってもフィルムで撮り続ける理由は「偶然性こそが写真の本質」だから。Leica M6 と Ricoh GR IIIx を愛用。',
+    links:{sns:[{type:'instagram',url:'https://instagram.com/prism_lens',label:'@prism_lens'},{type:'x',url:'https://x.com/prismlens',label:'@prismlens'},{type:'youtube',url:'https://youtube.com/@prismlens',label:'Prism Lens'}],music:[]}},
+];
+
+// === Recent Posts per Artist ===
+const POSTS={
+  a01:[
+    {id:'p01',track:'Play',title:'Rasgueado drill session',desc:'New technique breakdown',timeAgo:'2h ago',reactions:{'🔥':89,'✨':34,'🎵':21},comments:12,isPopular:true},
+    {id:'p02',track:'Compose',title:'Flamenco × synth experiment #3',desc:'Mixing compás with arpeggiator',timeAgo:'8h ago',reactions:{'🔥':156,'💜':42,'✨':28},comments:31,isPopular:true},
+    {id:'p03',track:'Life',title:'Tokyo guitar shop haul',desc:'Found a beautiful cypress guitar',timeAgo:'1d ago',reactions:{'✨':45,'❤️':22},comments:8,isPopular:false},
+    {id:'p04',track:'Play',title:'Soleá por Bulerías practice',desc:'Working on the compás transitions',timeAgo:'2d ago',reactions:{'🔥':67,'🎵':18},comments:5,isPopular:false},
+    {id:'p05',track:'English',title:'Flamenco vocabulary in English',desc:'Terms every aficionado should know',timeAgo:'3d ago',reactions:{'📝':31,'✨':12},comments:14,isPopular:true},
+    {id:'p06',track:'Compose',title:'WIP: Bulería moderna',desc:'Electronic elements meeting traditional forms',timeAgo:'4d ago',reactions:{'🔥':44,'🎵':15},comments:6,isPopular:false},
+  ],
+  a02:[
+    {id:'p07',track:'Synth',title:'Patch from scratch vol.12',desc:'Generative ambient with Mutable Instruments',timeAgo:'3h ago',reactions:{'✨':112,'🎵':56,'💜':23},comments:18,isPopular:true},
+    {id:'p08',track:'Visual',title:'Oscilloscope art: Wave functions',desc:'Audio-reactive visuals',timeAgo:'1d ago',reactions:{'✨':78,'🔥':34},comments:11,isPopular:true},
+    {id:'p09',track:'Journal',title:'Why I chose modular over software',desc:'Thoughts on tactile synthesis',timeAgo:'2d ago',reactions:{'💜':45,'📝':22},comments:27,isPopular:true},
+    {id:'p10',track:'Synth',title:'Drone session: 4 hours compressed',desc:'Time-lapse of a long-form piece',timeAgo:'3d ago',reactions:{'✨':34,'🎵':12},comments:4,isPopular:false},
+    {id:'p11',track:'Visual',title:'Shader experiments vol.3',desc:'GLSL meets modular CV',timeAgo:'5d ago',reactions:{'✨':28,'🔥':15},comments:7,isPopular:false},
+  ],
+  a03:[
+    {id:'p12',track:'Beats',title:'Shibuya rain loop',desc:'Field recording + SP-404 chops',timeAgo:'5h ago',reactions:{'🎵':67,'✨':23,'🔥':18},comments:9,isPopular:true},
+    {id:'p13',track:'Field Recording',title:'Yamanote Line at 5am',desc:'The sound of an empty train',timeAgo:'1d ago',reactions:{'✨':54,'🎵':31},comments:15,isPopular:true},
+    {id:'p14',track:'Life',title:'Gear setup 2026',desc:'My portable recording rig',timeAgo:'3d ago',reactions:{'🔥':42,'✨':18},comments:22,isPopular:true},
+    {id:'p15',track:'Beats',title:'Tape loop experiment',desc:'Cassette degradation as texture',timeAgo:'4d ago',reactions:{'🎵':28,'✨':11},comments:3,isPopular:false},
+    {id:'p16',track:'Field Recording',title:'Tsukiji Market morning sounds',desc:'5:30am ambience',timeAgo:'6d ago',reactions:{'✨':19,'🎵':8},comments:5,isPopular:false},
+  ],
+  a04:[
+    {id:'p17',track:'Works',title:'Series: Polycosmos #47',desc:'Generative landscape in 4K',timeAgo:'4h ago',reactions:{'✨':234,'🔥':89,'💜':56},comments:42,isPopular:true},
+    {id:'p18',track:'Process',title:'How I built Polycosmos',desc:'TouchDesigner workflow breakdown',timeAgo:'1d ago',reactions:{'📝':67,'✨':45,'🔥':23},comments:31,isPopular:true},
+    {id:'p19',track:'Thoughts',title:'On generative art and intentionality',desc:'Where does the artist end and the algorithm begin?',timeAgo:'3d ago',reactions:{'💜':78,'📝':34},comments:56,isPopular:true},
+    {id:'p20',track:'Works',title:'Commission: Resonance field',desc:'Interactive installation for gallery',timeAgo:'5d ago',reactions:{'✨':145,'🔥':67},comments:19,isPopular:false},
+    {id:'p21',track:'Process',title:'Real-time rendering setup',desc:'GPU pipeline optimization notes',timeAgo:'7d ago',reactions:{'📝':23,'✨':12},comments:8,isPopular:false},
+  ],
+  a05:[
+    {id:'p22',track:'Songs',title:'Acoustic demo: Tidal',desc:'New song about the Pacific coast',timeAgo:'6h ago',reactions:{'🎵':56,'✨':23,'❤️':18},comments:11,isPopular:true},
+    {id:'p23',track:'Writing',title:'Lyrics journal: March entries',desc:'Raw drafts and revisions',timeAgo:'1d ago',reactions:{'📝':34,'💜':15},comments:7,isPopular:false},
+    {id:'p24',track:'Life',title:'Sunset from the studio window',desc:'Golden hour inspiration',timeAgo:'2d ago',reactions:{'✨':45,'❤️':22},comments:9,isPopular:true},
+    {id:'p25',track:'Songs',title:'Cover: Harvest Moon',desc:'My take on Neil Young',timeAgo:'4d ago',reactions:{'🎵':78,'❤️':34,'✨':21},comments:16,isPopular:true},
+    {id:'p26',track:'Writing',title:'Poem: Coastline memories',desc:'Free verse inspired by walks',timeAgo:'5d ago',reactions:{'💜':28,'📝':12},comments:4,isPopular:false},
+  ],
+  a06:[
+    {id:'p27',track:'Shots',title:'Golden hour series #8',desc:'Light and shadow in Shimokitazawa',timeAgo:'2h ago',reactions:{'✨':134,'🔥':56,'❤️':34},comments:23,isPopular:true},
+    {id:'p28',track:'Edits',title:'Lightroom workflow: Street edit',desc:'From RAW to final in 10 steps',timeAgo:'1d ago',reactions:{'📝':45,'✨':23},comments:18,isPopular:true},
+    {id:'p29',track:'BTS',title:'Why I shoot film in 2026',desc:'Digital vs analog reflections',timeAgo:'3d ago',reactions:{'💜':67,'📝':28},comments:34,isPopular:true},
+    {id:'p30',track:'Shots',title:'Rainy Ginza reflections',desc:'Neon lights on wet asphalt',timeAgo:'4d ago',reactions:{'✨':89,'❤️':34},comments:12,isPopular:false},
+    {id:'p31',track:'Shots',title:'Faces of Asakusa',desc:'Candid portrait series',timeAgo:'6d ago',reactions:{'❤️':56,'✨':28},comments:9,isPopular:false},
+  ],
+};
+
+// === State ===
+const MY_ARTIST_ID='a01'; // yuta_flamenco is "me"
+let currentArtist=ARTISTS[0]; // default: yuta_flamenco
+let tunedInState={}; // id -> boolean
+ARTISTS.forEach(a=>{tunedInState[a.id]=false});
+
+function isSelf(){return currentArtist.id===MY_ARTIST_ID}
+
+// === Render ===
+function render(){
+  renderHeader();
+  renderMain();
+}
+
+function renderHeader(){
+  const hdr=document.getElementById('hdr');
+  if(isSelf()){
+    hdr.innerHTML=`
+      <div class="hdr-spacer"></div>
+      <div class="hdr-title">Artist Page</div>
+      <div class="hdr-btn" onclick="showToast('Section editing → coming soon')">Edit</div>`;
+  }else{
+    hdr.innerHTML=`
+      <div class="hdr-back" onclick="showToast('← Back to previous page')">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </div>
+      <div class="hdr-title">${currentArtist.displayName}</div>
+      <div class="hdr-spacer"></div>`;
+  }
+}
+
+function renderMain(){
+  const main=document.getElementById('main');
+  main.innerHTML='';
+
+  // Demo switcher
+  const swLabel=document.createElement('div');swLabel.className='sec';swLabel.style.padding='12px 14px 0';
+  swLabel.innerHTML='<div class="sec-label" style="color:#ef4444">DEMO: SWITCH ARTIST</div>';
+  main.appendChild(swLabel);
+  const switcher=document.createElement('div');switcher.className='switcher';
+  ARTISTS.forEach(a=>{
+    const chip=document.createElement('div');
+    chip.className='sw-chip'+(a.id===currentArtist.id?' a':'');
+    const avWrap=document.createElement('div');avWrap.className='sw-avatar';
+    const cv=document.createElement('canvas');
+    drawAvatar(cv,a.name,20,a.color);
+    avWrap.appendChild(cv);
+    chip.appendChild(avWrap);
+    chip.appendChild(document.createTextNode(a.id===MY_ARTIST_ID?'Me ('+a.displayName+')':a.displayName));
+    chip.onclick=()=>switchArtist(a);
+    switcher.appendChild(chip);
+  });
+  main.appendChild(switcher);
+
+  // Section 1: Artist Header
+  renderArtistHeader(main);
+
+  // Section 2: Genres
+  renderGenres(main);
+
+  // Section 3: About
+  renderAbout(main);
+
+  // Section 4: Links
+  renderLinks(main);
+
+  // Section 5: Tracks
+  renderTracks(main);
+
+  // Section 6: Recent Posts
+  renderRecentPosts(main);
+}
+
+function renderArtistHeader(main){
+  const sec=document.createElement('div');sec.className='artist-hdr';
+
+  // Cover image
+  const cover=document.createElement('div');cover.className='artist-cover';
+  const coverCv=document.createElement('canvas');
+  drawTrendBg(coverCv,currentArtist.name+'_cover',currentArtist.color,400,140);
+  cover.appendChild(coverCv);
+  const fade=document.createElement('div');fade.className='artist-cover-fade';
+  cover.appendChild(fade);
+  sec.appendChild(cover);
+
+  // Body (overlaps cover via negative margin)
+  const body=document.createElement('div');body.className='artist-hdr-body';
+
+  // Avatar
+  const avatarWrap=document.createElement('div');avatarWrap.className='artist-avatar';
+  const cv=document.createElement('canvas');
+  drawAvatar(cv,currentArtist.name,80,currentArtist.color);
+  avatarWrap.appendChild(cv);
+  body.appendChild(avatarWrap);
+
+  // Name
+  const name=document.createElement('div');name.className='artist-name';
+  name.textContent=currentArtist.displayName;
+  body.appendChild(name);
+
+  // Handle
+  const handle=document.createElement('div');handle.className='artist-handle';
+  handle.textContent='@'+currentArtist.name;
+  body.appendChild(handle);
+
+  // Tuned In count
+  const tuned=document.createElement('div');tuned.className='artist-tuned';
+  tuned.innerHTML='<strong>'+fmtN(currentArtist.tunedInCount)+'</strong> tuned in';
+  body.appendChild(tuned);
+
+  // Action buttons
+  const actions=document.createElement('div');actions.className='artist-actions';
+  if(isSelf()){
+    const timelineBtn=document.createElement('button');timelineBtn.className='btn btn-timeline';
+    timelineBtn.textContent='View Timeline';
+    timelineBtn.onclick=()=>showToast('Timeline に移動 (Artist Mode)');
+    actions.appendChild(timelineBtn);
+  }else{
+    const isTuned=tunedInState[currentArtist.id];
+
+    const tuneBtn=document.createElement('button');
+    tuneBtn.className='btn '+(isTuned?'btn-tunedin':'btn-tunein');
+    tuneBtn.textContent=isTuned?'Tuned In ✓':'Tune In';
+    tuneBtn.onclick=()=>toggleTuneIn(currentArtist);
+    actions.appendChild(tuneBtn);
+
+    if(isTuned){
+      const timelineBtn=document.createElement('button');timelineBtn.className='btn btn-timeline';
+      timelineBtn.textContent='View Timeline';
+      timelineBtn.onclick=()=>showToast('Timeline に移動');
+      actions.appendChild(timelineBtn);
+    }
+  }
+  body.appendChild(actions);
+  sec.appendChild(body);
+  main.appendChild(sec);
+}
+
+function renderGenres(main){
+  const sec=document.createElement('div');sec.className='section';
+  const label=document.createElement('div');label.className='sec-label';label.textContent='GENRES';
+  sec.appendChild(label);
+
+  const chips=document.createElement('div');chips.className='genre-chips';
+  currentArtist.genres.forEach(g=>{
+    const gc=genreColor(g);
+    const chip=document.createElement('div');chip.className='genre-chip';
+    const dot=document.createElement('span');dot.className='genre-dot';dot.style.background=gc.c;
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(g));
+    chips.appendChild(chip);
+  });
+  sec.appendChild(chips);
+  main.appendChild(sec);
+}
+
+function renderAbout(main){
+  const sec=document.createElement('div');sec.className='section';
+  const label=document.createElement('div');label.className='sec-label';label.textContent='ABOUT';
+  sec.appendChild(label);
+
+  // Location + Active since
+  if(currentArtist.location||currentArtist.activeSince){
+    const meta=document.createElement('div');meta.className='about-meta';
+    const parts=[];
+    if(currentArtist.location)parts.push('📍 '+currentArtist.location);
+    if(currentArtist.activeSince)parts.push('Active since '+currentArtist.activeSince);
+    meta.textContent=parts.join(' · ');
+    sec.appendChild(meta);
+  }
+
+  // Bio
+  const text=document.createElement('div');text.className='about-text';
+  text.textContent=currentArtist.bio||currentArtist.tagline;
+  sec.appendChild(text);
+  main.appendChild(sec);
+}
+
+function renderLinks(main){
+  const links=currentArtist.links;
+  if(!links)return;
+  const hasMusic=links.music&&links.music.length>0;
+  const hasSns=links.sns&&links.sns.length>0;
+  if(!hasMusic&&!hasSns)return;
+
+  const sec=document.createElement('div');sec.className='section';
+  const label=document.createElement('div');label.className='sec-label';label.textContent='LINKS';
+  sec.appendChild(label);
+
+  const iconMap={spotify:'🎵',['apple-music']:'🎵',soundcloud:'☁️',bandcamp:'🎸',instagram:'📷',x:'𝕏',youtube:'▶️'};
+
+  if(hasMusic){
+    const sub=document.createElement('div');sub.className='link-sub';sub.textContent='MUSIC';
+    sec.appendChild(sub);
+    const chips=document.createElement('div');chips.className='link-chips';
+    links.music.forEach(l=>{
+      const chip=document.createElement('div');chip.className='link-chip';
+      chip.textContent=(iconMap[l.type]||'🔗')+' '+l.label;
+      chip.onclick=()=>showToast('🔗 '+l.label+' → '+l.url);
+      chips.appendChild(chip);
+    });
+    sec.appendChild(chips);
+  }
+
+  if(hasSns){
+    const sub=document.createElement('div');sub.className='link-sub';sub.textContent='SNS';
+    sec.appendChild(sub);
+    const chips=document.createElement('div');chips.className='link-chips';
+    links.sns.forEach(l=>{
+      const chip=document.createElement('div');chip.className='link-chip';
+      chip.textContent=(iconMap[l.type]||'🔗')+' '+l.label;
+      chip.onclick=()=>showToast('🔗 '+l.label+' → '+l.url);
+      chips.appendChild(chip);
+    });
+    sec.appendChild(chips);
+  }
+
+  main.appendChild(sec);
+}
+
+function renderTracks(main){
+  const sec=document.createElement('div');sec.className='section';
+  const label=document.createElement('div');label.className='sec-label';label.textContent='TRACKS';
+  sec.appendChild(label);
+
+  const sub=document.createElement('div');sub.className='about-meta';sub.style.marginBottom='10px';
+  sub.textContent='This artist\u2019s content streams';
+  sec.appendChild(sub);
+
+  const chips=document.createElement('div');chips.className='track-chips';
+  currentArtist.tracks.forEach(t=>{
+    const tc=trackColor(t);
+    const chip=document.createElement('div');chip.className='track-chip';
+    const dot=document.createElement('span');dot.className='track-dot';dot.style.background=tc.c;
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(t));
+    chips.appendChild(chip);
+  });
+  sec.appendChild(chips);
+  main.appendChild(sec);
+}
+
+function renderRecentPosts(main){
+  const posts=POSTS[currentArtist.id]||[];
+  if(posts.length===0)return;
+
+  const sec=document.createElement('div');sec.className='section';
+  const label=document.createElement('div');label.className='sec-label';label.textContent='RECENT POSTS';
+  sec.appendChild(label);
+
+  // Latest 3
+  const latestLabel=document.createElement('div');latestLabel.className='posts-sub';latestLabel.textContent='Latest';
+  sec.appendChild(latestLabel);
+  const latest=posts.slice(0,3);
+  latest.forEach(p=>sec.appendChild(makePostCard(p)));
+
+  // Popular 3
+  const popular=posts.filter(p=>p.isPopular).slice(0,3);
+  if(popular.length>0){
+    const popLabel=document.createElement('div');popLabel.className='posts-sub';popLabel.textContent='Popular';
+    sec.appendChild(popLabel);
+    popular.forEach(p=>sec.appendChild(makePostCard(p)));
+  }
+
+  main.appendChild(sec);
+}
+
+function makePostCard(post){
+  const card=document.createElement('div');card.className='post-card';
+  card.onclick=()=>showToast('投稿詳細 → coming soon');
+
+  // Thumbnail
+  const thumb=document.createElement('div');thumb.className='post-thumb';
+  const tc=trackColor(post.track);
+  const cv=document.createElement('canvas');
+  drawTrendBg(cv,post.id+post.title,tc.rgb,52,52);
+  cv.style.cssText='width:100%;height:100%;display:block';
+  thumb.appendChild(cv);
+  card.appendChild(thumb);
+
+  // Body
+  const body=document.createElement('div');body.className='post-body';
+
+  const trackLabel=document.createElement('div');trackLabel.className='post-track';
+  trackLabel.style.color=tc.c;trackLabel.textContent=post.track;
+  body.appendChild(trackLabel);
+
+  const title=document.createElement('div');title.className='post-title';
+  title.textContent=post.title;
+  body.appendChild(title);
+
+  const meta=document.createElement('div');meta.className='post-meta';
+
+  // Reactions
+  const reactWrap=document.createElement('span');reactWrap.className='post-reactions';
+  const top=Object.entries(post.reactions).sort((a,b)=>b[1]-a[1]).slice(0,2);
+  top.forEach(([emoji,cnt])=>{
+    const pill=document.createElement('span');pill.className='post-rpill';
+    pill.textContent=emoji+' '+cnt;
+    reactWrap.appendChild(pill);
+  });
+  meta.appendChild(reactWrap);
+
+  const time=document.createElement('span');time.textContent=post.timeAgo;
+  meta.appendChild(time);
+
+  body.appendChild(meta);
+  card.appendChild(body);
+  return card;
+}
+
+// === Actions ===
+function switchArtist(artist){
+  currentArtist=artist;
+  render();
+}
+
+function toggleTuneIn(artist){
+  tunedInState[artist.id]=!tunedInState[artist.id];
+  const now=tunedInState[artist.id];
+  showToast(now?'Tuned In to '+artist.displayName:'Untuned from '+artist.displayName);
+  render();
+}
+
+// === Init ===
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gleisner — Profile v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050509;--bg2:#0c0c12;--bg3:#151520;
+    --text:#eee;--text2:#8888a0;--text3:#444460;--border:#1a1a28;
+    --c-play:#f97316;--c-compose:#a78bfa;--c-life:#22d3ee;--c-english:#84cc16;
+    --font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:hidden}
+
+  /* Header */
+  .hdr{position:sticky;top:0;z-index:100;background:rgba(5,5,9,.94);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border-bottom:1px solid var(--border);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;min-height:48px}
+  .hdr-title{font-size:18px;font-weight:600;letter-spacing:-.02em}
+  .hdr-btn{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;color:var(--text2)}
+  .hdr-btn:active{transform:scale(.9)}
+  .hdr-btn svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.5;fill:none}
+  .hdr-spacer{width:36px}
+
+  /* Profile header */
+  .prof{padding:24px 14px 20px;text-align:center}
+  .prof-avatar{width:80px;height:80px;border-radius:50%;overflow:hidden;margin:0 auto 14px;border:2px solid var(--border);position:relative}
+  .prof-avatar canvas{width:100%;height:100%;display:block}
+  .prof-name{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:2px}
+  .prof-handle{font-family:var(--mono);font-size:12px;color:var(--text2);margin-bottom:10px}
+  .prof-bio{font-size:13px;color:var(--text2);line-height:1.6;max-width:300px;margin:0 auto 14px}
+  .prof-stats{display:flex;justify-content:center;gap:24px;margin-bottom:16px}
+  .prof-stat{text-align:center;cursor:pointer}
+  .prof-stat-num{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--text)}
+  .prof-stat-label{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.04em}
+  .prof-joined{font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:16px}
+
+  /* Action buttons */
+  .prof-actions{display:flex;justify-content:center;gap:8px;margin-bottom:16px}
+  .btn{padding:9px 22px;border-radius:10px;border:none;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;user-select:none}
+  .btn:active{transform:scale(.95)}
+  .btn-primary{background:var(--text);color:var(--bg)}
+  .btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+  .btn-follow{background:var(--c-compose);color:#fff}
+  .btn-following{background:var(--bg3);color:var(--c-compose);border:1px solid rgba(167,139,250,.3)}
+  .btn-msg{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+
+  /* Artist Page link card */
+  .artist-link{margin:0 14px 20px;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(249,115,22,.08));border:1px solid rgba(167,139,250,.15);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .15s}
+  .artist-link:active{transform:scale(.98)}
+  .artist-link-text{font-size:14px;font-weight:500}
+  .artist-link-sub{font-size:11px;color:var(--text2);margin-top:2px}
+  .artist-link-arrow{font-size:16px;color:var(--text2)}
+
+  /* Profile switcher */
+  .switcher{display:flex;gap:6px;overflow-x:auto;padding:0 14px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .switcher::-webkit-scrollbar{display:none}
+  .sw-chip{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;user-select:none;white-space:nowrap;flex-shrink:0}
+  .sw-chip.a{background:var(--text);color:var(--bg);border-color:var(--text)}
+  .sw-chip:active{transform:scale(.95)}
+  .sw-avatar{width:20px;height:20px;border-radius:50%;overflow:hidden}
+  .sw-avatar canvas{width:100%;height:100%;display:block}
+
+  /* Section headers */
+  .sec{padding:0 14px 8px}
+  .sec-label{font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+
+  /* Activity feed */
+  .feed{padding:0 14px}
+  .feed-item{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+  .feed-item:last-child{border-bottom:none}
+  .feed-item:active{background:rgba(255,255,255,.02);border-radius:8px}
+  .feed-icon{width:32px;height:32px;border-radius:10px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+  .feed-body{flex:1;min-width:0}
+  .feed-text{font-size:13px;color:var(--text);line-height:1.4}
+  .feed-text .artist-name{color:var(--text2);font-weight:500}
+  .feed-text .content-name{font-weight:500}
+  .feed-time{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px}
+
+  /* Genre chips (from discover/artist page) */
+  .genre-chips{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 16px}
+  .genre-chip{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);font-size:12px;font-weight:500;white-space:nowrap}
+  .genre-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+  /* Edit mode (from timeline-v1) */
+  .edit-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-family:var(--font);font-size:inherit;color:var(--text);outline:none;transition:border-color .15s;resize:vertical}
+  .edit-input:focus{border-color:var(--text3)}
+  .edit-bar{display:flex;gap:8px;margin-top:10px;justify-content:center}
+  .edit-bar button{padding:8px 18px;border-radius:8px;border:none;font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;transition:opacity .15s}
+  .edit-bar .eb-save{background:var(--c-compose);color:#fff}
+  .edit-bar .eb-cancel{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+  .edit-bar button:active{opacity:.7}
+
+  /* Toast */
+  .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--text2);z-index:1000;font-family:var(--mono);box-shadow:0 4px 20px rgba(0,0,0,.5);transition:opacity .3s;pointer-events:none}
+
+  /* Bottom nav — identical to timeline-v1 / discover-v1 */
+  .bn{position:fixed;bottom:0;left:0;right:0;background:rgba(5,5,9,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:100}
+  .ni{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--text3);cursor:pointer;padding:4px 12px;text-decoration:none}
+  .ni.a{color:var(--text)}.ni svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.5;fill:none}
+
+  .main{padding-bottom:calc(70px + env(safe-area-inset-bottom))}
+
+  ::-webkit-scrollbar{width:0}
+</style>
+</head>
+<body>
+<div class="hdr" id="hdr"></div>
+
+<div class="main" id="main"></div>
+
+<div class="bn">
+  <a class="ni" href="timeline-v1.html"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Timeline</a>
+  <a class="ni" href="discover-v1.html"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover</a>
+  <div class="ni a"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</div>
+</div>
+
+<script>
+// === Utilities (from discover-v1) ===
+function mkRng(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return()=>{h=(h*16807)%2147483647;return(h&0x7fffffff)/0x7fffffff}}
+
+function drawAvatar(cv,seed,size,color){
+  const w=size*2;cv.width=w;cv.height=w;
+  const ctx=cv.getContext('2d'),rng=mkRng(seed);
+  const [cr,cg,cb]=color.split(',').map(Number);
+  ctx.fillStyle=`rgb(${12+rng()*8|0},${12+rng()*8|0},${16+rng()*8|0})`;
+  ctx.fillRect(0,0,w,w);
+  for(let i=0;i<3;i++){
+    const g=ctx.createRadialGradient(w*(.2+rng()*.6),w*(.2+rng()*.6),0,w*.5,w*.5,w*(.3+rng()*.4));
+    g.addColorStop(0,`rgba(${cr},${cg},${cb},${.15+rng()*.25})`);
+    g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,w);
+  }
+  for(let i=0;i<4+rng()*4;i++){
+    ctx.save();ctx.globalAlpha=.04+rng()*.1;
+    ctx.fillStyle=`rgb(${cr+rng()*40-20|0},${cg+rng()*40-20|0},${cb+rng()*40-20|0})`;
+    ctx.translate(rng()*w,rng()*w);ctx.rotate(rng()*Math.PI*2);
+    ctx.beginPath();const s=6+rng()*20;
+    ctx.ellipse(0,0,s,s*(.4+rng()*.6),0,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  const id=ctx.getImageData(0,0,w,w),dd=id.data;
+  for(let i=0;i<dd.length;i+=4){const n=(rng()-.5)*10;dd[i]+=n;dd[i+1]+=n;dd[i+2]+=n}
+  ctx.putImageData(id,0,0);
+}
+
+function showToast(msg,duration=2000){
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300)},duration);
+}
+
+// === Genre Color Palette (from discover-v1) ===
+const GENRE_PALETTE={
+  Music:{c:'#f97316',rgb:'249,115,22'},
+  Flamenco:{c:'#ef4444',rgb:'239,68,68'},
+  Electronic:{c:'#06b6d4',rgb:'6,182,212'},
+  Ambient:{c:'#6366f1',rgb:'99,102,241'},
+  'Lo-fi':{c:'#78716c',rgb:'120,113,108'},
+  Jazz:{c:'#eab308',rgb:'234,179,8'},
+  'Singer-Songwriter':{c:'#fb923c',rgb:'251,146,60'},
+  'Visual Art':{c:'#a78bfa',rgb:'167,139,250'},
+  'Digital Art':{c:'#c084fc',rgb:'192,132,252'},
+  'Generative Art':{c:'#818cf8',rgb:'129,140,248'},
+  Photography:{c:'#e879f9',rgb:'232,121,249'},
+  'Street Photography':{c:'#f0abfc',rgb:'240,171,252'},
+  Poetry:{c:'#67e8f9',rgb:'103,232,249'},
+};
+function genreColor(genre){
+  if(GENRE_PALETTE[genre])return GENRE_PALETTE[genre];
+  let h=0;for(let i=0;i<genre.length;i++)h=((h<<5)-h+genre.charCodeAt(i))|0;
+  const hue=((h%360)+360)%360;
+  const r=Math.round(180+50*Math.cos(hue*Math.PI/180));
+  const g=Math.round(180+50*Math.cos((hue-120)*Math.PI/180));
+  const b=Math.round(180+50*Math.cos((hue+120)*Math.PI/180));
+  return{c:`rgb(${r},${g},${b})`,rgb:`${r},${g},${b}`};
+}
+
+// === Artists with genres (for genre auto-detection) ===
+const ARTISTS=[
+  {id:'a01',name:'yuta_flamenco',displayName:'Yuta',genres:['Music','Flamenco','Electronic']},
+  {id:'a02',name:'luna_synth',displayName:'Luna Synth',genres:['Music','Ambient','Generative Art']},
+  {id:'a03',name:'echo_drift',displayName:'Echo Drift',genres:['Music','Lo-fi']},
+  {id:'a04',name:'neon_arc',displayName:'Neon Arc',genres:['Digital Art','Generative Art']},
+  {id:'a05',name:'sol_wave',displayName:'Sol Wave',genres:['Music','Singer-Songwriter','Poetry']},
+  {id:'a06',name:'prism_lens',displayName:'Prism Lens',genres:['Photography','Street Photography']},
+];
+
+// Tune In state (which artists this user is tuned in to)
+let tunedInState={};
+ARTISTS.forEach(a=>{tunedInState[a.id]=false});
+// Default: tuned in to Yuta, Luna Synth, Echo Drift
+tunedInState['a01']=true;tunedInState['a02']=true;tunedInState['a03']=true;
+
+function getMyGenres(){
+  const counts={};
+  ARTISTS.forEach(a=>{
+    if(!tunedInState[a.id])return;
+    a.genres.forEach(g=>{counts[g]=(counts[g]||0)+1});
+  });
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
+}
+
+// === Dummy data ===
+
+// Artists from discover-v1 (used for "other" profile switching)
+const OTHERS=[
+  {id:'a02',name:'luna_synth',displayName:'Luna Synth',bio:'Ambient textures and modular synthesis. Sound as architecture.',following:31,followers:8700,tunedIn:8,isArtist:true,joined:'Sep 2025',color:'99,102,241'},
+  {id:'a03',name:'echo_drift',displayName:'Echo Drift',bio:'Lo-fi beats and field recordings from Tokyo streets.',following:45,followers:5300,tunedIn:12,isArtist:false,joined:'Jul 2025',color:'120,113,108'},
+  {id:'a04',name:'neon_arc',displayName:'Neon Arc',bio:'Digital painter. Generative art meets human emotion.',following:12,followers:15200,tunedIn:5,isArtist:true,joined:'May 2025',color:'192,132,252'},
+];
+
+// Self profile
+const ME={
+  id:'me',
+  name:'yuki_listener',
+  displayName:'Yuki',
+  bio:'Music lover. Exploring the constellation of creativity.',
+  following:24,
+  followers:18,
+  tunedIn:6,
+  isArtist:true,
+  joined:'Mar 2025',
+  mutualFollows:['luna_synth','echo_drift'],
+  color:'167,139,250'
+};
+
+// Activity feed
+const ACTIVITIES=[
+  {type:'reaction',emoji:'🔥',text:'Reacted to',content:'Flamenco studio session',artist:'Yuta',timeAgo:'2h ago'},
+  {type:'comment',emoji:'💬',text:'Commented on',content:'Patch from scratch vol.12',artist:'Luna Synth',timeAgo:'5h ago'},
+  {type:'tune_in',emoji:'📡',text:'Tuned In to',content:'',artist:'Neon Arc',timeAgo:'1d ago'},
+  {type:'reaction',emoji:'✨',text:'Reacted to',content:'Shibuya rain loop',artist:'Echo Drift',timeAgo:'1d ago'},
+  {type:'comment',emoji:'💬',text:'Commented on',content:'Series: Polycosmos #47',artist:'Neon Arc',timeAgo:'2d ago'},
+  {type:'tune_in',emoji:'📡',text:'Tuned In to',content:'',artist:'Luna Synth',timeAgo:'3d ago'},
+  {type:'reaction',emoji:'🎵',text:'Reacted to',content:'Acoustic demo: Tidal',artist:'Sol Wave',timeAgo:'3d ago'},
+  {type:'comment',emoji:'💬',text:'Commented on',content:'Golden hour series #8',artist:'Prism Lens',timeAgo:'4d ago'},
+  {type:'reaction',emoji:'🔥',text:'Reacted to',content:'DIY synth build log',artist:'Circuit Poet',timeAgo:'5d ago'},
+  {type:'tune_in',emoji:'📡',text:'Tuned In to',content:'',artist:'Dawn Chorus',timeAgo:'6d ago'},
+];
+
+// === State ===
+let currentProfile=ME;
+let isEditing=false;
+let followState={};// id -> boolean
+OTHERS.forEach(o=>{followState[o.id]=false});
+// luna_synth is mutual follow — start as followed
+followState['a02']=true;
+// echo_drift is mutual follow — start as followed
+followState['a03']=true;
+
+function isSelf(){return currentProfile.id==='me'}
+function isMutual(profile){return ME.mutualFollows.includes(profile.name)&&followState[profile.id]}
+
+// === Render ===
+function render(){
+  renderHeader();
+  renderMain();
+}
+
+function renderHeader(){
+  const hdr=document.getElementById('hdr');
+  if(isSelf()){
+    hdr.innerHTML=`
+      <div class="hdr-spacer"></div>
+      <div class="hdr-title">Profile</div>
+      <div class="hdr-btn" onclick="showToast('Settings → coming soon')">
+        <svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </div>`;
+  }else{
+    hdr.innerHTML=`
+      <div class="hdr-btn" onclick="switchProfile(ME)">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </div>
+      <div class="hdr-title">${currentProfile.displayName}</div>
+      <div class="hdr-spacer"></div>`;
+  }
+}
+
+function renderMain(){
+  const main=document.getElementById('main');
+  main.innerHTML='';
+
+  // Profile switcher chips (DEMO ONLY — not shown in production)
+  const swLabel=document.createElement('div');swLabel.className='sec';
+  swLabel.innerHTML='<div class="sec-label" style="color:#ef4444">DEMO: SWITCH PROFILE</div>';
+  main.appendChild(swLabel);
+  const switcher=document.createElement('div');switcher.className='switcher';
+  const allProfiles=[ME,...OTHERS];
+  allProfiles.forEach(p=>{
+    const chip=document.createElement('div');
+    chip.className='sw-chip'+(p.id===currentProfile.id?' a':'');
+
+    const avWrap=document.createElement('div');avWrap.className='sw-avatar';
+    const cv=document.createElement('canvas');
+    drawAvatar(cv,p.name,20,p.color);
+    avWrap.appendChild(cv);
+    chip.appendChild(avWrap);
+
+    const label=document.createTextNode(p.id==='me'?'Me':p.displayName);
+    chip.appendChild(label);
+    chip.onclick=()=>switchProfile(p);
+    switcher.appendChild(chip);
+  });
+  main.appendChild(switcher);
+
+  // Profile header section
+  const prof=document.createElement('div');prof.className='prof';prof.id='profSection';
+
+  // Avatar
+  const avatarWrap=document.createElement('div');avatarWrap.className='prof-avatar';
+  const avatarCv=document.createElement('canvas');
+  drawAvatar(avatarCv,currentProfile.name,80,currentProfile.color);
+  avatarWrap.appendChild(avatarCv);
+  prof.appendChild(avatarWrap);
+
+  // Name
+  const nameEl=document.createElement('div');nameEl.className='prof-name';nameEl.id='profName';
+  nameEl.textContent=currentProfile.displayName;
+  prof.appendChild(nameEl);
+
+  // Handle
+  const handle=document.createElement('div');handle.className='prof-handle';
+  handle.textContent='@'+currentProfile.name;
+  prof.appendChild(handle);
+
+  // Bio
+  const bio=document.createElement('div');bio.className='prof-bio';bio.id='profBio';
+  bio.textContent=currentProfile.bio;
+  prof.appendChild(bio);
+
+  // Stats
+  const fmtN=n=>n>=1000?(n/1000).toFixed(1)+'k':n;
+  const stats=document.createElement('div');stats.className='prof-stats';
+  stats.innerHTML=`
+    <div class="prof-stat" onclick="showToast('Following list → coming soon')">
+      <div class="prof-stat-num">${currentProfile.following}</div>
+      <div class="prof-stat-label">Following</div>
+    </div>
+    <div class="prof-stat" onclick="showToast('Followers list → coming soon')">
+      <div class="prof-stat-num">${fmtN(currentProfile.followers)}</div>
+      <div class="prof-stat-label">Followers</div>
+    </div>
+    <div class="prof-stat" onclick="showToast('Tuned In list → coming soon')">
+      <div class="prof-stat-num">${currentProfile.tunedIn}</div>
+      <div class="prof-stat-label">Tuned In</div>
+    </div>`;
+  prof.appendChild(stats);
+
+  // Joined date
+  const joined=document.createElement('div');joined.className='prof-joined';
+  joined.textContent='Joined '+currentProfile.joined;
+  prof.appendChild(joined);
+
+  // Action buttons
+  const actions=document.createElement('div');actions.className='prof-actions';
+  if(isSelf()){
+    const editBtn=document.createElement('button');editBtn.className='btn btn-secondary';
+    editBtn.textContent='Edit Profile';
+    editBtn.onclick=startEdit;
+    actions.appendChild(editBtn);
+  }else{
+    const isFollowing=followState[currentProfile.id];
+    const followBtn=document.createElement('button');
+    followBtn.className='btn '+(isFollowing?'btn-following':'btn-follow');
+    followBtn.textContent=isFollowing?'Following ✓':'Follow';
+    followBtn.onclick=()=>toggleFollow(currentProfile);
+    actions.appendChild(followBtn);
+
+    if(isMutual(currentProfile)){
+      const msgBtn=document.createElement('button');msgBtn.className='btn btn-msg';
+      msgBtn.textContent='Message';
+      msgBtn.onclick=()=>showToast('Messages coming soon');
+      actions.appendChild(msgBtn);
+    }
+  }
+  prof.appendChild(actions);
+  main.appendChild(prof);
+
+  // Artist Page link card (self + artist only)
+  if(isSelf()&&currentProfile.isArtist){
+    const link=document.createElement('div');link.className='artist-link';
+    link.onclick=()=>showToast('Artist Page → artist-page-v1.html');
+    link.innerHTML=`
+      <div>
+        <div class="artist-link-text">Your Artist Page</div>
+        <div class="artist-link-sub">Manage your public artist profile</div>
+      </div>
+      <div class="artist-link-arrow">→</div>`;
+    main.appendChild(link);
+  }
+
+  // Genres (auto-detected from Tuned In artists)
+  if(isSelf()){
+    const myGenres=getMyGenres();
+    if(myGenres.length>0){
+      const genSec=document.createElement('div');genSec.className='sec';
+      genSec.innerHTML='<div class="sec-label">INTERESTS</div>';
+      main.appendChild(genSec);
+      const chips=document.createElement('div');chips.className='genre-chips';
+      myGenres.forEach(g=>{
+        const gc=genreColor(g);
+        const chip=document.createElement('div');chip.className='genre-chip';
+        const dot=document.createElement('span');dot.className='genre-dot';dot.style.background=gc.c;
+        chip.appendChild(dot);
+        chip.appendChild(document.createTextNode(g));
+        chips.appendChild(chip);
+      });
+      main.appendChild(chips);
+    }
+  }
+
+  // Activity feed
+  const sec=document.createElement('div');sec.className='sec';
+  sec.innerHTML='<div class="sec-label">RECENT ACTIVITY</div>';
+  main.appendChild(sec);
+
+  const feed=document.createElement('div');feed.className='feed';
+  const profileActivities=isSelf()?ACTIVITIES:generateOtherActivities(currentProfile);
+  profileActivities.forEach(a=>{
+    const item=document.createElement('div');item.className='feed-item';
+    item.onclick=()=>showToast('Navigate to content → coming soon');
+
+    const icon=document.createElement('div');icon.className='feed-icon';
+    icon.textContent=a.emoji;
+
+    const body=document.createElement('div');body.className='feed-body';
+
+    const text=document.createElement('div');text.className='feed-text';
+    if(a.type==='tune_in'){
+      text.innerHTML=`${a.text} <span class="artist-name">${a.artist}</span>`;
+    }else{
+      text.innerHTML=`${a.text} "<span class="content-name">${a.content}</span>" by <span class="artist-name">${a.artist}</span>`;
+    }
+
+    const time=document.createElement('div');time.className='feed-time';
+    time.textContent=a.timeAgo;
+
+    body.appendChild(text);
+    body.appendChild(time);
+    item.appendChild(icon);
+    item.appendChild(body);
+    feed.appendChild(item);
+  });
+  main.appendChild(feed);
+}
+
+// Generate activities for other profiles
+function generateOtherActivities(profile){
+  const templates=[
+    {type:'reaction',emoji:'🔥',text:'Reacted to',content:'Flamenco studio session',artist:'Yuta',timeAgo:'3h ago'},
+    {type:'comment',emoji:'💬',text:'Commented on',content:'Shibuya rain loop',artist:'Echo Drift',timeAgo:'8h ago'},
+    {type:'tune_in',emoji:'📡',text:'Tuned In to',content:'',artist:'Circuit Poet',timeAgo:'1d ago'},
+    {type:'reaction',emoji:'✨',text:'Reacted to',content:'Series: Polycosmos #47',artist:'Neon Arc',timeAgo:'2d ago'},
+    {type:'comment',emoji:'💬',text:'Commented on',content:'Acoustic demo: Tidal',artist:'Sol Wave',timeAgo:'3d ago'},
+  ];
+  return templates;
+}
+
+// === Profile switching ===
+function switchProfile(profile){
+  if(isEditing)cancelEdit();
+  currentProfile=profile;
+  render();
+}
+
+// === Follow toggle ===
+function toggleFollow(profile){
+  followState[profile.id]=!followState[profile.id];
+  const nowFollowing=followState[profile.id];
+  showToast(nowFollowing?`Following ${profile.displayName}`:`Unfollowed ${profile.displayName}`);
+  render();
+}
+
+// === Edit Profile ===
+function startEdit(){
+  isEditing=true;
+  const nameEl=document.getElementById('profName');
+  const bioEl=document.getElementById('profBio');
+  const origName=currentProfile.displayName;
+  const origBio=currentProfile.bio;
+
+  nameEl.innerHTML=`<input class="edit-input" id="editName" value="${origName.replace(/"/g,'&quot;')}" style="font-size:22px;font-weight:700;text-align:center"/>`;
+  bioEl.innerHTML=`<textarea class="edit-input" id="editBio" rows="3" style="font-size:13px;text-align:center">${origBio}</textarea>`;
+
+  // Replace action buttons with save/cancel
+  const actions=document.querySelector('.prof-actions');
+  actions.innerHTML='';
+  const bar=document.createElement('div');bar.className='edit-bar';bar.style.marginTop='0';
+  bar.innerHTML=`<button class="eb-save" onclick="saveEdit()">Save</button><button class="eb-cancel" onclick="cancelEdit()">Cancel</button>`;
+  actions.appendChild(bar);
+
+  document.getElementById('editName').focus();
+}
+
+function saveEdit(){
+  const nameInput=document.getElementById('editName');
+  const bioInput=document.getElementById('editBio');
+  if(nameInput)currentProfile.displayName=nameInput.value.trim()||currentProfile.displayName;
+  if(bioInput)currentProfile.bio=bioInput.value.trim()||currentProfile.bio;
+  isEditing=false;
+  showToast('Profile updated');
+  render();
+}
+
+function cancelEdit(){
+  isEditing=false;
+  render();
+}
+
+// === Init ===
+render();
+</script>
+</body>
+</html>

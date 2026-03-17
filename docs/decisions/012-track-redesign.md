@@ -48,12 +48,17 @@ Regardless of the default approach, these rules apply:
 - **Colors**: Each track has an assigned color for visual identity on the timeline; artist can customize
 - **Creation**: Artists can add new tracks at any time within the maximum limit
 
+### UI Labeling for Fans
+
+The internal concept name "Track" is retained, but fan-facing UI (e.g., artist page) adds a subtext to make the meaning clear: **"This artist's content streams"**. This avoids the confusion of showing "TRACKS" with opaque names like "Play" or "Compose" without context, while preserving the DAW metaphor for artists who understand it.
+
 ## Consequences
 
 - Removing the musician-specific defaults eliminates a significant barrier for non-musician artists joining Gleisner
 - The track system becomes a true personal tool, not confused with platform-level taxonomy
 - The specific default approach is deferred until the genre system provides context for personalization
 - Existing mockups (timeline-v1.html, post-v1.html, post-v2.html) continue to use Play/Compose/Life/English as illustrative examples; these will be updated when the default approach is finalized
+- Fan-facing pages show "TRACKS" with the subtext "This artist's content streams" for clarity
 
 ## Related
 
