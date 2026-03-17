@@ -29,9 +29,11 @@ The Profile tab displays the user's personal identity:
 
 - Avatar, display name, username
 - Bio / self-introduction
-- User-to-user follow stats (following / followers)
+- User-to-user follow stats (following / followers) + **Tuned In count** (number of artists the user is Tuned In to — shows fan engagement level)
+- **Joined date**: Displayed as "Joined Mon YYYY" — serves as a trust signal, especially important for a decentralized platform where account age helps users assess credibility
 - **Recent fan activity**: A chronological feed of the user's activity as a fan — comments, reactions, Tune Ins. Shows "what this person has been engaging with" publicly
 - **For artist-registered users**: A prominent link to "Your Artist Page"
+- **Interests (auto-detected genres)**: Genres are automatically aggregated from the user's Tuned In artists, sorted by frequency. Not manually selected — derived entirely from Tune In behavior. Empty when no artists are Tuned In. Displayed as genre chips (same style as Artist Page genres) in an "INTERESTS" section between the Artist Page link and Recent Activity
 - **Self view**: Edit button (inline editing of name, bio, avatar) + Settings link
 - **Other's view**: Read-only + Follow button (user-to-user)
 
@@ -49,6 +51,9 @@ The page is composed of ordered sections, designed for future plugin extensibili
 
 ```
 ┌─────────────────────────────┐
+│ Cover Image                 │
+│  (generative art banner)    │
+├─────────────────────────────┤
 │ Header                      │
 │  Avatar / Name / Username   │
 │  [Tune In] button           │
@@ -58,17 +63,45 @@ The page is composed of ordered sections, designed for future plugin extensibili
 │  [Music] [Flamenco] [Electronic] │
 ├─────────────────────────────┤
 │ About                       │
-│  Artist introduction text   │
+│  📍 Location · Active since │
+│  Bio (longer introduction)  │
+├─────────────────────────────┤
+│ Links                       │
+│  MUSIC: [Spotify] [Apple Music] │
+│  SNS:   [Instagram] [X]    │
 ├─────────────────────────────┤
 │ Tracks                      │
+│  "This artist's content streams" │
 │  ● Play  ● Compose  ● Life │
-│  (track colors + names)     │
 ├─────────────────────────────┤
 │ Recent Posts                │
 │  Simplified timeline preview│
 │  (latest 3–5 posts, compact)│
 └─────────────────────────────┘
 ```
+
+#### Cover Image
+
+A wide banner image at the top of the Artist Page (similar to X/YouTube headers). In the mockup, this is a generative art canvas seeded from the artist's identity; in production, artists will upload their own cover image. The avatar overlaps the bottom of the cover with a gradient fade.
+
+#### About Section
+
+Expanded beyond a single tagline to include:
+
+- **Location**: Activity base (e.g., "📍 Osaka, Japan")
+- **Active since**: Year the artist started (e.g., "Active since 2019")
+- **Bio**: A longer introduction text separate from the tagline
+
+Location and active-since are displayed on a single line for compactness.
+
+#### Links Section
+
+External links organized into two categories:
+
+- **MUSIC**: Streaming platforms (Spotify, Apple Music, SoundCloud, Bandcamp, etc.)
+- **SNS**: Social media (Instagram, X, YouTube, etc.)
+
+Displayed as chip-style buttons. Each link opens in-browser (in production) or shows a toast (in mockup). Artists without music links (e.g., visual artists, photographers) only show the SNS category.
 
 The Recent Posts section has two subsections:
 
@@ -83,7 +116,7 @@ The section-based layout allows plugin sections to be added:
 
 ```
 MVP sections:
-  Header / Genres / About / Tracks / Recent Posts
+  Cover Image / Header / Genres / About / Links / Tracks / Recent Posts
 
 Future plugin sections (examples):
   📦 Merch Store
