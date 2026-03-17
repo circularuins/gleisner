@@ -24,18 +24,40 @@ Tracks remain a per-artist organizational tool for their timeline. They are not 
 - Enabling Solo/Mute filtering on the timeline (ADR 004)
 - Providing visual identity through track colors and the constellation layout
 
-### Default Tracks: To Be Redesigned
+### Default Tracks: Template Sets (Decided)
 
-The current defaults (Play, Compose, Life, English) are retired as universal defaults. The replacement approach is to be determined, with the following candidates under consideration:
+The current defaults (Play, Compose, Life, English) are retired as universal defaults. After evaluating four candidates, the **Template sets** approach was chosen based on the artist registration mockup implementation:
 
-| Approach | Description | Pros | Cons |
-|----------|-------------|------|------|
-| **No defaults** | Artist creates all tracks from scratch on signup | Maximum freedom | High friction for new users; blank-slate paralysis |
-| **Template sets** | Choose from preset bundles (Musician, Visual Artist, Writer, Filmmaker, Custom) | Low friction; audience-appropriate | Platform decides what templates exist; may still feel limiting |
-| **Minimal universal defaults** | 1–2 genuinely universal tracks (e.g. "Work" and "Life") + custom | Balance of guidance and freedom | Hard to find tracks that are truly universal |
-| **AI-suggested** | Analyze the artist's genre selections (ADR 011) and suggest an initial track set | Personalized; low friction | Adds complexity; depends on genre system being in place |
+| Template | Default Tracks |
+|----------|---------------|
+| **Musician** | Play, Compose, Life |
+| **Visual Artist** | Works, Process, Thoughts |
+| **Writer** | Writing, Notes, Life |
+| **Filmmaker** | Films, BTS, Stills |
+| **Custom** | (empty — artist creates from scratch) |
 
-The specific approach will be decided when the genre system (ADR 011) is implemented, as the genre context may inform which template or suggestion approach works best.
+The artist registration flow presents these as a horizontal card selector. Selecting a template populates the track list, which the artist can then freely edit (rename, add, remove) before completing registration.
+
+The other candidates considered but not adopted:
+
+| Approach | Why not |
+|----------|---------|
+| **No defaults** | High friction; blank-slate paralysis for new users |
+| **Minimal universal defaults** | No truly universal track names exist across disciplines |
+| **AI-suggested** | Adds unnecessary complexity at this stage |
+
+#### Track Onboarding UX
+
+The track setup step in artist registration includes a **"What are Tracks?"** explainer at the top of the page. This is critical because users encountering Tracks for the first time have no mental model for the concept. The explainer describes Tracks as "themed channels within your Artist Page" where "fans can follow individual Tracks to only see what interests them," with a concrete example (Play / Compose / Life for a musician).
+
+#### Track Color Assignment (TBD)
+
+Track colors are currently derived from a name-based hash (via `TRACK_COLORS` palette with fallback to deterministic hash generation). This works for known track names but produces visually similar colors for similar names (e.g., "New Track 1" and "New Track 2"). The production implementation should use one of:
+
+- **Color picker**: Artist explicitly chooses a color per track
+- **Palette rotation**: Assign colors sequentially from a curated palette, regardless of name
+
+The specific approach is deferred to implementation.
 
 ### Track Configuration Rules
 
@@ -56,9 +78,11 @@ The internal concept name "Track" is retained, but fan-facing UI (e.g., artist p
 
 - Removing the musician-specific defaults eliminates a significant barrier for non-musician artists joining Gleisner
 - The track system becomes a true personal tool, not confused with platform-level taxonomy
-- The specific default approach is deferred until the genre system provides context for personalization
-- Existing mockups (timeline-v1.html, post-v1.html, post-v2.html) continue to use Play/Compose/Life/English as illustrative examples; these will be updated when the default approach is finalized
+- Template sets provide low-friction onboarding while respecting creative diversity across disciplines
+- The "What are Tracks?" explainer in artist registration ensures first-time users understand the concept before configuring
+- Existing mockups (timeline-v1.html, post-v1.html, post-v2.html) continue to use Play/Compose/Life/English as illustrative examples for a musician persona
 - Fan-facing pages show "TRACKS" with the subtext "This artist's content streams" for clarity
+- Track color assignment method is deferred to implementation (color picker or palette rotation)
 
 ## Related
 
@@ -66,3 +90,5 @@ The internal concept name "Track" is retained, but fan-facing UI (e.g., artist p
 - ADR 004 — Multitrack timeline (Solo/Mute, track-based visual layout)
 - ADR 006 — Timeline visual design (track colors, constellation layout)
 - ADR 009 — Discover tab (where genre filtering replaces track-based filtering)
+- ADR 013 — Profile & Artist Page (onboarding flow, artist registration)
+- Mockup: `docs/mockups/artist-registration-v1.html` (track template selection and setup)

@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Gleisner — Sign Up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050509;--bg2:#0c0c12;--bg3:#151520;
+  --text:#eee;--text2:#8888a0;--text3:#444460;
+  --border:#1a1a28;
+  --c-play:#f97316;--c-compose:#a78bfa;--c-life:#22d3ee;--c-english:#84cc16;
+  --font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:hidden}
+
+/* Switcher */
+.switcher{display:flex;gap:6px;overflow-x:auto;padding:0 14px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.switcher::-webkit-scrollbar{display:none}
+.sw-chip{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;user-select:none;white-space:nowrap;flex-shrink:0}
+.sw-chip.a{background:var(--text);color:var(--bg);border-color:var(--text)}
+.sw-chip:active{transform:scale(.95)}
+
+/* Progress dots */
+.progress-dots{display:flex;gap:8px;justify-content:center;padding:20px 0 8px}
+.progress-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);transition:all .3s}
+.progress-dot.a{background:var(--text);width:24px;border-radius:4px}
+.progress-dot.done{background:var(--c-compose)}
+
+/* Main */
+.main{min-height:100dvh;display:flex;flex-direction:column}
+.step{display:none;flex:1;flex-direction:column}
+.step.a{display:flex}
+
+/* Header */
+.hdr{position:sticky;top:0;z-index:100;background:rgba(5,5,9,.94);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border-bottom:1px solid var(--border);padding:12px 14px 10px}
+.hdr-row{display:flex;align-items:center;justify-content:space-between}
+.hdr-title{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.hdr-back{font-size:13px;color:var(--text2);cursor:pointer;padding:4px 0}
+.hdr-skip{font-size:13px;color:var(--text3);cursor:pointer;padding:4px 0}
+
+/* Step 1: Welcome */
+.welcome-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px}
+.welcome-logo{width:80px;height:80px;border-radius:50%;overflow:hidden;margin-bottom:24px}
+.welcome-logo canvas{width:100%;height:100%;display:block}
+.welcome-brand{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+.welcome-tagline{font-size:14px;color:var(--text2);margin-bottom:24px;text-align:center;line-height:1.5}
+
+/* Account structure info */
+.account-info{width:100%;max-width:320px;margin-bottom:28px}
+.account-info-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;gap:12px;margin-bottom:8px}
+.account-info-card:last-child{margin-bottom:0}
+.account-icon{font-size:20px;flex-shrink:0;width:28px;text-align:center;padding-top:1px}
+.account-info-body{flex:1}
+.account-info-title{font-size:13px;font-weight:600;margin-bottom:2px}
+.account-info-desc{font-size:11px;color:var(--text2);line-height:1.4}
+.account-arrow{display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:16px;padding:2px 0}
+
+.auth-buttons{width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px}
+.auth-btn{width:100%;padding:14px 20px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);font-family:var(--font);font-size:14px;font-weight:500;color:var(--text);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:12px}
+.auth-btn:active{transform:scale(.97);opacity:.8}
+.auth-btn svg{width:20px;height:20px;flex-shrink:0}
+.auth-btn-google svg{color:#4285f4}
+.auth-btn-apple svg{color:#fff}
+.auth-btn-email svg{color:var(--text2)}
+.signin-link{margin-top:24px;font-size:13px;color:var(--text3)}
+.signin-link a{color:var(--c-compose);text-decoration:none}
+
+/* Step 2: Profile Setup */
+.profile-wrap{padding:24px 20px;flex:1;overflow-y:auto}
+.form-group{margin-bottom:20px}
+.form-label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;display:block}
+.form-hint{font-size:11px;color:var(--text3);margin-top:4px;font-family:var(--mono)}
+.form-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-family:var(--font);font-size:14px;color:var(--text);outline:none;transition:border-color .15s}
+.form-input:focus{border-color:var(--c-compose)}
+.form-input::placeholder{color:var(--text3)}
+textarea.form-input{resize:vertical;min-height:60px;line-height:1.4}
+.username-preview{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:6px;padding:6px 10px;background:var(--bg2);border-radius:6px}
+.char-count{font-family:var(--mono);font-size:11px;color:var(--text3);text-align:right;margin-top:2px}
+
+/* Avatar with upload */
+.avatar-section{display:flex;align-items:center;gap:16px;margin-bottom:24px}
+.avatar-upload{position:relative;width:72px;height:72px;flex-shrink:0;cursor:pointer}
+.avatar-upload canvas{width:100%;height:100%;display:block;border-radius:50%}
+.avatar-upload-overlay{position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s}
+.avatar-upload:hover .avatar-upload-overlay{opacity:1}
+.avatar-upload-overlay svg{width:20px;height:20px;stroke:#fff;stroke-width:1.5;fill:none}
+.avatar-upload-badge{position:absolute;bottom:0;right:0;width:22px;height:22px;border-radius:50%;background:var(--c-compose);display:flex;align-items:center;justify-content:center;border:2px solid var(--bg)}
+.avatar-upload-badge svg{width:10px;height:10px;stroke:#fff;stroke-width:2;fill:none}
+.avatar-info{flex:1}
+.avatar-info-text{font-size:12px;color:var(--text2);line-height:1.4;margin-bottom:4px}
+.avatar-info-hint{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.avatar-uploaded-img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:none}
+input[type="file"]{display:none}
+
+/* Step 3: Genre Selection */
+.genre-wrap{padding:24px 20px;flex:1;overflow-y:auto}
+.genre-section-label{font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;margin-top:16px}
+.genre-section-label:first-child{margin-top:0}
+.genre-select{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.genre-tag{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;user-select:none}
+.genre-tag:active{transform:scale(.95)}
+.genre-tag.selected{border-color:currentColor;background:rgba(255,255,255,.06)}
+.genre-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.genre-count{font-family:var(--mono);font-size:11px;color:var(--text3);text-align:center;margin-top:12px}
+.skip-link{display:block;text-align:center;font-size:13px;color:var(--text3);cursor:pointer;padding:12px;margin-top:8px}
+.skip-link:active{color:var(--text2)}
+
+/* Step 4: Complete */
+.complete-wrap{flex:1;display:flex;flex-direction:column;align-items:center;padding:40px 24px}
+.complete-avatar{width:80px;height:80px;border-radius:50%;overflow:hidden;margin-bottom:16px}
+.complete-avatar canvas{width:100%;height:100%;display:block}
+.complete-avatar img{width:100%;height:100%;object-fit:cover;display:none}
+.complete-title{font-size:22px;font-weight:700;margin-bottom:6px}
+.complete-sub{font-size:14px;color:var(--text2);margin-bottom:12px;text-align:center}
+
+/* What's next info */
+.whats-next{width:100%;max-width:320px;margin-bottom:24px}
+.whats-next-label{font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;text-align:center}
+.next-option{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start}
+.next-option-icon{font-size:18px;flex-shrink:0;width:24px;text-align:center}
+.next-option-body{flex:1}
+.next-option-title{font-size:13px;font-weight:600;margin-bottom:2px}
+.next-option-desc{font-size:11px;color:var(--text2);line-height:1.4}
+
+.artist-cta-card{width:100%;max-width:320px;background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(249,115,22,.06));border:1px solid rgba(167,139,250,.2);border-radius:16px;padding:20px;margin-bottom:16px;cursor:pointer;transition:all .15s}
+.artist-cta-card:active{transform:scale(.97)}
+.cta-icon{font-size:24px;margin-bottom:8px}
+.cta-title{font-size:15px;font-weight:600;margin-bottom:4px}
+.cta-desc{font-size:12px;color:var(--text2);line-height:1.4;margin-bottom:12px}
+.cta-arrow{font-size:13px;color:var(--c-compose);font-weight:600}
+.complete-btn{width:100%;max-width:320px;padding:14px;border-radius:12px;border:none;background:var(--bg3);font-family:var(--font);font-size:14px;font-weight:500;color:var(--text);cursor:pointer;transition:all .15s;margin-top:8px}
+.complete-btn:active{transform:scale(.97);opacity:.8}
+
+/* Continue button — sticky footer */
+.step-footer{position:sticky;bottom:0;padding:16px 20px;padding-bottom:calc(16px + env(safe-area-inset-bottom));background:rgba(5,5,9,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);z-index:50}
+.next-btn{width:100%;padding:14px;border-radius:12px;border:none;background:var(--c-compose);font-family:var(--font);font-size:14px;font-weight:600;color:#fff;cursor:pointer;transition:all .15s}
+.next-btn:active{transform:scale(.97);opacity:.8}
+.next-btn:disabled{opacity:.3;pointer-events:none}
+
+/* Toast */
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--text2);z-index:1000;font-family:var(--mono);box-shadow:0 4px 20px rgba(0,0,0,.5);transition:opacity .3s;pointer-events:none}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-row">
+    <div class="hdr-back" id="backBtn" style="visibility:hidden">← Back</div>
+    <div class="hdr-title">Sign Up</div>
+    <div class="hdr-skip" id="skipBtn" style="visibility:hidden">Skip</div>
+  </div>
+  <div class="progress-dots" id="progressDots"></div>
+  <div class="switcher" id="switcher" style="padding-top:12px"></div>
+</div>
+
+<div class="main" id="main">
+  <!-- Step 1: Welcome -->
+  <div class="step a" id="step-0">
+    <div class="welcome-wrap">
+      <div class="welcome-logo"><canvas id="logoCanvas"></canvas></div>
+      <div class="welcome-brand">Gleisner</div>
+      <div class="welcome-tagline">Your creative identity, owned by you.<br>Share art, music, writing &amp; more.</div>
+
+      <!-- Account structure explanation -->
+      <div class="account-info">
+        <div class="account-info-card">
+          <div class="account-icon">👤</div>
+          <div class="account-info-body">
+            <div class="account-info-title">Personal Account</div>
+            <div class="account-info-desc">Discover artists, follow tracks, build your timeline. This is your personal identity on Gleisner.</div>
+          </div>
+        </div>
+        <div class="account-arrow">↓</div>
+        <div class="account-info-card" style="border-color:rgba(167,139,250,.25)">
+          <div class="account-icon">🎨</div>
+          <div class="account-info-body">
+            <div class="account-info-title" style="color:var(--c-compose)">+ Artist Upgrade</div>
+            <div class="account-info-desc">Create an Artist Page, set up tracks, and broadcast your work. You can upgrade anytime after signup.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="auth-buttons">
+        <button class="auth-btn auth-btn-google" onclick="authWith('Google')">
+          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34a853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#fbbc05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#ea4335"/></svg>
+          Continue with Google
+        </button>
+        <button class="auth-btn auth-btn-apple" onclick="authWith('Apple')">
+          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.32 2.32-2.11 4.45-3.74 4.25z"/></svg>
+          Continue with Apple
+        </button>
+        <button class="auth-btn auth-btn-email" onclick="authWith('Email')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 4L12 13 2 4"/></svg>
+          Continue with Email
+        </button>
+      </div>
+      <div class="signin-link">Already have an account? <a href="#" onclick="showToast('Sign in flow — not in scope')">Sign in</a></div>
+    </div>
+  </div>
+
+  <!-- Step 2: Profile Setup -->
+  <div class="step" id="step-1">
+    <div class="profile-wrap">
+      <!-- Avatar with upload option -->
+      <div class="avatar-section">
+        <div class="avatar-upload" id="avatarUpload" onclick="document.getElementById('avatarFile').click()">
+          <canvas id="profileAvatarCanvas"></canvas>
+          <img class="avatar-uploaded-img" id="avatarImg">
+          <div class="avatar-upload-overlay">
+            <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </div>
+          <div class="avatar-upload-badge">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+        </div>
+        <input type="file" id="avatarFile" accept="image/*">
+        <div class="avatar-info">
+          <div class="avatar-info-text">Tap to upload a photo, or keep the generated avatar</div>
+          <div class="avatar-info-hint">Auto-generated from your display name</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Display Name *</label>
+        <input class="form-input" id="displayName" type="text" placeholder="Your name" maxlength="50" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Username *</label>
+        <input class="form-input" id="username" type="text" placeholder="username" maxlength="30" autocomplete="off" style="font-family:var(--mono)">
+        <div class="username-preview" id="usernamePreview">gleisner.app/@username</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Bio <span style="color:var(--text3)">(optional)</span></label>
+        <textarea class="form-input" id="bioInput" placeholder="Tell us about yourself" maxlength="160" rows="2"></textarea>
+        <div class="char-count"><span id="bioCount">0</span>/160</div>
+      </div>
+    </div>
+    <div class="step-footer">
+      <button class="next-btn" id="profileNext" disabled>Continue</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Genre Selection -->
+  <div class="step" id="step-2">
+    <div class="genre-wrap" id="genreWrap"></div>
+    <div class="step-footer">
+      <button class="next-btn" id="genreNext">Continue</button>
+      <div class="skip-link" onclick="goTo(3)">Skip for now</div>
+    </div>
+  </div>
+
+  <!-- Step 4: Complete -->
+  <div class="step" id="step-3">
+    <div class="complete-wrap">
+      <div class="complete-avatar" id="completeAvatar">
+        <canvas></canvas>
+        <img id="completeAvatarImg" style="display:none">
+      </div>
+      <div class="complete-title" id="completeTitle">Welcome!</div>
+      <div class="complete-sub">Your personal account is ready.</div>
+
+      <!-- What you can do now -->
+      <div class="whats-next">
+        <div class="whats-next-label">YOUR ACCOUNT INCLUDES</div>
+        <div class="next-option">
+          <div class="next-option-icon">📡</div>
+          <div class="next-option-body">
+            <div class="next-option-title">Personalized Timeline</div>
+            <div class="next-option-desc">Follow artists and tracks to build your own feed</div>
+          </div>
+        </div>
+        <div class="next-option">
+          <div class="next-option-icon">🔍</div>
+          <div class="next-option-body">
+            <div class="next-option-title">Discover</div>
+            <div class="next-option-desc">Explore trending artists, genres, and new work</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="artist-cta-card" onclick="gotoArtistReg()">
+        <div class="cta-icon">🎨</div>
+        <div class="cta-title">Ready to share your work?</div>
+        <div class="cta-desc">Upgrade to an Artist account to get your own Artist Page, Tracks, and broadcasting tools. Your personal account stays — the artist profile is a separate creative identity.</div>
+        <div class="cta-arrow">Become an Artist →</div>
+      </div>
+      <button class="complete-btn" onclick="showToast('→ discover-v1.html')">Explore Discover first →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Utilities ── */
+function mkRng(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return()=>{h=(h*16807)%2147483647;return(h&0x7fffffff)/0x7fffffff}}
+
+function drawAvatar(cv,seed,size,color){
+  const w=size*2;cv.width=w;cv.height=w;
+  const ctx=cv.getContext('2d'),rng=mkRng(seed);
+  const[cr,cg,cb]=color.split(',').map(Number);
+  ctx.fillStyle=`rgb(${12+rng()*8|0},${12+rng()*8|0},${16+rng()*8|0})`;ctx.fillRect(0,0,w,w);
+  for(let i=0;i<3;i++){const g=ctx.createRadialGradient(w*(.2+rng()*.6),w*(.2+rng()*.6),0,w*.5,w*.5,w*(.3+rng()*.4));g.addColorStop(0,`rgba(${cr},${cg},${cb},${.15+rng()*.25})`);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,w,w)}
+  for(let i=0;i<4+rng()*4;i++){ctx.save();ctx.globalAlpha=.04+rng()*.1;ctx.fillStyle=`rgb(${cr+rng()*40-20|0},${cg+rng()*40-20|0},${cb+rng()*40-20|0})`;ctx.translate(rng()*w,rng()*w);ctx.rotate(rng()*Math.PI*2);ctx.beginPath();const s=6+rng()*20;ctx.ellipse(0,0,s,s*(.4+rng()*.6),0,0,Math.PI*2);ctx.fill();ctx.restore()}
+  const id=ctx.getImageData(0,0,w,w),dd=id.data;for(let i=0;i<dd.length;i+=4){const n=(rng()-.5)*10;dd[i]+=n;dd[i+1]+=n;dd[i+2]+=n}ctx.putImageData(id,0,0);
+}
+
+function showToast(msg,duration=2000){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300)},duration)}
+
+const GENRE_PALETTE={
+  Music:{c:'#f97316',rgb:'249,115,22'},Flamenco:{c:'#ef4444',rgb:'239,68,68'},Electronic:{c:'#06b6d4',rgb:'6,182,212'},Ambient:{c:'#6366f1',rgb:'99,102,241'},'Lo-fi':{c:'#78716c',rgb:'120,113,108'},Jazz:{c:'#eab308',rgb:'234,179,8'},'Singer-Songwriter':{c:'#fb923c',rgb:'251,146,60'},'Visual Art':{c:'#a78bfa',rgb:'167,139,250'},'Digital Art':{c:'#c084fc',rgb:'192,132,252'},'Generative Art':{c:'#818cf8',rgb:'129,140,248'},Illustration:{c:'#a78bfa',rgb:'167,139,250'},Writing:{c:'#22d3ee',rgb:'34,211,238'},Poetry:{c:'#67e8f9',rgb:'103,232,249'},Essay:{c:'#2dd4bf',rgb:'45,212,191'},Film:{c:'#84cc16',rgb:'132,204,22'},'Short Film':{c:'#a3e635',rgb:'163,230,53'},Documentary:{c:'#65a30d',rgb:'101,163,13'},'Motion Graphics':{c:'#bef264',rgb:'190,242,100'},Photography:{c:'#e879f9',rgb:'232,121,249'},'Street Photography':{c:'#f0abfc',rgb:'240,171,252'},'Hardware Art':{c:'#fbbf24',rgb:'251,191,36'},DIY:{c:'#f59e0b',rgb:'245,158,11'},
+};
+function genreColor(g){if(GENRE_PALETTE[g])return GENRE_PALETTE[g];let h=0;for(let i=0;i<g.length;i++)h=((h<<5)-h+g.charCodeAt(i))|0;const hue=((h%360)+360)%360;const r=Math.round(180+50*Math.cos(hue*Math.PI/180)),gv=Math.round(180+50*Math.cos((hue-120)*Math.PI/180)),b=Math.round(180+50*Math.cos((hue+120)*Math.PI/180));return{c:`rgb(${r},${gv},${b})`,rgb:`${r},${gv},${b}`}}
+
+/* ── State ── */
+const STEPS=['Welcome','Profile','Genres','Complete'];
+let currentStep=0;
+let selectedGenres=[];
+let formData={displayName:'',username:'',bio:''};
+let uploadedAvatarURL=null;
+
+/* ── Navigation ── */
+function goTo(step){
+  currentStep=step;
+  document.querySelectorAll('.step').forEach((s,i)=>{s.classList.toggle('a',i===step)});
+  document.querySelectorAll('.sw-chip').forEach((c,i)=>{c.classList.toggle('a',i===step)});
+  renderProgress();
+  document.getElementById('backBtn').style.visibility=step>0?'visible':'hidden';
+  document.getElementById('skipBtn').style.visibility=step===2?'visible':'hidden';
+  document.getElementById('skipBtn').onclick=()=>goTo(3);
+  if(step===2)renderGenres();
+  if(step===3)renderComplete();
+}
+
+function renderProgress(){
+  const dots=document.getElementById('progressDots');dots.innerHTML='';
+  STEPS.forEach((_,i)=>{const d=document.createElement('div');d.className='progress-dot'+(i===currentStep?' a':'')+(i<currentStep?' done':'');dots.appendChild(d)});
+}
+
+/* ── Switcher ── */
+function buildSwitcher(){
+  const sw=document.getElementById('switcher');
+  STEPS.forEach((label,i)=>{const chip=document.createElement('div');chip.className='sw-chip'+(i===0?' a':'');chip.textContent=label;chip.onclick=()=>goTo(i);sw.appendChild(chip)});
+}
+
+/* ── Step 1: Welcome ── */
+function initWelcome(){
+  drawAvatar(document.getElementById('logoCanvas'),'Gleisner',80,'167,139,250');
+}
+
+function authWith(provider){
+  showToast(`Auth with ${provider} — demo`);
+  setTimeout(()=>goTo(1),600);
+}
+
+/* ── Step 2: Profile ── */
+function initProfile(){
+  const nameInput=document.getElementById('displayName');
+  const userInput=document.getElementById('username');
+  const bioInput=document.getElementById('bioInput');
+  const nextBtn=document.getElementById('profileNext');
+  const avatarCanvas=document.getElementById('profileAvatarCanvas');
+  const avatarImg=document.getElementById('avatarImg');
+  const avatarFileInput=document.getElementById('avatarFile');
+
+  function updateAvatar(){
+    if(uploadedAvatarURL)return; // keep uploaded photo
+    const seed=nameInput.value.trim()||'user';
+    drawAvatar(avatarCanvas,seed,72,'167,139,250');
+  }
+  updateAvatar();
+
+  // File upload handler
+  avatarFileInput.addEventListener('change',e=>{
+    const file=e.target.files[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      uploadedAvatarURL=ev.target.result;
+      avatarImg.src=uploadedAvatarURL;
+      avatarImg.style.display='block';
+      avatarCanvas.style.display='none';
+      document.querySelector('.avatar-info-hint').textContent='Photo uploaded — tap to change';
+      showToast('Avatar photo set');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function validateProfile(){
+    const nameOk=nameInput.value.trim().length>=1;
+    const userOk=/^[a-zA-Z0-9_]{1,30}$/.test(userInput.value.trim());
+    nextBtn.disabled=!(nameOk&&userOk);
+  }
+
+  nameInput.addEventListener('input',()=>{
+    formData.displayName=nameInput.value;
+    updateAvatar();
+    if(!userInput.dataset.edited){
+      const auto=nameInput.value.trim().toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'').slice(0,30);
+      userInput.value=auto;formData.username=auto;
+      document.getElementById('usernamePreview').textContent=`gleisner.app/@${auto||'username'}`;
+    }
+    validateProfile();
+  });
+
+  userInput.addEventListener('input',()=>{
+    userInput.dataset.edited='1';
+    const v=userInput.value.replace(/[^a-zA-Z0-9_]/g,'').slice(0,30);
+    userInput.value=v;formData.username=v;
+    document.getElementById('usernamePreview').textContent=`gleisner.app/@${v||'username'}`;
+    validateProfile();
+  });
+
+  bioInput.addEventListener('input',()=>{
+    formData.bio=bioInput.value;
+    document.getElementById('bioCount').textContent=bioInput.value.length;
+  });
+
+  nextBtn.onclick=()=>goTo(2);
+}
+
+/* ── Step 3: Genre Selection ── */
+const POPULAR_GENRES=['Music','Electronic','Jazz','Visual Art','Writing','Film','Photography','Lo-fi'];
+const ALL_GENRES=Object.keys(GENRE_PALETTE).filter(g=>!POPULAR_GENRES.includes(g));
+
+function renderGenres(){
+  const wrap=document.getElementById('genreWrap');wrap.innerHTML='';
+  const popLabel=document.createElement('div');popLabel.className='genre-section-label';popLabel.textContent='POPULAR';wrap.appendChild(popLabel);
+  const popGrid=document.createElement('div');popGrid.className='genre-select';wrap.appendChild(popGrid);
+  POPULAR_GENRES.forEach(g=>popGrid.appendChild(makeGenreTag(g)));
+  const allLabel=document.createElement('div');allLabel.className='genre-section-label';allLabel.textContent='ALL GENRES';wrap.appendChild(allLabel);
+  const allGrid=document.createElement('div');allGrid.className='genre-select';wrap.appendChild(allGrid);
+  ALL_GENRES.forEach(g=>allGrid.appendChild(makeGenreTag(g)));
+  const count=document.createElement('div');count.className='genre-count';count.id='genreCount';
+  count.textContent=`${selectedGenres.length}/5 selected`;wrap.appendChild(count);
+}
+
+function makeGenreTag(genre){
+  const gc=genreColor(genre);
+  const tag=document.createElement('div');
+  tag.className='genre-tag'+(selectedGenres.includes(genre)?' selected':'');
+  tag.style.color=gc.c;
+  const dot=document.createElement('span');dot.className='genre-dot';dot.style.background=gc.c;
+  tag.appendChild(dot);tag.appendChild(document.createTextNode(genre));
+  tag.onclick=()=>toggleGenre(genre,tag);
+  return tag;
+}
+
+function toggleGenre(genre,tag){
+  const idx=selectedGenres.indexOf(genre);
+  if(idx>=0){selectedGenres.splice(idx,1);tag.classList.remove('selected')}
+  else if(selectedGenres.length<5){selectedGenres.push(genre);tag.classList.add('selected')}
+  else{showToast('Maximum 5 genres');return}
+  document.getElementById('genreCount').textContent=`${selectedGenres.length}/5 selected`;
+}
+
+document.getElementById('genreNext').onclick=()=>goTo(3);
+
+/* ── Step 4: Complete ── */
+function renderComplete(){
+  const name=formData.displayName||'Explorer';
+  const cv=document.querySelector('#completeAvatar canvas');
+  const img=document.getElementById('completeAvatarImg');
+  if(uploadedAvatarURL){
+    img.src=uploadedAvatarURL;img.style.display='block';cv.style.display='none';
+  }else{
+    drawAvatar(cv,name,80,'167,139,250');img.style.display='none';cv.style.display='block';
+  }
+  document.getElementById('completeTitle').textContent=`Welcome, ${name}!`;
+}
+
+function gotoArtistReg(){
+  showToast('→ artist-registration-v1.html');
+  setTimeout(()=>{window.location.href='artist-registration-v1.html'},800);
+}
+
+/* ── Init ── */
+buildSwitcher();
+renderProgress();
+initWelcome();
+initProfile();
+document.getElementById('backBtn').onclick=()=>{if(currentStep>0)goTo(currentStep-1)};
+</script>
+</body>
+</html>
