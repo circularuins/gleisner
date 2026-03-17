@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gleisner — Discover v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050509;--bg2:#0c0c12;--bg3:#151520;
+    --text:#eee;--text2:#8888a0;--text3:#444460;--border:#1a1a28;
+    --c-play:#f97316;--c-compose:#a78bfa;--c-life:#22d3ee;--c-english:#84cc16;
+    --font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:hidden}
+
+  /* Header */
+  .hdr{position:sticky;top:0;z-index:100;background:rgba(5,5,9,.94);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border-bottom:1px solid var(--border);padding:12px 14px 10px}
+  .hdr-title{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
+  .search-wrap{position:relative}
+  .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none}
+  .search-icon svg{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none}
+  .search{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:10px 12px 10px 36px;font-family:var(--font);font-size:14px;color:var(--text);outline:none;transition:border-color .15s}
+  .search::placeholder{color:var(--text3)}
+  .search:focus{border-color:var(--text3)}
+
+  /* Section headers */
+  .sec{padding:20px 14px 8px}
+  .sec-title{font-size:14px;font-weight:600;letter-spacing:-.01em}
+  .sec-label{font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+
+  /* Trending horizontal scroll */
+  .trend-scroll{display:flex;gap:10px;overflow-x:auto;padding:0 14px 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .trend-scroll::-webkit-scrollbar{display:none}
+  .trend-card{flex-shrink:0;width:260px;height:160px;border-radius:16px;overflow:hidden;position:relative;cursor:pointer;transition:transform .15s;border:1px solid rgba(255,255,255,.06)}
+  .trend-card:active{transform:scale(.97)}
+  .trend-card canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .trend-card.glow{border-color:rgba(255,255,255,.1)}
+  .trend-info{position:absolute;bottom:0;left:0;right:0;padding:12px 14px;background:linear-gradient(transparent,rgba(0,0,0,.85));z-index:2}
+  .trend-name{font-size:16px;font-weight:600;line-height:1.2;margin-bottom:4px}
+  .trend-meta{display:flex;align-items:center;gap:8px}
+  .trend-dots{display:flex;gap:3px}
+  .trend-dots .td{width:6px;height:6px;border-radius:50%}
+  .trend-followers{font-family:var(--mono);font-size:10px;color:var(--text2)}
+  .trend-badge{position:absolute;top:10px;right:10px;z-index:3;font-family:var(--mono);font-size:7px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:rgba(249,115,22,.2);color:#f97316;padding:3px 7px;border-radius:6px;backdrop-filter:blur(4px)}
+
+  /* Category chips */
+  .cats{display:flex;gap:6px;overflow-x:auto;padding:0 14px 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .cats::-webkit-scrollbar{display:none}
+  .cat{padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;user-select:none;white-space:nowrap;flex-shrink:0}
+  .cat.a{background:var(--text);color:var(--bg);border-color:var(--text)}
+
+  /* Explore grid */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 12px}
+  .grid-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .3s;user-select:none}
+  .grid-card:active{transform:scale(.97)}
+  .grid-card.glow{border-color:rgba(255,255,255,.1)}
+  .grid-avatar{width:48px;height:48px;border-radius:50%;overflow:hidden;margin-bottom:10px;position:relative}
+  .grid-avatar canvas{width:100%;height:100%;display:block}
+  .grid-name{font-size:14px;font-weight:600;line-height:1.2;margin-bottom:4px}
+  .grid-dots{display:flex;gap:3px;margin-bottom:6px}
+  .grid-dots .td{width:5px;height:5px;border-radius:50%}
+  .grid-tagline{font-size:11px;color:var(--text2);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:8px;min-height:30px}
+  .grid-followers{font-family:var(--mono);font-size:10px;color:var(--text3)}
+
+  /* New Arrivals */
+  .new-scroll{display:flex;gap:10px;overflow-x:auto;padding:0 14px 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .new-scroll::-webkit-scrollbar{display:none}
+  .new-card{flex-shrink:0;width:120px;text-align:center;cursor:pointer;transition:transform .15s;user-select:none}
+  .new-card:active{transform:scale(.97)}
+  .new-avatar{width:56px;height:56px;border-radius:50%;overflow:hidden;margin:0 auto 8px;position:relative;border:2px solid var(--border)}
+  .new-avatar canvas{width:100%;height:100%;display:block}
+  .new-name{font-size:12px;font-weight:600;line-height:1.2;margin-bottom:2px}
+  .new-joined{font-family:var(--mono);font-size:9px;color:var(--text3)}
+
+  /* Empty state */
+  .empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px}
+
+  /* Toast */
+  .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--text2);z-index:1000;font-family:var(--mono);box-shadow:0 4px 20px rgba(0,0,0,.5);transition:opacity .3s;pointer-events:none}
+
+  /* Bottom nav — identical to timeline-v1 */
+  .bn{position:fixed;bottom:0;left:0;right:0;background:rgba(5,5,9,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:100}
+  .ni{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--text3);cursor:pointer;padding:4px 12px;text-decoration:none}
+  .ni.a{color:var(--text)}.ni svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.5;fill:none}
+
+  .main{padding-bottom:calc(70px + env(safe-area-inset-bottom))}
+
+  ::-webkit-scrollbar{width:0}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="hdr-title">Discover</div>
+  <div class="search-wrap">
+    <span class="search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+    <input class="search" id="search" type="text" placeholder="Search artists..." oninput="onSearch()">
+  </div>
+</div>
+
+<div class="main" id="main"></div>
+
+<div class="bn">
+  <a class="ni" href="timeline-v1.html"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Timeline</a>
+  <div class="ni a"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Discover</div>
+  <div class="ni"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</div>
+</div>
+
+<script>
+// === Genre color mapping ===
+const GENRE_C={
+  Music:{c:'#f97316',rgb:'249,115,22'},
+  'Visual Art':{c:'#a78bfa',rgb:'167,139,250'},
+  Writing:{c:'#22d3ee',rgb:'34,211,238'},
+  Film:{c:'#84cc16',rgb:'132,204,22'},
+  Photography:{c:'#e879f9',rgb:'232,121,249'},
+  Multi:{c:'#fbbf24',rgb:'251,191,36'},
+};
+
+// === Dummy data: 15 artists ===
+const ARTISTS=[
+  {id:'a01',name:'yuta_flamenco',displayName:'Yuta',tagline:'Flamenco × electronic. Building bridges between worlds.',tracks:['Music','Film'],genre:'Music',followers:12400,trending:true,trendingTrack:'Music',isNew:false,latestPost:'Rasgueado drill session',joinedDaysAgo:180},
+  {id:'a02',name:'luna_synth',displayName:'Luna Synth',tagline:'Ambient textures and modular synthesis. Sound as architecture.',tracks:['Music','Visual Art'],genre:'Music',followers:8700,trending:true,trendingTrack:'Music',isNew:false,latestPost:'Patch from scratch vol.12',joinedDaysAgo:95},
+  {id:'a03',name:'echo_drift',displayName:'Echo Drift',tagline:'Lo-fi beats and field recordings from Tokyo streets.',tracks:['Music'],genre:'Music',followers:5300,trending:false,trendingTrack:null,isNew:false,latestPost:'Shibuya rain loop',joinedDaysAgo:210},
+  {id:'a04',name:'neon_arc',displayName:'Neon Arc',tagline:'Digital painter. Generative art meets human emotion.',tracks:['Visual Art'],genre:'Visual Art',followers:15200,trending:true,trendingTrack:'Visual Art',isNew:false,latestPost:'Series: Polycosmos #47',joinedDaysAgo:310},
+  {id:'a05',name:'sol_wave',displayName:'Sol Wave',tagline:'Singer-songwriter. Stories from the coastline.',tracks:['Music','Writing'],genre:'Music',followers:3100,trending:false,trendingTrack:null,isNew:false,latestPost:'Acoustic demo: Tidal',joinedDaysAgo:150},
+  {id:'a06',name:'prism_lens',displayName:'Prism Lens',tagline:'Street photography. Finding beauty in the mundane.',tracks:['Photography'],genre:'Photography',followers:9800,trending:true,trendingTrack:'Photography',isNew:false,latestPost:'Golden hour series #8',joinedDaysAgo:270},
+  {id:'a07',name:'ink_flow',displayName:'Ink Flow',tagline:'Poetry and prose. Words as constellations.',tracks:['Writing'],genre:'Writing',followers:2400,trending:false,trendingTrack:null,isNew:false,latestPost:'Micro-fiction: The Last Polis',joinedDaysAgo:120},
+  {id:'a08',name:'frame_ghost',displayName:'Frame Ghost',tagline:'Experimental short films. Reality is a rough cut.',tracks:['Film','Photography'],genre:'Film',followers:6100,trending:true,trendingTrack:'Film',isNew:false,latestPost:'48hr film challenge entry',joinedDaysAgo:85},
+  {id:'a09',name:'moss_garden',displayName:'Moss Garden',tagline:'Botanical illustrations and nature journaling.',tracks:['Visual Art','Writing'],genre:'Visual Art',followers:4200,trending:false,trendingTrack:null,isNew:false,latestPost:'Fern study watercolor',joinedDaysAgo:190},
+  {id:'a10',name:'circuit_poet',displayName:'Circuit Poet',tagline:'Hardware hacking as art. Bending signals into songs.',tracks:['Music','Visual Art','Film'],genre:'Multi',followers:7600,trending:false,trendingTrack:null,isNew:false,latestPost:'DIY synth build log',joinedDaysAgo:60},
+  {id:'a11',name:'pixel_rain',displayName:'Pixel Rain',tagline:'Motion graphics and visual storytelling.',tracks:['Film','Visual Art'],genre:'Film',followers:1800,trending:false,trendingTrack:null,isNew:true,latestPost:'First upload: Glitch manifesto',joinedDaysAgo:3},
+  {id:'a12',name:'dawn_chorus',displayName:'Dawn Chorus',tagline:'Classical guitar meets jazz harmony.',tracks:['Music'],genre:'Music',followers:920,trending:false,trendingTrack:null,isNew:true,latestPost:'Chord melody: Autumn Leaves',joinedDaysAgo:5},
+  {id:'a13',name:'still_light',displayName:'Still Light',tagline:'Minimalist photography. Less is everything.',tracks:['Photography'],genre:'Photography',followers:1400,trending:false,trendingTrack:null,isNew:true,latestPost:'Series: Empty rooms',joinedDaysAgo:7},
+  {id:'a14',name:'verse_walker',displayName:'Verse Walker',tagline:'Essays on creativity, identity, and digital existence.',tracks:['Writing'],genre:'Writing',followers:650,trending:false,trendingTrack:null,isNew:true,latestPost:'On being a digital citizen',joinedDaysAgo:2},
+  {id:'a15',name:'deep_frame',displayName:'Deep Frame',tagline:'Documentary filmmaker. Stories that need to be told.',tracks:['Film','Photography','Writing'],genre:'Visual Art',followers:3800,trending:false,trendingTrack:null,isNew:false,latestPost:'Behind the scenes: Diaspora doc',joinedDaysAgo:140},
+];
+
+const CATEGORIES=['All','Music','Visual Art','Writing','Film','Photography'];
+let activeCategory='All';
+let searchQuery='';
+
+// === Utilities (same as timeline-v1) ===
+function mkRng(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return()=>{h=(h*16807)%2147483647;return(h&0x7fffffff)/0x7fffffff}}
+
+function drawAvatar(cv,seed,size,color){
+  const w=size*2;cv.width=w;cv.height=w;
+  const ctx=cv.getContext('2d'),rng=mkRng(seed);
+  const [cr,cg,cb]=color.split(',').map(Number);
+  // Background
+  ctx.fillStyle=`rgb(${12+rng()*8|0},${12+rng()*8|0},${16+rng()*8|0})`;
+  ctx.fillRect(0,0,w,w);
+  // Radial gradients
+  for(let i=0;i<3;i++){
+    const g=ctx.createRadialGradient(w*(.2+rng()*.6),w*(.2+rng()*.6),0,w*.5,w*.5,w*(.3+rng()*.4));
+    g.addColorStop(0,`rgba(${cr},${cg},${cb},${.15+rng()*.25})`);
+    g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,w);
+  }
+  // Organic shapes
+  for(let i=0;i<4+rng()*4;i++){
+    ctx.save();ctx.globalAlpha=.04+rng()*.1;
+    ctx.fillStyle=`rgb(${cr+rng()*40-20|0},${cg+rng()*40-20|0},${cb+rng()*40-20|0})`;
+    ctx.translate(rng()*w,rng()*w);ctx.rotate(rng()*Math.PI*2);
+    ctx.beginPath();const s=6+rng()*20;
+    ctx.ellipse(0,0,s,s*(.4+rng()*.6),0,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  // Noise
+  const id=ctx.getImageData(0,0,w,w),dd=id.data;
+  for(let i=0;i<dd.length;i+=4){const n=(rng()-.5)*10;dd[i]+=n;dd[i+1]+=n;dd[i+2]+=n}
+  ctx.putImageData(id,0,0);
+}
+
+function drawTrendBg(cv,seed,color,w,h){
+  cv.width=w*2;cv.height=h*2;
+  const ctx=cv.getContext('2d'),cw=cv.width,ch=cv.height,rng=mkRng(seed);
+  const [cr,cg,cb]=color.split(',').map(Number);
+  ctx.fillStyle=`rgb(${12+rng()*8|0},${12+rng()*8|0},${16+rng()*8|0})`;
+  ctx.fillRect(0,0,cw,ch);
+  for(let i=0;i<5;i++){
+    const g=ctx.createRadialGradient(cw*(.1+rng()*.8),ch*(.1+rng()*.8),0,cw*.5,ch*.5,cw*(.3+rng()*.5));
+    g.addColorStop(0,`rgba(${cr},${cg},${cb},${.1+rng()*.2})`);
+    g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.fillRect(0,0,cw,ch);
+  }
+  for(let i=0;i<6+rng()*5;i++){
+    ctx.save();ctx.globalAlpha=.03+rng()*.08;
+    ctx.fillStyle=`rgb(${cr+rng()*40-20|0},${cg+rng()*40-20|0},${cb+rng()*40-20|0})`;
+    ctx.translate(rng()*cw,rng()*ch);ctx.rotate(rng()*Math.PI*2);
+    ctx.beginPath();const s=8+rng()*40;
+    ctx.ellipse(0,0,s,s*(.4+rng()*.6),0,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  const id=ctx.getImageData(0,0,cw,ch),dd=id.data;
+  for(let i=0;i<dd.length;i+=4){const n=(rng()-.5)*12;dd[i]+=n;dd[i+1]+=n;dd[i+2]+=n}
+  ctx.putImageData(id,0,0);
+}
+
+function fmtFollowers(n){
+  if(n>=10000)return(n/1000).toFixed(1)+'k';
+  if(n>=1000)return(n/1000).toFixed(1)+'k';
+  return n.toString();
+}
+
+function getColor(artist){
+  const g=artist.trendingTrack||artist.genre;
+  return GENRE_C[g]||GENRE_C[artist.tracks[0]]||GENRE_C.Music;
+}
+
+// === Filtering ===
+function filtered(){
+  return ARTISTS.filter(a=>{
+    if(activeCategory!=='All'&&a.genre!==activeCategory&&!a.tracks.includes(activeCategory))return false;
+    if(searchQuery){
+      const q=searchQuery.toLowerCase();
+      if(!a.displayName.toLowerCase().includes(q)&&!a.name.toLowerCase().includes(q)&&!a.tagline.toLowerCase().includes(q))return false;
+    }
+    return true;
+  });
+}
+
+// === Render ===
+function render(){
+  const main=document.getElementById('main');
+  main.innerHTML='';
+  const list=filtered();
+  const trending=list.filter(a=>a.trending);
+  const newArrivals=list.filter(a=>a.isNew);
+  const explore=list.filter(a=>!a.isNew);
+
+  // Trending section
+  if(trending.length>0&&!searchQuery){
+    const sec=document.createElement('div');
+    sec.innerHTML='<div class="sec"><div class="sec-label">HIGH SIGNAL</div><div class="sec-title">Trending</div></div>';
+    main.appendChild(sec);
+
+    const scroll=document.createElement('div');scroll.className='trend-scroll';
+    trending.forEach(a=>{
+      const color=getColor(a);
+      const card=document.createElement('div');
+      card.className='trend-card glow';
+      card.style.boxShadow=`0 0 20px rgba(${color.rgb},0.25), 0 0 40px rgba(${color.rgb},0.08)`;
+      card.onclick=()=>selectArtist(a);
+
+      const cv=document.createElement('canvas');
+      drawTrendBg(cv,a.name+'trend',color.rgb,260,160);
+      card.appendChild(cv);
+
+      const badge=document.createElement('div');badge.className='trend-badge';badge.textContent='HIGH SIGNAL';
+      card.appendChild(badge);
+
+      const info=document.createElement('div');info.className='trend-info';
+      const dots=a.tracks.map(t=>{const gc=GENRE_C[t];return gc?`<span class="td" style="background:${gc.c}"></span>`:'';}).join('');
+      info.innerHTML=`<div class="trend-name">${a.displayName}</div><div class="trend-meta"><span class="trend-dots">${dots}</span><span class="trend-followers">${fmtFollowers(a.followers)} followers</span></div>`;
+      card.appendChild(info);
+      scroll.appendChild(card);
+    });
+    main.appendChild(scroll);
+  }
+
+  // Category chips
+  const catWrap=document.createElement('div');catWrap.className='cats';catWrap.id='cats';
+  CATEGORIES.forEach(c=>{
+    const chip=document.createElement('div');
+    chip.className='cat'+(activeCategory===c?' a':'');
+    chip.textContent=c;
+    chip.onclick=()=>{activeCategory=c;render()};
+    catWrap.appendChild(chip);
+  });
+  main.appendChild(catWrap);
+
+  // Explore grid
+  if(explore.length>0){
+    const sec=document.createElement('div');
+    sec.innerHTML='<div class="sec"><div class="sec-title">Explore</div></div>';
+    main.appendChild(sec);
+
+    const grid=document.createElement('div');grid.className='grid';
+    explore.forEach(a=>{
+      const color=getColor(a);
+      const card=document.createElement('div');card.className='grid-card';
+      if(a.trending){
+        card.classList.add('glow');
+        card.style.boxShadow=`0 0 14px rgba(${color.rgb},0.2), 0 0 30px rgba(${color.rgb},0.06)`;
+        card.style.borderColor=`rgba(${color.rgb},0.25)`;
+      }
+      card.onclick=()=>selectArtist(a);
+
+      const avatar=document.createElement('div');avatar.className='grid-avatar';
+      const cv=document.createElement('canvas');
+      drawAvatar(cv,a.name,48,color.rgb);
+      avatar.appendChild(cv);
+      card.appendChild(avatar);
+
+      const name=document.createElement('div');name.className='grid-name';name.textContent=a.displayName;
+      card.appendChild(name);
+
+      const dots=document.createElement('div');dots.className='grid-dots';
+      a.tracks.forEach(t=>{
+        const gc=GENRE_C[t];if(!gc)return;
+        const d=document.createElement('span');d.className='td';d.style.background=gc.c;d.title=t;
+        dots.appendChild(d);
+      });
+      card.appendChild(dots);
+
+      const tagline=document.createElement('div');tagline.className='grid-tagline';tagline.textContent=a.tagline;
+      card.appendChild(tagline);
+
+      const followers=document.createElement('div');followers.className='grid-followers';
+      followers.textContent=fmtFollowers(a.followers)+' followers';
+      card.appendChild(followers);
+
+      grid.appendChild(card);
+    });
+    main.appendChild(grid);
+  }
+
+  // New Arrivals
+  if(newArrivals.length>0&&!searchQuery){
+    const sec=document.createElement('div');
+    sec.innerHTML='<div class="sec"><div class="sec-label">RECENTLY JOINED</div><div class="sec-title">New Arrivals</div></div>';
+    main.appendChild(sec);
+
+    const scroll=document.createElement('div');scroll.className='new-scroll';
+    newArrivals.forEach(a=>{
+      const color=getColor(a);
+      const card=document.createElement('div');card.className='new-card';
+      card.onclick=()=>selectArtist(a);
+
+      const avatar=document.createElement('div');avatar.className='new-avatar';
+      const cv=document.createElement('canvas');
+      drawAvatar(cv,a.name+'new',56,color.rgb);
+      avatar.appendChild(cv);
+      card.appendChild(avatar);
+
+      const name=document.createElement('div');name.className='new-name';name.textContent=a.displayName;
+      card.appendChild(name);
+
+      const joined=document.createElement('div');joined.className='new-joined';
+      joined.textContent=`Joined ${a.joinedDaysAgo}d ago`;
+      card.appendChild(joined);
+
+      scroll.appendChild(card);
+    });
+    main.appendChild(scroll);
+  }
+
+  // Empty state
+  if(list.length===0){
+    const empty=document.createElement('div');empty.className='empty';
+    empty.textContent='No artists found.';
+    main.appendChild(empty);
+  }
+}
+
+// === Search ===
+function onSearch(){
+  searchQuery=document.getElementById('search').value.trim();
+  render();
+}
+
+// === Artist selection (ADR 009) ===
+function selectArtist(a){
+  const myId=localStorage.getItem('gleisner_my_artist_id');
+  if(myId&&myId===a.id){
+    // Self — switch to Artist Mode (ADR 008)
+    localStorage.setItem('gleisner-artist-mode','true');
+    showToast('Artist Mode に切り替え');
+    setTimeout(()=>{window.location.href='timeline-v1.html'},800);
+    return;
+  }
+  const payload={id:a.id,name:a.name,displayName:a.displayName,genre:a.genre,tracks:a.tracks};
+  localStorage.setItem('gleisner_selected_artist',JSON.stringify(payload));
+  showToast(a.displayName+' のタイムラインへ移動');
+  setTimeout(()=>{window.location.href='timeline-v1.html'},800);
+}
+
+// === Toast ===
+function showToast(msg,duration=2000){
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300)},duration);
+}
+
+// === Init ===
+render();
+</script>
+</body>
+</html>
