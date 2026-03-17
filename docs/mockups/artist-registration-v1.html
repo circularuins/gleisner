@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Gleisner — Become an Artist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050509;--bg2:#0c0c12;--bg3:#151520;
+  --text:#eee;--text2:#8888a0;--text3:#444460;
+  --border:#1a1a28;
+  --c-play:#f97316;--c-compose:#a78bfa;--c-life:#22d3ee;--c-english:#84cc16;
+  --font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:hidden}
+
+/* Switcher */
+.switcher{display:flex;gap:6px;overflow-x:auto;padding:0 14px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.switcher::-webkit-scrollbar{display:none}
+.sw-chip{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;user-select:none;white-space:nowrap;flex-shrink:0}
+.sw-chip.a{background:var(--text);color:var(--bg);border-color:var(--text)}
+.sw-chip:active{transform:scale(.95)}
+
+/* Progress dots */
+.progress-dots{display:flex;gap:8px;justify-content:center;padding:20px 0 8px}
+.progress-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);transition:all .3s}
+.progress-dot.a{background:var(--text);width:24px;border-radius:4px}
+.progress-dot.done{background:var(--c-compose)}
+
+/* Main */
+.main{min-height:100dvh;display:flex;flex-direction:column}
+.step{display:none;flex:1;flex-direction:column}
+.step.a{display:flex}
+
+/* Header */
+.hdr{position:sticky;top:0;z-index:100;background:rgba(5,5,9,.94);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border-bottom:1px solid var(--border);padding:12px 14px 10px}
+.hdr-row{display:flex;align-items:center;justify-content:space-between}
+.hdr-title{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.hdr-back{font-size:13px;color:var(--text2);cursor:pointer;padding:4px 0}
+
+/* Step 1: Intro */
+.intro-wrap{flex:1;display:flex;flex-direction:column;padding:0}
+.intro-cover{width:100%;height:180px;position:relative;overflow:hidden}
+.intro-cover canvas{width:100%;height:100%;display:block}
+.intro-overlay{position:absolute;bottom:0;left:0;right:0;padding:20px;background:linear-gradient(transparent,var(--bg))}
+.intro-title{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.intro-sub{font-size:13px;color:var(--text2);margin-top:4px}
+.intro-note{margin:0 20px 8px;padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--text2);line-height:1.5}
+.intro-note strong{color:var(--text);font-weight:600}
+.feature-cards{padding:12px 20px 20px;display:flex;flex-direction:column;gap:12px}
+.feature-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;gap:14px;align-items:flex-start}
+.feature-icon{font-size:28px;flex-shrink:0;width:40px;text-align:center}
+.feature-body{}
+.feature-title{font-size:14px;font-weight:600;margin-bottom:4px}
+.feature-desc{font-size:12px;color:var(--text2);line-height:1.4}
+
+/* Step 2: Artist Profile */
+.profile-wrap{padding:24px 20px;flex:1;overflow-y:auto}
+.form-group{margin-bottom:20px}
+.form-label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;display:block}
+.form-hint{font-size:11px;color:var(--text3);margin-top:4px;font-family:var(--mono)}
+.form-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-family:var(--font);font-size:14px;color:var(--text);outline:none;transition:border-color .15s}
+.form-input:focus{border-color:var(--c-compose)}
+.form-input::placeholder{color:var(--text3)}
+.char-count{font-family:var(--mono);font-size:11px;color:var(--text3);text-align:right;margin-top:2px}
+
+/* Cover & Avatar uploads */
+.visual-section{margin-bottom:24px}
+.cover-upload{width:100%;height:120px;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;background:var(--bg2);border:1px solid var(--border)}
+.cover-upload canvas{width:100%;height:100%;display:block}
+.cover-upload img{width:100%;height:100%;object-fit:cover;display:none;position:absolute;inset:0}
+.cover-upload-overlay{position:absolute;inset:0;background:rgba(0,0,0,.4);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;opacity:0;transition:opacity .15s}
+.cover-upload:hover .cover-upload-overlay{opacity:1}
+.cover-upload-overlay svg{width:20px;height:20px;stroke:#fff;stroke-width:1.5;fill:none}
+.cover-upload-overlay span{font-size:10px;color:rgba(255,255,255,.7)}
+.cover-upload-hint{position:absolute;bottom:8px;right:10px;font-size:10px;color:var(--text3);font-family:var(--mono);background:rgba(5,5,9,.7);padding:2px 8px;border-radius:4px}
+
+.artist-avatar-row{display:flex;align-items:center;gap:16px;margin-top:-32px;margin-left:16px;position:relative;z-index:2;margin-bottom:16px}
+.artist-avatar-upload{width:64px;height:64px;border-radius:50%;overflow:hidden;position:relative;cursor:pointer;border:3px solid var(--bg);flex-shrink:0}
+.artist-avatar-upload canvas{width:100%;height:100%;display:block}
+.artist-avatar-upload img{width:100%;height:100%;object-fit:cover;display:none;position:absolute;inset:0}
+.artist-avatar-upload-overlay{position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s}
+.artist-avatar-upload:hover .artist-avatar-upload-overlay{opacity:1}
+.artist-avatar-upload-overlay svg{width:16px;height:16px;stroke:#fff;stroke-width:1.5;fill:none}
+.artist-avatar-badge{position:absolute;bottom:0;right:0;width:20px;height:20px;border-radius:50%;background:var(--c-compose);display:flex;align-items:center;justify-content:center;border:2px solid var(--bg)}
+.artist-avatar-badge svg{width:9px;height:9px;stroke:#fff;stroke-width:2;fill:none}
+.artist-avatar-hint{font-size:11px;color:var(--text3);line-height:1.4}
+input[type="file"]{display:none}
+
+/* Genre with custom add */
+.genre-section-label{font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+.genre-select{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.genre-tag{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;user-select:none}
+.genre-tag:active{transform:scale(.95)}
+.genre-tag.selected{border-color:currentColor;background:rgba(255,255,255,.06)}
+.genre-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.genre-count{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:4px}
+.custom-genre-row{display:flex;gap:8px;margin-top:12px}
+.custom-genre-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:8px 14px;font-family:var(--font);font-size:12px;color:var(--text);outline:none}
+.custom-genre-input:focus{border-color:var(--c-compose)}
+.custom-genre-input::placeholder{color:var(--text3)}
+.custom-genre-add{padding:8px 16px;border-radius:20px;border:1px solid var(--c-compose);background:transparent;font-family:var(--font);font-size:12px;font-weight:600;color:var(--c-compose);cursor:pointer;transition:all .15s;white-space:nowrap}
+.custom-genre-add:active{transform:scale(.95);background:rgba(167,139,250,.1)}
+
+/* Step 3: Track Setup */
+.track-wrap{padding:24px 20px;flex:1;overflow-y:auto}
+.track-explainer{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px}
+.track-explainer-title{font-size:14px;font-weight:600;margin-bottom:6px}
+.track-explainer-desc{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:10px}
+.track-example{display:flex;gap:8px;flex-wrap:wrap}
+.track-example-chip{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:14px;background:var(--bg3);font-size:11px;font-weight:500}
+.track-example-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.template-section{margin-bottom:24px}
+.template-grid{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.template-grid::-webkit-scrollbar{display:none}
+.template-card{min-width:120px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:all .15s;user-select:none;flex-shrink:0;text-align:center}
+.template-card:active{transform:scale(.95)}
+.template-card.selected{border-color:var(--c-compose);background:rgba(167,139,250,.08)}
+.template-icon{font-size:24px;margin-bottom:6px}
+.template-name{font-size:12px;font-weight:600}
+.template-tracks{font-size:10px;color:var(--text3);margin-top:4px;font-family:var(--mono)}
+
+.track-list{margin-top:16px}
+.track-list-label{font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.track-chips{display:flex;flex-wrap:wrap;gap:8px}
+.track-edit-chip{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);font-size:12px;font-weight:500;transition:all .15s}
+.track-edit-chip .track-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.track-edit-chip .track-name{outline:none;background:transparent;border:none;color:var(--text);font-family:var(--font);font-size:12px;font-weight:500;min-width:40px;max-width:100px}
+.track-edit-chip .track-remove{color:var(--text3);cursor:pointer;font-size:14px;line-height:1;padding:0 2px}
+.track-edit-chip .track-remove:hover{color:var(--text)}
+.add-track-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;border:1px dashed var(--border);background:transparent;font-family:var(--font);font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;transition:all .15s}
+.add-track-btn:active{transform:scale(.95);border-color:var(--text3)}
+.track-hint{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:12px}
+
+/* Step 4: Complete */
+.complete-wrap{flex:1;display:flex;flex-direction:column;align-items:center;padding:24px 20px}
+.preview-card{width:100%;max-width:340px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:24px}
+.preview-cover{width:100%;height:120px;position:relative;overflow:hidden}
+.preview-cover canvas{width:100%;height:100%;display:block}
+.preview-cover img{width:100%;height:100%;object-fit:cover;display:none}
+.preview-avatar-wrap{position:absolute;bottom:-28px;left:20px;width:56px;height:56px;border-radius:50%;overflow:hidden;border:3px solid var(--bg2)}
+.preview-avatar-wrap canvas{width:100%;height:100%;display:block}
+.preview-avatar-wrap img{width:100%;height:100%;object-fit:cover;display:none;position:absolute;inset:0}
+.preview-body{padding:36px 20px 20px}
+.preview-name{font-size:18px;font-weight:700;margin-bottom:2px}
+.preview-tagline{font-size:12px;color:var(--text2);margin-bottom:4px}
+.preview-location{font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:12px}
+.preview-genres{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.preview-genre{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:12px;border:1px solid var(--border);font-size:10px;font-weight:500}
+.preview-genre .genre-dot{width:5px;height:5px}
+.preview-tracks{display:flex;gap:6px;flex-wrap:wrap}
+.preview-track{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:12px;background:var(--bg3);font-size:10px;font-weight:500}
+.preview-track .track-dot{width:5px;height:5px;border-radius:50%}
+.complete-title{font-size:22px;font-weight:700;margin-bottom:6px;text-align:center}
+.complete-sub{font-size:14px;color:var(--text2);margin-bottom:24px;text-align:center}
+.complete-buttons{width:100%;max-width:340px;display:flex;flex-direction:column;gap:10px}
+.btn-primary{width:100%;padding:14px;border-radius:12px;border:none;background:var(--c-compose);font-family:var(--font);font-size:14px;font-weight:600;color:#fff;cursor:pointer;transition:all .15s}
+.btn-primary:active{transform:scale(.97);opacity:.8}
+.btn-secondary{width:100%;padding:14px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);font-family:var(--font);font-size:14px;font-weight:500;color:var(--text);cursor:pointer;transition:all .15s}
+.btn-secondary:active{transform:scale(.97);opacity:.8}
+
+/* Continue button — sticky footer */
+.step-footer{position:sticky;bottom:0;padding:16px 20px;padding-bottom:calc(16px + env(safe-area-inset-bottom));background:rgba(5,5,9,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);z-index:50}
+.next-btn{width:100%;padding:14px;border-radius:12px;border:none;background:var(--c-compose);font-family:var(--font);font-size:14px;font-weight:600;color:#fff;cursor:pointer;transition:all .15s}
+.next-btn:active{transform:scale(.97);opacity:.8}
+.next-btn:disabled{opacity:.3;pointer-events:none}
+
+/* Toast */
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--text2);z-index:1000;font-family:var(--mono);box-shadow:0 4px 20px rgba(0,0,0,.5);transition:opacity .3s;pointer-events:none}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-row">
+    <div class="hdr-back" id="backBtn" style="visibility:hidden">← Back</div>
+    <div class="hdr-title">Become an Artist</div>
+    <div style="width:40px"></div>
+  </div>
+  <div class="progress-dots" id="progressDots"></div>
+  <div class="switcher" id="switcher" style="padding-top:12px"></div>
+</div>
+
+<div class="main" id="main">
+  <!-- Step 1: Intro -->
+  <div class="step a" id="step-0">
+    <div class="intro-wrap">
+      <div class="intro-cover"><canvas id="introCover"></canvas>
+        <div class="intro-overlay">
+          <div class="intro-title">Share your art with the world</div>
+          <div class="intro-sub">Set up your Artist Page in minutes</div>
+        </div>
+      </div>
+
+      <!-- Account structure note -->
+      <div class="intro-note">
+        <strong>Your artist profile is separate from your personal account.</strong>
+        It has its own name, avatar, and cover image — a dedicated creative identity that your audience sees.
+      </div>
+
+      <div class="feature-cards">
+        <div class="feature-card">
+          <div class="feature-icon">🎨</div>
+          <div class="feature-body">
+            <div class="feature-title">Artist Page</div>
+            <div class="feature-desc">Your creative home — cover art, artist avatar, bio, and genres that define your practice.</div>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📡</div>
+          <div class="feature-body">
+            <div class="feature-title">Tracks</div>
+            <div class="feature-desc">Organize your work into Tracks — think of them as themed channels. Fans can follow individual Tracks, so they only see what interests them.</div>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔴</div>
+          <div class="feature-body">
+            <div class="feature-title">Broadcasting</div>
+            <div class="feature-desc">Post updates, share progress, and connect with your audience in real time.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="step-footer">
+      <button class="next-btn" onclick="goTo(1)">Get Started</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Artist Profile -->
+  <div class="step" id="step-1">
+    <div class="profile-wrap">
+      <!-- Cover image upload -->
+      <div class="visual-section">
+        <label class="form-label" style="margin-bottom:8px">Cover &amp; Avatar</label>
+        <div class="cover-upload" id="coverUpload" onclick="document.getElementById('coverFile').click()">
+          <canvas id="coverCanvas"></canvas>
+          <img id="coverImg">
+          <div class="cover-upload-overlay">
+            <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span>Upload cover image</span>
+          </div>
+          <div class="cover-upload-hint">Tap to upload or keep generated</div>
+        </div>
+        <input type="file" id="coverFile" accept="image/*">
+
+        <!-- Artist avatar (overlapping cover) -->
+        <div class="artist-avatar-row">
+          <div class="artist-avatar-upload" id="artistAvatarUpload" onclick="document.getElementById('artistAvatarFile').click()">
+            <canvas id="artistAvatarCanvas"></canvas>
+            <img id="artistAvatarImg">
+            <div class="artist-avatar-upload-overlay">
+              <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+            <div class="artist-avatar-badge">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            </div>
+          </div>
+          <input type="file" id="artistAvatarFile" accept="image/*">
+          <div class="artist-avatar-hint">Artist avatar — separate from your personal profile photo</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Artist Name *</label>
+        <input class="form-input" id="artistName" type="text" placeholder="Your artist / creative name" maxlength="50" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tagline <span style="color:var(--text3)">(optional)</span></label>
+        <input class="form-input" id="taglineInput" type="text" placeholder="A short line about your art" maxlength="80" autocomplete="off">
+        <div class="char-count"><span id="taglineCount">0</span>/80</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location <span style="color:var(--text3)">(optional)</span></label>
+        <input class="form-input" id="locationInput" type="text" placeholder="City, Country" maxlength="60" autocomplete="off" style="font-family:var(--mono);font-size:13px">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Genres</label>
+        <div class="form-hint" style="margin-bottom:8px">Select up to 5 genres that describe your work</div>
+        <div class="genre-select" id="artistGenres"></div>
+        <div class="genre-count" id="artistGenreCount">0/5 selected</div>
+        <!-- Custom genre creation -->
+        <div class="custom-genre-row">
+          <input class="custom-genre-input" id="customGenreInput" type="text" placeholder="Create your own genre…" maxlength="30">
+          <button class="custom-genre-add" id="customGenreAdd">+ Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="step-footer">
+      <button class="next-btn" id="profileNext" disabled>Continue</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Track Setup -->
+  <div class="step" id="step-2">
+    <div class="track-wrap">
+      <!-- Track explanation -->
+      <div class="track-explainer">
+        <div class="track-explainer-title">What are Tracks?</div>
+        <div class="track-explainer-desc">Tracks are themed channels within your Artist Page. Each Track is a separate stream of posts — fans can follow individual Tracks to only see what interests them. For example, a musician might have:</div>
+        <div class="track-example">
+          <div class="track-example-chip"><span class="track-example-dot" style="background:#f97316"></span> Play</div>
+          <div class="track-example-chip"><span class="track-example-dot" style="background:#a78bfa"></span> Compose</div>
+          <div class="track-example-chip"><span class="track-example-dot" style="background:#22d3ee"></span> Life</div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.4">
+          "Play" for performances, "Compose" for behind-the-scenes creation process, "Life" for personal updates. Pick a template below or start custom.
+        </div>
+      </div>
+
+      <div class="template-section">
+        <div class="genre-section-label" style="margin-bottom:10px">CHOOSE A TEMPLATE</div>
+        <div class="template-grid" id="templateGrid"></div>
+      </div>
+      <div class="track-list" id="trackList">
+        <div class="track-list-label">YOUR TRACKS</div>
+        <div class="track-chips" id="trackChips"></div>
+        <div class="track-hint" id="trackHint">1–10 tracks. Tap name to edit, × to remove.</div>
+      </div>
+    </div>
+    <div class="step-footer">
+      <button class="next-btn" id="trackNext">Continue</button>
+    </div>
+  </div>
+
+  <!-- Step 4: Complete -->
+  <div class="step" id="step-3">
+    <div class="complete-wrap">
+      <div class="complete-title">Your Artist Page is ready!</div>
+      <div class="complete-sub">Here's a preview of how it looks</div>
+      <div class="preview-card" id="previewCard"></div>
+      <div class="complete-buttons">
+        <button class="btn-primary" onclick="showToast('→ artist-page-v1.html')">View Artist Page →</button>
+        <button class="btn-secondary" onclick="showToast('→ timeline-v1.html')">Go to Timeline</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Utilities ── */
+function mkRng(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return()=>{h=(h*16807)%2147483647;return(h&0x7fffffff)/0x7fffffff}}
+
+function drawAvatar(cv,seed,size,color){
+  const w=size*2;cv.width=w;cv.height=w;
+  const ctx=cv.getContext('2d'),rng=mkRng(seed);
+  const[cr,cg,cb]=color.split(',').map(Number);
+  ctx.fillStyle=`rgb(${12+rng()*8|0},${12+rng()*8|0},${16+rng()*8|0})`;ctx.fillRect(0,0,w,w);
+  for(let i=0;i<3;i++){const g=ctx.createRadialGradient(w*(.2+rng()*.6),w*(.2+rng()*.6),0,w*.5,w*.5,w*(.3+rng()*.4));g.addColorStop(0,`rgba(${cr},${cg},${cb},${.15+rng()*.25})`);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,w,w)}
+  for(let i=0;i<4+rng()*4;i++){ctx.save();ctx.globalAlpha=.04+rng()*.1;ctx.fillStyle=`rgb(${cr+rng()*40-20|0},${cg+rng()*40-20|0},${cb+rng()*40-20|0})`;ctx.translate(rng()*w,rng()*w);ctx.rotate(rng()*Math.PI*2);ctx.beginPath();const s=6+rng()*20;ctx.ellipse(0,0,s,s*(.4+rng()*.6),0,0,Math.PI*2);ctx.fill();ctx.restore()}
+  const id=ctx.getImageData(0,0,w,w),dd=id.data;for(let i=0;i<dd.length;i+=4){const n=(rng()-.5)*10;dd[i]+=n;dd[i+1]+=n;dd[i+2]+=n}ctx.putImageData(id,0,0);
+}
+
+function drawTrendBg(cv,seed,color,w,h){
+  cv.width=w*2;cv.height=h*2;
+  const ctx=cv.getContext('2d'),cw=cv.width,ch=cv.height,rng=mkRng(seed);
+  const[cr,cg,cb]=color.split(',').map(Number);
+  ctx.fillStyle=`rgb(${12+rng()*8|0},${12+rng()*8|0},${16+rng()*8|0})`;ctx.fillRect(0,0,cw,ch);
+  for(let i=0;i<5;i++){const g=ctx.createRadialGradient(cw*(.1+rng()*.8),ch*(.1+rng()*.8),0,cw*.5,ch*.5,cw*(.3+rng()*.5));g.addColorStop(0,`rgba(${cr},${cg},${cb},${.1+rng()*.2})`);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,cw,ch)}
+  for(let i=0;i<6+rng()*5;i++){ctx.save();ctx.globalAlpha=.03+rng()*.08;ctx.fillStyle=`rgb(${cr+rng()*40-20|0},${cg+rng()*40-20|0},${cb+rng()*40-20|0})`;ctx.translate(rng()*cw,rng()*ch);ctx.rotate(rng()*Math.PI*2);ctx.beginPath();const s=8+rng()*40;ctx.ellipse(0,0,s,s*(.4+rng()*.6),0,0,Math.PI*2);ctx.fill();ctx.restore()}
+  const id=ctx.getImageData(0,0,cw,ch),dd=id.data;for(let i=0;i<dd.length;i+=4){const n=(rng()-.5)*12;dd[i]+=n;dd[i+1]+=n;dd[i+2]+=n}ctx.putImageData(id,0,0);
+}
+
+function showToast(msg,duration=2000){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300)},duration)}
+
+const GENRE_PALETTE={
+  Music:{c:'#f97316',rgb:'249,115,22'},Flamenco:{c:'#ef4444',rgb:'239,68,68'},Electronic:{c:'#06b6d4',rgb:'6,182,212'},Ambient:{c:'#6366f1',rgb:'99,102,241'},'Lo-fi':{c:'#78716c',rgb:'120,113,108'},Jazz:{c:'#eab308',rgb:'234,179,8'},'Singer-Songwriter':{c:'#fb923c',rgb:'251,146,60'},'Visual Art':{c:'#a78bfa',rgb:'167,139,250'},'Digital Art':{c:'#c084fc',rgb:'192,132,252'},'Generative Art':{c:'#818cf8',rgb:'129,140,248'},Illustration:{c:'#a78bfa',rgb:'167,139,250'},Writing:{c:'#22d3ee',rgb:'34,211,238'},Poetry:{c:'#67e8f9',rgb:'103,232,249'},Essay:{c:'#2dd4bf',rgb:'45,212,191'},Film:{c:'#84cc16',rgb:'132,204,22'},'Short Film':{c:'#a3e635',rgb:'163,230,53'},Documentary:{c:'#65a30d',rgb:'101,163,13'},'Motion Graphics':{c:'#bef264',rgb:'190,242,100'},Photography:{c:'#e879f9',rgb:'232,121,249'},'Street Photography':{c:'#f0abfc',rgb:'240,171,252'},'Hardware Art':{c:'#fbbf24',rgb:'251,191,36'},DIY:{c:'#f59e0b',rgb:'245,158,11'},
+};
+function genreColor(g){if(GENRE_PALETTE[g])return GENRE_PALETTE[g];let h=0;for(let i=0;i<g.length;i++)h=((h<<5)-h+g.charCodeAt(i))|0;const hue=((h%360)+360)%360;const r=Math.round(180+50*Math.cos(hue*Math.PI/180)),gv=Math.round(180+50*Math.cos((hue-120)*Math.PI/180)),b=Math.round(180+50*Math.cos((hue+120)*Math.PI/180));return{c:`rgb(${r},${gv},${b})`,rgb:`${r},${gv},${b}`}}
+
+const TRACK_COLORS={
+  Play:{c:'#f97316',rgb:'249,115,22'},Compose:{c:'#a78bfa',rgb:'167,139,250'},Life:{c:'#22d3ee',rgb:'34,211,238'},English:{c:'#84cc16',rgb:'132,204,22'},Synth:{c:'#06b6d4',rgb:'6,182,212'},Visual:{c:'#c084fc',rgb:'192,132,252'},Journal:{c:'#818cf8',rgb:'129,140,248'},Beats:{c:'#78716c',rgb:'120,113,108'},'Field Recording':{c:'#a3e635',rgb:'163,230,53'},Works:{c:'#e879f9',rgb:'232,121,249'},Process:{c:'#fb923c',rgb:'251,146,60'},Thoughts:{c:'#67e8f9',rgb:'103,232,249'},Songs:{c:'#f97316',rgb:'249,115,22'},Writing:{c:'#22d3ee',rgb:'34,211,238'},Shots:{c:'#e879f9',rgb:'232,121,249'},Edits:{c:'#c084fc',rgb:'192,132,252'},BTS:{c:'#fbbf24',rgb:'251,191,36'},Poetry:{c:'#67e8f9',rgb:'103,232,249'},Prose:{c:'#2dd4bf',rgb:'45,212,191'},Films:{c:'#84cc16',rgb:'132,204,22'},Photos:{c:'#e879f9',rgb:'232,121,249'},Log:{c:'#78716c',rgb:'120,113,108'},Drawings:{c:'#a78bfa',rgb:'167,139,250'},Builds:{c:'#fbbf24',rgb:'251,191,36'},Sound:{c:'#f97316',rgb:'249,115,22'},Practice:{c:'#fb923c',rgb:'251,146,60'},Words:{c:'#22d3ee',rgb:'34,211,238'},Essays:{c:'#2dd4bf',rgb:'45,212,191'},Notes:{c:'#818cf8',rgb:'129,140,248'},Stills:{c:'#f0abfc',rgb:'240,171,252'},
+};
+function trackColor(t){if(TRACK_COLORS[t])return TRACK_COLORS[t];return genreColor(t)}
+
+/* ── State ── */
+const STEPS=['Intro','Profile','Tracks','Complete'];
+let currentStep=0;
+let artistData={name:'',tagline:'',location:'',genres:[]};
+let tracks=[];
+let selectedTemplate=null;
+let uploadedAvatarURL=null;
+let uploadedCoverURL=null;
+
+const TEMPLATES=[
+  {id:'musician',icon:'🎵',name:'Musician',tracks:['Play','Compose','Life']},
+  {id:'visual',icon:'🎨',name:'Visual Artist',tracks:['Works','Process','Thoughts']},
+  {id:'writer',icon:'✍️',name:'Writer',tracks:['Writing','Notes','Life']},
+  {id:'filmmaker',icon:'🎬',name:'Filmmaker',tracks:['Films','BTS','Stills']},
+  {id:'custom',icon:'⚡',name:'Custom',tracks:[]},
+];
+
+/* ── Navigation ── */
+function goTo(step){
+  currentStep=step;
+  document.querySelectorAll('.step').forEach((s,i)=>{s.classList.toggle('a',i===step)});
+  document.querySelectorAll('.sw-chip').forEach((c,i)=>{c.classList.toggle('a',i===step)});
+  renderProgress();
+  document.getElementById('backBtn').style.visibility=step>0?'visible':'hidden';
+  if(step===1)initArtistGenres();
+  if(step===2)renderTrackStep();
+  if(step===3)renderComplete();
+}
+
+function renderProgress(){
+  const dots=document.getElementById('progressDots');dots.innerHTML='';
+  STEPS.forEach((_,i)=>{const d=document.createElement('div');d.className='progress-dot'+(i===currentStep?' a':'')+(i<currentStep?' done':'');dots.appendChild(d)});
+}
+
+/* ── Switcher ── */
+function buildSwitcher(){
+  const sw=document.getElementById('switcher');
+  STEPS.forEach((label,i)=>{const chip=document.createElement('div');chip.className='sw-chip'+(i===0?' a':'');chip.textContent=label;chip.onclick=()=>goTo(i);sw.appendChild(chip)});
+}
+
+/* ── Step 1: Intro ── */
+function initIntro(){
+  drawTrendBg(document.getElementById('introCover'),'artist-intro','167,139,250',window.innerWidth,180);
+}
+
+/* ── Step 2: Artist Profile ── */
+function initProfileForm(){
+  const nameInput=document.getElementById('artistName');
+  const tagInput=document.getElementById('taglineInput');
+  const nextBtn=document.getElementById('profileNext');
+  const avatarCanvas=document.getElementById('artistAvatarCanvas');
+  const avatarImg=document.getElementById('artistAvatarImg');
+  const coverCanvas=document.getElementById('coverCanvas');
+  const coverImg=document.getElementById('coverImg');
+
+  // Initial generative art
+  drawAvatar(avatarCanvas,'artist',64,'167,139,250');
+  drawTrendBg(coverCanvas,'artist-cover','167,139,250',window.innerWidth,120);
+
+  // Avatar upload
+  document.getElementById('artistAvatarFile').addEventListener('change',e=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      uploadedAvatarURL=ev.target.result;
+      avatarImg.src=uploadedAvatarURL;avatarImg.style.display='block';avatarCanvas.style.display='none';
+      showToast('Artist avatar set');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Cover upload
+  document.getElementById('coverFile').addEventListener('change',e=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      uploadedCoverURL=ev.target.result;
+      coverImg.src=uploadedCoverURL;coverImg.style.display='block';coverCanvas.style.display='none';
+      document.querySelector('.cover-upload-hint').textContent='Photo uploaded — tap to change';
+      showToast('Cover image set');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  nameInput.addEventListener('input',()=>{
+    artistData.name=nameInput.value;
+    nextBtn.disabled=!nameInput.value.trim();
+    // Update generative avatar/cover if no upload
+    if(!uploadedAvatarURL){drawAvatar(avatarCanvas,nameInput.value.trim()||'artist',64,'167,139,250')}
+    if(!uploadedCoverURL){drawTrendBg(coverCanvas,nameInput.value.trim()||'artist-cover','167,139,250',window.innerWidth,120)}
+  });
+  tagInput.addEventListener('input',()=>{
+    artistData.tagline=tagInput.value;
+    document.getElementById('taglineCount').textContent=tagInput.value.length;
+  });
+  document.getElementById('locationInput').addEventListener('input',e=>{artistData.location=e.target.value});
+
+  // Custom genre creation
+  document.getElementById('customGenreAdd').addEventListener('click',addCustomGenre);
+  document.getElementById('customGenreInput').addEventListener('keydown',e=>{if(e.key==='Enter')addCustomGenre()});
+
+  nextBtn.onclick=()=>goTo(2);
+}
+
+function addCustomGenre(){
+  const input=document.getElementById('customGenreInput');
+  const name=input.value.trim();
+  if(!name){showToast('Enter a genre name');return}
+  if(artistData.genres.length>=5){showToast('Maximum 5 genres');return}
+  if(artistData.genres.includes(name)){showToast('Already selected');return}
+  // Add to palette if not present
+  if(!GENRE_PALETTE[name]){
+    const gc=genreColor(name);
+    GENRE_PALETTE[name]={c:gc.c,rgb:gc.rgb};
+  }
+  artistData.genres.push(name);
+  input.value='';
+  // Re-render genre tags
+  renderArtistGenreTags();
+  document.getElementById('artistGenreCount').textContent=`${artistData.genres.length}/5 selected`;
+  showToast(`Added "${name}"`);
+}
+
+let artistGenresInited=false;
+function initArtistGenres(){
+  if(artistGenresInited)return;artistGenresInited=true;
+  renderArtistGenreTags();
+}
+
+function renderArtistGenreTags(){
+  const wrap=document.getElementById('artistGenres');wrap.innerHTML='';
+  // Show custom (user-created) genres first if any
+  const customGenres=artistData.genres.filter(g=>!Object.keys(GENRE_PALETTE).includes(g)||artistData.genres.includes(g));
+  const allGenres=Object.keys(GENRE_PALETTE);
+  allGenres.forEach(g=>{
+    const gc=genreColor(g);
+    const tag=document.createElement('div');tag.className='genre-tag'+(artistData.genres.includes(g)?' selected':'');tag.style.color=gc.c;
+    const dot=document.createElement('span');dot.className='genre-dot';dot.style.background=gc.c;
+    tag.appendChild(dot);tag.appendChild(document.createTextNode(g));
+    tag.onclick=()=>{
+      const idx=artistData.genres.indexOf(g);
+      if(idx>=0){artistData.genres.splice(idx,1);tag.classList.remove('selected')}
+      else if(artistData.genres.length<5){artistData.genres.push(g);tag.classList.add('selected')}
+      else{showToast('Maximum 5 genres');return}
+      document.getElementById('artistGenreCount').textContent=`${artistData.genres.length}/5 selected`;
+    };
+    wrap.appendChild(tag);
+  });
+}
+
+/* ── Step 3: Track Setup ── */
+function renderTrackStep(){
+  const grid=document.getElementById('templateGrid');grid.innerHTML='';
+  TEMPLATES.forEach(tmpl=>{
+    const card=document.createElement('div');
+    card.className='template-card'+(selectedTemplate===tmpl.id?' selected':'');
+    card.innerHTML=`<div class="template-icon">${tmpl.icon}</div><div class="template-name">${tmpl.name}</div><div class="template-tracks">${tmpl.tracks.length?tmpl.tracks.join(' · '):'Start empty'}</div>`;
+    card.onclick=()=>{selectedTemplate=tmpl.id;tracks=[...tmpl.tracks];renderTrackStep()};
+    grid.appendChild(card);
+  });
+  renderTrackChips();
+}
+
+function renderTrackChips(){
+  const wrap=document.getElementById('trackChips');wrap.innerHTML='';
+  tracks.forEach((name,i)=>{
+    const tc=trackColor(name);
+    const chip=document.createElement('div');chip.className='track-edit-chip';
+    chip.innerHTML=`<span class="track-dot" style="background:${tc.c}"></span>`;
+    const nameEl=document.createElement('input');nameEl.className='track-name';nameEl.value=name;nameEl.maxLength=20;
+    nameEl.addEventListener('change',()=>{
+      const v=nameEl.value.trim();
+      if(v){tracks[i]=v;renderTrackChips()}else if(tracks.length>1){tracks.splice(i,1);renderTrackChips()}
+    });
+    chip.appendChild(nameEl);
+    if(tracks.length>1){
+      const rm=document.createElement('span');rm.className='track-remove';rm.textContent='×';
+      rm.onclick=()=>{tracks.splice(i,1);renderTrackChips()};
+      chip.appendChild(rm);
+    }
+    wrap.appendChild(chip);
+  });
+  if(tracks.length<10){
+    const addBtn=document.createElement('button');addBtn.className='add-track-btn';addBtn.textContent='+ Add Track';
+    addBtn.onclick=()=>{let n=1;while(tracks.includes(`New Track ${n}`))n++;tracks.push(`New Track ${n}`);renderTrackChips()};
+    wrap.appendChild(addBtn);
+  }
+  document.getElementById('trackHint').textContent=`${tracks.length}/10 tracks`;
+  document.getElementById('trackNext').disabled=tracks.length<1;
+  document.getElementById('trackNext').onclick=()=>{if(tracks.length>=1)goTo(3)};
+}
+
+/* ── Step 4: Complete ── */
+function renderComplete(){
+  const card=document.getElementById('previewCard');
+  const name=artistData.name||'Artist';
+  const color=artistData.genres.length?genreColor(artistData.genres[0]).rgb:'167,139,250';
+
+  let html='<div class="preview-cover">';
+  html+='<canvas id="previewCover"></canvas>';
+  html+='<img id="previewCoverImg">';
+  html+='<div class="preview-avatar-wrap"><canvas id="previewAvatar"></canvas><img id="previewAvatarImg"></div>';
+  html+='</div>';
+  html+='<div class="preview-body">';
+  html+=`<div class="preview-name">${esc(name)}</div>`;
+  if(artistData.tagline)html+=`<div class="preview-tagline">${esc(artistData.tagline)}</div>`;
+  if(artistData.location)html+=`<div class="preview-location">📍 ${esc(artistData.location)}</div>`;
+  if(artistData.genres.length){
+    html+='<div class="preview-genres">';
+    artistData.genres.forEach(g=>{const gc=genreColor(g);html+=`<div class="preview-genre" style="color:${gc.c};border-color:${gc.c}30"><span class="genre-dot" style="background:${gc.c}"></span>${esc(g)}</div>`});
+    html+='</div>';
+  }
+  if(tracks.length){
+    html+='<div class="preview-tracks">';
+    tracks.forEach(t=>{const tc=trackColor(t);html+=`<div class="preview-track"><span class="track-dot" style="background:${tc.c}"></span>${esc(t)}</div>`});
+    html+='</div>';
+  }
+  html+='</div>';
+  card.innerHTML=html;
+
+  requestAnimationFrame(()=>{
+    const coverCv=document.getElementById('previewCover');
+    const coverIm=document.getElementById('previewCoverImg');
+    if(uploadedCoverURL){coverIm.src=uploadedCoverURL;coverIm.style.display='block';coverCv.style.display='none'}
+    else if(coverCv){drawTrendBg(coverCv,name,color,340,120)}
+
+    const avatarCv=document.getElementById('previewAvatar');
+    const avatarIm=document.getElementById('previewAvatarImg');
+    if(uploadedAvatarURL){avatarIm.src=uploadedAvatarURL;avatarIm.style.display='block';avatarCv.style.display='none'}
+    else if(avatarCv){drawAvatar(avatarCv,name,56,color)}
+  });
+}
+
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+
+/* ── Init ── */
+buildSwitcher();
+renderProgress();
+initIntro();
+initProfileForm();
+document.getElementById('backBtn').onclick=()=>{if(currentStep>0)goTo(currentStep-1)};
+</script>
+</body>
+</html>

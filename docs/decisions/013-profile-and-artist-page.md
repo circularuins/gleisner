@@ -23,6 +23,46 @@ This ADR separates the two concepts and defines the relationship system between 
 | **Profile** | Every user | Personal identity and social connections | Bottom nav "Profile" tab |
 | **Artist Page** | Artist-registered users only | Creative identity and public-facing artist hub | Navigated from Profile, Discover, or direct link |
 
+### Onboarding: Signup & Artist Registration
+
+The two-identity model requires careful onboarding to avoid confusion. A user who intends to be an artist must first create a personal account, then upgrade — if this isn't communicated upfront, they may feel misled when they discover the personal signup wasn't for artist setup.
+
+#### Signup Flow (Personal Account)
+
+A 4-step wizard: Welcome → Profile Setup → Genre Selection → Complete.
+
+**Step 1 (Welcome)** explicitly explains the account structure with two visual cards:
+- **Personal Account**: "Discover artists, follow tracks, build your timeline. This is your personal identity on Gleisner."
+- **+ Artist Upgrade**: "Create an Artist Page, set up tracks, and broadcast your work. You can upgrade anytime after signup."
+
+This ensures users understand the two-tier structure before entering any credentials.
+
+**Step 2 (Profile Setup)** collects: display name, username (@-prefixed with URL preview), bio (optional, 160 chars), and avatar. The avatar defaults to a generative image seeded from the display name, with an option to upload a photo. This avatar is the **personal** avatar.
+
+**Step 3 (Genre Selection)** presents interest genres (skippable). These feed the auto-detected Interests on the Profile page.
+
+**Step 4 (Complete)** confirms the personal account, shows what it includes (Timeline, Discover), and presents a prominent CTA card: "Ready to share your work? Become an Artist" — with the explanation: "Your personal account stays — the artist profile is a separate creative identity."
+
+#### Artist Registration Flow (Upgrade)
+
+A 4-step wizard: Intro → Artist Profile → Track Setup → Complete. Accessible from the signup completion screen or later from Profile settings.
+
+**Step 1 (Intro)** shows feature cards (Artist Page, Tracks, Broadcasting) with a note: "Your artist profile is separate from your personal account. It has its own name, avatar, and cover image."
+
+**Step 2 (Artist Profile)** collects: cover image (generative default or upload), artist avatar (separate from personal avatar, generative default or upload), artist name, tagline (80 chars), location, and genre declarations (up to 5, with custom genre creation).
+
+**Step 3 (Track Setup)** starts with a "What are Tracks?" explainer, then presents template selection (see ADR 012) followed by editable track chips.
+
+**Step 4 (Complete)** shows a mini-preview of the Artist Page (cover + avatar + genres + tracks reflecting actual input) with navigation buttons.
+
+#### Separate Avatars
+
+The personal account and artist account each have their own avatar:
+- **Personal avatar**: Set during signup. Appears on the Profile tab, in Follow relationships, and in user-to-user contexts.
+- **Artist avatar**: Set during artist registration. Appears on the Artist Page, in Tune In contexts, on the timeline avatar rail, and in Discover cards.
+
+Both default to generative art (seeded from the respective display name) with an option to upload a photo. This separation ensures that the personal and creative identities remain visually distinct.
+
 ### Profile (Bottom Nav Tab)
 
 The Profile tab displays the user's personal identity:
@@ -82,7 +122,7 @@ The page is composed of ordered sections, designed for future plugin extensibili
 
 #### Cover Image
 
-A wide banner image at the top of the Artist Page (similar to X/YouTube headers). In the mockup, this is a generative art canvas seeded from the artist's identity; in production, artists will upload their own cover image. The avatar overlaps the bottom of the cover with a gradient fade.
+A wide banner image at the top of the Artist Page (similar to X/YouTube headers). The default is a generative art canvas seeded from the artist's name; artists can also upload their own cover image. The choice is made during artist registration and can be changed later. The avatar overlaps the bottom of the cover with a gradient fade.
 
 #### About Section
 
@@ -222,7 +262,7 @@ When the user has not Tuned In to any artist, the Timeline tab shows:
 - An empty state screen with a prompt: "Tune In to artists to see their timelines here" + a prominent link to the Discover tab
 - No default timeline content is shown (the user has no content to display until they Tune In or create their own as an artist)
 
-Future enhancement (post-MVP): A tutorial/onboarding flow that guides first-time users through Discover → first Tune In → Timeline, reducing the cold-start problem.
+Future enhancement (post-MVP): A tutorial/onboarding flow that guides first-time users through Discover → first Tune In → Timeline, reducing the cold-start problem. The signup and artist registration flows (described above) address the initial account creation onboarding.
 
 ### Navigation Flow
 
@@ -250,7 +290,9 @@ Bottom Nav: Timeline
 
 ## Consequences
 
-- Clear separation between personal and creative identity
+- Onboarding explicitly communicates the two-tier account structure before credentials are entered, preventing the "I thought this was for artist setup" surprise
+- Separate avatars for personal and artist accounts reinforce the identity separation visually
+- Cover image and artist avatar offer both generative defaults and upload options, giving artists control without requiring effort
 - "Follow" and "Tune In" are unambiguous — no user confusion about what each action does
 - The avatar rail provides a lightweight, performant alternative to tabs for timeline switching
 - Section-based Artist Page architecture supports future plugin extensibility without redesigning the page
@@ -265,5 +307,7 @@ Bottom Nav: Timeline
 
 - ADR 008 — Artist Mode & content management (mode switching, now triggered via avatar rail)
 - ADR 009 — Discover tab (artist selection now navigates to Artist Page instead of directly to Timeline)
-- ADR 011 — Genre system (genres displayed on Artist Page)
-- ADR 012 — Track system redesign (tracks displayed on Artist Page)
+- ADR 011 — Genre system (genres displayed on Artist Page; custom genre creation in artist registration)
+- ADR 012 — Track system redesign (tracks displayed on Artist Page; template sets chosen for onboarding)
+- Mockup: `docs/mockups/signup-v1.html` (personal account signup flow)
+- Mockup: `docs/mockups/artist-registration-v1.html` (artist upgrade flow)

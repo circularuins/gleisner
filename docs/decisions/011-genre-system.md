@@ -25,7 +25,15 @@ Artists declare their own genres. The platform normalizes input through suggesti
 
 ### Genre Input Flow
 
-1. Artist enters free text in a genre field
+Two entry points exist for genre selection:
+
+**During artist registration** (ADR 013): The artist profile step presents all existing genres as tappable chips, plus an inline text input ("Create your own genre…") with an "+ Add" button. This allows both selection from the existing palette and immediate custom genre creation in a single interface. Custom genres receive an auto-generated color via deterministic hash and appear immediately as selected chips.
+
+**Post-registration editing**: The same dual interface (existing genre chips + custom input) is available when editing the Artist Page.
+
+The underlying flow:
+
+1. Artist selects from existing genre chips, or enters free text to create a new genre
 2. The system suggests existing genres that match the input (fuzzy match, alias resolution)
 3. If a matching genre exists, the artist selects it
 4. If no match exists, the artist may propose a new genre name
@@ -85,4 +93,6 @@ New genres appear and disappear organically as artists join and evolve.
 
 - ADR 009 — Discover tab (interaction patterns)
 - ADR 012 — Track system redesign (separating personal tracks from cross-artist taxonomy)
+- ADR 013 — Profile & Artist Page (genre selection in artist registration flow)
 - ADR 001 — Project vision (self-determination, transparency principles)
+- Mockup: `docs/mockups/artist-registration-v1.html` (genre selection + custom genre creation UI)
