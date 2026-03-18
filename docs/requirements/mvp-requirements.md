@@ -60,13 +60,17 @@ AGPL v3 — ensures all network deployments share modifications. Premium feature
 | Attribute | Type | Constraints | Default |
 |-----------|------|-------------|---------|
 | id | UUID | PK | auto |
+| did | string | unique, not null, DID-compatible format | `did:web:gleisner.app:u:{uuid}` |
 | email | string | unique, not null | — |
 | password_hash | string | not null | — |
+| public_key | string | not null | auto-generated at signup |
+| encrypted_private_key | string | not null | auto-generated at signup, encrypted |
 | display_name | string | not null, max 50 chars | — |
 | username | string | unique, not null, `^[a-zA-Z0-9_]+$` | — |
 | bio | text | max 160 chars | null |
 | avatar_url | string | — | generative art (seeded from display_name) |
 | is_artist | boolean | not null | false |
+| is_self_sovereign | boolean | not null | false (true after key backup + on-chain registration) |
 | interest_genres | derived | auto-aggregated from Tune In artists' genres | [] |
 | created_at | timestamp | not null | now() |
 | updated_at | timestamp | not null | now() |
@@ -137,6 +141,8 @@ AGPL v3 — ensures all network deployments share modifications. Premium feature
 | media_url | string | — | null |
 | thumbnail_url | string | — | null |
 | importance | float | 0.00–1.00 | 0.50 |
+| content_hash | string | not null, SHA-256 of content | auto-computed at creation |
+| signature | string | not null, signed with author's private key | auto-generated |
 | duration_seconds | integer | — | null (VIDEO/AUDIO only) |
 | view_count | integer | not null, >= 0 | 0 |
 | layout_x | float | server-computed | — |
@@ -251,6 +257,11 @@ User   *──* User            (via Follow: bidirectional social connection)
 | FR-AUTH-008 | Artist Profile step collects: cover image, artist avatar (separate from personal), artist name, tagline (80 chars), location, genres (up to 5) | P0 |
 | FR-AUTH-009 | Completion step shows mini-preview of Artist Page reflecting actual input | P1 |
 | FR-AUTH-010 | Personal and artist accounts have separate avatars, both with generative defaults | P0 |
+| FR-AUTH-011 | A DID-compatible identifier and cryptographic key pair are generated automatically at signup (user does not need to be aware) | P0 |
+| FR-AUTH-012 | All user-created content is signed with the user's private key at creation time | P0 |
+| FR-AUTH-013 | A deterministic content hash (SHA-256) is computed and stored for every post | P0 |
+| FR-AUTH-014 | Settings screen includes "Back up your identity" — exports recovery phrase or encrypted key file | P1 |
+| FR-AUTH-015 | Full data export of all user content in a portable format | P0 |
 
 ### 3.2 Timeline
 
@@ -543,6 +554,7 @@ Features identified in Ideas 001–008 and ADR TBD sections, explicitly deferred
 | Reactions & Comments | ADR 006 (emoji pills, engagement effects), Idea 004 (expansion concept) |
 | Relationships | ADR 013 (Follow vs Tune In, avatar rail, asymmetric model) |
 | Navigation | ADR 013 (bottom nav, avatar rail, sticky header, empty state, persistence) |
+| Decentralization Prep | ADR 014 (DID-compatible IDs, key pairs, content hashing, data export, Self-Sovereign roadmap) |
 
 ### Appendix B: Glossary
 
@@ -569,6 +581,9 @@ Features identified in Ideas 001–008 and ADR TBD sections, explicitly deferred
 | **Template set** | Pre-defined track configurations for different artist types (Musician, Visual Artist, etc.) |
 | **Detail view** | Bottom sheet (85dvh) showing full post content, reactions, comments, and connected posts |
 | **Open-core** | Business model: core platform is AGPL, premium features offered separately |
+| **DID** | Decentralized Identifier — a self-owned ID based on public-key cryptography, recorded on a blockchain. No central authority can revoke it |
+| **Self-Sovereign** | A user who has backed up their identity key and (post-MVP) registered their DID on-chain. Their identity and data persist even if Gleisner ceases to exist |
+| **Content hash** | A deterministic SHA-256 hash of a post's content, enabling future verification on distributed storage and blockchain |
 
 ### Appendix C: Open Questions
 
