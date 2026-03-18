@@ -5,7 +5,7 @@ import postgres from "postgres";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { createYoga } from "graphql-yoga";
-import { initJwtKeys, signToken } from "../../auth/jwt.js";
+import { initJwtKeys } from "../../auth/jwt.js";
 import { authMiddleware, type AuthUser } from "../../auth/middleware.js";
 
 // Import GraphQL schema setup
@@ -13,7 +13,8 @@ import { builder } from "../builder.js";
 import "../types/index.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
-if (!DATABASE_URL) throw new Error("DATABASE_URL is required for integration tests");
+if (!DATABASE_URL)
+  throw new Error("DATABASE_URL is required for integration tests");
 
 const client = postgres(DATABASE_URL);
 const db = drizzle(client);
@@ -21,7 +22,10 @@ const db = drizzle(client);
 // Build the Hono app with GraphQL for testing
 function createTestApp() {
   const schema = builder.toSchema();
-  const yoga = createYoga<{ authUser?: AuthUser }>({ schema, maskedErrors: false });
+  const yoga = createYoga<{ authUser?: AuthUser }>({
+    schema,
+    maskedErrors: false,
+  });
 
   const app = new Hono<{ Variables: { authUser?: AuthUser } }>();
   app.use(authMiddleware);
@@ -39,7 +43,9 @@ async function gql(
   variables?: Record<string, unknown>,
   token?: string,
 ) {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await app.request("/graphql", {
@@ -47,7 +53,10 @@ async function gql(
     headers,
     body: JSON.stringify({ query, variables }),
   });
-  return res.json() as Promise<{ data?: Record<string, unknown>; errors?: Array<{ message: string }> }>;
+  return res.json() as Promise<{
+    data?: Record<string, unknown>;
+    errors?: Array<{ message: string }>;
+  }>;
 }
 
 describe("Auth GraphQL integration", () => {
@@ -93,7 +102,10 @@ describe("Auth GraphQL integration", () => {
       });
 
       expect(result.errors).toBeUndefined();
-      const { token, user } = result.data!.signup as { token: string; user: Record<string, string> };
+      const { token, user } = result.data!.signup as {
+        token: string;
+        user: Record<string, string>;
+      };
       expect(token).toBeTruthy();
       expect(user.email).toBe("test@example.com");
       expect(user.username).toBe("testuser");
@@ -109,7 +121,9 @@ describe("Auth GraphQL integration", () => {
       });
 
       expect(result.errors).toBeDefined();
-      expect(result.errors![0].message).toContain("Password must be at least 8 characters");
+      expect(result.errors![0].message).toContain(
+        "Password must be at least 8 characters",
+      );
     });
 
     it("rejects username shorter than 2 characters", async () => {
@@ -120,7 +134,9 @@ describe("Auth GraphQL integration", () => {
       });
 
       expect(result.errors).toBeDefined();
-      expect(result.errors![0].message).toContain("Username must be between 2 and 30 characters");
+      expect(result.errors![0].message).toContain(
+        "Username must be between 2 and 30 characters",
+      );
     });
 
     it("rejects username with invalid characters", async () => {
@@ -131,7 +147,9 @@ describe("Auth GraphQL integration", () => {
       });
 
       expect(result.errors).toBeDefined();
-      expect(result.errors![0].message).toContain("Username can only contain letters, numbers, and underscores");
+      expect(result.errors![0].message).toContain(
+        "Username can only contain letters, numbers, and underscores",
+      );
     });
 
     it("rejects duplicate email", async () => {
@@ -186,7 +204,10 @@ describe("Auth GraphQL integration", () => {
       });
 
       expect(result.errors).toBeUndefined();
-      const { token, user } = result.data!.login as { token: string; user: Record<string, string> };
+      const { token, user } = result.data!.login as {
+        token: string;
+        user: Record<string, string>;
+      };
       expect(token).toBeTruthy();
       expect(user.email).toBe("login@example.com");
       expect(user.username).toBe("loginuser");

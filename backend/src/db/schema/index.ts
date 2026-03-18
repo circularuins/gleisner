@@ -52,8 +52,14 @@ export const genresRelations = relations(genres, ({ many }) => ({
 }));
 
 export const artistGenresRelations = relations(artistGenres, ({ one }) => ({
-  artist: one(artists, { fields: [artistGenres.artistId], references: [artists.id] }),
-  genre: one(genres, { fields: [artistGenres.genreId], references: [genres.id] }),
+  artist: one(artists, {
+    fields: [artistGenres.artistId],
+    references: [artists.id],
+  }),
+  genre: one(genres, {
+    fields: [artistGenres.genreId],
+    references: [genres.id],
+  }),
 }));
 
 export const tracksRelations = relations(tracks, ({ one, many }) => ({
@@ -95,7 +101,10 @@ export const commentsRelations = relations(comments, ({ one }) => ({
 
 export const tuneInsRelations = relations(tuneIns, ({ one }) => ({
   user: one(users, { fields: [tuneIns.userId], references: [users.id] }),
-  artist: one(artists, { fields: [tuneIns.artistId], references: [artists.id] }),
+  artist: one(artists, {
+    fields: [tuneIns.artistId],
+    references: [artists.id],
+  }),
 }));
 
 export const followsRelations = relations(follows, ({ one }) => ({
@@ -112,5 +121,8 @@ export const followsRelations = relations(follows, ({ one }) => ({
 }));
 
 export const artistLinksRelations = relations(artistLinks, ({ one }) => ({
-  artist: one(artists, { fields: [artistLinks.artistId], references: [artists.id] }),
+  artist: one(artists, {
+    fields: [artistLinks.artistId],
+    references: [artists.id],
+  }),
 }));

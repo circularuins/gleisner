@@ -12,14 +12,18 @@ import { builder } from "../builder.js";
 import "../types/index.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
-if (!DATABASE_URL) throw new Error("DATABASE_URL is required for integration tests");
+if (!DATABASE_URL)
+  throw new Error("DATABASE_URL is required for integration tests");
 
 const client = postgres(DATABASE_URL);
 const db = drizzle(client);
 
 function createTestApp() {
   const schema = builder.toSchema();
-  const yoga = createYoga<{ authUser?: AuthUser }>({ schema, maskedErrors: false });
+  const yoga = createYoga<{ authUser?: AuthUser }>({
+    schema,
+    maskedErrors: false,
+  });
 
   const app = new Hono<{ Variables: { authUser?: AuthUser } }>();
   app.use(authMiddleware);
@@ -37,7 +41,9 @@ async function gql(
   variables?: Record<string, unknown>,
   token?: string,
 ) {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await app.request("/graphql", {
@@ -45,7 +51,10 @@ async function gql(
     headers,
     body: JSON.stringify({ query, variables }),
   });
-  return res.json() as Promise<{ data?: Record<string, unknown>; errors?: Array<{ message: string }> }>;
+  return res.json() as Promise<{
+    data?: Record<string, unknown>;
+    errors?: Array<{ message: string }>;
+  }>;
 }
 
 const SIGNUP_MUTATION = `
@@ -113,8 +122,16 @@ const ARTIST_QUERY = `
   }
 `;
 
-async function signupAndGetToken(app: ReturnType<typeof createTestApp>, email: string, username: string) {
-  const result = await gql(app, SIGNUP_MUTATION, { email, password: "password123", username });
+async function signupAndGetToken(
+  app: ReturnType<typeof createTestApp>,
+  email: string,
+  username: string,
+) {
+  const result = await gql(app, SIGNUP_MUTATION, {
+    email,
+    password: "password123",
+    username,
+  });
   return (result.data!.signup as { token: string }).token;
 }
 
@@ -132,12 +149,21 @@ describe("Artist GraphQL integration", () => {
 
   describe("registerArtist", () => {
     it("registers with required fields only", async () => {
-      const token = await signupAndGetToken(app, "artist1@example.com", "user1");
+      const token = await signupAndGetToken(
+        app,
+        "artist1@example.com",
+        "user1",
+      );
 
-      const result = await gql(app, REGISTER_ARTIST_MUTATION, {
-        artistUsername: "myartist",
-        displayName: "My Artist",
-      }, token);
+      const result = await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        {
+          artistUsername: "myartist",
+          displayName: "My Artist",
+        },
+        token,
+      );
 
       expect(result.errors).toBeUndefined();
       const artist = result.data!.registerArtist as Record<string, unknown>;
@@ -153,17 +179,26 @@ describe("Artist GraphQL integration", () => {
     });
 
     it("registers with all fields", async () => {
-      const token = await signupAndGetToken(app, "artist2@example.com", "user2");
+      const token = await signupAndGetToken(
+        app,
+        "artist2@example.com",
+        "user2",
+      );
 
-      const result = await gql(app, REGISTER_ARTIST_MUTATION, {
-        artistUsername: "fullartist",
-        displayName: "Full Artist",
-        tagline: "Making music since forever",
-        location: "Tokyo, Japan",
-        activeSince: 2010,
-        avatarUrl: "https://example.com/avatar.jpg",
-        coverImageUrl: "https://example.com/cover.jpg",
-      }, token);
+      const result = await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        {
+          artistUsername: "fullartist",
+          displayName: "Full Artist",
+          tagline: "Making music since forever",
+          location: "Tokyo, Japan",
+          activeSince: 2010,
+          avatarUrl: "https://example.com/avatar.jpg",
+          coverImageUrl: "https://example.com/cover.jpg",
+        },
+        token,
+      );
 
       expect(result.errors).toBeUndefined();
       const artist = result.data!.registerArtist as Record<string, unknown>;
@@ -178,33 +213,59 @@ describe("Artist GraphQL integration", () => {
     });
 
     it("rejects if user is already an artist", async () => {
-      const token = await signupAndGetToken(app, "artist3@example.com", "user3");
-      await gql(app, REGISTER_ARTIST_MUTATION, {
-        artistUsername: "first_artist",
-        displayName: "First",
-      }, token);
+      const token = await signupAndGetToken(
+        app,
+        "artist3@example.com",
+        "user3",
+      );
+      await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        {
+          artistUsername: "first_artist",
+          displayName: "First",
+        },
+        token,
+      );
 
-      const result = await gql(app, REGISTER_ARTIST_MUTATION, {
-        artistUsername: "second_artist",
-        displayName: "Second",
-      }, token);
+      const result = await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        {
+          artistUsername: "second_artist",
+          displayName: "Second",
+        },
+        token,
+      );
 
       expect(result.errors).toBeDefined();
-      expect(result.errors![0].message).toBe("User is already registered as an artist");
+      expect(result.errors![0].message).toBe(
+        "User is already registered as an artist",
+      );
     });
 
     it("rejects duplicate artist username", async () => {
       const token1 = await signupAndGetToken(app, "a4@example.com", "user4");
-      await gql(app, REGISTER_ARTIST_MUTATION, {
-        artistUsername: "taken_name",
-        displayName: "First",
-      }, token1);
+      await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        {
+          artistUsername: "taken_name",
+          displayName: "First",
+        },
+        token1,
+      );
 
       const token2 = await signupAndGetToken(app, "a5@example.com", "user5");
-      const result = await gql(app, REGISTER_ARTIST_MUTATION, {
-        artistUsername: "taken_name",
-        displayName: "Second",
-      }, token2);
+      const result = await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        {
+          artistUsername: "taken_name",
+          displayName: "Second",
+        },
+        token2,
+      );
 
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toBe("Artist username already taken");
@@ -223,42 +284,66 @@ describe("Artist GraphQL integration", () => {
     it("rejects invalid characters in username", async () => {
       const token = await signupAndGetToken(app, "a6@example.com", "user6");
 
-      const result = await gql(app, REGISTER_ARTIST_MUTATION, {
-        artistUsername: "bad user!",
-        displayName: "Bad",
-      }, token);
+      const result = await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        {
+          artistUsername: "bad user!",
+          displayName: "Bad",
+        },
+        token,
+      );
 
       expect(result.errors).toBeDefined();
-      expect(result.errors![0].message).toContain("Artist username can only contain");
+      expect(result.errors![0].message).toContain(
+        "Artist username can only contain",
+      );
     });
 
     it("rejects too short username", async () => {
       const token = await signupAndGetToken(app, "a7@example.com", "user7");
 
-      const result = await gql(app, REGISTER_ARTIST_MUTATION, {
-        artistUsername: "a",
-        displayName: "Short",
-      }, token);
+      const result = await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        {
+          artistUsername: "a",
+          displayName: "Short",
+        },
+        token,
+      );
 
       expect(result.errors).toBeDefined();
-      expect(result.errors![0].message).toContain("Artist username must be between 2 and 30");
+      expect(result.errors![0].message).toContain(
+        "Artist username must be between 2 and 30",
+      );
     });
   });
 
   describe("updateArtist", () => {
     it("updates artist fields", async () => {
       const token = await signupAndGetToken(app, "upd@example.com", "upduser");
-      await gql(app, REGISTER_ARTIST_MUTATION, {
-        artistUsername: "updartist",
-        displayName: "Original",
-      }, token);
+      await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        {
+          artistUsername: "updartist",
+          displayName: "Original",
+        },
+        token,
+      );
 
-      const result = await gql(app, UPDATE_ARTIST_MUTATION, {
-        displayName: "Updated Name",
-        bio: "My bio",
-        tagline: "New tagline",
-        location: "Osaka, Japan",
-      }, token);
+      const result = await gql(
+        app,
+        UPDATE_ARTIST_MUTATION,
+        {
+          displayName: "Updated Name",
+          bio: "My bio",
+          tagline: "New tagline",
+          location: "Osaka, Japan",
+        },
+        token,
+      );
 
       expect(result.errors).toBeUndefined();
       const artist = result.data!.updateArtist as Record<string, unknown>;
@@ -271,17 +356,27 @@ describe("Artist GraphQL integration", () => {
 
     it("clears fields when null is passed", async () => {
       const token = await signupAndGetToken(app, "clr@example.com", "clruser");
-      await gql(app, REGISTER_ARTIST_MUTATION, {
-        artistUsername: "clrartist",
-        displayName: "Original",
-        tagline: "Will be cleared",
-        location: "Will be cleared",
-      }, token);
+      await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        {
+          artistUsername: "clrartist",
+          displayName: "Original",
+          tagline: "Will be cleared",
+          location: "Will be cleared",
+        },
+        token,
+      );
 
-      const result = await gql(app, UPDATE_ARTIST_MUTATION, {
-        tagline: null,
-        location: null,
-      }, token);
+      const result = await gql(
+        app,
+        UPDATE_ARTIST_MUTATION,
+        {
+          tagline: null,
+          location: null,
+        },
+        token,
+      );
 
       expect(result.errors).toBeUndefined();
       const artist = result.data!.updateArtist as Record<string, unknown>;
@@ -291,11 +386,20 @@ describe("Artist GraphQL integration", () => {
     });
 
     it("rejects if artist profile not found", async () => {
-      const token = await signupAndGetToken(app, "noprof@example.com", "noprof");
+      const token = await signupAndGetToken(
+        app,
+        "noprof@example.com",
+        "noprof",
+      );
 
-      const result = await gql(app, UPDATE_ARTIST_MUTATION, {
-        displayName: "No Profile",
-      }, token);
+      const result = await gql(
+        app,
+        UPDATE_ARTIST_MUTATION,
+        {
+          displayName: "No Profile",
+        },
+        token,
+      );
 
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toBe("Artist profile not found");
@@ -314,11 +418,16 @@ describe("Artist GraphQL integration", () => {
   describe("artist query", () => {
     it("returns artist by username", async () => {
       const token = await signupAndGetToken(app, "q1@example.com", "quser1");
-      await gql(app, REGISTER_ARTIST_MUTATION, {
-        artistUsername: "queryartist",
-        displayName: "Query Artist",
-        tagline: "Hello world",
-      }, token);
+      await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        {
+          artistUsername: "queryartist",
+          displayName: "Query Artist",
+          tagline: "Hello world",
+        },
+        token,
+      );
 
       const result = await gql(app, ARTIST_QUERY, { username: "queryartist" });
 

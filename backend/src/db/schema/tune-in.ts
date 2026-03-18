@@ -11,7 +11,9 @@ export const tuneIns = pgTable(
     artistId: uuid("artist_id")
       .references(() => artists.id, { onDelete: "cascade" })
       .notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.artistId] })],
 );

@@ -1,4 +1,10 @@
-import { generateKeyPairSync, scryptSync, randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
+import {
+  generateKeyPairSync,
+  scryptSync,
+  randomBytes,
+  createCipheriv,
+  createDecipheriv,
+} from "node:crypto";
 
 const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 } as const;
 const SCRYPT_KEYLEN = 64;
@@ -27,7 +33,11 @@ export function hashPassword(password: string, salt: string): string {
   return hash.toString("hex");
 }
 
-export function verifyPassword(password: string, salt: string, hash: string): boolean {
+export function verifyPassword(
+  password: string,
+  salt: string,
+  hash: string,
+): boolean {
   const computed = hashPassword(password, salt);
   // Constant-time comparison
   if (computed.length !== hash.length) return false;
@@ -43,21 +53,39 @@ function deriveEncryptionKey(password: string, salt: string): Buffer {
   return scryptSync(password, saltBuf, AES_KEYLEN, SCRYPT_PARAMS);
 }
 
-export function encryptPrivateKey(privateKeyPem: string, password: string, encryptionSalt: string): string {
+export function encryptPrivateKey(
+  privateKeyPem: string,
+  password: string,
+  encryptionSalt: string,
+): string {
   const key = deriveEncryptionKey(password, encryptionSalt);
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([cipher.update(privateKeyPem, "utf8"), cipher.final()]);
+  const encrypted = Buffer.concat([
+    cipher.update(privateKeyPem, "utf8"),
+    cipher.final(),
+  ]);
   const authTag = cipher.getAuthTag();
   // Format: iv:authTag:encrypted (all hex)
   return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted.toString("hex")}`;
 }
 
-export function decryptPrivateKey(encrypted: string, password: string, encryptionSalt: string): string {
+export function decryptPrivateKey(
+  encrypted: string,
+  password: string,
+  encryptionSalt: string,
+): string {
   const [ivHex, authTagHex, dataHex] = encrypted.split(":");
   const key = deriveEncryptionKey(password, encryptionSalt);
-  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(ivHex, "hex"));
+  const decipher = createDecipheriv(
+    "aes-256-gcm",
+    key,
+    Buffer.from(ivHex, "hex"),
+  );
   decipher.setAuthTag(Buffer.from(authTagHex, "hex"));
-  const decrypted = Buffer.concat([decipher.update(Buffer.from(dataHex, "hex")), decipher.final()]);
+  const decrypted = Buffer.concat([
+    decipher.update(Buffer.from(dataHex, "hex")),
+    decipher.final(),
+  ]);
   return decrypted.toString("utf8");
 }

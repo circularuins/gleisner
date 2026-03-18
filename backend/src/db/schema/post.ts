@@ -1,4 +1,13 @@
-import { pgTable, uuid, varchar, text, real, integer, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  real,
+  integer,
+  timestamp,
+  pgEnum,
+} from "drizzle-orm/pg-core";
 import { tracks } from "./track.js";
 import { users } from "./user.js";
 
@@ -27,6 +36,10 @@ export const posts = pgTable("posts", {
   signature: text("signature"),
   layoutX: integer("layout_x").default(0).notNull(),
   layoutY: integer("layout_y").default(0).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });

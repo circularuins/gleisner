@@ -13,7 +13,9 @@ export const reactions = pgTable(
       .references(() => users.id, { onDelete: "cascade" })
       .notNull(),
     emoji: varchar("emoji", { length: 10 }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (t) => [unique().on(t.postId, t.userId, t.emoji)],
 );

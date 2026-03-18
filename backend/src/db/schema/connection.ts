@@ -21,7 +21,9 @@ export const connections = pgTable(
       .notNull(),
     connectionType: connectionTypeEnum("connection_type").notNull(),
     groupId: uuid("group_id"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (t) => [check("source_neq_target", sql`${t.sourceId} != ${t.targetId}`)],
 );
