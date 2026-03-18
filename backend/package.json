@@ -1,0 +1,31 @@
+{
+  "name": "gleisner-backend",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "packageManager": "pnpm@10.32.1",
+  "dependencies": {
+    "@hono/node-server": "^1.19.11",
+    "@pothos/core": "^4.12.0",
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.1",
+    "graphql": "^16.13.1",
+    "graphql-yoga": "^5.18.1",
+    "hono": "^4.12.8",
+    "postgres": "^3.4.8"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
