@@ -18,14 +18,18 @@ Greg Egan "Diaspora" の **Gleisner robots**（物理世界とデジタル世界
 
 ## 技術スタック
 
-> **Status: 未定** — 決まり次第このセクションを更新する。
+> **Status: Accepted** — ADR 015 で選定済み。
 
 | レイヤー | 技術 | 備考 |
 |----------|------|------|
-| Backend  | TBD  | API サーバー |
-| Frontend | TBD  | クライアントアプリ |
-| Database | TBD  | |
-| Protocol | TBD  | 分散型プロトコル |
+| Frontend | Flutter 3.x (Dart) | Web first (CanvasKit)、後に iOS/Android 追加 |
+| Backend | TypeScript + Hono | Node.js ランタイム（MVP） |
+| Database | PostgreSQL 16 + Drizzle ORM | 型安全クエリ、Drizzle Kit でマイグレーション |
+| API | GraphQL (yoga + pothos) | WebSocket Subscriptions でリアルタイム |
+| Auth | JWT + Ed25519 鍵ペア | DID 互換（ADR 014） |
+| Media | Cloudflare R2 | S3 互換、エグレス無料 |
+| AI | Claude API (Haiku) | タイトル自動生成 |
+| Hosting | Cloudflare Pages + Railway | フロント: Pages / バックエンド+DB: Railway |
 
 ## アーキテクチャ
 
