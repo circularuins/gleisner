@@ -9,10 +9,13 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "packageManager": "pnpm@10.32.1",
   "dependencies": {
+    "@graphql-yoga/plugin-disable-introspection": "^2.19.1",
     "@hono/node-server": "^1.19.11",
     "@pothos/core": "^4.12.0",
     "dotenv": "^17.3.1",
@@ -20,12 +23,14 @@
     "graphql": "^16.13.1",
     "graphql-yoga": "^5.18.1",
     "hono": "^4.12.8",
+    "jose": "^6.2.1",
     "postgres": "^3.4.8"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
     "drizzle-kit": "^0.31.10",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   }
 }

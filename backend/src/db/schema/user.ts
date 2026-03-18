@@ -8,8 +8,11 @@ export const users = pgTable("users", {
   displayName: varchar("display_name", { length: 50 }),
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
+  passwordHash: text("password_hash").notNull(),
+  passwordSalt: text("password_salt").notNull(),
   publicKey: text("public_key").notNull(),
   encryptedPrivateKey: text("encrypted_private_key").notNull(),
+  encryptionSalt: text("encryption_salt").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
