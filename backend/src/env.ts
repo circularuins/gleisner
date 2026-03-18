@@ -11,5 +11,8 @@ function requireEnv(key: string): string {
 export const env = {
   DATABASE_URL: requireEnv("DATABASE_URL"),
   PORT: parseInt(process.env.PORT ?? "4000", 10),
-  JWT_SECRET: requireEnv("JWT_SECRET"),
+  NODE_ENV: process.env.NODE_ENV ?? "development",
+  // JWT EdDSA keys — optional in development (auto-generated), required in production
+  JWT_PRIVATE_KEY: process.env.JWT_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+  JWT_PUBLIC_KEY: process.env.JWT_PUBLIC_KEY?.replace(/\\n/g, "\n"),
 } as const;

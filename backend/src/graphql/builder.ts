@@ -1,3 +1,8 @@
 import SchemaBuilder from "@pothos/core";
+import type { AuthUser } from "../auth/middleware.js";
 
-export const builder = new SchemaBuilder({});
+export interface GraphQLContext {
+  authUser?: AuthUser;
+}
+
+export const builder = new SchemaBuilder<{ Context: GraphQLContext }>({});
