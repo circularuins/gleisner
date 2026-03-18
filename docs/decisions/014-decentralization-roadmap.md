@@ -131,6 +131,74 @@ Triggered naturally when the user has accumulated meaningful content (e.g., 10+ 
 
 The Self-Sovereign upgrade aligns with the open-core model (ADR 005): it is a value-added service that enhances data sovereignty, but the core platform functions without it. Whether this is a paid feature or included for all users is a business decision deferred to post-MVP.
 
+### Data Deletion and Account Closure
+
+Blockchain and permanent storage are inherently append-only — data cannot be physically erased. This creates a tension with the right to delete one's own data (GDPR "right to erasure," and Gleisner's own self-determination principle). The resolution is **encryption-based logical deletion**: data remains on-chain/on-storage but becomes permanently unreadable.
+
+#### Encryption Architecture
+
+All content stored on persistent distributed storage (Arweave) must be encrypted before upload:
+
+```
+Post creation (Self-Sovereign user):
+  1. Generate a unique symmetric encryption key for this post
+  2. Encrypt the content (text, media) with this key
+  3. Upload the encrypted blob to Arweave → permanently stored, but unreadable without the key
+  4. Record the content hash on blockchain → proves the content existed
+  5. Store the per-post encryption key in Gleisner's key management system
+
+Normal operation:
+  Gleisner server holds the decryption keys
+  → Decrypts content on-the-fly for display
+  → Users see no difference from a normal app
+
+Key point: Per-post keys, not a single user key.
+This allows deleting individual posts without affecting others.
+```
+
+#### Post Deletion (Individual Post)
+
+When a Self-Sovereign user deletes a single post:
+
+| Layer | Action | Result |
+|-------|--------|--------|
+| Gleisner server | Normal deletion | Content removed from server DB |
+| IPFS | Unpin the content | Gradually disappears from IPFS network |
+| Arweave | Destroy the per-post encryption key | Encrypted blob remains permanently, but no one can ever read it |
+| Blockchain | Content hash remains | Proves the post existed, but the content itself is unrecoverable |
+
+The post is effectively erased: the only thing that persists is an opaque hash on-chain and an unreadable encrypted blob on Arweave. No personal data is accessible.
+
+#### Account Closure (Full Deletion)
+
+When a Self-Sovereign user closes their account:
+
+| Layer | Action | Result |
+|-------|--------|--------|
+| Gleisner server | Standard account deletion (with grace period, e.g. 30 days) | All user data removed from server |
+| IPFS | Unpin all user content | Gradually disappears |
+| Arweave | Destroy all per-post encryption keys for this user | All content becomes permanently unreadable |
+| Blockchain (DID) | Append a "REVOKED" record to the DID | DID remains on-chain but is marked as invalid. Anyone querying the DID sees it is revoked |
+
+#### Informed Consent
+
+The Self-Sovereign upgrade screen must clearly explain both sides of permanence:
+
+- **What permanence means:** "Your identity and content will persist even if Gleisner ceases to exist. No one can erase your work without your consent."
+- **What deletion means:** "If you choose to delete a post or close your account, the encrypted data will remain on the permanent storage network, but the decryption key will be destroyed. No one — including Gleisner — will be able to read it. A record that the content once existed (a hash) will remain on the blockchain."
+- **User's explicit consent is required** before activating Self-Sovereign features.
+
+This aligns with the Egan principle of self-determination: the user must fully understand the system they are participating in and make an informed choice.
+
+#### GDPR Considerations
+
+The encryption-based deletion approach is the current best practice for GDPR compliance in blockchain systems, but regulatory clarity is still evolving. Key considerations:
+
+- Encrypted data with a destroyed key is generally considered to satisfy GDPR's "right to erasure" because the personal data is no longer accessible by any party
+- On-chain content hashes (not personal data themselves) likely fall outside GDPR's scope as they cannot be reversed to reveal personal information
+- A revoked DID (public key + revocation record) may require further legal analysis
+- The regulatory landscape for blockchain + GDPR is actively developing; Gleisner should monitor guidance from EU data protection authorities
+
 ### Phasing
 
 | Phase | Scope | Blockchain Dependency |
@@ -186,6 +254,9 @@ At 10,000 users on an L2 chain, DID registration costs approximately ¥10,000–
 | OQ-D06 | Key custody and recovery | Recovery phrase (BIP-39) vs encrypted key file vs social recovery? UX implications differ greatly |
 | OQ-D07 | Media permanence guarantee | IPFS data disappears if unpinned. Is Arweave (permanent, paid) necessary for the "never deleted" promise? |
 | OQ-D08 | Federation protocol | Build on ActivityPub, AT Protocol, or design a Gleisner-native protocol? Defer to Phase 3 |
+| OQ-D09 | Per-post encryption key management | Key storage, rotation, and secure destruction strategy. Hardware security module (HSM) vs software-based? |
+| OQ-D10 | GDPR legal review | Encrypted-but-present data on Arweave — does destroyed-key approach satisfy "right to erasure"? Needs legal counsel |
+| OQ-D11 | Informed consent UX | Exact wording and flow for Self-Sovereign activation screen explaining permanence and deletion implications |
 
 ## Related
 
