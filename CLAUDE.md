@@ -70,10 +70,22 @@ cd frontend && flutter run -d chrome
 cd backend
 pnpm dev              # 開発サーバー（hot reload）
 pnpm build            # TypeScript ビルド
+pnpm lint             # ESLint 実行
+pnpm lint:fix         # ESLint 自動修正
+pnpm format           # Prettier でフォーマット
+pnpm format:check     # フォーマットチェック（CI 用）
 pnpm db:push          # スキーマをDBに反映（開発用）
 pnpm db:generate      # マイグレーションファイル生成
 pnpm db:migrate       # マイグレーション実行
 pnpm db:studio        # Drizzle Studio（DB GUI）
+```
+
+### フロントエンド個別コマンド
+
+```bash
+cd frontend
+dart analyze           # 静的解析（flutter_lints）
+dart format .          # Dart フォーマッタ
 ```
 
 ### Docker

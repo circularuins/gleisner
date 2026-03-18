@@ -1,4 +1,12 @@
-import { SignJWT, jwtVerify, importPKCS8, importSPKI, exportPKCS8, exportSPKI, generateKeyPair } from "jose";
+import {
+  SignJWT,
+  jwtVerify,
+  importPKCS8,
+  importSPKI,
+  exportPKCS8,
+  exportSPKI,
+  generateKeyPair,
+} from "jose";
 
 const ALG = "EdDSA";
 const TOKEN_EXPIRY = "24h";
@@ -6,7 +14,10 @@ const TOKEN_EXPIRY = "24h";
 let privateKey: CryptoKey;
 let publicKey: CryptoKey;
 
-export async function initJwtKeys(privateKeyPem?: string, publicKeyPem?: string): Promise<void> {
+export async function initJwtKeys(
+  privateKeyPem?: string,
+  publicKeyPem?: string,
+): Promise<void> {
   if (privateKeyPem && publicKeyPem) {
     privateKey = await importPKCS8(privateKeyPem, ALG);
     publicKey = await importSPKI(publicKeyPem, ALG);
@@ -18,7 +29,9 @@ export async function initJwtKeys(privateKeyPem?: string, publicKeyPem?: string)
     const privPem = await exportPKCS8(keyPair.privateKey);
     const pubPem = await exportSPKI(keyPair.publicKey);
     console.log("JWT keys auto-generated (development mode)");
-    console.log("Set JWT_PRIVATE_KEY and JWT_PUBLIC_KEY env vars for production");
+    console.log(
+      "Set JWT_PRIVATE_KEY and JWT_PUBLIC_KEY env vars for production",
+    );
     console.log(`JWT_PRIVATE_KEY=${JSON.stringify(privPem)}`);
     console.log(`JWT_PUBLIC_KEY=${JSON.stringify(pubPem)}`);
   }

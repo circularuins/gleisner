@@ -13,6 +13,10 @@ export const users = pgTable("users", {
   publicKey: text("public_key").notNull(),
   encryptedPrivateKey: text("encrypted_private_key").notNull(),
   encryptionSalt: text("encryption_salt").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });

@@ -6,7 +6,10 @@ export interface AuthUser {
 }
 
 // Store auth user in Hono context variables
-export async function authMiddleware(c: Context, next: Next): Promise<void | Response> {
+export async function authMiddleware(
+  c: Context,
+  next: Next,
+): Promise<void | Response> {
   const header = c.req.header("Authorization");
   if (header?.startsWith("Bearer ")) {
     try {

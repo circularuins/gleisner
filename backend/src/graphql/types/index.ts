@@ -1,4 +1,3 @@
-import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema/index.js";
@@ -17,7 +16,8 @@ builder.queryType({
       nullable: true,
       resolve: async (_parent, _args, ctx) => {
         if (!ctx.authUser) return null;
-        const [user] = await db.select()
+        const [user] = await db
+          .select()
           .from(users)
           .where(eq(users.id, ctx.authUser.userId))
           .limit(1);

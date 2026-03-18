@@ -1,4 +1,11 @@
-import { pgTable, uuid, varchar, text, integer, timestamp } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  integer,
+  timestamp,
+} from "drizzle-orm/pg-core";
 import { users } from "./user.js";
 
 export const artists = pgTable("artists", {
@@ -16,6 +23,10 @@ export const artists = pgTable("artists", {
   avatarUrl: text("avatar_url"),
   coverImageUrl: text("cover_image_url"),
   tunedInCount: integer("tuned_in_count").default(0).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
