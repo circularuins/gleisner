@@ -5,6 +5,7 @@ import { users } from "../../db/schema/index.js";
 import { eq } from "drizzle-orm";
 import { UserType } from "./user.js";
 import "./auth.js";
+import "./artist.js";
 
 builder.queryType({
   fields: (t) => ({

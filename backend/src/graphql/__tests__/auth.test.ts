@@ -59,8 +59,7 @@ describe("Auth GraphQL integration", () => {
   });
 
   beforeEach(async () => {
-    // Clean up users table before each test
-    await db.execute(sql`DELETE FROM users`);
+    await db.execute(sql`TRUNCATE users CASCADE`);
   });
 
   const SIGNUP_MUTATION = `
