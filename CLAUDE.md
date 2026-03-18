@@ -48,8 +48,37 @@ Greg Egan "Diaspora" の **Gleisner robots**（物理世界とデジタル世界
 
 ## 開発コマンド
 
-> 技術スタック決定後に追記する。
+### 初回セットアップ
 
 ```bash
-# TBD
+./scripts/dev-setup.sh
+```
+
+### 日常の開発
+
+```bash
+# バックエンド開発サーバー起動（PostgreSQL も自動起動）
+./scripts/dev-start.sh
+
+# フロントエンド開発（別ターミナル）
+cd frontend && flutter run -d chrome
+```
+
+### バックエンド個別コマンド
+
+```bash
+cd backend
+pnpm dev              # 開発サーバー（hot reload）
+pnpm build            # TypeScript ビルド
+pnpm db:push          # スキーマをDBに反映（開発用）
+pnpm db:generate      # マイグレーションファイル生成
+pnpm db:migrate       # マイグレーション実行
+pnpm db:studio        # Drizzle Studio（DB GUI）
+```
+
+### Docker
+
+```bash
+docker compose up -d   # PostgreSQL 起動
+docker compose down    # PostgreSQL 停止
 ```
