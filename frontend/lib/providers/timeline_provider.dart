@@ -7,8 +7,7 @@ import '../graphql/queries/post.dart';
 import '../models/artist.dart';
 import '../models/post.dart';
 import '../models/track.dart';
-
-const _sentinel = Object();
+import '../utils/sentinel.dart';
 
 class TimelineState {
   final Artist? artist;
@@ -26,15 +25,15 @@ class TimelineState {
   });
 
   TimelineState copyWith({
-    Object? artist = _sentinel,
-    Object? selectedTrack = _sentinel,
+    Object? artist = sentinel,
+    Object? selectedTrack = sentinel,
     List<Post>? posts,
     bool? isLoading,
     String? error,
   }) {
     return TimelineState(
-      artist: artist == _sentinel ? this.artist : artist as Artist?,
-      selectedTrack: selectedTrack == _sentinel
+      artist: artist == sentinel ? this.artist : artist as Artist?,
+      selectedTrack: selectedTrack == sentinel
           ? this.selectedTrack
           : selectedTrack as Track?,
       posts: posts ?? this.posts,
@@ -84,10 +83,11 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
       final artist = Artist.fromJson(data as Map<String, dynamic>);
       final firstTrack = artist.tracks.isNotEmpty ? artist.tracks.first : null;
 
+      // Keep isLoading true if we're about to load posts
       state = state.copyWith(
         artist: artist,
         selectedTrack: firstTrack,
-        isLoading: false,
+        isLoading: firstTrack != null,
       );
 
       if (firstTrack != null) {
@@ -146,7 +146,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
 
 final timelineProvider = StateNotifierProvider<TimelineNotifier, TimelineState>(
   (ref) {
-    final client = ref.read(graphqlClientProvider);
+    final client = ref.watch(graphqlClientProvider);
     return TimelineNotifier(client);
   },
 );

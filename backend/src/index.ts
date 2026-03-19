@@ -13,7 +13,13 @@ type HonoEnv = { Variables: { authUser?: AuthUser } };
 const app = new Hono<HonoEnv>();
 
 app.use(logger());
-app.use(cors());
+app.use(
+  cors({
+    origin: env.CORS_ORIGIN.split(","),
+    allowMethods: ["GET", "POST"],
+    allowHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 app.use(authMiddleware);
 app.route("/", health);
 app.on(["GET", "POST"], "/graphql", async (c) => {

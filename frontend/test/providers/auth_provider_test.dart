@@ -1,7 +1,5 @@
-import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -60,7 +58,6 @@ class MockSecureStorage implements FlutterSecureStorage {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// A Link that returns a predetermined result or throws an error.
 class _MockLink extends Link {
   final Map<String, dynamic>? data;
   final List<GraphQLError>? errors;
@@ -107,14 +104,7 @@ void main() {
 
   group('AuthNotifier', () {
     test('initial state is loading', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-
-      final notifier = AuthNotifier(
-        container.read(_refProvider),
-        _clientWith(),
-        storage: mockStorage,
-      );
+      final notifier = AuthNotifier(_clientWith(), storage: mockStorage);
 
       expect(notifier.state.status, AuthStatus.loading);
       expect(notifier.state.user, isNull);
@@ -122,14 +112,7 @@ void main() {
     });
 
     test('initialize without JWT sets unauthenticated', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-
-      final notifier = AuthNotifier(
-        container.read(_refProvider),
-        _clientWith(),
-        storage: mockStorage,
-      );
+      final notifier = AuthNotifier(_clientWith(), storage: mockStorage);
 
       await notifier.initialize();
 
@@ -137,43 +120,28 @@ void main() {
       expect(notifier.state.user, isNull);
     });
 
-    test('initialize with JWT but non-error response stays authenticated',
-        () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+    test(
+      'initialize with JWT but non-error response stays authenticated',
+      () async {
+        await mockStorage.write(key: 'jwt', value: 'valid-token');
 
-      await mockStorage.write(key: 'jwt', value: 'valid-token');
+        final notifier = AuthNotifier(
+          _clientWith(data: {'me': null}),
+          storage: mockStorage,
+        );
 
-      // Non-error response: catch block treats as network issue, keeps JWT
-      final client = _clientWith(data: {'me': null});
+        await notifier.initialize();
 
-      final notifier = AuthNotifier(
-        container.read(_refProvider),
-        client,
-        storage: mockStorage,
-      );
-
-      await notifier.initialize();
-
-      // With a valid JWT, non-GraphQL-error responses keep authenticated
-      expect(notifier.state.status, AuthStatus.authenticated);
-      expect(await mockStorage.read(key: 'jwt'), 'valid-token');
-    });
+        expect(notifier.state.status, AuthStatus.authenticated);
+        expect(await mockStorage.read(key: 'jwt'), 'valid-token');
+      },
+    );
 
     test('initialize with JWT but GraphQL me=null deletes JWT', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-
       await mockStorage.write(key: 'jwt', value: 'expired-token');
 
-      // GraphQL error means server rejected
-      final client = _clientWith(
-        errors: [const GraphQLError(message: 'Unauthorized')],
-      );
-
       final notifier = AuthNotifier(
-        container.read(_refProvider),
-        client,
+        _clientWith(errors: [const GraphQLError(message: 'Unauthorized')]),
         storage: mockStorage,
       );
 
@@ -184,17 +152,10 @@ void main() {
     });
 
     test('initialize with JWT but GraphQL error deletes JWT', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-
       await mockStorage.write(key: 'jwt', value: 'bad-token');
-      final client = _clientWith(
-        errors: [const GraphQLError(message: 'Not authenticated')],
-      );
 
       final notifier = AuthNotifier(
-        container.read(_refProvider),
-        client,
+        _clientWith(errors: [const GraphQLError(message: 'Not authenticated')]),
         storage: mockStorage,
       );
 
@@ -205,17 +166,10 @@ void main() {
     });
 
     test('initialize with JWT but network error preserves JWT', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-
       await mockStorage.write(key: 'jwt', value: 'valid-token');
-      final client = _clientWith(
-        exception: const SocketException('Connection refused'),
-      );
 
       final notifier = AuthNotifier(
-        container.read(_refProvider),
-        client,
+        _clientWith(exception: const SocketException('Connection refused')),
         storage: mockStorage,
       );
 
@@ -227,23 +181,14 @@ void main() {
     });
 
     test('logout clears JWT from storage', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-
       await mockStorage.write(key: 'jwt', value: 'test-token');
 
-      final notifier = AuthNotifier(
-        container.read(_refProvider),
-        _clientWith(),
-        storage: mockStorage,
-      );
+      final notifier = AuthNotifier(_clientWith(), storage: mockStorage);
 
       await notifier.logout();
 
-      // JWT must be deleted regardless of provider re-creation
+      expect(notifier.state.status, AuthStatus.unauthenticated);
       expect(await mockStorage.read(key: 'jwt'), isNull);
     });
   });
 }
-
-final _refProvider = Provider<Ref>((ref) => ref);

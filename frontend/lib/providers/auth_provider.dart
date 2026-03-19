@@ -5,11 +5,10 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import '../graphql/client.dart';
 import '../graphql/queries/auth.dart';
 import '../models/user.dart';
-import 'timeline_provider.dart';
+
+import '../utils/sentinel.dart';
 
 enum AuthStatus { loading, authenticated, unauthenticated }
-
-const _sentinel = Object();
 
 class AuthState {
   final AuthStatus status;
@@ -20,12 +19,12 @@ class AuthState {
 
   AuthState copyWith({
     AuthStatus? status,
-    Object? user = _sentinel,
+    Object? user = sentinel,
     String? error,
   }) {
     return AuthState(
       status: status ?? this.status,
-      user: user == _sentinel ? this.user : user as User?,
+      user: user == sentinel ? this.user : user as User?,
       error: error,
     );
   }
@@ -34,9 +33,8 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final GraphQLClient _client;
   final FlutterSecureStorage _storage;
-  final Ref _ref;
 
-  AuthNotifier(this._ref, this._client, {FlutterSecureStorage? storage})
+  AuthNotifier(this._client, {FlutterSecureStorage? storage})
     : _storage = storage ?? const FlutterSecureStorage(),
       super(const AuthState());
 
@@ -150,15 +148,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     await _storage.delete(key: 'jwt');
     _client.cache.store.reset();
-    _ref.invalidate(timelineProvider);
-    _ref.invalidate(graphqlClientProvider);
-    _ref.invalidate(graphqlClientNotifierProvider);
-    // Re-create AuthNotifier with fresh GraphQLClient
-    _ref.invalidate(authProvider);
+    state = const AuthState(status: AuthStatus.unauthenticated);
   }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  final client = ref.read(graphqlClientProvider);
-  return AuthNotifier(ref, client);
+  final client = ref.watch(graphqlClientProvider);
+  return AuthNotifier(client);
 });

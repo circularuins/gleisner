@@ -15,4 +15,5 @@ export const env = {
   // JWT EdDSA keys — optional in development (auto-generated), required in production
   JWT_PRIVATE_KEY: process.env.JWT_PRIVATE_KEY?.replace(/\\n/g, "\n"),
   JWT_PUBLIC_KEY: process.env.JWT_PUBLIC_KEY?.replace(/\\n/g, "\n"),
+  CORS_ORIGIN: process.env.CORS_ORIGIN ?? "http://localhost:3000",
 } as const;
