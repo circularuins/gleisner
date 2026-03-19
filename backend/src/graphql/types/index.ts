@@ -8,6 +8,7 @@ import "./artist.js";
 import "./track.js";
 import "./post.js";
 import "./reaction.js";
+import "./comment.js";
 
 builder.queryType({
   fields: (t) => ({
