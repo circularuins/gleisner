@@ -10,6 +10,10 @@ import "./post.js";
 import "./reaction.js";
 import "./comment.js";
 import "./connection.js";
+import "./follow.js";
+import "./tune-in.js";
+import "./artist-link.js";
+import "./genre.js";
 
 builder.queryType({
   fields: (t) => ({
