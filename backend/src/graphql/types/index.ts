@@ -9,6 +9,7 @@ import "./track.js";
 import "./post.js";
 import "./reaction.js";
 import "./comment.js";
+import "./connection.js";
 
 builder.queryType({
   fields: (t) => ({
