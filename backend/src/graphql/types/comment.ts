@@ -4,7 +4,7 @@ import { db } from "../../db/index.js";
 import { comments, posts, users } from "../../db/schema/index.js";
 import { and, eq } from "drizzle-orm";
 import { PostType } from "./post.js";
-import { UserType } from "./user.js";
+import { PublicUserType } from "./user.js";
 
 const CommentType = builder.objectRef<{
   id: string;
@@ -26,7 +26,7 @@ CommentType.implement({
       resolve: (comment) => comment.updatedAt.toISOString(),
     }),
     user: t.field({
-      type: UserType,
+      type: PublicUserType,
       resolve: async (comment) => {
         const [user] = await db
           .select()
