@@ -10,7 +10,7 @@ const MediaTypeEnum = builder.enumType("MediaType", {
   values: ["text", "image", "video", "audio", "link"] as const,
 });
 
-const PostType = builder.objectRef<{
+export const PostType = builder.objectRef<{
   id: string;
   trackId: string;
   authorId: string;
