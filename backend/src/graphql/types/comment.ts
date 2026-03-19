@@ -33,6 +33,7 @@ CommentType.implement({
           .from(users)
           .where(eq(users.id, comment.userId))
           .limit(1);
+        if (!user) throw new GraphQLError("User not found");
         return user;
       },
     }),

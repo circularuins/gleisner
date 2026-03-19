@@ -24,6 +24,7 @@ FollowType.implement({
           .from(users)
           .where(eq(users.id, follow.followerId))
           .limit(1);
+        if (!user) throw new GraphQLError("User not found");
         return user;
       },
     }),
@@ -35,6 +36,7 @@ FollowType.implement({
           .from(users)
           .where(eq(users.id, follow.followingId))
           .limit(1);
+        if (!user) throw new GraphQLError("User not found");
         return user;
       },
     }),

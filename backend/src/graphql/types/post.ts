@@ -52,6 +52,7 @@ PostType.implement({
           .from(users)
           .where(eq(users.id, post.authorId))
           .limit(1);
+        if (!user) throw new GraphQLError("User not found");
         return user;
       },
     }),

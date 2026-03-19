@@ -25,6 +25,7 @@ TuneInType.implement({
           .from(users)
           .where(eq(users.id, tuneIn.userId))
           .limit(1);
+        if (!user) throw new GraphQLError("User not found");
         return user;
       },
     }),
