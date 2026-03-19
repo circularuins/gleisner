@@ -15,6 +15,11 @@ if (!DATABASE_URL)
 const client = postgres(DATABASE_URL);
 export const db = drizzle(client);
 
+/** Close the shared DB connection. Call in afterAll to prevent pool exhaustion. */
+export async function closeTestDb(): Promise<void> {
+  await client.end();
+}
+
 let app: ReturnType<typeof createTestApp> | null = null;
 let initialized = false;
 

@@ -134,19 +134,8 @@ builder.mutationType({
           throw new GraphQLError("Invalid credentials");
         }
 
-        // Return safe columns only (strip password fields)
-        const user = {
-          id: row.id,
-          did: row.did,
-          email: row.email,
-          username: row.username,
-          displayName: row.displayName,
-          bio: row.bio,
-          avatarUrl: row.avatarUrl,
-          publicKey: row.publicKey,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-        };
+        // Strip password fields via destructuring
+        const { passwordSalt: _ps, passwordHash: _ph, ...user } = row;
         const token = await signToken(user.id);
         return { token, user };
       },

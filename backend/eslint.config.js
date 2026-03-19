@@ -12,6 +12,10 @@ export default tseslint.config(
     rules: {
       "drizzle/enforce-delete-with-where": "error",
       "drizzle/enforce-update-with-where": "error",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
     },
   },
   {
