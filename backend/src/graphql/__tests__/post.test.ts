@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { sign } from "node:crypto";
 import "dotenv/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -708,6 +709,179 @@ describe("Post GraphQL integration", () => {
       const track = post.track as Record<string, unknown>;
       expect(author.username).toBe("reluser1");
       expect(track.name).toBe("TestTrack");
+    });
+  });
+
+  describe("contentHash and signature", () => {
+    const CREATE_POST_WITH_HASH = `
+      mutation CreatePost(
+        $trackId: String!,
+        $mediaType: MediaType!,
+        $title: String,
+        $body: String,
+        $signature: String
+      ) {
+        createPost(
+          trackId: $trackId,
+          mediaType: $mediaType,
+          title: $title,
+          body: $body,
+          signature: $signature
+        ) {
+          id contentHash signature
+        }
+      }
+    `;
+
+    const UPDATE_POST_WITH_HASH = `
+      mutation UpdatePost($id: String!, $title: String, $body: String, $signature: String) {
+        updatePost(id: $id, title: $title, body: $body, signature: $signature) {
+          id contentHash signature
+        }
+      }
+    `;
+
+    it("auto-generates contentHash on createPost", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "hash1@example.com",
+        "hashuser1",
+        "hashartist1",
+      );
+
+      const result = await gql(
+        app,
+        CREATE_POST_WITH_HASH,
+        { trackId, mediaType: "text", title: "Hash Test", body: "Body" },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+      const post = result.data!.createPost as Record<string, unknown>;
+      expect(post.contentHash).toBeDefined();
+      expect(typeof post.contentHash).toBe("string");
+      expect((post.contentHash as string).length).toBe(64);
+      expect(post.signature).toBeNull();
+    });
+
+    it("recomputes contentHash on updatePost", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "hash2@example.com",
+        "hashuser2",
+        "hashartist2",
+      );
+
+      const createResult = await gql(
+        app,
+        CREATE_POST_WITH_HASH,
+        { trackId, mediaType: "text", title: "Original" },
+        token,
+      );
+      const created = createResult.data!.createPost as Record<string, unknown>;
+      const originalHash = created.contentHash;
+
+      const updateResult = await gql(
+        app,
+        UPDATE_POST_WITH_HASH,
+        { id: created.id as string, title: "Updated" },
+        token,
+      );
+
+      expect(updateResult.errors).toBeUndefined();
+      const updated = updateResult.data!.updatePost as Record<string, unknown>;
+      expect(updated.contentHash).toBeDefined();
+      expect(updated.contentHash).not.toBe(originalHash);
+    });
+
+    it("saves valid signature on createPost", async () => {
+      // First signup to get user's publicKey, then use the private key to sign
+      const signupResult = await gql(app, SIGNUP_MUTATION, {
+        email: "hash3@example.com",
+        password: "password123",
+        username: "hashuser3",
+      });
+      const token = (signupResult.data!.signup as { token: string }).token;
+      const userId = (signupResult.data!.signup as { user: { id: string } })
+        .user.id;
+
+      // Get user's encrypted private key — we need the actual key for signing
+      // Instead, let's query the DB directly for the user's keys
+      // Generate a fresh key pair for testing, update the user's public key
+      const { generateEdKeyPair } = await import("../../auth/crypto.js");
+      const { publicKey: testPubKey, privateKey: testPrivKey } =
+        generateEdKeyPair();
+
+      await db.execute(
+        sql`UPDATE users SET public_key = ${testPubKey} WHERE id = ${userId}`,
+      );
+
+      // Register artist and create track
+      await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        { artistUsername: "hashartist3", displayName: "Hash Artist 3" },
+        token,
+      );
+      const trackResult = await gql(
+        app,
+        CREATE_TRACK_MUTATION,
+        { name: "HashTrack", color: "#FF0000" },
+        token,
+      );
+      const trackId = (trackResult.data!.createTrack as { id: string }).id;
+
+      // Compute expected hash to sign it
+      const { computeContentHash } = await import("../../auth/signing.js");
+      const contentHash = computeContentHash({
+        title: "Signed Post",
+        body: null,
+        mediaUrl: null,
+        importance: 0.5,
+      });
+      const sigBuf = sign(null, Buffer.from(contentHash), testPrivKey);
+      const signatureB64 = sigBuf.toString("base64");
+
+      const result = await gql(
+        app,
+        CREATE_POST_WITH_HASH,
+        {
+          trackId,
+          mediaType: "text",
+          title: "Signed Post",
+          signature: signatureB64,
+        },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+      const post = result.data!.createPost as Record<string, unknown>;
+      expect(post.contentHash).toBe(contentHash);
+      expect(post.signature).toBe(signatureB64);
+    });
+
+    it("rejects invalid signature on createPost", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "hash4@example.com",
+        "hashuser4",
+        "hashartist4",
+      );
+
+      const result = await gql(
+        app,
+        CREATE_POST_WITH_HASH,
+        {
+          trackId,
+          mediaType: "text",
+          title: "Bad Sig",
+          signature: "dGhpcyBpcyBub3QgYSB2YWxpZCBzaWduYXR1cmU=",
+        },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe("Invalid signature");
     });
   });
 });

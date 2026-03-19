@@ -5,6 +5,7 @@ import { artists, posts, tracks, users } from "../../db/schema/index.js";
 import { eq } from "drizzle-orm";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
+import { computeContentHash, verifySignature } from "../../auth/signing.js";
 
 const MediaTypeEnum = builder.enumType("MediaType", {
   values: ["text", "image", "video", "audio", "link"] as const,
@@ -19,6 +20,8 @@ export const PostType = builder.objectRef<{
   body: string | null;
   mediaUrl: string | null;
   importance: number;
+  contentHash: string | null;
+  signature: string | null;
   layoutX: number;
   layoutY: number;
   createdAt: Date;
@@ -36,6 +39,8 @@ PostType.implement({
     body: t.exposeString("body", { nullable: true }),
     mediaUrl: t.exposeString("mediaUrl", { nullable: true }),
     importance: t.exposeFloat("importance"),
+    contentHash: t.exposeString("contentHash", { nullable: true }),
+    signature: t.exposeString("signature", { nullable: true }),
     layoutX: t.exposeInt("layoutX"),
     layoutY: t.exposeInt("layoutY"),
     createdAt: t.string({
@@ -82,6 +87,7 @@ builder.mutationFields((t) => ({
       importance: t.arg.float(),
       layoutX: t.arg.int(),
       layoutY: t.arg.int(),
+      signature: t.arg.string(),
     },
     resolve: async (_parent, args, ctx) => {
       if (!ctx.authUser) {
@@ -124,6 +130,29 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Importance must be between 0.0 and 1.0");
       }
 
+      const contentHash = computeContentHash({
+        title: args.title ?? null,
+        body: args.body ?? null,
+        mediaUrl: args.mediaUrl ?? null,
+        importance: args.importance ?? 0.5,
+      });
+
+      let signatureValue: string | null = null;
+      if (args.signature) {
+        const [author] = await db
+          .select({ publicKey: users.publicKey })
+          .from(users)
+          .where(eq(users.id, ctx.authUser.userId))
+          .limit(1);
+        if (
+          !author ||
+          !verifySignature(contentHash, args.signature, author.publicKey)
+        ) {
+          throw new GraphQLError("Invalid signature");
+        }
+        signatureValue = args.signature;
+      }
+
       const [post] = await db
         .insert(posts)
         .values({
@@ -133,6 +162,8 @@ builder.mutationFields((t) => ({
           title: args.title ?? null,
           body: args.body ?? null,
           mediaUrl: args.mediaUrl ?? null,
+          contentHash,
+          signature: signatureValue,
           ...(args.importance != null ? { importance: args.importance } : {}),
           ...(args.layoutX != null ? { layoutX: args.layoutX } : {}),
           ...(args.layoutY != null ? { layoutY: args.layoutY } : {}),
@@ -154,6 +185,7 @@ builder.mutationFields((t) => ({
       importance: t.arg.float(),
       layoutX: t.arg.int(),
       layoutY: t.arg.int(),
+      signature: t.arg.string(),
     },
     resolve: async (_parent, args, ctx) => {
       if (!ctx.authUser) {
@@ -195,6 +227,41 @@ builder.mutationFields((t) => ({
         updateData.importance = args.importance;
       if (args.layoutX !== undefined) updateData.layoutX = args.layoutX;
       if (args.layoutY !== undefined) updateData.layoutY = args.layoutY;
+
+      // Recompute contentHash if content fields changed
+      const contentChanged =
+        args.title !== undefined ||
+        args.body !== undefined ||
+        args.mediaUrl !== undefined ||
+        args.importance !== undefined;
+
+      if (contentChanged) {
+        const newHash = computeContentHash({
+          title: args.title !== undefined ? args.title : post.title,
+          body: args.body !== undefined ? args.body : post.body,
+          mediaUrl: args.mediaUrl !== undefined ? args.mediaUrl : post.mediaUrl,
+          importance:
+            args.importance != null ? args.importance : post.importance,
+        });
+        updateData.contentHash = newHash;
+
+        if (args.signature) {
+          const [author] = await db
+            .select({ publicKey: users.publicKey })
+            .from(users)
+            .where(eq(users.id, ctx.authUser.userId))
+            .limit(1);
+          if (
+            !author ||
+            !verifySignature(newHash, args.signature, author.publicKey)
+          ) {
+            throw new GraphQLError("Invalid signature");
+          }
+          updateData.signature = args.signature;
+        } else {
+          updateData.signature = null;
+        }
+      }
 
       const [updated] = await db
         .update(posts)
