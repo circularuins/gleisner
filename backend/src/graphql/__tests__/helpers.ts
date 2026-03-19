@@ -35,6 +35,10 @@ function createTestApp() {
   return hono;
 }
 
+/**
+ * Returns a singleton test app instance. Assumes serial test execution
+ * (vitest fileParallelism: false) — not safe for parallel test files.
+ */
 export async function getTestApp() {
   if (!initialized) {
     await initJwtKeys();
@@ -101,19 +105,6 @@ export const CREATE_POST_MUTATION = `
   }
 `;
 
-export async function signupAndGetToken(
-  testApp: ReturnType<typeof createTestApp>,
-  email: string,
-  username: string,
-) {
-  const result = await gql(testApp, SIGNUP_MUTATION, {
-    email,
-    password: "password123",
-    username,
-  });
-  return (result.data!.signup as { token: string }).token;
-}
-
 export async function signupAndGetTokenAndId(
   testApp: ReturnType<typeof createTestApp>,
   email: string,
@@ -126,6 +117,15 @@ export async function signupAndGetTokenAndId(
   });
   const signup = result.data!.signup as { token: string; user: { id: string } };
   return { token: signup.token, userId: signup.user.id };
+}
+
+export async function signupAndGetToken(
+  testApp: ReturnType<typeof createTestApp>,
+  email: string,
+  username: string,
+) {
+  const { token } = await signupAndGetTokenAndId(testApp, email, username);
+  return token;
 }
 
 export async function signupAndRegisterArtist(

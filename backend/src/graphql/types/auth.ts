@@ -82,7 +82,7 @@ builder.mutationType({
         );
 
         // Insert user — DID uses the generated UUID
-        const [user] = await db
+        const [{ id: userId }] = await db
           .insert(users)
           .values({
             email: args.email,
@@ -94,18 +94,15 @@ builder.mutationType({
             encryptionSalt,
             did: "pending", // Temporary, updated after we have the ID
           })
-          .returning();
+          .returning({ id: users.id });
 
-        // Update DID with actual user ID
-        const did = generateDid(user.id);
-        await db.update(users).set({ did }).where(eq(users.id, user.id));
-
-        // Re-fetch with safe columns (excludes passwordHash, encryptedPrivateKey, etc.)
+        // Update DID and return safe columns in one query
+        const did = generateDid(userId);
         const [safeUser] = await db
-          .select(userColumns)
-          .from(users)
-          .where(eq(users.id, user.id))
-          .limit(1);
+          .update(users)
+          .set({ did })
+          .where(eq(users.id, userId))
+          .returning(userColumns);
 
         const token = await signToken(safeUser.id);
         return { token, user: safeUser };
@@ -119,10 +116,10 @@ builder.mutationType({
         password: t.arg.string({ required: true }),
       },
       resolve: async (_parent, args) => {
-        // Fetch with password fields for verification
-        const [authRow] = await db
+        // Fetch safe columns + password fields in one query
+        const [row] = await db
           .select({
-            id: users.id,
+            ...userColumns,
             passwordSalt: users.passwordSalt,
             passwordHash: users.passwordHash,
           })
@@ -131,23 +128,25 @@ builder.mutationType({
           .limit(1);
 
         if (
-          !authRow ||
-          !verifyPassword(
-            args.password,
-            authRow.passwordSalt,
-            authRow.passwordHash,
-          )
+          !row ||
+          !verifyPassword(args.password, row.passwordSalt, row.passwordHash)
         ) {
           throw new GraphQLError("Invalid credentials");
         }
 
-        // Re-fetch with safe columns (excludes passwordHash, encryptedPrivateKey, etc.)
-        const [user] = await db
-          .select(userColumns)
-          .from(users)
-          .where(eq(users.id, authRow.id))
-          .limit(1);
-
+        // Return safe columns only (strip password fields)
+        const user = {
+          id: row.id,
+          did: row.did,
+          email: row.email,
+          username: row.username,
+          displayName: row.displayName,
+          bio: row.bio,
+          avatarUrl: row.avatarUrl,
+          publicKey: row.publicKey,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+        };
         const token = await signToken(user.id);
         return { token, user };
       },
