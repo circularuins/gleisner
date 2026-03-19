@@ -884,5 +884,77 @@ describe("Post GraphQL integration", () => {
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toBe("Invalid signature");
     });
+
+    it("rejects updating signed post content without new signature", async () => {
+      // Setup: create a signed post
+      const signupResult = await gql(app, SIGNUP_MUTATION, {
+        email: "hash5@example.com",
+        password: "password123",
+        username: "hashuser5",
+      });
+      const token = (signupResult.data!.signup as { token: string }).token;
+      const userId = (signupResult.data!.signup as { user: { id: string } })
+        .user.id;
+
+      const { generateEdKeyPair } = await import("../../auth/crypto.js");
+      const { publicKey: testPubKey, privateKey: testPrivKey } =
+        generateEdKeyPair();
+      await db.execute(
+        sql`UPDATE users SET public_key = ${testPubKey} WHERE id = ${userId}`,
+      );
+
+      await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        { artistUsername: "hashartist5", displayName: "Hash Artist 5" },
+        token,
+      );
+      const trackResult = await gql(
+        app,
+        CREATE_TRACK_MUTATION,
+        { name: "HashTrack5", color: "#FF0000" },
+        token,
+      );
+      const trackId = (trackResult.data!.createTrack as { id: string }).id;
+
+      const { computeContentHash } = await import("../../auth/signing.js");
+      const contentHash = computeContentHash({
+        title: "Signed Original",
+        body: null,
+        mediaUrl: null,
+        mediaType: "text",
+        importance: 0.5,
+      });
+      const { sign } = await import("node:crypto");
+      const sigBuf = sign(null, Buffer.from(contentHash), testPrivKey);
+      const signatureB64 = sigBuf.toString("base64");
+
+      const createResult = await gql(
+        app,
+        CREATE_POST_WITH_HASH,
+        {
+          trackId,
+          mediaType: "text",
+          title: "Signed Original",
+          signature: signatureB64,
+        },
+        token,
+      );
+      expect(createResult.errors).toBeUndefined();
+      const postId = (createResult.data!.createPost as { id: string }).id;
+
+      // Try to update content without providing new signature
+      const updateResult = await gql(
+        app,
+        UPDATE_POST_WITH_HASH,
+        { id: postId, title: "Tampered" },
+        token,
+      );
+
+      expect(updateResult.errors).toBeDefined();
+      expect(updateResult.errors![0].message).toContain(
+        "A new signature is required",
+      );
+    });
   });
 });

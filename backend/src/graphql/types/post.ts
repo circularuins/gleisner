@@ -13,17 +13,22 @@ const MediaTypeEnum = builder.enumType("MediaType", {
 
 /**
  * Fetch author's publicKey and verify an Ed25519 signature against a contentHash.
- * Throws GraphQLError on missing key, empty key, or invalid signature.
+ * Ensures the signer is the post's author to prevent signature spoofing.
+ * Throws GraphQLError on author mismatch, missing key, or invalid signature.
  */
 async function verifyPostSignature(
   contentHash: string,
   signature: string,
-  userId: string,
+  signerId: string,
+  postAuthorId: string,
 ): Promise<void> {
+  if (signerId !== postAuthorId) {
+    throw new GraphQLError("Only the post author can sign this post");
+  }
   const [author] = await db
     .select({ publicKey: users.publicKey })
     .from(users)
-    .where(eq(users.id, userId))
+    .where(eq(users.id, signerId))
     .limit(1);
   if (!author || !author.publicKey) {
     throw new GraphQLError("Author has no registered public key");
@@ -171,6 +176,7 @@ builder.mutationFields((t) => ({
           contentHash,
           args.signature,
           ctx.authUser.userId,
+          ctx.authUser.userId, // createPost: author is always the current user
         );
         signatureValue = args.signature;
       }
@@ -250,7 +256,9 @@ builder.mutationFields((t) => ({
       if (args.layoutX !== undefined) updateData.layoutX = args.layoutX;
       if (args.layoutY !== undefined) updateData.layoutY = args.layoutY;
 
-      // Recompute contentHash if content fields changed
+      // Recompute contentHash if content fields changed.
+      // layoutX/Y are presentation-only and intentionally excluded from the
+      // content hash — moving a post on the timeline does not alter its content.
       const contentChanged =
         args.title !== undefined ||
         args.body !== undefined ||
@@ -294,6 +302,7 @@ builder.mutationFields((t) => ({
             newHash,
             args.signature,
             ctx.authUser.userId,
+            post.authorId,
           );
           newSignature = args.signature;
         }
