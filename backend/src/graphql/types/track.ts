@@ -5,7 +5,7 @@ import { artists, tracks } from "../../db/schema/index.js";
 import { eq } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
 
-const TrackType = builder.objectRef<{
+export const TrackType = builder.objectRef<{
   id: string;
   artistId: string;
   name: string;

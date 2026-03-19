@@ -6,6 +6,7 @@ import { UserType } from "./user.js";
 import "./auth.js";
 import "./artist.js";
 import "./track.js";
+import "./post.js";
 
 builder.queryType({
   fields: (t) => ({
