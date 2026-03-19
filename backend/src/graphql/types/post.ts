@@ -256,6 +256,12 @@ builder.mutationFields((t) => ({
         args.mediaUrl !== undefined ||
         args.importance !== undefined;
 
+      if (!contentChanged && args.signature !== undefined) {
+        throw new GraphQLError(
+          "Signature can only be updated when content fields are changed.",
+        );
+      }
+
       // Recompute contentHash and re-verify signature when content changes.
       // Signature is optional for MVP (see createPost comment).
       if (contentChanged) {
