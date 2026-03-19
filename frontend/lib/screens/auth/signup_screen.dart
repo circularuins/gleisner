@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../widgets/common/auth_header.dart';
 import '../../widgets/common/error_banner.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -58,23 +59,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'Gleisner',
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Create your account',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withAlpha(179),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+                  const AuthHeader(subtitle: 'Create your account'),
                   const SizedBox(height: 32),
                   if (authState.error != null) ...[
                     ErrorBanner(message: authState.error!),

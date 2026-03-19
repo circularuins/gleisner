@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+const fallbackTrackColor = Color(0xFF808080);
+
 class Track {
   final String id;
   final String name;
@@ -16,9 +18,10 @@ class Track {
   Color get displayColor {
     try {
       final hex = color.replaceFirst('#', '');
+      if (hex.length != 6) return fallbackTrackColor;
       return Color(int.parse('FF$hex', radix: 16));
     } catch (_) {
-      return const Color(0xFF808080);
+      return fallbackTrackColor;
     }
   }
 

@@ -113,6 +113,36 @@ void main() {
       expect(notifier.state.user, isNull);
     });
 
+    test(
+      'initialize with JWT but unreachable server stays authenticated',
+      () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        // Use an unreachable host to trigger SocketException
+        final offlineClient = GraphQLClient(
+          link: HttpLink('http://192.0.2.1:1/graphql'),
+          cache: GraphQLCache(store: InMemoryStore()),
+        );
+
+        await mockStorage.write(key: 'jwt', value: 'valid-token');
+
+        final notifier = AuthNotifier(
+          container.read(_refProvider),
+          offlineClient,
+          storage: mockStorage,
+        );
+
+        await notifier.initialize();
+
+        // JWT should be preserved
+        expect(await mockStorage.read(key: 'jwt'), 'valid-token');
+        expect(notifier.state.status, AuthStatus.authenticated);
+        expect(notifier.state.error, isNotNull);
+      },
+      timeout: const Timeout(Duration(seconds: 10)),
+    );
+
     test('logout clears JWT and resets state', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);

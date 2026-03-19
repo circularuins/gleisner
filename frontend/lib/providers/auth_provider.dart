@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -47,12 +45,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final result = await _client.query(QueryOptions(document: gql(meQuery)));
 
       if (result.hasException) {
-        if (_isNetworkError(result.exception)) {
+        final hasGraphqlErrors =
+            result.exception?.graphqlErrors.isNotEmpty ?? false;
+        if (hasGraphqlErrors) {
+          // Server explicitly rejected the token
+          await _storage.delete(key: 'jwt');
           state = const AuthState(status: AuthStatus.unauthenticated);
           return;
         }
-        await _storage.delete(key: 'jwt');
-        state = const AuthState(status: AuthStatus.unauthenticated);
+        // Network/link error: keep JWT, stay authenticated optimistically
+        state = AuthState(
+          status: AuthStatus.authenticated,
+          error: 'Network unavailable',
+        );
         return;
       }
 
@@ -64,20 +69,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final user = User.fromJson(result.data!['me'] as Map<String, dynamic>);
       state = AuthState(status: AuthStatus.authenticated, user: user);
-    } on SocketException {
-      state = const AuthState(status: AuthStatus.unauthenticated);
     } catch (e) {
-      await _storage.delete(key: 'jwt');
-      state = const AuthState(status: AuthStatus.unauthenticated);
+      // Any exception during network call: keep JWT, assume network issue
+      state = AuthState(
+        status: AuthStatus.authenticated,
+        error: 'Network unavailable',
+      );
     }
-  }
-
-  bool _isNetworkError(OperationException? exception) {
-    if (exception == null) return false;
-    final linkException = exception.linkException;
-    if (linkException == null) return false;
-    return linkException is NetworkException ||
-        linkException.originalException is SocketException;
   }
 
   Future<void> signup({
@@ -85,58 +83,40 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
     required String username,
   }) async {
-    state = state.copyWith(status: AuthStatus.loading, error: null);
-
-    try {
-      final result = await _client.mutate(
-        MutationOptions(
-          document: gql(signupMutation),
-          variables: {
-            'email': email,
-            'password': password,
-            'username': username,
-          },
-        ),
-      );
-
-      if (result.hasException) {
-        final message =
-            result.exception?.graphqlErrors.firstOrNull?.message ??
-            'Signup failed';
-        state = state.copyWith(
-          status: AuthStatus.unauthenticated,
-          error: message,
-        );
-        return;
-      }
-
-      final data = result.data!['signup'] as Map<String, dynamic>;
-      await _storage.write(key: 'jwt', value: data['token'] as String);
-      final user = User.fromJson(data['user'] as Map<String, dynamic>);
-      state = AuthState(status: AuthStatus.authenticated, user: user);
-    } catch (e) {
-      state = state.copyWith(
-        status: AuthStatus.unauthenticated,
-        error: e.toString(),
-      );
-    }
+    await _executeMutation(
+      mutation: signupMutation,
+      variables: {'email': email, 'password': password, 'username': username},
+      resultKey: 'signup',
+      fallbackError: 'Signup failed',
+    );
   }
 
   Future<void> login({required String email, required String password}) async {
+    await _executeMutation(
+      mutation: loginMutation,
+      variables: {'email': email, 'password': password},
+      resultKey: 'login',
+      fallbackError: 'Login failed',
+    );
+  }
+
+  Future<void> _executeMutation({
+    required String mutation,
+    required Map<String, dynamic> variables,
+    required String resultKey,
+    required String fallbackError,
+  }) async {
     state = state.copyWith(status: AuthStatus.loading, error: null);
 
     try {
       final result = await _client.mutate(
-        MutationOptions(
-          document: gql(loginMutation),
-          variables: {'email': email, 'password': password},
-        ),
+        MutationOptions(document: gql(mutation), variables: variables),
       );
 
       if (result.hasException) {
         final message =
             result.exception?.graphqlErrors.firstOrNull?.message ??
-            'Login failed';
+            fallbackError;
         state = state.copyWith(
           status: AuthStatus.unauthenticated,
           error: message,
@@ -144,7 +124,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return;
       }
 
-      final data = result.data!['login'] as Map<String, dynamic>;
+      final data = result.data![resultKey] as Map<String, dynamic>;
       await _storage.write(key: 'jwt', value: data['token'] as String);
       final user = User.fromJson(data['user'] as Map<String, dynamic>);
       state = AuthState(status: AuthStatus.authenticated, user: user);

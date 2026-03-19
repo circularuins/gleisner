@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,14 +8,32 @@ import 'screens/auth/signup_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/timeline/timeline_screen.dart';
 
-final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+class _AuthChangeNotifier extends ChangeNotifier {
+  AuthStatus _status = AuthStatus.loading;
 
-  return GoRouter(
+  void update(AuthStatus status) {
+    if (_status != status) {
+      _status = status;
+      notifyListeners();
+    }
+  }
+}
+
+final routerProvider = Provider<GoRouter>((ref) {
+  final authChangeNotifier = _AuthChangeNotifier();
+
+  ref.listen<AuthState>(authProvider, (_, next) {
+    authChangeNotifier.update(next.status);
+  });
+
+  ref.onDispose(authChangeNotifier.dispose);
+
+  final router = GoRouter(
     initialLocation: '/splash',
+    refreshListenable: authChangeNotifier,
     redirect: (context, state) {
       final path = state.uri.path;
-      final status = authState.status;
+      final status = ref.read(authProvider).status;
 
       if (status == AuthStatus.loading) {
         return path == '/splash' ? null : '/splash';
@@ -46,4 +65,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  ref.onDispose(router.dispose);
+
+  return router;
 });
