@@ -4,7 +4,7 @@ import { db } from "../../db/index.js";
 import { artists, posts, tracks, users } from "../../db/schema/index.js";
 import { eq } from "drizzle-orm";
 import { TrackType } from "./track.js";
-import { UserType } from "./user.js";
+import { PublicUserType, publicUserColumns } from "./user.js";
 
 const MediaTypeEnum = builder.enumType("MediaType", {
   values: ["text", "image", "video", "audio", "link"] as const,
@@ -45,13 +45,14 @@ PostType.implement({
       resolve: (post) => post.updatedAt.toISOString(),
     }),
     author: t.field({
-      type: UserType,
+      type: PublicUserType,
       resolve: async (post) => {
         const [user] = await db
-          .select()
+          .select(publicUserColumns)
           .from(users)
           .where(eq(users.id, post.authorId))
           .limit(1);
+        if (!user) throw new GraphQLError("User not found");
         return user;
       },
     }),

@@ -3,7 +3,7 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { follows, users } from "../../db/schema/index.js";
 import { and, eq } from "drizzle-orm";
-import { UserType } from "./user.js";
+import { PublicUserType, UserType, publicUserColumns } from "./user.js";
 
 const FollowType = builder.objectRef<{
   followerId: string;
@@ -17,24 +17,26 @@ FollowType.implement({
       resolve: (follow) => follow.createdAt.toISOString(),
     }),
     follower: t.field({
-      type: UserType,
+      type: PublicUserType,
       resolve: async (follow) => {
         const [user] = await db
-          .select()
+          .select(publicUserColumns)
           .from(users)
           .where(eq(users.id, follow.followerId))
           .limit(1);
+        if (!user) throw new GraphQLError("User not found");
         return user;
       },
     }),
     following: t.field({
-      type: UserType,
+      type: PublicUserType,
       resolve: async (follow) => {
         const [user] = await db
-          .select()
+          .select(publicUserColumns)
           .from(users)
           .where(eq(users.id, follow.followingId))
           .limit(1);
+        if (!user) throw new GraphQLError("User not found");
         return user;
       },
     }),
@@ -127,7 +129,7 @@ builder.queryFields((t) => ({
   }),
 }));
 
-// Add followers/following fields to UserType
+// Add followers/following fields to UserType (for me query)
 builder.objectFields(UserType, (t) => ({
   followers: t.field({
     type: [FollowType],

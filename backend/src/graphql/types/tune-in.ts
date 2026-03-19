@@ -4,7 +4,7 @@ import { db } from "../../db/index.js";
 import { artists, tuneIns, users } from "../../db/schema/index.js";
 import { and, eq, sql } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
-import { UserType } from "./user.js";
+import { PublicUserType, publicUserColumns } from "./user.js";
 
 const TuneInType = builder.objectRef<{
   userId: string;
@@ -18,13 +18,14 @@ TuneInType.implement({
       resolve: (tuneIn) => tuneIn.createdAt.toISOString(),
     }),
     user: t.field({
-      type: UserType,
+      type: PublicUserType,
       resolve: async (tuneIn) => {
         const [user] = await db
-          .select()
+          .select(publicUserColumns)
           .from(users)
           .where(eq(users.id, tuneIn.userId))
           .limit(1);
+        if (!user) throw new GraphQLError("User not found");
         return user;
       },
     }),
