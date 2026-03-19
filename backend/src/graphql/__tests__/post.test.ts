@@ -876,7 +876,7 @@ describe("Post GraphQL integration", () => {
           trackId,
           mediaType: "text",
           title: "Bad Sig",
-          signature: "dGhpcyBpcyBub3QgYSB2YWxpZCBzaWduYXR1cmU=",
+          signature: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
         },
         token,
       );

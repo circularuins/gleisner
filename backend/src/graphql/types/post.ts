@@ -25,6 +25,10 @@ async function verifyPostSignature(
   if (signerId !== postAuthorId) {
     throw new GraphQLError("Only the post author can sign this post");
   }
+  // Ed25519 signatures are 64 bytes = 88 chars in base64
+  if (signature.length !== 88) {
+    throw new GraphQLError("Invalid signature format");
+  }
   const [author] = await db
     .select({ publicKey: users.publicKey })
     .from(users)
