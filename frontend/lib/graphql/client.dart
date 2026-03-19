@@ -28,5 +28,7 @@ final graphqlClientProvider = Provider<GraphQLClient>((ref) {
 final graphqlClientNotifierProvider = Provider<ValueNotifier<GraphQLClient>>((
   ref,
 ) {
-  return ValueNotifier(ref.read(graphqlClientProvider));
+  final notifier = ValueNotifier(ref.read(graphqlClientProvider));
+  ref.onDispose(notifier.dispose);
+  return notifier;
 });

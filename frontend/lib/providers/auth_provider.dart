@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -5,6 +7,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import '../graphql/client.dart';
 import '../graphql/queries/auth.dart';
 import '../models/user.dart';
+import 'timeline_provider.dart';
 
 enum AuthStatus { loading, authenticated, unauthenticated }
 
@@ -27,8 +30,9 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final GraphQLClient _client;
   final FlutterSecureStorage _storage;
+  final Ref _ref;
 
-  AuthNotifier(this._client, {FlutterSecureStorage? storage})
+  AuthNotifier(this._ref, this._client, {FlutterSecureStorage? storage})
     : _storage = storage ?? const FlutterSecureStorage(),
       super(const AuthState());
 
@@ -42,7 +46,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final result = await _client.query(QueryOptions(document: gql(meQuery)));
 
-      if (result.hasException || result.data?['me'] == null) {
+      if (result.hasException) {
+        if (_isNetworkError(result.exception)) {
+          state = const AuthState(status: AuthStatus.unauthenticated);
+          return;
+        }
+        await _storage.delete(key: 'jwt');
+        state = const AuthState(status: AuthStatus.unauthenticated);
+        return;
+      }
+
+      if (result.data?['me'] == null) {
         await _storage.delete(key: 'jwt');
         state = const AuthState(status: AuthStatus.unauthenticated);
         return;
@@ -50,10 +64,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final user = User.fromJson(result.data!['me'] as Map<String, dynamic>);
       state = AuthState(status: AuthStatus.authenticated, user: user);
+    } on SocketException {
+      state = const AuthState(status: AuthStatus.unauthenticated);
     } catch (e) {
       await _storage.delete(key: 'jwt');
       state = const AuthState(status: AuthStatus.unauthenticated);
     }
+  }
+
+  bool _isNetworkError(OperationException? exception) {
+    if (exception == null) return false;
+    final linkException = exception.linkException;
+    if (linkException == null) return false;
+    return linkException is NetworkException ||
+        linkException.originalException is SocketException;
   }
 
   Future<void> signup({
@@ -135,11 +159,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     await _storage.delete(key: 'jwt');
     _client.cache.store.reset();
+    _ref.invalidate(timelineProvider);
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final client = ref.read(graphqlClientProvider);
-  return AuthNotifier(client);
+  return AuthNotifier(ref, client);
 });

@@ -1,47 +1,37 @@
-const postsQuery = r'''
-  query Posts($trackId: String!) {
-    posts(trackId: $trackId) {
-      id
-      mediaType
-      title
-      body
-      mediaUrl
-      importance
-      layoutX
-      layoutY
-      contentHash
-      createdAt
-      updatedAt
-      author {
-        id
-        username
-        displayName
-        avatarUrl
-      }
+const _postFields = '''
+  id
+  mediaType
+  title
+  body
+  mediaUrl
+  importance
+  layoutX
+  layoutY
+  contentHash
+  createdAt
+  updatedAt
+  author {
+    id
+    username
+    displayName
+    avatarUrl
+  }
+''';
+
+const postsQuery =
+    '''
+  query Posts(\$trackId: String!) {
+    posts(trackId: \$trackId) {
+      $_postFields
     }
   }
 ''';
 
-const postQuery = r'''
-  query Post($id: String!) {
-    post(id: $id) {
-      id
-      mediaType
-      title
-      body
-      mediaUrl
-      importance
-      layoutX
-      layoutY
-      contentHash
-      createdAt
-      updatedAt
-      author {
-        id
-        username
-        displayName
-        avatarUrl
-      }
+const postQuery =
+    '''
+  query Post(\$id: String!) {
+    post(id: \$id) {
+      $_postFields
     }
   }
 ''';

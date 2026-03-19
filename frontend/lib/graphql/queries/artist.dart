@@ -18,15 +18,3 @@ const artistQuery = r'''
     }
   }
 ''';
-
-const tracksQuery = r'''
-  query Tracks($artistUsername: String!) {
-    tracks(artistUsername: $artistUsername) {
-      id
-      name
-      color
-      createdAt
-      updatedAt
-    }
-  }
-''';
