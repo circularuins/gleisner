@@ -4,7 +4,7 @@ import { db } from "../../db/index.js";
 import { comments, posts, users } from "../../db/schema/index.js";
 import { and, eq } from "drizzle-orm";
 import { PostType } from "./post.js";
-import { PublicUserType } from "./user.js";
+import { PublicUserType, publicUserColumns } from "./user.js";
 
 const CommentType = builder.objectRef<{
   id: string;
@@ -29,7 +29,7 @@ CommentType.implement({
       type: PublicUserType,
       resolve: async (comment) => {
         const [user] = await db
-          .select()
+          .select(publicUserColumns)
           .from(users)
           .where(eq(users.id, comment.userId))
           .limit(1);

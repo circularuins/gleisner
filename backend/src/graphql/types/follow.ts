@@ -3,7 +3,7 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { follows, users } from "../../db/schema/index.js";
 import { and, eq } from "drizzle-orm";
-import { PublicUserType, UserType } from "./user.js";
+import { PublicUserType, UserType, publicUserColumns } from "./user.js";
 
 const FollowType = builder.objectRef<{
   followerId: string;
@@ -20,7 +20,7 @@ FollowType.implement({
       type: PublicUserType,
       resolve: async (follow) => {
         const [user] = await db
-          .select()
+          .select(publicUserColumns)
           .from(users)
           .where(eq(users.id, follow.followerId))
           .limit(1);
@@ -31,7 +31,7 @@ FollowType.implement({
       type: PublicUserType,
       resolve: async (follow) => {
         const [user] = await db
-          .select()
+          .select(publicUserColumns)
           .from(users)
           .where(eq(users.id, follow.followingId))
           .limit(1);

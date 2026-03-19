@@ -4,7 +4,7 @@ import { db } from "../../db/index.js";
 import { artists, posts, tracks, users } from "../../db/schema/index.js";
 import { eq } from "drizzle-orm";
 import { TrackType } from "./track.js";
-import { PublicUserType } from "./user.js";
+import { PublicUserType, publicUserColumns } from "./user.js";
 
 const MediaTypeEnum = builder.enumType("MediaType", {
   values: ["text", "image", "video", "audio", "link"] as const,
@@ -48,7 +48,7 @@ PostType.implement({
       type: PublicUserType,
       resolve: async (post) => {
         const [user] = await db
-          .select()
+          .select(publicUserColumns)
           .from(users)
           .where(eq(users.id, post.authorId))
           .limit(1);

@@ -4,7 +4,7 @@ import { db } from "../../db/index.js";
 import { posts, reactions, users } from "../../db/schema/index.js";
 import { and, eq } from "drizzle-orm";
 import { PostType } from "./post.js";
-import { PublicUserType } from "./user.js";
+import { PublicUserType, publicUserColumns } from "./user.js";
 
 const ReactionType = builder.objectRef<{
   id: string;
@@ -25,7 +25,7 @@ ReactionType.implement({
       type: PublicUserType,
       resolve: async (reaction) => {
         const [user] = await db
-          .select()
+          .select(publicUserColumns)
           .from(users)
           .where(eq(users.id, reaction.userId))
           .limit(1);
