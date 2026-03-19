@@ -137,6 +137,8 @@ builder.mutationFields((t) => ({
         importance: args.importance ?? 0.5,
       });
 
+      // Signature is optional for MVP: clients that support Ed25519 signing
+      // send it for tamper-detection; unsigned posts are stored with signature=null.
       let signatureValue: string | null = null;
       if (args.signature) {
         const [author] = await db
@@ -235,6 +237,8 @@ builder.mutationFields((t) => ({
         args.mediaUrl !== undefined ||
         args.importance !== undefined;
 
+      // Recompute contentHash and re-verify signature when content changes.
+      // Signature is optional for MVP (see createPost comment).
       if (contentChanged) {
         const newHash = computeContentHash({
           title: args.title !== undefined ? args.title : post.title,
@@ -243,8 +247,9 @@ builder.mutationFields((t) => ({
           importance:
             args.importance != null ? args.importance : post.importance,
         });
-        updateData.contentHash = newHash;
 
+        // Verify signature before committing any hash/signature to updateData
+        let newSignature: string | null = null;
         if (args.signature) {
           const [author] = await db
             .select({ publicKey: users.publicKey })
@@ -257,10 +262,11 @@ builder.mutationFields((t) => ({
           ) {
             throw new GraphQLError("Invalid signature");
           }
-          updateData.signature = args.signature;
-        } else {
-          updateData.signature = null;
+          newSignature = args.signature;
         }
+
+        updateData.contentHash = newHash;
+        updateData.signature = newSignature;
       }
 
       const [updated] = await db

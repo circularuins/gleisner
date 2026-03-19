@@ -49,6 +49,23 @@ describe("computeContentHash", () => {
     const hash2 = computeContentHash({ ...base, importance: 0.8 });
     expect(hash1).not.toBe(hash2);
   });
+
+  it("fields containing newlines do not collide with different field splits", () => {
+    // With naive join("\n"), these could produce the same string
+    const hash1 = computeContentHash({
+      title: "a\nb",
+      body: "c",
+      mediaUrl: null,
+      importance: 0.5,
+    });
+    const hash2 = computeContentHash({
+      title: "a",
+      body: "b\nc",
+      mediaUrl: null,
+      importance: 0.5,
+    });
+    expect(hash1).not.toBe(hash2);
+  });
 });
 
 describe("verifySignature", () => {
