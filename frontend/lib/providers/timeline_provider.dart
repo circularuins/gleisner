@@ -1,0 +1,143 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
+
+import '../graphql/client.dart';
+import '../graphql/queries/artist.dart';
+import '../graphql/queries/post.dart';
+import '../models/artist.dart';
+import '../models/post.dart';
+import '../models/track.dart';
+
+class TimelineState {
+  final Artist? artist;
+  final Track? selectedTrack;
+  final List<Post> posts;
+  final bool isLoading;
+  final String? error;
+
+  const TimelineState({
+    this.artist,
+    this.selectedTrack,
+    this.posts = const [],
+    this.isLoading = false,
+    this.error,
+  });
+
+  TimelineState copyWith({
+    Artist? artist,
+    Track? selectedTrack,
+    List<Post>? posts,
+    bool? isLoading,
+    String? error,
+  }) {
+    return TimelineState(
+      artist: artist ?? this.artist,
+      selectedTrack: selectedTrack ?? this.selectedTrack,
+      posts: posts ?? this.posts,
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+    );
+  }
+}
+
+class TimelineNotifier extends StateNotifier<TimelineState> {
+  final GraphQLClient _client;
+
+  TimelineNotifier(this._client) : super(const TimelineState());
+
+  Future<void> loadArtist(String username) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final result = await _client.query(
+        QueryOptions(
+          document: gql(artistQuery),
+          variables: {'username': username},
+        ),
+      );
+
+      if (result.hasException) {
+        state = state.copyWith(
+          isLoading: false,
+          error:
+              result.exception?.graphqlErrors.firstOrNull?.message ??
+              'Failed to load artist',
+        );
+        return;
+      }
+
+      final data = result.data?['artist'];
+      if (data == null) {
+        state = state.copyWith(isLoading: false, artist: null);
+        return;
+      }
+
+      final artist = Artist.fromJson(data as Map<String, dynamic>);
+      final firstTrack = artist.tracks.isNotEmpty ? artist.tracks.first : null;
+
+      state = state.copyWith(
+        artist: artist,
+        selectedTrack: firstTrack,
+        isLoading: false,
+      );
+
+      if (firstTrack != null) {
+        await loadPosts(firstTrack.id);
+      }
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> selectTrack(Track track) async {
+    state = state.copyWith(selectedTrack: track, posts: []);
+    await loadPosts(track.id);
+  }
+
+  Future<void> loadPosts(String trackId) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final result = await _client.query(
+        QueryOptions(
+          document: gql(postsQuery),
+          variables: {'trackId': trackId},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+
+      if (result.hasException) {
+        state = state.copyWith(
+          isLoading: false,
+          error:
+              result.exception?.graphqlErrors.firstOrNull?.message ??
+              'Failed to load posts',
+        );
+        return;
+      }
+
+      final postsData = result.data?['posts'] as List<dynamic>? ?? [];
+      final posts = postsData
+          .map((p) => Post.fromJson(p as Map<String, dynamic>))
+          .toList();
+
+      state = state.copyWith(posts: posts, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> refresh() async {
+    final track = state.selectedTrack;
+    if (track != null) {
+      await loadPosts(track.id);
+    }
+  }
+}
+
+final timelineProvider = StateNotifierProvider<TimelineNotifier, TimelineState>(
+  (ref) {
+    final client = ref.read(graphqlClientProvider);
+    return TimelineNotifier(client);
+  },
+);
