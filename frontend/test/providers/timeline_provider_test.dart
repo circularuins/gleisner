@@ -17,9 +17,7 @@ class _MockLink extends Link {
   @override
   Stream<Response> request(Request request, [NextLink? forward]) {
     if (exception != null) return Stream.error(exception!);
-    return Stream.value(
-      Response(data: data, errors: errors, response: {}),
-    );
+    return Stream.value(Response(data: data, errors: errors, response: {}));
   }
 }
 
@@ -58,9 +56,7 @@ void main() {
     });
 
     test('loadArtist clears state when artist not found', () async {
-      final notifier = TimelineNotifier(
-        _clientWith(data: {'artist': null}),
-      );
+      final notifier = TimelineNotifier(_clientWith(data: {'artist': null}));
 
       await notifier.loadArtist('nobody');
 
@@ -104,9 +100,7 @@ void main() {
     });
 
     test('loadPosts handles empty result', () async {
-      final notifier = TimelineNotifier(
-        _clientWith(data: {'posts': []}),
-      );
+      final notifier = TimelineNotifier(_clientWith(data: {'posts': []}));
 
       await notifier.loadPosts('t1');
 
@@ -115,9 +109,7 @@ void main() {
     });
 
     test('selectTrack clears posts and sets selected track', () async {
-      final notifier = TimelineNotifier(
-        _clientWith(data: {'posts': []}),
-      );
+      final notifier = TimelineNotifier(_clientWith(data: {'posts': []}));
 
       final track = Track.fromJson({
         'id': 't2',
