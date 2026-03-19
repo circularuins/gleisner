@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 import { computeContentHash, verifySignature } from "../../auth/signing.js";
+import { validateUrl } from "../validators.js";
 
 const MediaTypeEnum = builder.enumType("MediaType", {
   values: ["text", "image", "video", "audio", "link"] as const,
@@ -158,6 +159,11 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Body must be 10000 characters or less");
       }
 
+      // Validate mediaUrl
+      if (args.mediaUrl != null) {
+        validateUrl(args.mediaUrl);
+      }
+
       // Validate importance
       if (
         args.importance != null &&
@@ -250,6 +256,11 @@ builder.mutationFields((t) => ({
       // Validate body
       if (args.body != null && args.body.length > 10000) {
         throw new GraphQLError("Body must be 10000 characters or less");
+      }
+
+      // Validate mediaUrl
+      if (args.mediaUrl != null) {
+        validateUrl(args.mediaUrl);
       }
 
       // Validate importance

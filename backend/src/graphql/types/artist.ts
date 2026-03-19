@@ -3,6 +3,7 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists } from "../../db/schema/index.js";
 import { eq } from "drizzle-orm";
+import { validateUrl } from "../validators.js";
 
 export const ArtistType = builder.objectRef<{
   id: string;
@@ -93,6 +94,10 @@ builder.mutationFields((t) => ({
         }
       }
 
+      // Validate URLs
+      if (args.avatarUrl != null) validateUrl(args.avatarUrl);
+      if (args.coverImageUrl != null) validateUrl(args.coverImageUrl);
+
       // Check if user is already an artist
       const existingArtist = await db
         .select({ id: artists.id })
@@ -182,6 +187,10 @@ builder.mutationFields((t) => ({
           );
         }
       }
+
+      // Validate URLs (null = clear, so only validate non-null strings)
+      if (args.avatarUrl != null) validateUrl(args.avatarUrl);
+      if (args.coverImageUrl != null) validateUrl(args.coverImageUrl);
 
       // undefined = not provided (skip), null = clear field, value = update
       const updateData: Record<string, unknown> = { updatedAt: new Date() };
