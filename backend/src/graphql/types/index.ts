@@ -7,6 +7,7 @@ import "./auth.js";
 import "./artist.js";
 import "./track.js";
 import "./post.js";
+import "./reaction.js";
 
 builder.queryType({
   fields: (t) => ({
