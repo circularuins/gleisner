@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { serve } from "@hono/node-server";
 import { env } from "./env.js";
@@ -12,6 +13,7 @@ type HonoEnv = { Variables: { authUser?: AuthUser } };
 const app = new Hono<HonoEnv>();
 
 app.use(logger());
+app.use(cors());
 app.use(authMiddleware);
 app.route("/", health);
 app.on(["GET", "POST"], "/graphql", async (c) => {
