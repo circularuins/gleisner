@@ -159,13 +159,14 @@ builder.mutationFields((t) => ({
         title: args.title ?? null,
         body: args.body ?? null,
         mediaUrl: args.mediaUrl ?? null,
+        mediaType: args.mediaType,
         importance: args.importance ?? 0.5,
       });
 
       // Signature is optional for MVP: clients that support Ed25519 signing
       // send it for tamper-detection; unsigned posts are stored with signature=null.
       let signatureValue: string | null = null;
-      if (args.signature) {
+      if (args.signature && args.signature.length > 0) {
         await verifyPostSignature(
           contentHash,
           args.signature,
@@ -254,6 +255,7 @@ builder.mutationFields((t) => ({
         args.title !== undefined ||
         args.body !== undefined ||
         args.mediaUrl !== undefined ||
+        args.mediaType !== undefined ||
         args.importance !== undefined;
 
       if (!contentChanged && args.signature !== undefined) {
@@ -267,7 +269,10 @@ builder.mutationFields((t) => ({
       if (contentChanged) {
         // Signed posts require a new signature when content changes,
         // preventing silent removal of tamper-detection.
-        if (post.signature !== null && !args.signature) {
+        if (
+          post.signature !== null &&
+          !(args.signature && args.signature.length > 0)
+        ) {
           throw new GraphQLError(
             "This post was signed. A new signature is required when updating content.",
           );
@@ -277,13 +282,14 @@ builder.mutationFields((t) => ({
           title: args.title !== undefined ? args.title : post.title,
           body: args.body !== undefined ? args.body : post.body,
           mediaUrl: args.mediaUrl !== undefined ? args.mediaUrl : post.mediaUrl,
+          mediaType: args.mediaType != null ? args.mediaType : post.mediaType,
           importance:
             args.importance != null ? args.importance : post.importance,
         });
 
         // Verify signature before committing any hash/signature to updateData
         let newSignature: string | null = null;
-        if (args.signature) {
+        if (args.signature && args.signature.length > 0) {
           await verifyPostSignature(
             newHash,
             args.signature,

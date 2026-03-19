@@ -837,6 +837,7 @@ describe("Post GraphQL integration", () => {
         title: "Signed Post",
         body: null,
         mediaUrl: null,
+        mediaType: "text",
         importance: 0.5,
       });
       const sigBuf = sign(null, Buffer.from(contentHash), testPrivKey);

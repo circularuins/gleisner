@@ -9,6 +9,7 @@ describe("computeContentHash", () => {
       title: "Hello",
       body: "World",
       mediaUrl: null,
+      mediaType: "text",
       importance: 0.5,
     };
     const hash1 = computeContentHash(fields);
@@ -22,12 +23,14 @@ describe("computeContentHash", () => {
       title: "A",
       body: null,
       mediaUrl: null,
+      mediaType: "text",
       importance: 0.5,
     });
     const hash2 = computeContentHash({
       title: "B",
       body: null,
       mediaUrl: null,
+      mediaType: "text",
       importance: 0.5,
     });
     expect(hash1).not.toBe(hash2);
@@ -38,30 +41,44 @@ describe("computeContentHash", () => {
       title: null,
       body: null,
       mediaUrl: null,
+      mediaType: "text",
       importance: 0.5,
     });
     expect(hash).toHaveLength(64);
   });
 
   it("importance change produces different hash", () => {
-    const base = { title: "X", body: null, mediaUrl: null };
+    const base = { title: "X", body: null, mediaUrl: null, mediaType: "text" };
     const hash1 = computeContentHash({ ...base, importance: 0.5 });
     const hash2 = computeContentHash({ ...base, importance: 0.8 });
     expect(hash1).not.toBe(hash2);
   });
 
+  it("mediaType change produces different hash", () => {
+    const base = {
+      title: "X",
+      body: null,
+      mediaUrl: null,
+      importance: 0.5,
+    };
+    const hash1 = computeContentHash({ ...base, mediaType: "text" });
+    const hash2 = computeContentHash({ ...base, mediaType: "image" });
+    expect(hash1).not.toBe(hash2);
+  });
+
   it("fields containing newlines do not collide with different field splits", () => {
-    // With naive join("\n"), these could produce the same string
     const hash1 = computeContentHash({
       title: "a\nb",
       body: "c",
       mediaUrl: null,
+      mediaType: "text",
       importance: 0.5,
     });
     const hash2 = computeContentHash({
       title: "a",
       body: "b\nc",
       mediaUrl: null,
+      mediaType: "text",
       importance: 0.5,
     });
     expect(hash1).not.toBe(hash2);
@@ -80,6 +97,7 @@ describe("verifySignature", () => {
       title: "Test",
       body: null,
       mediaUrl: null,
+      mediaType: "text",
       importance: 0.5,
     });
     const signature = signHash(hash, privateKey);
@@ -92,6 +110,7 @@ describe("verifySignature", () => {
       title: "Test",
       body: null,
       mediaUrl: null,
+      mediaType: "text",
       importance: 0.5,
     });
     const signature = signHash(hash, privateKey);
@@ -105,6 +124,7 @@ describe("verifySignature", () => {
       title: "Test",
       body: null,
       mediaUrl: null,
+      mediaType: "text",
       importance: 0.5,
     });
     expect(verifySignature(hash, "not-valid-base64!!!", publicKey)).toBe(false);
@@ -117,6 +137,7 @@ describe("verifySignature", () => {
       title: "Test",
       body: null,
       mediaUrl: null,
+      mediaType: "text",
       importance: 0.5,
     });
     const signature = signHash(hash, keyPair1.privateKey);
@@ -129,6 +150,7 @@ describe("verifySignature", () => {
       title: "Test",
       body: null,
       mediaUrl: null,
+      mediaType: "text",
       importance: 0.5,
     });
     const signature = signHash(hash, privateKey);

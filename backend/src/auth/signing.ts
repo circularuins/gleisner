@@ -10,12 +10,14 @@ export function computeContentHash(fields: {
   title?: string | null;
   body?: string | null;
   mediaUrl?: string | null;
+  mediaType: string;
   importance: number;
 }): string {
   const canonical = JSON.stringify({
     title: fields.title ?? "",
     body: fields.body ?? "",
     mediaUrl: fields.mediaUrl ?? "",
+    mediaType: fields.mediaType,
     importance: fields.importance,
   });
   return createHash("sha256").update(canonical).digest("hex");
