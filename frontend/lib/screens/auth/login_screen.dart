@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../utils/validators.dart';
 import '../../widgets/common/auth_header.dart';
 import '../../widgets/common/error_banner.dart';
 
@@ -69,13 +70,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.emailAddress,
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Email is required';
-                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
-                        return 'Invalid email format';
-                      }
-                      return null;
-                    },
+                    validator: validateEmail,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -85,8 +80,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       border: OutlineInputBorder(),
                     ),
                     obscureText: true,
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Password is required' : null,
+                    validator: (v) => validateRequired(v, 'Password'),
                   ),
                   const SizedBox(height: 24),
                   FilledButton(

@@ -9,6 +9,8 @@ import 'timeline_provider.dart';
 
 enum AuthStatus { loading, authenticated, unauthenticated }
 
+const _sentinel = Object();
+
 class AuthState {
   final AuthStatus status;
   final User? user;
@@ -16,10 +18,14 @@ class AuthState {
 
   const AuthState({this.status = AuthStatus.loading, this.user, this.error});
 
-  AuthState copyWith({AuthStatus? status, User? user, String? error}) {
+  AuthState copyWith({
+    AuthStatus? status,
+    Object? user = _sentinel,
+    String? error,
+  }) {
     return AuthState(
       status: status ?? this.status,
-      user: user ?? this.user,
+      user: user == _sentinel ? this.user : user as User?,
       error: error,
     );
   }
@@ -48,12 +54,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final hasGraphqlErrors =
             result.exception?.graphqlErrors.isNotEmpty ?? false;
         if (hasGraphqlErrors) {
-          // Server explicitly rejected the token
           await _storage.delete(key: 'jwt');
           state = const AuthState(status: AuthStatus.unauthenticated);
           return;
         }
-        // Network/link error: keep JWT, stay authenticated optimistically
         state = AuthState(
           status: AuthStatus.authenticated,
           error: 'Network unavailable',
@@ -70,7 +74,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = User.fromJson(result.data!['me'] as Map<String, dynamic>);
       state = AuthState(status: AuthStatus.authenticated, user: user);
     } catch (e) {
-      // Any exception during network call: keep JWT, assume network issue
       state = AuthState(
         status: AuthStatus.authenticated,
         error: 'Network unavailable',
@@ -124,9 +127,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return;
       }
 
-      final data = result.data![resultKey] as Map<String, dynamic>;
-      await _storage.write(key: 'jwt', value: data['token'] as String);
-      final user = User.fromJson(data['user'] as Map<String, dynamic>);
+      final payload = result.data?[resultKey] as Map<String, dynamic>?;
+      if (payload == null) {
+        state = state.copyWith(
+          status: AuthStatus.unauthenticated,
+          error: fallbackError,
+        );
+        return;
+      }
+
+      await _storage.write(key: 'jwt', value: payload['token'] as String);
+      final user = User.fromJson(payload['user'] as Map<String, dynamic>);
       state = AuthState(status: AuthStatus.authenticated, user: user);
     } catch (e) {
       state = state.copyWith(
@@ -142,7 +153,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _ref.invalidate(timelineProvider);
     _ref.invalidate(graphqlClientProvider);
     _ref.invalidate(graphqlClientNotifierProvider);
-    state = const AuthState(status: AuthStatus.unauthenticated);
+    // Re-create AuthNotifier with fresh GraphQLClient
+    _ref.invalidate(authProvider);
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../utils/validators.dart';
 import '../../widgets/common/auth_header.dart';
 import '../../widgets/common/error_banner.dart';
 
@@ -71,13 +72,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       labelText: 'Username',
                       border: OutlineInputBorder(),
                     ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Username is required';
-                      if (!RegExp(r'^[a-zA-Z0-9_]{3,30}$').hasMatch(v)) {
-                        return 'Letters, numbers, underscores (3-30 chars)';
-                      }
-                      return null;
-                    },
+                    validator: validateUsername,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -87,13 +82,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.emailAddress,
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Email is required';
-                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
-                        return 'Invalid email format';
-                      }
-                      return null;
-                    },
+                    validator: validateEmail,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -103,11 +92,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       border: OutlineInputBorder(),
                     ),
                     obscureText: true,
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Password is required';
-                      if (v.length < 8) return 'At least 8 characters';
-                      return null;
-                    },
+                    validator: validatePassword,
                   ),
                   const SizedBox(height: 24),
                   FilledButton(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/post.dart';
+import '../../utils/date_format.dart';
 
 class PostCard extends StatelessWidget {
   final Post post;
@@ -71,7 +72,7 @@ class PostCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  _formatDate(post.createdAt),
+                  formatRelativeDate(post.createdAt),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurface.withAlpha(128),
                   ),
@@ -82,16 +83,5 @@ class PostCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-
-    if (diff.inMinutes < 1) return 'now';
-    if (diff.inHours < 1) return '${diff.inMinutes}m';
-    if (diff.inDays < 1) return '${diff.inHours}h';
-    if (diff.inDays < 7) return '${diff.inDays}d';
-    return '${date.month}/${date.day}';
   }
 }
