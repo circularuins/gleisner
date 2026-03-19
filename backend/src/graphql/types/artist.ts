@@ -165,6 +165,9 @@ builder.mutationFields((t) => ({
           "Display name must be between 1 and 50 characters",
         );
       }
+      if (args.bio != null && args.bio.length > 1000) {
+        throw new GraphQLError("Bio must be 1000 characters or less");
+      }
       if (args.tagline && args.tagline.length > 80) {
         throw new GraphQLError("Tagline must be 80 characters or less");
       }

@@ -55,6 +55,16 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Authentication required");
       }
 
+      // Verify artist exists
+      const [artist] = await db
+        .select({ id: artists.id })
+        .from(artists)
+        .where(eq(artists.id, args.artistId))
+        .limit(1);
+      if (!artist) {
+        throw new GraphQLError("Artist not found");
+      }
+
       // Check if already tuned in
       const [existing] = await db
         .select()

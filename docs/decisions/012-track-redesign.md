@@ -50,14 +50,11 @@ The other candidates considered but not adopted:
 
 The track setup step in artist registration includes a **"What are Tracks?"** explainer at the top of the page. This is critical because users encountering Tracks for the first time have no mental model for the concept. The explainer describes Tracks as "themed channels within your Artist Page" where "fans can follow individual Tracks to only see what interests them," with a concrete example (Play / Compose / Life for a musician).
 
-#### Track Color Assignment (TBD)
+#### Track Color Assignment (Implemented)
 
-Track colors are currently derived from a name-based hash (via `TRACK_COLORS` palette with fallback to deterministic hash generation). This works for known track names but produces visually similar colors for similar names (e.g., "New Track 1" and "New Track 2"). The production implementation should use one of:
+Artists specify a 6-digit HEX color (e.g., `#FF0000`) when creating or updating a track. The server validates the format (`/^#[0-9A-Fa-f]{6}$/`) and stores it as-is. No server-side palette rotation or collision prevention — artists have full color choice freedom.
 
-- **Color picker**: Artist explicitly chooses a color per track
-- **Palette rotation**: Assign colors sequentially from a curated palette, regardless of name
-
-The specific approach is deferred to implementation.
+This approach was chosen for simplicity (solo developer, MVP scope) and artist autonomy. If visual distinction across tracks becomes a UX issue, client-side palette suggestions or server-side constraints can be added later without schema changes.
 
 ### Track Configuration Rules
 
@@ -82,7 +79,7 @@ The internal concept name "Track" is retained, but fan-facing UI (e.g., artist p
 - The "What are Tracks?" explainer in artist registration ensures first-time users understand the concept before configuring
 - Existing mockups (timeline-v1.html, post-v1.html, post-v2.html) continue to use Play/Compose/Life/English as illustrative examples for a musician persona
 - Fan-facing pages show "TRACKS" with the subtext "This artist's content streams" for clarity
-- Track color assignment method is deferred to implementation (color picker or palette rotation)
+- Track color is client-specified HEX (see "Track Color Assignment" section above)
 
 ## Related
 

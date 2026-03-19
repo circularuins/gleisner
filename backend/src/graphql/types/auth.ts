@@ -37,6 +37,12 @@ builder.mutationType({
       },
       resolve: async (_parent, args) => {
         // Validate
+        if (args.email.length > 255) {
+          throw new GraphQLError("Email must be 255 characters or less");
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(args.email)) {
+          throw new GraphQLError("Invalid email format");
+        }
         if (args.password.length < 8) {
           throw new GraphQLError("Password must be at least 8 characters");
         }
