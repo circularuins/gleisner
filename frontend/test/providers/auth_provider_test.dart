@@ -121,7 +121,7 @@ void main() {
     });
 
     test(
-      'initialize with JWT but non-error response stays authenticated',
+      'initialize with JWT keeps authenticated on non-GraphQL errors (network assumed)',
       () async {
         await mockStorage.write(key: 'jwt', value: 'valid-token');
 

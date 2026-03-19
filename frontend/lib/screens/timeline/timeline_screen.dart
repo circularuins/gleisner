@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../graphql/client.dart';
 import '../../models/track.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/timeline_provider.dart';
@@ -38,7 +39,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => ref.read(authProvider.notifier).logout(),
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logout();
+              ref.invalidate(graphqlClientProvider);
+            },
           ),
         ],
       ),

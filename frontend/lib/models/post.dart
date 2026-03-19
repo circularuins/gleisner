@@ -55,7 +55,7 @@ class Post {
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
       id: json['id'] as String,
-      mediaType: MediaType.values.byName(json['mediaType'] as String),
+      mediaType: _parseMediaType(json['mediaType'] as String),
       title: json['title'] as String?,
       body: json['body'] as String?,
       mediaUrl: json['mediaUrl'] as String?,
@@ -68,4 +68,11 @@ class Post {
       author: PostAuthor.fromJson(json['author'] as Map<String, dynamic>),
     );
   }
+}
+
+MediaType _parseMediaType(String value) {
+  for (final type in MediaType.values) {
+    if (type.name == value) return type;
+  }
+  return MediaType.text;
 }

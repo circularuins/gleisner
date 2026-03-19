@@ -67,9 +67,10 @@ void main() {
       }
     });
 
-    test('throws on unknown mediaType', () {
+    test('falls back to text on unknown mediaType', () {
       final json = {...validJson, 'mediaType': 'unknown'};
-      expect(() => Post.fromJson(json), throwsArgumentError);
+      final post = Post.fromJson(json);
+      expect(post.mediaType, MediaType.text);
     });
   });
 }

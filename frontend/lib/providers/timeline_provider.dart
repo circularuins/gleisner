@@ -59,6 +59,8 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
         ),
       );
 
+      if (!mounted) return;
+
       if (result.hasException) {
         state = state.copyWith(
           isLoading: false,
@@ -94,6 +96,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
         await loadPosts(firstTrack.id);
       }
     } catch (e) {
+      if (!mounted) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -115,6 +118,8 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
         ),
       );
 
+      if (!mounted) return;
+
       if (result.hasException) {
         state = state.copyWith(
           isLoading: false,
@@ -132,6 +137,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
 
       state = state.copyWith(posts: posts, isLoading: false);
     } catch (e) {
+      if (!mounted) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
