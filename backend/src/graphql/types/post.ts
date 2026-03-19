@@ -153,6 +153,11 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Title must be 100 characters or less");
       }
 
+      // Validate body
+      if (args.body != null && args.body.length > 10000) {
+        throw new GraphQLError("Body must be 10000 characters or less");
+      }
+
       // Validate importance
       if (
         args.importance != null &&
@@ -240,6 +245,11 @@ builder.mutationFields((t) => ({
       // Validate title
       if (args.title != null && args.title.length > 100) {
         throw new GraphQLError("Title must be 100 characters or less");
+      }
+
+      // Validate body
+      if (args.body != null && args.body.length > 10000) {
+        throw new GraphQLError("Body must be 10000 characters or less");
       }
 
       // Validate importance

@@ -1,7 +1,7 @@
 import { builder } from "../builder.js";
 import { users } from "../../db/schema/index.js";
 
-interface UserShape {
+export interface UserShape {
   id: string;
   did: string;
   email: string;
@@ -23,6 +23,20 @@ export interface PublicUserShape {
   avatarUrl: string | null;
   createdAt: Date;
 }
+
+/** Column selection for UserType resolvers — avoids fetching passwordHash/encryptedPrivateKey */
+export const userColumns = {
+  id: users.id,
+  did: users.did,
+  email: users.email,
+  username: users.username,
+  displayName: users.displayName,
+  bio: users.bio,
+  avatarUrl: users.avatarUrl,
+  publicKey: users.publicKey,
+  createdAt: users.createdAt,
+  updatedAt: users.updatedAt,
+} as const;
 
 /** Column selection for PublicUserType resolvers — avoids fetching email/publicKey */
 export const publicUserColumns = {

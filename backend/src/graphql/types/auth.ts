@@ -1,6 +1,6 @@
 import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
-import { UserType } from "./user.js";
+import { UserType, type UserShape, userColumns } from "./user.js";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema/index.js";
 import { eq } from "drizzle-orm";
@@ -16,7 +16,7 @@ import { signToken } from "../../auth/jwt.js";
 
 const AuthPayload = builder.objectRef<{
   token: string;
-  user: typeof users.$inferSelect;
+  user: UserShape;
 }>("AuthPayload");
 
 AuthPayload.implement({
@@ -98,14 +98,17 @@ builder.mutationType({
 
         // Update DID with actual user ID
         const did = generateDid(user.id);
-        const [updatedUser] = await db
-          .update(users)
-          .set({ did })
-          .where(eq(users.id, user.id))
-          .returning();
+        await db.update(users).set({ did }).where(eq(users.id, user.id));
 
-        const token = await signToken(updatedUser.id);
-        return { token, user: updatedUser };
+        // Re-fetch with safe columns (excludes passwordHash, encryptedPrivateKey, etc.)
+        const [safeUser] = await db
+          .select(userColumns)
+          .from(users)
+          .where(eq(users.id, user.id))
+          .limit(1);
+
+        const token = await signToken(safeUser.id);
+        return { token, user: safeUser };
       },
     }),
 
@@ -116,18 +119,34 @@ builder.mutationType({
         password: t.arg.string({ required: true }),
       },
       resolve: async (_parent, args) => {
-        const [user] = await db
-          .select()
+        // Fetch with password fields for verification
+        const [authRow] = await db
+          .select({
+            id: users.id,
+            passwordSalt: users.passwordSalt,
+            passwordHash: users.passwordHash,
+          })
           .from(users)
           .where(eq(users.email, args.email))
           .limit(1);
 
         if (
-          !user ||
-          !verifyPassword(args.password, user.passwordSalt, user.passwordHash)
+          !authRow ||
+          !verifyPassword(
+            args.password,
+            authRow.passwordSalt,
+            authRow.passwordHash,
+          )
         ) {
           throw new GraphQLError("Invalid credentials");
         }
+
+        // Re-fetch with safe columns (excludes passwordHash, encryptedPrivateKey, etc.)
+        const [user] = await db
+          .select(userColumns)
+          .from(users)
+          .where(eq(users.id, authRow.id))
+          .limit(1);
 
         const token = await signToken(user.id);
         return { token, user };
