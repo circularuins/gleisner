@@ -1,56 +1,45 @@
-const signupMutation = r'''
-  mutation Signup($email: String!, $password: String!, $username: String!) {
-    signup(email: $email, password: $password, username: $username) {
+const _userFields = '''
+  id
+  did
+  email
+  username
+  displayName
+  bio
+  avatarUrl
+  publicKey
+  createdAt
+  updatedAt
+''';
+
+const signupMutation =
+    '''
+  mutation Signup(\$email: String!, \$password: String!, \$username: String!) {
+    signup(email: \$email, password: \$password, username: \$username) {
       token
       user {
-        id
-        did
-        email
-        username
-        displayName
-        bio
-        avatarUrl
-        publicKey
-        createdAt
-        updatedAt
+        $_userFields
       }
     }
   }
 ''';
 
-const loginMutation = r'''
-  mutation Login($email: String!, $password: String!) {
-    login(email: $email, password: $password) {
+const loginMutation =
+    '''
+  mutation Login(\$email: String!, \$password: String!) {
+    login(email: \$email, password: \$password) {
       token
       user {
-        id
-        did
-        email
-        username
-        displayName
-        bio
-        avatarUrl
-        publicKey
-        createdAt
-        updatedAt
+        $_userFields
       }
     }
   }
 ''';
 
-const meQuery = r'''
+const meQuery =
+    '''
   query Me {
     me {
-      id
-      did
-      email
-      username
-      displayName
-      bio
-      avatarUrl
-      publicKey
-      createdAt
-      updatedAt
+      $_userFields
     }
   }
 ''';

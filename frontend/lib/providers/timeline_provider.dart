@@ -8,6 +8,8 @@ import '../models/artist.dart';
 import '../models/post.dart';
 import '../models/track.dart';
 
+const _sentinel = Object();
+
 class TimelineState {
   final Artist? artist;
   final Track? selectedTrack;
@@ -24,15 +26,17 @@ class TimelineState {
   });
 
   TimelineState copyWith({
-    Artist? artist,
-    Track? selectedTrack,
+    Object? artist = _sentinel,
+    Object? selectedTrack = _sentinel,
     List<Post>? posts,
     bool? isLoading,
     String? error,
   }) {
     return TimelineState(
-      artist: artist ?? this.artist,
-      selectedTrack: selectedTrack ?? this.selectedTrack,
+      artist: artist == _sentinel ? this.artist : artist as Artist?,
+      selectedTrack: selectedTrack == _sentinel
+          ? this.selectedTrack
+          : selectedTrack as Track?,
       posts: posts ?? this.posts,
       isLoading: isLoading ?? this.isLoading,
       error: error,
@@ -68,7 +72,12 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
 
       final data = result.data?['artist'];
       if (data == null) {
-        state = state.copyWith(isLoading: false, artist: null);
+        state = state.copyWith(
+          isLoading: false,
+          artist: null,
+          selectedTrack: null,
+          posts: [],
+        );
         return;
       }
 

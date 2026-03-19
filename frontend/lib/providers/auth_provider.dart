@@ -140,6 +140,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _storage.delete(key: 'jwt');
     _client.cache.store.reset();
     _ref.invalidate(timelineProvider);
+    _ref.invalidate(graphqlClientProvider);
+    _ref.invalidate(graphqlClientNotifierProvider);
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 }
