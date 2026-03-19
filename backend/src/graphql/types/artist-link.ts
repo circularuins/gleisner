@@ -4,6 +4,7 @@ import { db } from "../../db/index.js";
 import { artists, artistLinks } from "../../db/schema/index.js";
 import { and, eq } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
+import { validateUrl } from "../validators.js";
 
 const LinkCategoryEnum = builder.enumType("LinkCategory", {
   values: ["social", "music", "video", "website", "store", "other"] as const,
@@ -45,18 +46,6 @@ ArtistLinkType.implement({
     }),
   }),
 });
-
-function validateUrl(url: string): void {
-  try {
-    const parsed = new URL(url);
-    if (!["https:", "http:"].includes(parsed.protocol)) {
-      throw new GraphQLError("URL must use http or https");
-    }
-  } catch (e) {
-    if (e instanceof GraphQLError) throw e;
-    throw new GraphQLError("Invalid URL format");
-  }
-}
 
 async function getOwnArtistId(userId: string): Promise<string> {
   const [artist] = await db

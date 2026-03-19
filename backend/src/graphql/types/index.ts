@@ -2,7 +2,7 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema/index.js";
 import { eq } from "drizzle-orm";
-import { UserType } from "./user.js";
+import { UserType, userColumns } from "./user.js";
 import "./auth.js";
 import "./artist.js";
 import "./track.js";
@@ -26,7 +26,7 @@ builder.queryType({
       resolve: async (_parent, _args, ctx) => {
         if (!ctx.authUser) return null;
         const [user] = await db
-          .select()
+          .select(userColumns)
           .from(users)
           .where(eq(users.id, ctx.authUser.userId))
           .limit(1);

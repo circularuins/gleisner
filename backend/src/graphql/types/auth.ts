@@ -1,6 +1,6 @@
 import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
-import { UserType } from "./user.js";
+import { UserType, type UserShape, userColumns } from "./user.js";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema/index.js";
 import { eq } from "drizzle-orm";
@@ -16,7 +16,7 @@ import { signToken } from "../../auth/jwt.js";
 
 const AuthPayload = builder.objectRef<{
   token: string;
-  user: typeof users.$inferSelect;
+  user: UserShape;
 }>("AuthPayload");
 
 AuthPayload.implement({
@@ -37,6 +37,12 @@ builder.mutationType({
       },
       resolve: async (_parent, args) => {
         // Validate
+        if (args.email.length > 255) {
+          throw new GraphQLError("Email must be 255 characters or less");
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(args.email)) {
+          throw new GraphQLError("Invalid email format");
+        }
         if (args.password.length < 8) {
           throw new GraphQLError("Password must be at least 8 characters");
         }
@@ -82,7 +88,7 @@ builder.mutationType({
         );
 
         // Insert user — DID uses the generated UUID
-        const [user] = await db
+        const [{ id: userId }] = await db
           .insert(users)
           .values({
             email: args.email,
@@ -94,18 +100,18 @@ builder.mutationType({
             encryptionSalt,
             did: "pending", // Temporary, updated after we have the ID
           })
-          .returning();
+          .returning({ id: users.id });
 
-        // Update DID with actual user ID
-        const did = generateDid(user.id);
-        const [updatedUser] = await db
+        // Update DID and return safe columns in one query
+        const did = generateDid(userId);
+        const [safeUser] = await db
           .update(users)
           .set({ did })
-          .where(eq(users.id, user.id))
-          .returning();
+          .where(eq(users.id, userId))
+          .returning(userColumns);
 
-        const token = await signToken(updatedUser.id);
-        return { token, user: updatedUser };
+        const token = await signToken(safeUser.id);
+        return { token, user: safeUser };
       },
     }),
 
@@ -116,19 +122,26 @@ builder.mutationType({
         password: t.arg.string({ required: true }),
       },
       resolve: async (_parent, args) => {
-        const [user] = await db
-          .select()
+        // Fetch safe columns + password fields in one query
+        const [row] = await db
+          .select({
+            ...userColumns,
+            passwordSalt: users.passwordSalt,
+            passwordHash: users.passwordHash,
+          })
           .from(users)
           .where(eq(users.email, args.email))
           .limit(1);
 
         if (
-          !user ||
-          !verifyPassword(args.password, user.passwordSalt, user.passwordHash)
+          !row ||
+          !verifyPassword(args.password, row.passwordSalt, row.passwordHash)
         ) {
           throw new GraphQLError("Invalid credentials");
         }
 
+        // Strip password fields via destructuring
+        const { passwordSalt: _ps, passwordHash: _ph, ...user } = row;
         const token = await signToken(user.id);
         return { token, user };
       },

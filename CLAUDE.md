@@ -94,3 +94,27 @@ dart format .          # Dart フォーマッタ
 docker compose up -d   # PostgreSQL 起動
 docker compose down    # PostgreSQL 停止
 ```
+
+## バックエンド実装ルール
+
+### UserType vs PublicUserType
+
+| 型 | 用途 | 含まれるフィールド |
+|----|------|-------------------|
+| `UserType` | `me` クエリ、`signup`/`login` の AuthPayload | id, did, email, username, displayName, bio, avatarUrl, publicKey, createdAt, updatedAt |
+| `PublicUserType` | 公開クエリ（post author, reaction user, comment user, follow, tune-in） | id, did, username, displayName, bio, avatarUrl, createdAt |
+
+- **新しい公開フィールドを追加する場合**: `PublicUserType` と `publicUserColumns` の両方を更新
+- **DB クエリ**: `UserType` は `userColumns`、`PublicUserType` は `publicUserColumns` を使用。`select()` で全カラム取得は禁止（passwordHash 等が漏洩するため）
+
+### contentHash / signature
+
+- Post 作成・更新時に `contentHash`（SHA-256）を自動計算。対象: `JSON.stringify({ title, body, mediaUrl, mediaType, importance })`
+- `layoutX`/`layoutY` はプレゼンテーション用のため contentHash に含めない
+- `signature`（Ed25519）はクライアントからのオプショナル引数。提供された場合は author の publicKey で検証
+- 署名付き投稿のコンテンツ更新時は新しい署名が必須（署名の無断消去を防止）
+
+### テスト
+
+- 共通ヘルパーは `src/graphql/__tests__/helpers.ts` に集約。新規テストファイルではこれを import
+- 各テストファイルの `beforeEach` で `TRUNCATE users CASCADE` を実行

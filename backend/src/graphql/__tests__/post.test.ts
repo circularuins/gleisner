@@ -398,6 +398,27 @@ describe("Post GraphQL integration", () => {
         "Importance must be between 0.0 and 1.0",
       );
     });
+
+    it("rejects body longer than 10000 characters", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "p7@example.com",
+        "puser7",
+        "partist7",
+      );
+
+      const result = await gql(
+        app,
+        CREATE_POST_MUTATION,
+        { trackId, mediaType: "text", body: "a".repeat(10001) },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain(
+        "Body must be 10000 characters or less",
+      );
+    });
   });
 
   describe("updatePost", () => {
@@ -509,6 +530,35 @@ describe("Post GraphQL integration", () => {
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toContain(
         "Title must be 100 characters or less",
+      );
+    });
+
+    it("rejects body longer than 10000 characters on update", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "u4@example.com",
+        "uuser4",
+        "uartist4",
+      );
+
+      const createResult = await gql(
+        app,
+        CREATE_POST_MUTATION,
+        { trackId, mediaType: "text", title: "Original" },
+        token,
+      );
+      const postId = (createResult.data!.createPost as { id: string }).id;
+
+      const result = await gql(
+        app,
+        UPDATE_POST_MUTATION,
+        { id: postId, body: "a".repeat(10001) },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain(
+        "Body must be 10000 characters or less",
       );
     });
   });
