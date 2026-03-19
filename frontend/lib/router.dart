@@ -8,32 +8,26 @@ import 'screens/auth/signup_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/timeline/timeline_screen.dart';
 
-class _AuthChangeNotifier extends ChangeNotifier {
-  AuthStatus _status = AuthStatus.loading;
-
-  void update(AuthStatus status) {
-    if (_status != status) {
-      _status = status;
-      notifyListeners();
-    }
-  }
-}
+final _authNotifierProvider = Provider<ValueNotifier<AuthStatus>>((ref) {
+  final notifier = ValueNotifier(AuthStatus.loading);
+  ref.listen<AuthState>(authProvider, (prev, next) {
+    notifier.value = next.status;
+  });
+  // Also set the current value immediately
+  notifier.value = ref.read(authProvider).status;
+  ref.onDispose(notifier.dispose);
+  return notifier;
+});
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authChangeNotifier = _AuthChangeNotifier();
-
-  ref.listen<AuthState>(authProvider, (_, next) {
-    authChangeNotifier.update(next.status);
-  });
-
-  ref.onDispose(authChangeNotifier.dispose);
+  final authNotifier = ref.watch(_authNotifierProvider);
 
   final router = GoRouter(
     initialLocation: '/splash',
-    refreshListenable: authChangeNotifier,
+    refreshListenable: authNotifier,
     redirect: (context, state) {
       final path = state.uri.path;
-      final status = ref.read(authProvider).status;
+      final status = authNotifier.value;
 
       if (status == AuthStatus.loading) {
         return path == '/splash' ? null : '/splash';
@@ -42,7 +36,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuthRoute = path == '/login' || path == '/signup';
 
       if (status == AuthStatus.unauthenticated) {
-        return isAuthRoute || path == '/splash' ? null : '/login';
+        return isAuthRoute ? null : '/login';
       }
 
       // authenticated
@@ -54,7 +48,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/splash',
         builder: (context, state) => const SplashScreen(),
       ),
-      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginScreen(),
+      ),
       GoRoute(
         path: '/signup',
         builder: (context, state) => const SignupScreen(),
