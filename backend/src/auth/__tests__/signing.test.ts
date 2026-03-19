@@ -122,4 +122,16 @@ describe("verifySignature", () => {
     const signature = signHash(hash, keyPair1.privateKey);
     expect(verifySignature(hash, signature, keyPair2.publicKey)).toBe(false);
   });
+
+  it("returns false for empty publicKey", () => {
+    const { privateKey } = generateEdKeyPair();
+    const hash = computeContentHash({
+      title: "Test",
+      body: null,
+      mediaUrl: null,
+      importance: 0.5,
+    });
+    const signature = signHash(hash, privateKey);
+    expect(verifySignature(hash, signature, "")).toBe(false);
+  });
 });

@@ -11,6 +11,28 @@ const MediaTypeEnum = builder.enumType("MediaType", {
   values: ["text", "image", "video", "audio", "link"] as const,
 });
 
+/**
+ * Fetch author's publicKey and verify an Ed25519 signature against a contentHash.
+ * Throws GraphQLError on missing key, empty key, or invalid signature.
+ */
+async function verifyPostSignature(
+  contentHash: string,
+  signature: string,
+  userId: string,
+): Promise<void> {
+  const [author] = await db
+    .select({ publicKey: users.publicKey })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!author || !author.publicKey) {
+    throw new GraphQLError("Author has no registered public key");
+  }
+  if (!verifySignature(contentHash, signature, author.publicKey)) {
+    throw new GraphQLError("Invalid signature");
+  }
+}
+
 export const PostType = builder.objectRef<{
   id: string;
   trackId: string;
@@ -130,6 +152,9 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Importance must be between 0.0 and 1.0");
       }
 
+      // contentHash is always computed, even without a signature, to enable:
+      // 1. Content integrity checks (detect DB-level corruption or bugs)
+      // 2. Future signature addition without re-processing existing posts
       const contentHash = computeContentHash({
         title: args.title ?? null,
         body: args.body ?? null,
@@ -141,17 +166,11 @@ builder.mutationFields((t) => ({
       // send it for tamper-detection; unsigned posts are stored with signature=null.
       let signatureValue: string | null = null;
       if (args.signature) {
-        const [author] = await db
-          .select({ publicKey: users.publicKey })
-          .from(users)
-          .where(eq(users.id, ctx.authUser.userId))
-          .limit(1);
-        if (
-          !author ||
-          !verifySignature(contentHash, args.signature, author.publicKey)
-        ) {
-          throw new GraphQLError("Invalid signature");
-        }
+        await verifyPostSignature(
+          contentHash,
+          args.signature,
+          ctx.authUser.userId,
+        );
         signatureValue = args.signature;
       }
 
@@ -240,6 +259,14 @@ builder.mutationFields((t) => ({
       // Recompute contentHash and re-verify signature when content changes.
       // Signature is optional for MVP (see createPost comment).
       if (contentChanged) {
+        // Signed posts require a new signature when content changes,
+        // preventing silent removal of tamper-detection.
+        if (post.signature !== null && !args.signature) {
+          throw new GraphQLError(
+            "This post was signed. A new signature is required when updating content.",
+          );
+        }
+
         const newHash = computeContentHash({
           title: args.title !== undefined ? args.title : post.title,
           body: args.body !== undefined ? args.body : post.body,
@@ -251,17 +278,11 @@ builder.mutationFields((t) => ({
         // Verify signature before committing any hash/signature to updateData
         let newSignature: string | null = null;
         if (args.signature) {
-          const [author] = await db
-            .select({ publicKey: users.publicKey })
-            .from(users)
-            .where(eq(users.id, ctx.authUser.userId))
-            .limit(1);
-          if (
-            !author ||
-            !verifySignature(newHash, args.signature, author.publicKey)
-          ) {
-            throw new GraphQLError("Invalid signature");
-          }
+          await verifyPostSignature(
+            newHash,
+            args.signature,
+            ctx.authUser.userId,
+          );
           newSignature = args.signature;
         }
 
