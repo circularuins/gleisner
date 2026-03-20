@@ -6,6 +6,7 @@ import 'providers/auth_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/create_post/create_post_screen.dart';
 import 'screens/timeline/timeline_screen.dart';
 
 final _authNotifierProvider = Provider<ValueNotifier<AuthStatus>>((ref) {
@@ -56,6 +57,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/timeline',
         builder: (context, state) => const TimelineScreen(),
+      ),
+      GoRoute(
+        path: '/create-post',
+        builder: (context, state) => const CreatePostScreen(),
       ),
     ],
   );

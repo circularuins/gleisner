@@ -83,17 +83,24 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
       }
 
       final artist = Artist.fromJson(data as Map<String, dynamic>);
-      final firstTrack = artist.tracks.isNotEmpty ? artist.tracks.first : null;
+      // Preserve current track selection if it still exists in the new data
+      final currentTrack = state.selectedTrack;
+      final preservedTrack = currentTrack != null
+          ? artist.tracks.where((t) => t.id == currentTrack.id).firstOrNull
+          : null;
+      final activeTrack =
+          preservedTrack ??
+          (artist.tracks.isNotEmpty ? artist.tracks.first : null);
 
       // Keep isLoading true if we're about to load posts
       state = state.copyWith(
         artist: artist,
-        selectedTrack: firstTrack,
-        isLoading: firstTrack != null,
+        selectedTrack: activeTrack,
+        isLoading: activeTrack != null,
       );
 
-      if (firstTrack != null) {
-        await loadPosts(firstTrack.id);
+      if (activeTrack != null) {
+        await loadPosts(activeTrack.id);
       }
     } catch (e) {
       if (!mounted) return;

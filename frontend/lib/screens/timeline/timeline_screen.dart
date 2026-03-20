@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../graphql/client.dart';
 import '../../models/track.dart';
@@ -18,7 +19,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    Future.microtask(_loadData);
   }
 
   void _loadData() {
@@ -46,6 +47,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           ),
         ],
       ),
+      floatingActionButton: timeline.artist != null
+          ? FloatingActionButton(
+              onPressed: () => context.go('/create-post'),
+              child: const Icon(Icons.add),
+            )
+          : null,
       body: Column(
         children: [
           if (timeline.artist != null && timeline.artist!.tracks.isNotEmpty)

@@ -15,7 +15,7 @@ const app = new Hono<HonoEnv>();
 app.use(logger());
 app.use(
   cors({
-    origin: env.CORS_ORIGIN.split(","),
+    origin: env.CORS_ORIGIN === "*" ? "*" : env.CORS_ORIGIN.split(","),
     allowMethods: ["GET", "POST"],
     allowHeaders: ["Content-Type", "Authorization"],
   }),
