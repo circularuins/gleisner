@@ -112,8 +112,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
   }
 
   /// Ensure a specific track is selected (used after creating a post).
-  Future<void> selectTrack(dynamic track) async {
-    final trackId = track is String ? track : (track as dynamic).id as String;
+  Future<void> selectTrack(String trackId) async {
     final ids = Set<String>.from(state.selectedTrackIds);
     if (!ids.contains(trackId)) {
       ids.add(trackId);

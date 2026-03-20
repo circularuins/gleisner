@@ -98,7 +98,7 @@ void main() {
         'createdAt': '2026-01-01T00:00:00Z',
       });
 
-      await notifier.selectTrack(track);
+      await notifier.selectTrack(track.id);
 
       expect(notifier.state.selectedTrackIds, contains('t2'));
     });
