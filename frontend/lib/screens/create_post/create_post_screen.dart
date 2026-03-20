@@ -309,11 +309,15 @@ class _FormStep extends ConsumerWidget {
                 ),
                 keyboardType: TextInputType.url,
                 validator: (value) {
-                  if (value != null && value.isNotEmpty) {
-                    final uri = Uri.tryParse(value);
-                    if (uri == null || !uri.hasScheme) {
-                      return 'Enter a valid URL';
+                  if (value == null || value.isEmpty) {
+                    if (mediaType != MediaType.text) {
+                      return '${mediaType.name} URL is required';
                     }
+                    return null;
+                  }
+                  final uri = Uri.tryParse(value);
+                  if (uri == null || !uri.hasScheme) {
+                    return 'Enter a valid URL';
                   }
                   return null;
                 },

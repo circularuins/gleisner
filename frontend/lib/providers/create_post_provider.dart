@@ -123,7 +123,9 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
 }
 
 final createPostProvider =
-    StateNotifierProvider<CreatePostNotifier, CreatePostState>((ref) {
+    StateNotifierProvider.autoDispose<CreatePostNotifier, CreatePostState>((
+      ref,
+    ) {
       final client = ref.watch(graphqlClientProvider);
       return CreatePostNotifier(client);
     });

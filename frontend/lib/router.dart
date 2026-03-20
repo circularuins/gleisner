@@ -34,14 +34,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         return path == '/splash' ? null : '/splash';
       }
 
-      final isAuthRoute = path == '/login' || path == '/signup';
+      final isPublicRoute = path == '/login' || path == '/signup';
 
       if (status == AuthStatus.unauthenticated) {
-        return isAuthRoute ? null : '/login';
+        return isPublicRoute ? null : '/login';
       }
 
       // authenticated
-      if (isAuthRoute || path == '/splash') return '/timeline';
+      if (isPublicRoute || path == '/splash') return '/timeline';
       return null;
     },
     routes: [
