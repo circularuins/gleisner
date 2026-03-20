@@ -6,7 +6,9 @@ import '../../models/post.dart';
 import '../../models/track.dart';
 import '../../providers/create_post_provider.dart';
 import '../../providers/timeline_provider.dart';
+import '../../utils/constellation_layout.dart';
 import '../../widgets/common/error_banner.dart';
+import '../../widgets/timeline/seed_art_painter.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key});
@@ -319,7 +321,7 @@ class _FormStep extends ConsumerWidget {
               const SizedBox(height: 16),
             ],
 
-            // Importance slider
+            // Importance slider + node preview
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -348,6 +350,15 @@ class _FormStep extends ConsumerWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                _ImportancePreview(
+                  importance: state.importance,
+                  trackColor:
+                      state.selectedTrack?.displayColor ??
+                      theme.colorScheme.primary,
+                  title: titleController.text,
+                  trackName: state.selectedTrack?.name ?? '',
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -368,6 +379,95 @@ class _FormStep extends ConsumerWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Post'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Live preview of node size as importance slider changes.
+class _ImportancePreview extends StatelessWidget {
+  final double importance;
+  final Color trackColor;
+  final String title;
+  final String trackName;
+
+  const _ImportancePreview({
+    required this.importance,
+    required this.trackColor,
+    required this.title,
+    required this.trackName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sz = ConstellationLayout.nodeSize(importance);
+    final mediaH = sz > 110 ? sz * 0.7 : sz * 0.85;
+    final w = sz > 110 ? sz * 1.25 : sz;
+    final glowOpacity = 0.15 + importance * 0.25;
+    final glowBlur = 8.0 + importance * 16;
+
+    final seed = '${title}preview';
+
+    return Center(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: w,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: trackColor.withValues(alpha: glowOpacity),
+              blurRadius: glowBlur,
+              spreadRadius: 4.0 + importance * 12,
+            ),
+          ],
+          border: Border.all(color: trackColor.withValues(alpha: 0.3)),
+          color: const Color(0xFF0c0c12),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SeedArtCanvas(
+              width: w,
+              height: mediaH,
+              trackColor: trackColor,
+              seed: seed,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    trackName.toUpperCase(),
+                    style: TextStyle(
+                      color: trackColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (title.isNotEmpty)
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Color(0xFFeeeeee),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
             ),
           ],
         ),
