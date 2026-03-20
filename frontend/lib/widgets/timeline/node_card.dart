@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../utils/constellation_layout.dart';
+import 'post_detail_sheet.dart';
 import 'seed_art_painter.dart';
 
 /// Border radius variations based on node index.
@@ -42,63 +43,69 @@ class NodeCard extends StatelessWidget {
     final seedString =
         '${node.post.title ?? ''}${node.post.createdAt.toIso8601String()}';
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: borderRadius,
-        boxShadow: [
-          BoxShadow(
-            color: trackColor.withValues(alpha: glowOpacity),
-            blurRadius: glowBlur,
-            spreadRadius: glowSpread,
+    return GestureDetector(
+      onTap: () => showPostDetailSheet(context, node.post),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          boxShadow: [
+            BoxShadow(
+              color: trackColor.withValues(alpha: glowOpacity),
+              blurRadius: glowBlur,
+              spreadRadius: glowSpread,
+            ),
+          ],
+          border: Border.all(
+            color: trackColor.withValues(alpha: 0.3),
+            width: 1,
           ),
-        ],
-        border: Border.all(color: trackColor.withValues(alpha: 0.3), width: 1),
-        color: const Color(0xFF0c0c12),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SeedArtCanvas(
-            width: node.width,
-            height: node.mediaHeight,
-            trackColor: trackColor,
-            seed: seedString,
-          ),
-          if (node.showInfo)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    (node.post.trackName ?? '').toUpperCase(),
-                    style: TextStyle(
-                      color: trackColor,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (node.post.title != null)
+          color: const Color(0xFF0c0c12),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SeedArtCanvas(
+              width: node.width,
+              height: node.mediaHeight,
+              trackColor: trackColor,
+              seed: seedString,
+            ),
+            if (node.showInfo)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      node.post.title!,
-                      style: const TextStyle(
-                        color: Color(0xFFeeeeee),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        height: 1.3,
+                      (node.post.trackName ?? '').toUpperCase(),
+                      style: TextStyle(
+                        color: trackColor,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                ],
+                    if (node.post.title != null)
+                      Text(
+                        node.post.title!,
+                        style: const TextStyle(
+                          color: Color(0xFFeeeeee),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
