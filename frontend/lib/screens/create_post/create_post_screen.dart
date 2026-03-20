@@ -44,7 +44,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
     if (postedTrack != null && mounted) {
       // Switch timeline to the track we just posted to, then navigate
-      await ref.read(timelineProvider.notifier).selectTrack(postedTrack);
+      await ref.read(timelineProvider.notifier).selectTrack(postedTrack.id);
       if (mounted) context.go('/timeline');
     }
   }
