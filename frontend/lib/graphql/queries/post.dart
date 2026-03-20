@@ -1,4 +1,4 @@
-const _postFields = '''
+const postFields = '''
   id
   mediaType
   title
@@ -22,7 +22,7 @@ const postsQuery =
     '''
   query Posts(\$trackId: String!) {
     posts(trackId: \$trackId) {
-      $_postFields
+      $postFields
     }
   }
 ''';
@@ -31,7 +31,7 @@ const postQuery =
     '''
   query Post(\$id: String!) {
     post(id: \$id) {
-      $_postFields
+      $postFields
     }
   }
 ''';

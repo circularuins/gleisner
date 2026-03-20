@@ -6,6 +6,7 @@ import 'providers/auth_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/create_post/create_post_screen.dart';
 import 'screens/timeline/timeline_screen.dart';
 
 final _authNotifierProvider = Provider<ValueNotifier<AuthStatus>>((ref) {
@@ -33,14 +34,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         return path == '/splash' ? null : '/splash';
       }
 
-      final isAuthRoute = path == '/login' || path == '/signup';
+      final isPublicRoute = path == '/login' || path == '/signup';
 
       if (status == AuthStatus.unauthenticated) {
-        return isAuthRoute ? null : '/login';
+        return isPublicRoute ? null : '/login';
       }
 
       // authenticated
-      if (isAuthRoute || path == '/splash') return '/timeline';
+      if (isPublicRoute || path == '/splash') return '/timeline';
       return null;
     },
     routes: [
@@ -56,6 +57,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/timeline',
         builder: (context, state) => const TimelineScreen(),
+      ),
+      GoRoute(
+        path: '/create-post',
+        builder: (context, state) => const CreatePostScreen(),
       ),
     ],
   );
