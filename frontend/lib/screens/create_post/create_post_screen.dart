@@ -32,7 +32,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await ref
+    final postedTrack = await ref
         .read(createPostProvider.notifier)
         .submit(
           title: _titleController.text.isEmpty ? null : _titleController.text,
@@ -42,15 +42,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               : _mediaUrlController.text,
         );
 
-    if (success && mounted) {
-      final postedTrack = ref.read(createPostProvider).selectedTrack;
-      ref.read(createPostProvider.notifier).reset();
-      // Switch timeline to the track we just posted to, then refresh
-      if (postedTrack != null) {
-        await ref.read(timelineProvider.notifier).selectTrack(postedTrack);
-      } else {
-        await ref.read(timelineProvider.notifier).refresh();
-      }
+    if (postedTrack != null && mounted) {
+      // Switch timeline to the track we just posted to, then navigate
+      await ref.read(timelineProvider.notifier).selectTrack(postedTrack);
       if (mounted) context.go('/timeline');
     }
   }
@@ -316,8 +310,8 @@ class _FormStep extends ConsumerWidget {
                     return null;
                   }
                   final uri = Uri.tryParse(value);
-                  if (uri == null || !uri.hasScheme) {
-                    return 'Enter a valid URL';
+                  if (uri == null || !['http', 'https'].contains(uri.scheme)) {
+                    return 'Enter a valid http(s) URL';
                   }
                   return null;
                 },

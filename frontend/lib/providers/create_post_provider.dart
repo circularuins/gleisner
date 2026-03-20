@@ -74,14 +74,15 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
     state = const CreatePostState();
   }
 
-  Future<bool> submit({
+  /// Returns the posted [Track] on success, or `null` on failure.
+  Future<Track?> submit({
     required String? title,
     required String? body,
     required String? mediaUrl,
   }) async {
     final track = state.selectedTrack;
     final mediaType = state.selectedMediaType;
-    if (track == null || mediaType == null) return false;
+    if (track == null || mediaType == null) return null;
 
     state = state.copyWith(isSubmitting: true, error: null);
 
@@ -100,7 +101,7 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
         ),
       );
 
-      if (!mounted) return false;
+      if (!mounted) return null;
 
       if (result.hasException) {
         state = state.copyWith(
@@ -109,15 +110,15 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
               result.exception?.graphqlErrors.firstOrNull?.message ??
               'Failed to create post',
         );
-        return false;
+        return null;
       }
 
       state = state.copyWith(isSubmitting: false);
-      return true;
+      return track;
     } catch (e) {
-      if (!mounted) return false;
+      if (!mounted) return null;
       state = state.copyWith(isSubmitting: false, error: e.toString());
-      return false;
+      return null;
     }
   }
 }
