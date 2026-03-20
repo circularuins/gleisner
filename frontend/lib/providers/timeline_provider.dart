@@ -38,7 +38,7 @@ class TimelineState {
     Set<String>? selectedTrackIds,
     List<Post>? posts,
     bool? isLoading,
-    String? error,
+    Object? error = sentinel,
     Object? layout = sentinel,
   }) {
     return TimelineState(
@@ -46,7 +46,7 @@ class TimelineState {
       selectedTrackIds: selectedTrackIds ?? this.selectedTrackIds,
       posts: posts ?? this.posts,
       isLoading: isLoading ?? this.isLoading,
-      error: error,
+      error: error == sentinel ? this.error : error as String?,
       layout: layout == sentinel ? this.layout : layout as LayoutResult?,
     );
   }
@@ -176,15 +176,26 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
       if (!mounted) return;
 
       final allPosts = <Post>[];
+      var failedCount = 0;
       for (final result in results) {
-        if (result.hasException) continue;
+        if (result.hasException) {
+          failedCount++;
+          continue;
+        }
         final postsData = result.data?['posts'] as List<dynamic>? ?? [];
         allPosts.addAll(
           postsData.map((p) => Post.fromJson(p as Map<String, dynamic>)),
         );
       }
 
-      state = state.copyWith(posts: allPosts, isLoading: false);
+      final error = failedCount > 0
+          ? 'Failed to load $failedCount of ${results.length} tracks'
+          : null;
+      state = state.copyWith(
+        posts: allPosts,
+        isLoading: false,
+        error: error,
+      );
       _recomputeLayout();
     } catch (e) {
       if (!mounted) return;
