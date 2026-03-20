@@ -30,7 +30,7 @@ class CreatePostState {
     Object? selectedMediaType = sentinel,
     double? importance,
     bool? isSubmitting,
-    String? error,
+    Object? error = sentinel,
   }) {
     return CreatePostState(
       step: step ?? this.step,
@@ -42,7 +42,7 @@ class CreatePostState {
           : selectedMediaType as MediaType?,
       importance: importance ?? this.importance,
       isSubmitting: isSubmitting ?? this.isSubmitting,
-      error: error,
+      error: error == sentinel ? this.error : error as String?,
     );
   }
 }
