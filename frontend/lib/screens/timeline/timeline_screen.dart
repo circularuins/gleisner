@@ -34,9 +34,15 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   }
 
   void _loadData() {
-    final user = ref.read(authProvider).user;
-    if (user != null) {
-      ref.read(timelineProvider.notifier).loadArtist(user.username);
+    final timeline = ref.read(timelineProvider);
+    if (timeline.artist != null) {
+      // Already loaded — just refresh posts
+      ref.read(timelineProvider.notifier).refresh();
+    } else {
+      final user = ref.read(authProvider).user;
+      if (user != null) {
+        ref.read(timelineProvider.notifier).loadArtist(user.username);
+      }
     }
   }
 

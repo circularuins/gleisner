@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:graphql_flutter/graphql_flutter.dart';
+
+import '../../graphql/client.dart';
+import '../../graphql/mutations/track.dart';
 import '../../models/post.dart';
 import '../../models/track.dart';
 import '../../providers/create_post_provider.dart';
@@ -45,8 +49,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         );
 
     if (postedTrack != null && mounted) {
-      // Switch timeline to the track we just posted to, then navigate
-      await ref.read(timelineProvider.notifier).selectTrack(postedTrack.id);
+      final notifier = ref.read(timelineProvider.notifier);
+      await notifier.selectTrack(postedTrack.id);
+      await notifier.refresh();
       if (mounted) context.go('/timeline');
     }
   }
@@ -101,6 +106,22 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 }
 
+// Preset colors for auto-assignment (avoids duplicates with existing tracks)
+const _trackColorPresets = [
+  '#f97316', // orange
+  '#a78bfa', // purple
+  '#22d3ee', // cyan
+  '#84cc16', // lime
+  '#ef4444', // red
+  '#fbbf24', // amber
+  '#ec4899', // pink
+  '#14b8a6', // teal
+  '#8b5cf6', // violet
+  '#f43f5e', // rose
+];
+
+const _maxTracks = 10;
+
 // Step 0 — Track selection
 class _TrackStep extends ConsumerWidget {
   final List<Track> tracks;
@@ -110,44 +131,242 @@ class _TrackStep extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final canAddTrack = tracks.length < _maxTracks;
 
-    if (tracks.isEmpty) {
-      return Center(
-        child: Text(
-          'No tracks available',
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.onSurface.withAlpha(128),
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Select a track', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: tracks.map((track) {
-              return ActionChip(
-                label: Text(track.name),
-                avatar: CircleAvatar(
-                  backgroundColor: track.displayColor,
-                  radius: 8,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Select a track', style: theme.textTheme.headlineSmall),
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: [
+                ...tracks.map((track) {
+                  return ActionChip(
+                    label: Text(
+                      track.name,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    avatar: CircleAvatar(
+                      backgroundColor: track.displayColor,
+                      radius: 10,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    side: BorderSide(color: track.displayColor),
+                    onPressed: () => ref
+                        .read(createPostProvider.notifier)
+                        .selectTrack(track),
+                  );
+                }),
+                if (canAddTrack)
+                  ActionChip(
+                    label: const Text(
+                      '+ New Track',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    side: BorderSide(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                    ),
+                    onPressed: () => _showCreateTrackDialog(context, ref),
+                  ),
+              ],
+            ),
+            if (!canAddTrack)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  'Maximum $_maxTracks tracks',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withAlpha(100),
+                  ),
                 ),
-                side: BorderSide(color: track.displayColor),
-                onPressed: () =>
-                    ref.read(createPostProvider.notifier).selectTrack(track),
-              );
-            }).toList(),
-          ),
-        ],
+              ),
+          ],
+        ),
       ),
     );
+  }
+
+  void _showCreateTrackDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController();
+    final existingColors = tracks.map((t) => t.color.toLowerCase()).toSet();
+    final autoColor = _trackColorPresets.firstWhere(
+      (c) => !existingColors.contains(c),
+      orElse: () =>
+          _trackColorPresets[tracks.length % _trackColorPresets.length],
+    );
+    // Capture providers before opening the dialog (dialog has a different context)
+    final client = ref.read(graphqlClientProvider);
+    final timelineNotifier = ref.read(timelineProvider.notifier);
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        var isCreating = false;
+        String? errorText;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('New Track'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    maxLength: 30,
+                    decoration: InputDecoration(
+                      labelText: 'Track name',
+                      border: const OutlineInputBorder(),
+                      errorText: errorText,
+                    ),
+                    onSubmitted: isCreating
+                        ? null
+                        : (_) => _createTrack(
+                            dialogContext,
+                            client,
+                            timelineNotifier,
+                            controller,
+                            autoColor,
+                            setDialogState,
+                            (v) => isCreating = v,
+                            (v) => errorText = v,
+                          ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: _parseColor(autoColor),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Color: auto-assigned',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: isCreating
+                      ? null
+                      : () => _createTrack(
+                          dialogContext,
+                          client,
+                          timelineNotifier,
+                          controller,
+                          autoColor,
+                          setDialogState,
+                          (v) => isCreating = v,
+                          (v) => errorText = v,
+                        ),
+                  child: isCreating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Create'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _createTrack(
+    BuildContext dialogContext,
+    GraphQLClient client,
+    TimelineNotifier timelineNotifier,
+    TextEditingController controller,
+    String color,
+    void Function(void Function()) setDialogState,
+    void Function(bool) setCreating,
+    void Function(String?) setError,
+  ) async {
+    final name = controller.text.trim();
+    if (name.isEmpty) {
+      setDialogState(() => setError('Track name is required'));
+      return;
+    }
+    if (tracks.any((t) => t.name.toLowerCase() == name.toLowerCase())) {
+      setDialogState(() => setError('Track "$name" already exists'));
+      return;
+    }
+
+    setDialogState(() {
+      setCreating(true);
+      setError(null);
+    });
+
+    try {
+      final result = await client.mutate(
+        MutationOptions(
+          document: gql(createTrackMutation),
+          variables: {'name': name, 'color': color},
+        ),
+      );
+
+      if (result.hasException) {
+        if (dialogContext.mounted) {
+          setDialogState(() {
+            setCreating(false);
+            setError(
+              result.exception?.graphqlErrors.firstOrNull?.message ??
+                  'Failed to create track',
+            );
+          });
+        }
+        return;
+      }
+
+      // Add the new track to local state immediately
+      final data = result.data?['createTrack'] as Map<String, dynamic>?;
+      if (data != null) {
+        final newTrack = Track.fromJson(data);
+        timelineNotifier.addTrack(newTrack);
+      }
+
+      if (dialogContext.mounted) Navigator.pop(dialogContext);
+    } catch (e) {
+      if (dialogContext.mounted) {
+        setDialogState(() {
+          setCreating(false);
+          setError(e.toString());
+        });
+      }
+    }
+  }
+
+  static Color _parseColor(String hex) {
+    final cleaned = hex.replaceFirst('#', '');
+    return Color(int.parse('FF$cleaned', radix: 16));
   }
 }
 
@@ -167,37 +386,43 @@ class _MediaTypeStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Content type', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: _mediaTypeOptions.map((option) {
-              final (type, icon, label) = option;
-              return SizedBox(
-                width: 80,
-                child: Column(
-                  children: [
-                    IconButton.filledTonal(
-                      iconSize: 32,
-                      onPressed: () => ref
-                          .read(createPostProvider.notifier)
-                          .selectMediaType(type),
-                      icon: Icon(icon),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(label, style: theme.textTheme.labelSmall),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Content type', style: theme.textTheme.headlineSmall),
+            const SizedBox(height: 32),
+            Wrap(
+              spacing: 20,
+              runSpacing: 16,
+              alignment: WrapAlignment.center,
+              children: _mediaTypeOptions.map((option) {
+                final (type, icon, label) = option;
+                return SizedBox(
+                  width: 88,
+                  child: Column(
+                    children: [
+                      IconButton.filledTonal(
+                        iconSize: 40,
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size(64, 64),
+                        ),
+                        onPressed: () => ref
+                            .read(createPostProvider.notifier)
+                            .selectMediaType(type),
+                        icon: Icon(icon),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(label, style: theme.textTheme.labelMedium),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import '../graphql/queries/artist.dart';
 import '../graphql/queries/post.dart';
 import '../models/artist.dart';
 import '../models/post.dart';
+import '../models/track.dart';
 import '../utils/constellation_layout.dart';
 import '../utils/sentinel.dart';
 
@@ -111,6 +112,26 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
     }
   }
 
+  /// Add a newly created track to the local artist state.
+  void addTrack(Track track) {
+    final artist = state.artist;
+    if (artist == null) return;
+    final updatedTracks = [...artist.tracks, track];
+    final updatedArtist = Artist(
+      id: artist.id,
+      artistUsername: artist.artistUsername,
+      displayName: artist.displayName,
+      bio: artist.bio,
+      tagline: artist.tagline,
+      avatarUrl: artist.avatarUrl,
+      coverImageUrl: artist.coverImageUrl,
+      tunedInCount: artist.tunedInCount,
+      tracks: updatedTracks,
+    );
+    final ids = Set<String>.from(state.selectedTrackIds)..add(track.id);
+    state = state.copyWith(artist: updatedArtist, selectedTrackIds: ids);
+  }
+
   /// Ensure a specific track is selected (used after creating a post).
   Future<void> selectTrack(String trackId) async {
     final ids = Set<String>.from(state.selectedTrackIds);
@@ -191,11 +212,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
       final error = failedCount > 0
           ? 'Failed to load $failedCount of ${results.length} tracks'
           : null;
-      state = state.copyWith(
-        posts: allPosts,
-        isLoading: false,
-        error: error,
-      );
+      state = state.copyWith(posts: allPosts, isLoading: false, error: error);
       _recomputeLayout();
     } catch (e) {
       if (!mounted) return;
