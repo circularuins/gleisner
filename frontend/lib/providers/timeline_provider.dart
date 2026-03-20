@@ -6,45 +6,55 @@ import '../graphql/queries/artist.dart';
 import '../graphql/queries/post.dart';
 import '../models/artist.dart';
 import '../models/post.dart';
-import '../models/track.dart';
+import '../utils/constellation_layout.dart';
 import '../utils/sentinel.dart';
 
 class TimelineState {
   final Artist? artist;
-  final Track? selectedTrack;
+  final Set<String> selectedTrackIds;
   final List<Post> posts;
   final bool isLoading;
   final String? error;
+  final LayoutResult? layout;
 
   const TimelineState({
     this.artist,
-    this.selectedTrack,
+    this.selectedTrackIds = const {},
     this.posts = const [],
     this.isLoading = false,
     this.error,
+    this.layout,
   });
+
+  bool get allSelected =>
+      artist != null &&
+      artist!.tracks.isNotEmpty &&
+      selectedTrackIds.length == artist!.tracks.length;
+
+  bool get noneSelected => selectedTrackIds.isEmpty;
 
   TimelineState copyWith({
     Object? artist = sentinel,
-    Object? selectedTrack = sentinel,
+    Set<String>? selectedTrackIds,
     List<Post>? posts,
     bool? isLoading,
     String? error,
+    Object? layout = sentinel,
   }) {
     return TimelineState(
       artist: artist == sentinel ? this.artist : artist as Artist?,
-      selectedTrack: selectedTrack == sentinel
-          ? this.selectedTrack
-          : selectedTrack as Track?,
+      selectedTrackIds: selectedTrackIds ?? this.selectedTrackIds,
       posts: posts ?? this.posts,
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      layout: layout == sentinel ? this.layout : layout as LayoutResult?,
     );
   }
 }
 
 class TimelineNotifier extends StateNotifier<TimelineState> {
   final GraphQLClient _client;
+  double _lastWidth = 0;
 
   TimelineNotifier(this._client) : super(const TimelineState());
 
@@ -76,31 +86,24 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
         state = state.copyWith(
           isLoading: false,
           artist: null,
-          selectedTrack: null,
+          selectedTrackIds: {},
           posts: [],
+          layout: null,
         );
         return;
       }
 
       final artist = Artist.fromJson(data as Map<String, dynamic>);
-      // Preserve current track selection if it still exists in the new data
-      final currentTrack = state.selectedTrack;
-      final preservedTrack = currentTrack != null
-          ? artist.tracks.where((t) => t.id == currentTrack.id).firstOrNull
-          : null;
-      final activeTrack =
-          preservedTrack ??
-          (artist.tracks.isNotEmpty ? artist.tracks.first : null);
-
-      // Keep isLoading true if we're about to load posts
+      // Default: all tracks selected
+      final allIds = artist.tracks.map((t) => t.id).toSet();
       state = state.copyWith(
         artist: artist,
-        selectedTrack: activeTrack,
-        isLoading: activeTrack != null,
+        selectedTrackIds: allIds,
+        isLoading: artist.tracks.isNotEmpty,
       );
 
-      if (activeTrack != null) {
-        await loadPosts(activeTrack.id);
+      if (artist.tracks.isNotEmpty) {
+        await _loadSelectedPosts();
       }
     } catch (e) {
       if (!mounted) return;
@@ -108,52 +111,108 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
     }
   }
 
-  Future<void> selectTrack(Track track) async {
-    state = state.copyWith(selectedTrack: track, posts: []);
-    await loadPosts(track.id);
+  /// Ensure a specific track is selected (used after creating a post).
+  Future<void> selectTrack(dynamic track) async {
+    final trackId = track is String ? track : (track as dynamic).id as String;
+    final ids = Set<String>.from(state.selectedTrackIds);
+    if (!ids.contains(trackId)) {
+      ids.add(trackId);
+      state = state.copyWith(selectedTrackIds: ids, layout: null);
+      await _loadSelectedPosts();
+    }
   }
 
-  Future<void> loadPosts(String trackId) async {
+  /// Toggle a single track on/off.
+  Future<void> toggleTrack(String trackId) async {
+    final ids = Set<String>.from(state.selectedTrackIds);
+    if (ids.contains(trackId)) {
+      ids.remove(trackId);
+    } else {
+      ids.add(trackId);
+    }
+    state = state.copyWith(selectedTrackIds: ids, layout: null);
+    await _loadSelectedPosts();
+  }
+
+  /// Toggle all tracks: if all selected → deselect all, else select all.
+  Future<void> toggleAll() async {
+    final artist = state.artist;
+    if (artist == null) return;
+
+    final Set<String> ids;
+    if (state.allSelected) {
+      ids = {};
+    } else {
+      ids = artist.tracks.map((t) => t.id).toSet();
+    }
+    state = state.copyWith(selectedTrackIds: ids, layout: null);
+    await _loadSelectedPosts();
+  }
+
+  Future<void> _loadSelectedPosts() async {
+    final artist = state.artist;
+    if (artist == null) return;
+
+    final trackIds = state.selectedTrackIds;
+    if (trackIds.isEmpty) {
+      state = state.copyWith(posts: [], isLoading: false, layout: null);
+      return;
+    }
+
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final result = await _client.query(
-        QueryOptions(
-          document: gql(postsQuery),
-          variables: {'trackId': trackId},
-          fetchPolicy: FetchPolicy.networkOnly,
+      final futures = trackIds.map(
+        (tid) => _client.query(
+          QueryOptions(
+            document: gql(postsQuery),
+            variables: {'trackId': tid},
+            fetchPolicy: FetchPolicy.networkOnly,
+          ),
         ),
       );
 
+      final results = await Future.wait(futures);
+
       if (!mounted) return;
 
-      if (result.hasException) {
-        state = state.copyWith(
-          isLoading: false,
-          error:
-              result.exception?.graphqlErrors.firstOrNull?.message ??
-              'Failed to load posts',
+      final allPosts = <Post>[];
+      for (final result in results) {
+        if (result.hasException) continue;
+        final postsData = result.data?['posts'] as List<dynamic>? ?? [];
+        allPosts.addAll(
+          postsData.map((p) => Post.fromJson(p as Map<String, dynamic>)),
         );
-        return;
       }
 
-      final postsData = result.data?['posts'] as List<dynamic>? ?? [];
-      final posts = postsData
-          .map((p) => Post.fromJson(p as Map<String, dynamic>))
-          .toList();
-
-      state = state.copyWith(posts: posts, isLoading: false);
+      state = state.copyWith(posts: allPosts, isLoading: false);
+      _recomputeLayout();
     } catch (e) {
       if (!mounted) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
-  Future<void> refresh() async {
-    final track = state.selectedTrack;
-    if (track != null) {
-      await loadPosts(track.id);
+  // TODO: Move to Isolate.run() for large datasets (O(n^2) overlap check)
+  void computeLayout(double width) {
+    _lastWidth = width;
+    _recomputeLayout();
+  }
+
+  void _recomputeLayout() {
+    if (state.posts.isEmpty || _lastWidth == 0) {
+      state = state.copyWith(layout: null);
+      return;
     }
+    final result = ConstellationLayout.compute(
+      posts: state.posts,
+      containerWidth: _lastWidth,
+    );
+    state = state.copyWith(layout: result);
+  }
+
+  Future<void> refresh() async {
+    await _loadSelectedPosts();
   }
 }
 

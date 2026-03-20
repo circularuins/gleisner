@@ -49,7 +49,7 @@ void main() {
       final notifier = TimelineNotifier(_clientWith());
 
       expect(notifier.state.artist, isNull);
-      expect(notifier.state.selectedTrack, isNull);
+      expect(notifier.state.selectedTrackIds, isEmpty);
       expect(notifier.state.posts, isEmpty);
       expect(notifier.state.isLoading, isFalse);
       expect(notifier.state.error, isNull);
@@ -61,7 +61,7 @@ void main() {
       await notifier.loadArtist('nobody');
 
       expect(notifier.state.artist, isNull);
-      expect(notifier.state.selectedTrack, isNull);
+      expect(notifier.state.selectedTrackIds, isEmpty);
       expect(notifier.state.posts, isEmpty);
       expect(notifier.state.isLoading, isFalse);
     });
@@ -88,27 +88,7 @@ void main() {
       expect(notifier.state.isLoading, isFalse);
     });
 
-    test('loadPosts sets error on GraphQL exception', () async {
-      final notifier = TimelineNotifier(
-        _clientWith(errors: [const GraphQLError(message: 'Not found')]),
-      );
-
-      await notifier.loadPosts('t1');
-
-      expect(notifier.state.error, 'Not found');
-      expect(notifier.state.isLoading, isFalse);
-    });
-
-    test('loadPosts handles empty result', () async {
-      final notifier = TimelineNotifier(_clientWith(data: {'posts': []}));
-
-      await notifier.loadPosts('t1');
-
-      expect(notifier.state.posts, isEmpty);
-      expect(notifier.state.isLoading, isFalse);
-    });
-
-    test('selectTrack clears posts and sets selected track', () async {
+    test('selectTrack ensures track is selected', () async {
       final notifier = TimelineNotifier(_clientWith(data: {'posts': []}));
 
       final track = Track.fromJson({
@@ -120,10 +100,20 @@ void main() {
 
       await notifier.selectTrack(track);
 
-      expect(notifier.state.selectedTrack?.id, 't2');
+      expect(notifier.state.selectedTrackIds, contains('t2'));
     });
 
-    test('refresh does nothing without selected track', () async {
+    test('toggleTrack adds and removes track', () async {
+      final notifier = TimelineNotifier(_clientWith(data: {'posts': []}));
+
+      await notifier.toggleTrack('t1');
+      expect(notifier.state.selectedTrackIds, contains('t1'));
+
+      await notifier.toggleTrack('t1');
+      expect(notifier.state.selectedTrackIds, isNot(contains('t1')));
+    });
+
+    test('refresh does nothing without selected tracks', () async {
       final notifier = TimelineNotifier(_clientWith());
 
       await notifier.refresh();

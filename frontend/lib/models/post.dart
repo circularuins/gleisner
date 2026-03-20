@@ -1,3 +1,7 @@
+import 'dart:ui';
+
+import 'track.dart';
+
 class PostAuthor {
   final String id;
   final String username;
@@ -36,6 +40,9 @@ class Post {
   final DateTime createdAt;
   final DateTime updatedAt;
   final PostAuthor author;
+  final String? trackId;
+  final String? trackName;
+  final String? trackColor;
 
   const Post({
     required this.id,
@@ -50,9 +57,15 @@ class Post {
     required this.createdAt,
     required this.updatedAt,
     required this.author,
+    this.trackId,
+    this.trackName,
+    this.trackColor,
   });
 
+  Color get trackDisplayColor => parseHexColor(trackColor);
+
   factory Post.fromJson(Map<String, dynamic> json) {
+    final track = json['track'] as Map<String, dynamic>?;
     return Post(
       id: json['id'] as String,
       mediaType: _parseMediaType(json['mediaType'] as String),
@@ -66,6 +79,9 @@ class Post {
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       author: PostAuthor.fromJson(json['author'] as Map<String, dynamic>),
+      trackId: track?['id'] as String?,
+      trackName: track?['name'] as String?,
+      trackColor: track?['color'] as String?,
     );
   }
 }

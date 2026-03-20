@@ -1,0 +1,382 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:gleisner_web/models/post.dart';
+import 'package:gleisner_web/utils/constellation_layout.dart';
+
+Post _makePost({
+  required String id,
+  required DateTime createdAt,
+  double importance = 0.5,
+  String? trackId,
+  String? trackName,
+  String? trackColor,
+}) {
+  return Post(
+    id: id,
+    mediaType: MediaType.text,
+    title: 'Post $id',
+    importance: importance,
+    createdAt: createdAt,
+    updatedAt: createdAt,
+    author: const PostAuthor(id: 'a1', username: 'test'),
+    trackId: trackId,
+    trackName: trackName,
+    trackColor: trackColor,
+  );
+}
+
+void main() {
+  group('ConstellationLayout.nodeSize', () {
+    test('minimum size at importance 0', () {
+      expect(ConstellationLayout.nodeSize(0), 90);
+    });
+
+    test('maximum size at importance 1', () {
+      expect(ConstellationLayout.nodeSize(1), 170);
+    });
+
+    test('clamps importance above 1', () {
+      expect(ConstellationLayout.nodeSize(1.5), 170);
+    });
+
+    test('clamps negative importance', () {
+      expect(ConstellationLayout.nodeSize(-0.5), 90);
+    });
+
+    test('mid importance gives mid size', () {
+      expect(ConstellationLayout.nodeSize(0.5), 130);
+    });
+  });
+
+  group('ConstellationLayout.compute', () {
+    test('empty posts returns empty layout', () {
+      final result = ConstellationLayout.compute(
+        posts: [],
+        containerWidth: 400,
+      );
+      expect(result.nodes, isEmpty);
+      expect(result.days, isEmpty);
+      expect(result.connections, isEmpty);
+      expect(result.totalHeight, 0);
+    });
+
+    test('single post produces one node and one day section', () {
+      final post = _makePost(id: '1', createdAt: DateTime.now());
+      final result = ConstellationLayout.compute(
+        posts: [post],
+        containerWidth: 400,
+      );
+      expect(result.nodes, hasLength(1));
+      expect(result.days, hasLength(1));
+      expect(result.days.first.isToday, isTrue);
+      expect(result.totalHeight, greaterThan(0));
+    });
+
+    test('nodes have positive dimensions', () {
+      final post = _makePost(
+        id: '1',
+        createdAt: DateTime.now(),
+        importance: 0.3,
+      );
+      final result = ConstellationLayout.compute(
+        posts: [post],
+        containerWidth: 400,
+      );
+      final node = result.nodes.first;
+      expect(node.width, greaterThan(0));
+      expect(node.height, greaterThan(0));
+      expect(node.mediaHeight, greaterThan(0));
+      expect(node.nodeSize, ConstellationLayout.nodeSize(0.3));
+    });
+
+    test('all nodes show info', () {
+      final posts = List.generate(
+        5,
+        (i) => _makePost(
+          id: '$i',
+          createdAt: DateTime.now().subtract(Duration(hours: i)),
+          importance: i * 0.2,
+        ),
+      );
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+      for (final node in result.nodes) {
+        expect(node.showInfo, isTrue);
+      }
+    });
+
+    test('nodes fit within container width', () {
+      final posts = List.generate(
+        10,
+        (i) => _makePost(
+          id: '$i',
+          createdAt: DateTime.now().subtract(Duration(hours: i)),
+          importance: i * 0.1,
+        ),
+      );
+      const width = 400.0;
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: width,
+      );
+      for (final node in result.nodes) {
+        expect(
+          node.x + node.width,
+          lessThanOrEqualTo(width - ConstellationLayout.spineWidth + 1),
+          reason: 'Node ${node.post.id} exceeds container width',
+        );
+      }
+    });
+  });
+
+  group('Time-series ordering', () {
+    test('newer posts have top edge at or above older posts', () {
+      final now = DateTime.now();
+      final posts = List.generate(
+        8,
+        (i) => _makePost(
+          id: '$i',
+          createdAt: now.subtract(Duration(hours: i * 3)),
+          importance: (i % 3) * 0.3 + 0.1,
+        ),
+      );
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+
+      // Sort nodes by createdAt descending (newest first)
+      final sorted = List<PlacedNode>.from(result.nodes)
+        ..sort((a, b) => b.post.createdAt.compareTo(a.post.createdAt));
+
+      for (int i = 1; i < sorted.length; i++) {
+        expect(
+          sorted[i].y,
+          greaterThanOrEqualTo(sorted[i - 1].y),
+          reason:
+              'Post ${sorted[i].post.id} (older) should be at or below '
+              'post ${sorted[i - 1].post.id} (newer): '
+              '${sorted[i].y} vs ${sorted[i - 1].y}',
+        );
+      }
+    });
+
+    test('posts across different days maintain day ordering', () {
+      final now = DateTime.now();
+      final posts = [
+        _makePost(id: 'today', createdAt: now, importance: 0.3),
+        _makePost(
+          id: 'yesterday',
+          createdAt: now.subtract(const Duration(days: 1)),
+          importance: 0.9,
+        ),
+        _makePost(
+          id: '3days',
+          createdAt: now.subtract(const Duration(days: 3)),
+          importance: 1.0,
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+
+      final nodeMap = {for (final n in result.nodes) n.post.id: n};
+      expect(nodeMap['today']!.y, lessThanOrEqualTo(nodeMap['yesterday']!.y));
+      expect(nodeMap['yesterday']!.y, lessThanOrEqualTo(nodeMap['3days']!.y));
+    });
+
+    test('same-day posts have slight vertical offset (nudge)', () {
+      final now = DateTime.now();
+      final posts = [
+        _makePost(id: 'newer', createdAt: now, importance: 0.5),
+        _makePost(
+          id: 'older',
+          createdAt: now.subtract(const Duration(minutes: 5)),
+          importance: 0.5,
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+
+      final nodeMap = {for (final n in result.nodes) n.post.id: n};
+      expect(
+        nodeMap['older']!.y,
+        greaterThan(nodeMap['newer']!.y),
+        reason: 'Older post should be slightly below newer post',
+      );
+    });
+  });
+
+  group('Day sections', () {
+    test('day sections created only for days with posts', () {
+      final now = DateTime.now();
+      final posts = [
+        _makePost(id: '1', createdAt: now),
+        _makePost(id: '2', createdAt: now.subtract(const Duration(days: 3))),
+      ];
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+      // Only 2 days: today and 3 days ago (not days 1 and 2)
+      expect(result.days, hasLength(2));
+    });
+
+    test('today section is marked isToday', () {
+      final post = _makePost(id: '1', createdAt: DateTime.now());
+      final result = ConstellationLayout.compute(
+        posts: [post],
+        containerWidth: 400,
+      );
+      expect(result.days.first.isToday, isTrue);
+    });
+
+    test('day sections are ordered top to bottom', () {
+      final now = DateTime.now();
+      final posts = List.generate(
+        5,
+        (i) => _makePost(
+          id: '$i',
+          createdAt: now.subtract(Duration(days: i * 2)),
+        ),
+      );
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+      for (int i = 1; i < result.days.length; i++) {
+        expect(
+          result.days[i].top,
+          greaterThan(result.days[i - 1].top),
+          reason: 'Day $i should be below day ${i - 1}',
+        );
+      }
+    });
+
+    test('minimum gap between day sections', () {
+      final now = DateTime.now();
+      final posts = [
+        _makePost(id: '1', createdAt: now, importance: 0.0),
+        _makePost(
+          id: '2',
+          createdAt: now.subtract(const Duration(days: 1)),
+          importance: 0.0,
+        ),
+        _makePost(
+          id: '3',
+          createdAt: now.subtract(const Duration(days: 2)),
+          importance: 0.0,
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+      for (int i = 1; i < result.days.length; i++) {
+        final gap = result.days[i].top - result.days[i - 1].top;
+        expect(
+          gap,
+          greaterThanOrEqualTo(28),
+          reason: 'Gap between days $i and ${i - 1} too small: $gap',
+        );
+      }
+    });
+  });
+
+  group('Synapse connections', () {
+    test('same-track adjacent posts produce connections', () {
+      final now = DateTime.now();
+      final posts = [
+        _makePost(
+          id: '1',
+          createdAt: now,
+          trackId: 'track-a',
+          trackColor: '#ff0000',
+        ),
+        _makePost(
+          id: '2',
+          createdAt: now.subtract(const Duration(hours: 2)),
+          trackId: 'track-a',
+          trackColor: '#ff0000',
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+      expect(result.connections, isNotEmpty);
+    });
+
+    test('different tracks produce no connections', () {
+      final now = DateTime.now();
+      final posts = [
+        _makePost(
+          id: '1',
+          createdAt: now,
+          trackId: 'track-a',
+          trackColor: '#ff0000',
+        ),
+        _makePost(
+          id: '2',
+          createdAt: now.subtract(const Duration(hours: 2)),
+          trackId: 'track-b',
+          trackColor: '#00ff00',
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+      expect(result.connections, isEmpty);
+    });
+
+    test('posts without trackId produce no connections', () {
+      final now = DateTime.now();
+      final posts = [
+        _makePost(id: '1', createdAt: now),
+        _makePost(id: '2', createdAt: now.subtract(const Duration(hours: 2))),
+      ];
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+      expect(result.connections, isEmpty);
+    });
+  });
+
+  group('Determinism', () {
+    test('same input produces same output', () {
+      final now = DateTime(2026, 3, 21, 12, 0, 0);
+      final posts = List.generate(
+        10,
+        (i) => _makePost(
+          id: 'p$i',
+          createdAt: now.subtract(Duration(hours: i * 5)),
+          importance: (i % 5) * 0.2,
+          trackId: 'track-${i % 3}',
+          trackColor: '#ff${i}${i}00',
+        ),
+      );
+
+      final result1 = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+      final result2 = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+
+      expect(result1.nodes.length, result2.nodes.length);
+      for (int i = 0; i < result1.nodes.length; i++) {
+        expect(result1.nodes[i].x, result2.nodes[i].x);
+        expect(result1.nodes[i].y, result2.nodes[i].y);
+      }
+      expect(result1.totalHeight, result2.totalHeight);
+    });
+  });
+}

@@ -16,6 +16,11 @@ const postFields = '''
     displayName
     avatarUrl
   }
+  track {
+    id
+    name
+    color
+  }
 ''';
 
 const postsQuery =

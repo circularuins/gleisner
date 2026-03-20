@@ -2,6 +2,18 @@ import 'package:flutter/material.dart';
 
 const fallbackTrackColor = Color(0xFF808080);
 
+/// Parse a hex color string (e.g. "#ff5500" or "ff5500") to a Color.
+Color parseHexColor(String? hex, {Color fallback = fallbackTrackColor}) {
+  if (hex == null) return fallback;
+  try {
+    final cleaned = hex.replaceFirst('#', '');
+    if (cleaned.length != 6) return fallback;
+    return Color(int.parse('FF$cleaned', radix: 16));
+  } catch (_) {
+    return fallback;
+  }
+}
+
 class Track {
   final String id;
   final String name;
@@ -15,15 +27,7 @@ class Track {
     required this.createdAt,
   });
 
-  Color get displayColor {
-    try {
-      final hex = color.replaceFirst('#', '');
-      if (hex.length != 6) return fallbackTrackColor;
-      return Color(int.parse('FF$hex', radix: 16));
-    } catch (_) {
-      return fallbackTrackColor;
-    }
-  }
+  Color get displayColor => parseHexColor(color);
 
   factory Track.fromJson(Map<String, dynamic> json) {
     return Track(
