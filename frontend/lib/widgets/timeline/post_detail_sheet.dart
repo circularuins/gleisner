@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:graphql_flutter/graphql_flutter.dart';
-
-import '../../graphql/mutations/reaction.dart';
 import '../../models/post.dart';
 import 'seed_art_painter.dart';
 
@@ -11,7 +8,7 @@ const _reactionPresets = ['🔥', '❤️', '👏', '✨', '😍', '🎵', '💪
 void showPostDetailSheet(
   BuildContext context,
   Post post, {
-  GraphQLClient? client,
+  Future<bool> Function(String postId, String emoji)? onToggleReaction,
   void Function(
     String postId,
     List<ReactionCount> counts,
@@ -25,7 +22,7 @@ void showPostDetailSheet(
     backgroundColor: Colors.transparent,
     builder: (_) => _PostDetailSheet(
       post: post,
-      client: client,
+      onToggleReaction: onToggleReaction,
       onReactionsChanged: onReactionsChanged,
     ),
   );
@@ -33,7 +30,7 @@ void showPostDetailSheet(
 
 class _PostDetailSheet extends StatefulWidget {
   final Post post;
-  final GraphQLClient? client;
+  final Future<bool> Function(String postId, String emoji)? onToggleReaction;
   final void Function(
     String postId,
     List<ReactionCount> counts,
@@ -42,7 +39,7 @@ class _PostDetailSheet extends StatefulWidget {
   onReactionsChanged;
   const _PostDetailSheet({
     required this.post,
-    this.client,
+    this.onToggleReaction,
     this.onReactionsChanged,
   });
 
@@ -67,18 +64,12 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     setState(() => _isToggling = true);
 
     try {
-      final client = widget.client;
-      if (client == null) return;
-      final result = await client.mutate(
-        MutationOptions(
-          document: gql(toggleReactionMutation),
-          variables: {'postId': widget.post.id, 'emoji': emoji},
-        ),
-      );
+      final success =
+          await widget.onToggleReaction?.call(widget.post.id, emoji) ?? false;
 
       if (!mounted) return;
 
-      if (!result.hasException) {
+      if (success) {
         final wasActive = _myReactions.contains(emoji);
         setState(() {
           if (wasActive) {

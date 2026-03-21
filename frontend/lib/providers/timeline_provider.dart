@@ -4,6 +4,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
 import '../graphql/queries/artist.dart';
+import '../graphql/mutations/reaction.dart';
 import '../graphql/mutations/track.dart';
 import '../graphql/queries/post.dart';
 import '../models/artist.dart';
@@ -166,6 +167,21 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
   }
 
   /// Add a single post to local state (optimistic/post-creation update).
+  /// Toggle a reaction on a post. Returns true on success.
+  Future<bool> toggleReaction(String postId, String emoji) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(toggleReactionMutation),
+          variables: {'postId': postId, 'emoji': emoji},
+        ),
+      );
+      return !result.hasException;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Update reaction counts and user's own reactions for a post.
   void updatePostReactions(
     String postId,

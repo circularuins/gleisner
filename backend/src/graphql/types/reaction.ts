@@ -180,9 +180,13 @@ ReactionCountType.implement({
 
 // Add reactions and reactionCounts fields to PostType
 builder.objectFields(PostType, (t) => ({
+  // Individual reactions (includes user info) — requires authentication
   reactions: t.field({
     type: [ReactionType],
-    resolve: async (post) => {
+    resolve: async (post, _args, ctx) => {
+      if (!ctx.authUser) {
+        throw new GraphQLError("Authentication required");
+      }
       return db.select().from(reactions).where(eq(reactions.postId, post.id));
     },
   }),
@@ -202,6 +206,7 @@ builder.objectFields(PostType, (t) => ({
       return rows.map((r) => r.emoji);
     },
   }),
+  // Aggregated counts only (no user info) — intentionally public
   reactionCounts: t.field({
     type: [ReactionCountType],
     resolve: async (post) => {

@@ -240,15 +240,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         .read(timelineProvider)
         .posts
         .firstWhere((p) => p.id == postId);
-    final client = ref.read(graphqlClientProvider);
+    final notifier = ref.read(timelineProvider.notifier);
     showPostDetailSheet(
       context,
       post,
-      client: client,
+      onToggleReaction: (id, emoji) => notifier.toggleReaction(id, emoji),
       onReactionsChanged: (id, counts, myReactions) {
-        ref
-            .read(timelineProvider.notifier)
-            .updatePostReactions(id, counts, myReactions);
+        notifier.updatePostReactions(id, counts, myReactions);
       },
     );
   }
