@@ -180,4 +180,28 @@ for PID in $(docker exec gleisner-db psql -U gleisner -d gleisner -t -c \
 done
 echo "==> Reactions added to $i posts"
 
+# 9. Add reactions from a fan user (other person's reactions)
+FAN_EMAIL="fan@test.com"
+FAN_USER="fanuser"
+curl -s "$API" -X POST -H 'Content-Type: application/json' \
+  -d "{\"query\":\"mutation { signup(email:\\\"$FAN_EMAIL\\\", password:\\\"$PASSWORD\\\", username:\\\"$FAN_USER\\\") { token } }\"}" > /dev/null 2>&1
+
+FAN_TOKEN=$(curl -s "$API" -X POST -H 'Content-Type: application/json' \
+  -d "{\"query\":\"mutation { login(email:\\\"$FAN_EMAIL\\\", password:\\\"$PASSWORD\\\") { token } }\"}" \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['data']['login']['token'])")
+FAN_AUTH="Authorization: Bearer $FAN_TOKEN"
+
+i=0
+for PID in $(docker exec gleisner-db psql -U gleisner -d gleisner -t -c \
+  "SELECT id FROM posts WHERE author_id = (SELECT id FROM users WHERE username = '$USERNAME') LIMIT 15;" \
+  | tr -d ' ' | grep -v '^$'); do
+  for j in $(seq 0 $((i % 4))); do
+    E="${EMOJIS[$(( (i + j + 2) % 8 ))]}"
+    curl -s "$API" -X POST -H "Content-Type: application/json" -H "$FAN_AUTH" \
+      -d "{\"query\":\"mutation { toggleReaction(postId:\\\"$PID\\\", emoji:\\\"$E\\\") { id } }\"}" > /dev/null 2>&1
+  done
+  i=$((i+1))
+done
+echo "==> Fan reactions added to $i posts"
+
 echo "==> Done! Login: $EMAIL / $PASSWORD"
