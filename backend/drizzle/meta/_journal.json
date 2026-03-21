@@ -8,6 +8,13 @@
       "when": 1773852087051,
       "tag": "0000_sturdy_johnny_blaze",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774110547509,
+      "tag": "0001_fat_gorilla_man",
+      "breakpoints": true
     }
   ]
 }

@@ -211,6 +211,8 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
           trackColor: p.trackColor,
           reactionCounts: counts,
           myReactions: myReactions,
+          outgoingConnections: p.outgoingConnections,
+          incomingConnections: p.incomingConnections,
         );
       }
       return p;

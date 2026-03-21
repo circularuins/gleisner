@@ -8,6 +8,7 @@ import '../../providers/create_post_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/common/error_banner.dart';
+import '../../widgets/common/related_post_picker.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
@@ -465,6 +466,19 @@ class _FormStep extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
+            // Related post
+            _RelatedPostSection(
+              selectedPost: state.selectedRelatedPost,
+              allPosts: ref.watch(timelineProvider).posts,
+              onClear: () =>
+                  ref.read(createPostProvider.notifier).clearRelatedPost(),
+              onPickRequested: () => _showRelatedPostPicker(
+                context,
+                ref,
+              ),
+            ),
+            const SizedBox(height: 24),
+
             // Error
             if (state.error != null) ...[
               ErrorBanner(message: state.error!),
@@ -484,6 +498,19 @@ class _FormStep extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showRelatedPostPicker(BuildContext context, WidgetRef ref) {
+    final posts = ref.read(timelineProvider).posts;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => RelatedPostPicker(
+        posts: posts,
+        onSelected: (post) =>
+            ref.read(createPostProvider.notifier).selectRelatedPost(post),
       ),
     );
   }
@@ -723,6 +750,82 @@ class _ImportancePreview extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Displays the selected related post or a button to pick one.
+class _RelatedPostSection extends StatelessWidget {
+  final Post? selectedPost;
+  final List<Post> allPosts;
+  final VoidCallback onClear;
+  final VoidCallback onPickRequested;
+
+  const _RelatedPostSection({
+    required this.selectedPost,
+    required this.allPosts,
+    required this.onClear,
+    required this.onPickRequested,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (allPosts.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Related post', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        if (selectedPost != null)
+          Card(
+            child: ListTile(
+              leading: selectedPost!.trackColor != null
+                  ? Container(
+                      width: 4,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: parseHexColor(selectedPost!.trackColor),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    )
+                  : null,
+              title: Text(
+                selectedPost!.title ??
+                    selectedPost!.body?.substring(
+                      0,
+                      selectedPost!.body!.length.clamp(0, 40),
+                    ) ??
+                    selectedPost!.mediaType.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                selectedPost!.trackName ?? '',
+                style: theme.textTheme.labelSmall,
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                onPressed: onClear,
+              ),
+              dense: true,
+            ),
+          )
+        else
+          OutlinedButton.icon(
+            onPressed: onPickRequested,
+            icon: const Icon(Icons.link, size: 18),
+            label: const Text('Link to existing post'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: theme.colorScheme.onSurface.withAlpha(180),
+              side: BorderSide(
+                color: theme.colorScheme.outline.withAlpha(80),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

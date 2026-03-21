@@ -41,6 +41,29 @@ class ReactionCount {
   }
 }
 
+class PostConnection {
+  final String id;
+  final String sourceId;
+  final String targetId;
+  final String connectionType;
+
+  const PostConnection({
+    required this.id,
+    required this.sourceId,
+    required this.targetId,
+    required this.connectionType,
+  });
+
+  factory PostConnection.fromJson(Map<String, dynamic> json) {
+    return PostConnection(
+      id: json['id'] as String,
+      sourceId: json['sourceId'] as String,
+      targetId: json['targetId'] as String,
+      connectionType: json['connectionType'] as String,
+    );
+  }
+}
+
 class Post {
   final String id;
   final MediaType mediaType;
@@ -60,6 +83,8 @@ class Post {
   final String? trackColor;
   final List<ReactionCount> reactionCounts;
   final List<String> myReactions;
+  final List<PostConnection> outgoingConnections;
+  final List<PostConnection> incomingConnections;
 
   const Post({
     required this.id,
@@ -80,6 +105,8 @@ class Post {
     this.trackColor,
     this.reactionCounts = const [],
     this.myReactions = const [],
+    this.outgoingConnections = const [],
+    this.incomingConnections = const [],
   });
 
   Color get trackDisplayColor => parseHexColor(trackColor);
@@ -127,6 +154,20 @@ class Post {
       myReactions:
           (json['myReactions'] as List<dynamic>?)
               ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      outgoingConnections:
+          (json['outgoingConnections'] as List<dynamic>?)
+              ?.map(
+                (c) => PostConnection.fromJson(c as Map<String, dynamic>),
+              )
+              .toList() ??
+          const [],
+      incomingConnections:
+          (json['incomingConnections'] as List<dynamic>?)
+              ?.map(
+                (c) => PostConnection.fromJson(c as Map<String, dynamic>),
+              )
               .toList() ??
           const [],
     );
