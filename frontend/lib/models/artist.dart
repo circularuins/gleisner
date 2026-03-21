@@ -23,6 +23,18 @@ class Artist {
     required this.tracks,
   });
 
+  Artist withTrack(Track track) => Artist(
+    id: id,
+    artistUsername: artistUsername,
+    displayName: displayName,
+    bio: bio,
+    tagline: tagline,
+    avatarUrl: avatarUrl,
+    coverImageUrl: coverImageUrl,
+    tunedInCount: tunedInCount,
+    tracks: [...tracks, track],
+  );
+
   factory Artist.fromJson(Map<String, dynamic> json) {
     return Artist(
       id: json['id'] as String,

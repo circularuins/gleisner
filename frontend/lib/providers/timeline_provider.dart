@@ -1,11 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
 import '../graphql/queries/artist.dart';
+import '../graphql/mutations/track.dart';
 import '../graphql/queries/post.dart';
 import '../models/artist.dart';
 import '../models/post.dart';
+import '../models/track.dart';
 import '../utils/constellation_layout.dart';
 import '../utils/sentinel.dart';
 
@@ -16,6 +19,7 @@ class TimelineState {
   final bool isLoading;
   final String? error;
   final LayoutResult? layout;
+  final String? highlightPostId;
 
   const TimelineState({
     this.artist,
@@ -24,6 +28,7 @@ class TimelineState {
     this.isLoading = false,
     this.error,
     this.layout,
+    this.highlightPostId,
   });
 
   bool get allSelected =>
@@ -40,6 +45,7 @@ class TimelineState {
     bool? isLoading,
     Object? error = sentinel,
     Object? layout = sentinel,
+    Object? highlightPostId = sentinel,
   }) {
     return TimelineState(
       artist: artist == sentinel ? this.artist : artist as Artist?,
@@ -48,6 +54,9 @@ class TimelineState {
       isLoading: isLoading ?? this.isLoading,
       error: error == sentinel ? this.error : error as String?,
       layout: layout == sentinel ? this.layout : layout as LayoutResult?,
+      highlightPostId: highlightPostId == sentinel
+          ? this.highlightPostId
+          : highlightPostId as String?,
     );
   }
 }
@@ -57,6 +66,14 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
   double _lastWidth = 0;
 
   TimelineNotifier(this._client) : super(const TimelineState());
+
+  /// For testing only — set state directly.
+  @visibleForTesting
+  void debugSetState(TimelineState newState) => state = newState;
+
+  /// For testing only — add a track to state.
+  @visibleForTesting
+  void debugAddTrack(Track track) => _addTrackToState(track);
 
   Future<void> loadArtist(String username) async {
     state = state.copyWith(isLoading: true, error: null);
@@ -111,13 +128,62 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
     }
   }
 
-  /// Ensure a specific track is selected (used after creating a post).
-  Future<void> selectTrack(String trackId) async {
+  /// Create a new track via API and add it to local state.
+  /// Returns `(Track, null)` on success, `(null, errorMessage)` on failure.
+  Future<(Track?, String?)> createTrack(String name, String color) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(createTrackMutation),
+          variables: {'name': name, 'color': color},
+        ),
+      );
+
+      if (result.hasException) {
+        final message =
+            result.exception?.graphqlErrors.firstOrNull?.message ??
+            'Failed to create track';
+        return (null, message);
+      }
+
+      final data = result.data?['createTrack'] as Map<String, dynamic>?;
+      if (data == null) return (null, 'No data returned');
+
+      final track = Track.fromJson(data);
+      _addTrackToState(track);
+      return (track, null);
+    } catch (e) {
+      return (null, e.toString());
+    }
+  }
+
+  void _addTrackToState(Track track) {
+    final artist = state.artist;
+    if (artist == null) return;
+    final updatedArtist = artist.withTrack(track);
+    final ids = Set<String>.from(state.selectedTrackIds)..add(track.id);
+    state = state.copyWith(artist: updatedArtist, selectedTrackIds: ids);
+  }
+
+  /// Add a single post to local state (optimistic/post-creation update).
+  void addPost(Post post) {
+    final posts = [...state.posts, post];
+    state = state.copyWith(posts: posts, highlightPostId: post.id);
+    _recomputeLayout();
+    // Clear highlight after animation completes
+    Future.delayed(const Duration(milliseconds: 3000), () {
+      if (mounted && state.highlightPostId == post.id) {
+        state = state.copyWith(highlightPostId: null);
+      }
+    });
+  }
+
+  /// Add a track ID to selectedTrackIds without fetching (sync).
+  void ensureTrackSelected(String trackId) {
     final ids = Set<String>.from(state.selectedTrackIds);
     if (!ids.contains(trackId)) {
       ids.add(trackId);
-      state = state.copyWith(selectedTrackIds: ids, layout: null);
-      await _loadSelectedPosts();
+      state = state.copyWith(selectedTrackIds: ids);
     }
   }
 
@@ -191,11 +257,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
       final error = failedCount > 0
           ? 'Failed to load $failedCount of ${results.length} tracks'
           : null;
-      state = state.copyWith(
-        posts: allPosts,
-        isLoading: false,
-        error: error,
-      );
+      state = state.copyWith(posts: allPosts, isLoading: false, error: error);
       _recomputeLayout();
     } catch (e) {
       if (!mounted) return;

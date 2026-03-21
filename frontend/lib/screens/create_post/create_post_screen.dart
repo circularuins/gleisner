@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/post.dart';
-import '../../models/track.dart';
+import '../../models/track.dart' show Track, parseHexColor;
 import '../../providers/create_post_provider.dart';
 import '../../providers/timeline_provider.dart';
+import '../../utils/constellation_layout.dart';
 import '../../widgets/common/error_banner.dart';
+import '../../widgets/timeline/seed_art_painter.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key});
@@ -32,7 +34,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final postedTrack = await ref
+    final result = await ref
         .read(createPostProvider.notifier)
         .submit(
           title: _titleController.text.isEmpty ? null : _titleController.text,
@@ -42,9 +44,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               : _mediaUrlController.text,
         );
 
-    if (postedTrack != null && mounted) {
-      // Switch timeline to the track we just posted to, then navigate
-      await ref.read(timelineProvider.notifier).selectTrack(postedTrack.id);
+    if (result != null && mounted) {
+      final (postedTrack, post) = result;
+      final notifier = ref.read(timelineProvider.notifier);
+      notifier.ensureTrackSelected(postedTrack.id);
+      notifier.addPost(post);
       if (mounted) context.go('/timeline');
     }
   }
@@ -99,6 +103,22 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 }
 
+// Preset colors for auto-assignment (avoids duplicates with existing tracks)
+const _trackColorPresets = [
+  '#f97316', // orange
+  '#a78bfa', // purple
+  '#22d3ee', // cyan
+  '#84cc16', // lime
+  '#ef4444', // red
+  '#fbbf24', // amber
+  '#ec4899', // pink
+  '#14b8a6', // teal
+  '#8b5cf6', // violet
+  '#f43f5e', // rose
+];
+
+const _maxTracks = 10;
+
 // Step 0 — Track selection
 class _TrackStep extends ConsumerWidget {
   final List<Track> tracks;
@@ -108,43 +128,179 @@ class _TrackStep extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final canAddTrack = tracks.length < _maxTracks;
 
-    if (tracks.isEmpty) {
-      return Center(
-        child: Text(
-          'No tracks available',
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.onSurface.withAlpha(128),
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Select a track', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: tracks.map((track) {
-              return ActionChip(
-                label: Text(track.name),
-                avatar: CircleAvatar(
-                  backgroundColor: track.displayColor,
-                  radius: 8,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Select a track', style: theme.textTheme.headlineSmall),
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: [
+                ...tracks.map((track) {
+                  return ActionChip(
+                    label: Text(
+                      track.name,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    avatar: CircleAvatar(
+                      backgroundColor: track.displayColor,
+                      radius: 10,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    side: BorderSide(color: track.displayColor),
+                    onPressed: () => ref
+                        .read(createPostProvider.notifier)
+                        .selectTrack(track),
+                  );
+                }),
+                if (canAddTrack)
+                  ActionChip(
+                    label: const Text(
+                      '+ New Track',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    side: BorderSide(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                    ),
+                    onPressed: () => _showCreateTrackDialog(context, ref),
+                  ),
+              ],
+            ),
+            if (!canAddTrack)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  'Maximum $_maxTracks tracks',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withAlpha(100),
+                  ),
                 ),
-                side: BorderSide(color: track.displayColor),
-                onPressed: () =>
-                    ref.read(createPostProvider.notifier).selectTrack(track),
-              );
-            }).toList(),
-          ),
-        ],
+              ),
+          ],
+        ),
       ),
+    );
+  }
+
+  void _showCreateTrackDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController();
+    final existingColors = tracks.map((t) => t.color.toLowerCase()).toSet();
+    final autoColor = _trackColorPresets.firstWhere(
+      (c) => !existingColors.contains(c),
+      orElse: () =>
+          _trackColorPresets[tracks.length % _trackColorPresets.length],
+    );
+    final notifier = ref.read(timelineProvider.notifier);
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        var isCreating = false;
+        String? errorText;
+
+        Future<void> submit(StateSetter setDialogState) async {
+          final name = controller.text.trim();
+          if (name.isEmpty) {
+            setDialogState(() => errorText = 'Track name is required');
+            return;
+          }
+          if (tracks.any((t) => t.name.toLowerCase() == name.toLowerCase())) {
+            setDialogState(() => errorText = 'Track "$name" already exists');
+            return;
+          }
+
+          setDialogState(() {
+            isCreating = true;
+            errorText = null;
+          });
+
+          final (track, error) = await notifier.createTrack(name, autoColor);
+          if (track != null) {
+            if (dialogContext.mounted) Navigator.pop(dialogContext);
+          } else {
+            if (dialogContext.mounted) {
+              setDialogState(() {
+                isCreating = false;
+                errorText = error ?? 'Failed to create track';
+              });
+            }
+          }
+        }
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('New Track'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    maxLength: 30,
+                    decoration: InputDecoration(
+                      labelText: 'Track name',
+                      border: const OutlineInputBorder(),
+                      errorText: errorText,
+                    ),
+                    onSubmitted: isCreating
+                        ? null
+                        : (_) => submit(setDialogState),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: parseHexColor(autoColor),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Color: auto-assigned',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: isCreating ? null : () => submit(setDialogState),
+                  child: isCreating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Create'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -165,37 +321,43 @@ class _MediaTypeStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Content type', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: _mediaTypeOptions.map((option) {
-              final (type, icon, label) = option;
-              return SizedBox(
-                width: 80,
-                child: Column(
-                  children: [
-                    IconButton.filledTonal(
-                      iconSize: 32,
-                      onPressed: () => ref
-                          .read(createPostProvider.notifier)
-                          .selectMediaType(type),
-                      icon: Icon(icon),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(label, style: theme.textTheme.labelSmall),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Content type', style: theme.textTheme.headlineSmall),
+            const SizedBox(height: 32),
+            Wrap(
+              spacing: 20,
+              runSpacing: 16,
+              alignment: WrapAlignment.center,
+              children: _mediaTypeOptions.map((option) {
+                final (type, icon, label) = option;
+                return SizedBox(
+                  width: 88,
+                  child: Column(
+                    children: [
+                      IconButton.filledTonal(
+                        iconSize: 40,
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size(64, 64),
+                        ),
+                        onPressed: () => ref
+                            .read(createPostProvider.notifier)
+                            .selectMediaType(type),
+                        icon: Icon(icon),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(label, style: theme.textTheme.labelMedium),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -319,7 +481,7 @@ class _FormStep extends ConsumerWidget {
               const SizedBox(height: 16),
             ],
 
-            // Importance slider
+            // Importance slider + node preview
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -348,6 +510,15 @@ class _FormStep extends ConsumerWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                _ImportancePreview(
+                  importance: state.importance,
+                  trackColor:
+                      state.selectedTrack?.displayColor ??
+                      theme.colorScheme.primary,
+                  title: titleController.text,
+                  trackName: state.selectedTrack?.name ?? '',
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -368,6 +539,95 @@ class _FormStep extends ConsumerWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Post'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Live preview of node size as importance slider changes.
+class _ImportancePreview extends StatelessWidget {
+  final double importance;
+  final Color trackColor;
+  final String title;
+  final String trackName;
+
+  const _ImportancePreview({
+    required this.importance,
+    required this.trackColor,
+    required this.title,
+    required this.trackName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sz = ConstellationLayout.nodeSize(importance);
+    final mediaH = sz > 110 ? sz * 0.7 : sz * 0.85;
+    final w = sz > 110 ? sz * 1.25 : sz;
+    final glowOpacity = 0.15 + importance * 0.25;
+    final glowBlur = 8.0 + importance * 16;
+
+    final seed = '${title}preview';
+
+    return Center(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: w,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: trackColor.withValues(alpha: glowOpacity),
+              blurRadius: glowBlur,
+              spreadRadius: 4.0 + importance * 12,
+            ),
+          ],
+          border: Border.all(color: trackColor.withValues(alpha: 0.3)),
+          color: const Color(0xFF0c0c12),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SeedArtCanvas(
+              width: w,
+              height: mediaH,
+              trackColor: trackColor,
+              seed: seed,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    trackName.toUpperCase(),
+                    style: TextStyle(
+                      color: trackColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (title.isNotEmpty)
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Color(0xFFeeeeee),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
             ),
           ],
         ),
