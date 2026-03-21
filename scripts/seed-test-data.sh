@@ -164,4 +164,20 @@ FROM src WHERE posts.id = src.id;
 "
 
 echo "==> Dates spread across 2 weeks"
+
+# 8. Add reactions to some posts
+EMOJIS=("🔥" "❤️" "👏" "✨" "😍" "🎵" "💪" "🎸")
+i=0
+for PID in $(docker exec gleisner-db psql -U gleisner -d gleisner -t -c \
+  "SELECT id FROM posts WHERE author_id = (SELECT id FROM users WHERE username = '$USERNAME') LIMIT 12;" \
+  | tr -d ' ' | grep -v '^$'); do
+  for j in $(seq 0 $((i % 3))); do
+    E="${EMOJIS[$(( (i + j) % 8 ))]}"
+    curl -s "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
+      -d "{\"query\":\"mutation { toggleReaction(postId:\\\"$PID\\\", emoji:\\\"$E\\\") { id } }\"}" > /dev/null 2>&1
+  done
+  i=$((i+1))
+done
+echo "==> Reactions added to $i posts"
+
 echo "==> Done! Login: $EMAIL / $PASSWORD"
