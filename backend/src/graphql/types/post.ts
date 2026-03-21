@@ -168,7 +168,10 @@ builder.mutationFields((t) => ({
       }
 
       // Validate duration
-      if (args.duration != null && (args.duration < 0 || args.duration > 86400)) {
+      if (
+        args.duration != null &&
+        (args.duration < 0 || args.duration > 86400)
+      ) {
         throw new GraphQLError("Duration must be between 0 and 86400 seconds");
       }
 
@@ -275,7 +278,10 @@ builder.mutationFields((t) => ({
       }
 
       // Validate duration
-      if (args.duration != null && (args.duration < 0 || args.duration > 86400)) {
+      if (
+        args.duration != null &&
+        (args.duration < 0 || args.duration > 86400)
+      ) {
         throw new GraphQLError("Duration must be between 0 and 86400 seconds");
       }
 
@@ -336,8 +342,7 @@ builder.mutationFields((t) => ({
           mediaType: args.mediaType != null ? args.mediaType : post.mediaType,
           importance:
             args.importance != null ? args.importance : post.importance,
-          duration:
-            args.duration !== undefined ? args.duration : post.duration,
+          duration: args.duration !== undefined ? args.duration : post.duration,
         });
 
         // Verify signature before committing any hash/signature to updateData
