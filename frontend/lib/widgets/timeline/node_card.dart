@@ -413,42 +413,69 @@ class _AudioContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final post = node.post;
+    final hasBody = post.body != null && post.body!.isNotEmpty;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      child: Row(
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          // Play button
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: trackColor.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.play_arrow_rounded, color: trackColor, size: 18),
+          // Wave bars as background
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: trackColor.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.play_arrow_rounded,
+                  color: trackColor,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: CustomPaint(
+                  size: Size(double.infinity, node.mediaHeight * 0.5),
+                  painter: _WaveBarPainter(
+                    color: trackColor.withValues(alpha: hasBody ? 0.25 : 0.5),
+                    seed: '${post.title ?? ''}${post.id}',
+                  ),
+                ),
+              ),
+              if (post.formattedDuration != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  post.formattedDuration!,
+                  style: TextStyle(
+                    color: trackColor.withValues(alpha: 0.7),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(width: 6),
-          // Wave bars
-          Expanded(
-            child: CustomPaint(
-              size: Size(double.infinity, node.mediaHeight * 0.5),
-              painter: _WaveBarPainter(
-                color: trackColor,
-                seed: '${post.title ?? ''}${post.id}',
+          // Body text overlay on top of wave
+          if (hasBody)
+            Positioned(
+              left: 38,
+              right: post.formattedDuration != null ? 36 : 10,
+              child: Text(
+                post.body!,
+                style: const TextStyle(
+                  color: Color(0xFFeeeeee),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  height: 1.3,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-          if (post.formattedDuration != null) ...[
-            const SizedBox(width: 6),
-            Text(
-              post.formattedDuration!,
-              style: TextStyle(
-                color: trackColor.withValues(alpha: 0.7),
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
         ],
       ),
     );
