@@ -13,19 +13,30 @@ void showPostDetailSheet(
   BuildContext context,
   Post post, {
   GraphQLClient? client,
+  void Function(String postId, List<ReactionCount> counts)? onReactionsChanged,
 }) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _PostDetailSheet(post: post, client: client),
+    builder: (_) => _PostDetailSheet(
+      post: post,
+      client: client,
+      onReactionsChanged: onReactionsChanged,
+    ),
   );
 }
 
 class _PostDetailSheet extends StatefulWidget {
   final Post post;
   final GraphQLClient? client;
-  const _PostDetailSheet({required this.post, this.client});
+  final void Function(String postId, List<ReactionCount> counts)?
+  onReactionsChanged;
+  const _PostDetailSheet({
+    required this.post,
+    this.client,
+    this.onReactionsChanged,
+  });
 
   @override
   State<_PostDetailSheet> createState() => _PostDetailSheetState();
@@ -69,6 +80,10 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
             _updateCount(emoji, 1);
           }
         });
+        widget.onReactionsChanged?.call(
+          widget.post.id,
+          List.from(_reactionCounts),
+        );
       }
     } finally {
       if (mounted) setState(() => _isToggling = false);

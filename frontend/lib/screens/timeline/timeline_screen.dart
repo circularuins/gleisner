@@ -240,7 +240,15 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         .read(timelineProvider)
         .posts
         .firstWhere((p) => p.id == postId);
-    showPostDetailSheet(context, post);
+    final client = ref.read(graphqlClientProvider);
+    showPostDetailSheet(
+      context,
+      post,
+      client: client,
+      onReactionsChanged: (id, counts) {
+        ref.read(timelineProvider.notifier).updatePostReactions(id, counts);
+      },
+    );
   }
 
   /// Check if a node is not occluded by any node rendered after it.

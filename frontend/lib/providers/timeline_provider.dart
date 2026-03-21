@@ -166,6 +166,36 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
   }
 
   /// Add a single post to local state (optimistic/post-creation update).
+  /// Update reaction counts for a post (called from detail sheet).
+  void updatePostReactions(String postId, List<ReactionCount> counts) {
+    final posts = state.posts.map((p) {
+      if (p.id == postId) {
+        return Post(
+          id: p.id,
+          mediaType: p.mediaType,
+          title: p.title,
+          body: p.body,
+          mediaUrl: p.mediaUrl,
+          duration: p.duration,
+          importance: p.importance,
+          layoutX: p.layoutX,
+          layoutY: p.layoutY,
+          contentHash: p.contentHash,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+          author: p.author,
+          trackId: p.trackId,
+          trackName: p.trackName,
+          trackColor: p.trackColor,
+          reactionCounts: counts,
+        );
+      }
+      return p;
+    }).toList();
+    state = state.copyWith(posts: posts);
+    _recomputeLayout();
+  }
+
   void addPost(Post post) {
     final posts = [...state.posts, post];
     state = state.copyWith(posts: posts, highlightPostId: post.id);
