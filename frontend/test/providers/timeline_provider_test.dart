@@ -153,7 +153,7 @@ void main() {
       expect(notifier.state.selectedTrackIds, contains('t-new'));
     });
 
-    test('ensureTrackSelected is idempotent', () {
+    test('ensureTrackSelected is idempotent from empty state', () {
       final notifier = TimelineNotifier(_clientWith());
 
       notifier.ensureTrackSelected('t1');
@@ -164,6 +164,19 @@ void main() {
         notifier.state.selectedTrackIds.where((id) => id == 't1').length,
         1,
       );
+    });
+
+    test('ensureTrackSelected is idempotent with existing tracks', () {
+      final notifier = TimelineNotifier(_clientWith());
+      notifier.debugSetState(
+        notifier.state.copyWith(selectedTrackIds: {'t0', 't1'}),
+      );
+
+      notifier.ensureTrackSelected('t1');
+      notifier.ensureTrackSelected('t2');
+      notifier.ensureTrackSelected('t2');
+
+      expect(notifier.state.selectedTrackIds, {'t0', 't1', 't2'});
     });
   });
 }
