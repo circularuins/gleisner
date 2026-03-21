@@ -51,6 +51,7 @@ export const PostType = builder.objectRef<{
   title: string | null;
   body: string | null;
   mediaUrl: string | null;
+  duration: number | null;
   importance: number;
   contentHash: string | null;
   signature: string | null;
@@ -70,6 +71,7 @@ PostType.implement({
     title: t.exposeString("title", { nullable: true }),
     body: t.exposeString("body", { nullable: true }),
     mediaUrl: t.exposeString("mediaUrl", { nullable: true }),
+    duration: t.exposeInt("duration", { nullable: true }),
     importance: t.exposeFloat("importance"),
     contentHash: t.exposeString("contentHash", { nullable: true }),
     signature: t.exposeString("signature", { nullable: true }),
@@ -116,6 +118,7 @@ builder.mutationFields((t) => ({
       title: t.arg.string(),
       body: t.arg.string(),
       mediaUrl: t.arg.string(),
+      duration: t.arg.int(),
       importance: t.arg.float(),
       layoutX: t.arg.int(),
       layoutY: t.arg.int(),
@@ -164,6 +167,11 @@ builder.mutationFields((t) => ({
         validateUrl(args.mediaUrl);
       }
 
+      // Validate duration
+      if (args.duration != null && args.duration < 0) {
+        throw new GraphQLError("Duration must be non-negative");
+      }
+
       // Validate importance
       if (
         args.importance != null &&
@@ -205,6 +213,7 @@ builder.mutationFields((t) => ({
           title: args.title ?? null,
           body: args.body ?? null,
           mediaUrl: args.mediaUrl ?? null,
+          duration: args.duration ?? null,
           contentHash,
           signature: signatureValue,
           ...(args.importance != null ? { importance: args.importance } : {}),
@@ -225,6 +234,7 @@ builder.mutationFields((t) => ({
       title: t.arg.string(),
       body: t.arg.string(),
       mediaUrl: t.arg.string(),
+      duration: t.arg.int(),
       importance: t.arg.float(),
       layoutX: t.arg.int(),
       layoutY: t.arg.int(),
@@ -263,6 +273,11 @@ builder.mutationFields((t) => ({
         validateUrl(args.mediaUrl);
       }
 
+      // Validate duration
+      if (args.duration != null && args.duration < 0) {
+        throw new GraphQLError("Duration must be non-negative");
+      }
+
       // Validate importance
       if (
         args.importance != null &&
@@ -276,6 +291,7 @@ builder.mutationFields((t) => ({
       if (args.title !== undefined) updateData.title = args.title;
       if (args.body !== undefined) updateData.body = args.body;
       if (args.mediaUrl !== undefined) updateData.mediaUrl = args.mediaUrl;
+      if (args.duration !== undefined) updateData.duration = args.duration;
       if (args.importance !== undefined)
         updateData.importance = args.importance;
       if (args.layoutX !== undefined) updateData.layoutX = args.layoutX;

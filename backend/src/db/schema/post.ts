@@ -31,6 +31,7 @@ export const posts = pgTable("posts", {
   title: varchar("title", { length: 100 }),
   body: text("body"),
   mediaUrl: text("media_url"),
+  duration: integer("duration"),
   importance: real("importance").default(0.5).notNull(),
   contentHash: varchar("content_hash", { length: 64 }),
   signature: text("signature"),

@@ -33,6 +33,7 @@ class Post {
   final String? title;
   final String? body;
   final String? mediaUrl;
+  final int? duration;
   final double importance;
   final double? layoutX;
   final double? layoutY;
@@ -50,6 +51,7 @@ class Post {
     this.title,
     this.body,
     this.mediaUrl,
+    this.duration,
     required this.importance,
     this.layoutX,
     this.layoutY,
@@ -64,6 +66,19 @@ class Post {
 
   Color get trackDisplayColor => parseHexColor(trackColor);
 
+  /// Format duration as "m:ss" or "h:mm:ss". Returns null if no duration.
+  String? get formattedDuration {
+    if (duration == null) return null;
+    final d = duration!;
+    final h = d ~/ 3600;
+    final m = (d % 3600) ~/ 60;
+    final s = d % 60;
+    if (h > 0) {
+      return '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    }
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
   factory Post.fromJson(Map<String, dynamic> json) {
     final track = json['track'] as Map<String, dynamic>?;
     return Post(
@@ -72,6 +87,7 @@ class Post {
       title: json['title'] as String?,
       body: json['body'] as String?,
       mediaUrl: json['mediaUrl'] as String?,
+      duration: (json['duration'] as num?)?.toInt(),
       importance: (json['importance'] as num).toDouble(),
       layoutX: (json['layoutX'] as num?)?.toDouble(),
       layoutY: (json['layoutY'] as num?)?.toDouble(),
