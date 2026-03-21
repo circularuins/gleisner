@@ -1,26 +1,98 @@
 import 'package:flutter/material.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
 
+import '../../graphql/mutations/reaction.dart';
 import '../../models/post.dart';
 import '../../utils/date_format.dart';
 import 'seed_art_painter.dart';
 
+const _reactionPresets = ['🔥', '❤️', '👏', '✨', '😍', '🎵', '💪', '🎸'];
+
 /// Show the post detail bottom sheet.
-void showPostDetailSheet(BuildContext context, Post post) {
+void showPostDetailSheet(
+  BuildContext context,
+  Post post, {
+  GraphQLClient? client,
+}) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _PostDetailSheet(post: post),
+    builder: (_) => _PostDetailSheet(post: post, client: client),
   );
 }
 
-class _PostDetailSheet extends StatelessWidget {
+class _PostDetailSheet extends StatefulWidget {
   final Post post;
+  final GraphQLClient? client;
+  const _PostDetailSheet({required this.post, this.client});
 
-  const _PostDetailSheet({required this.post});
+  @override
+  State<_PostDetailSheet> createState() => _PostDetailSheetState();
+}
+
+class _PostDetailSheetState extends State<_PostDetailSheet> {
+  late List<ReactionCount> _reactionCounts;
+  final Set<String> _myReactions = {};
+  bool _isToggling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _reactionCounts = List.from(widget.post.reactionCounts);
+  }
+
+  Future<void> _toggleReaction(String emoji) async {
+    if (_isToggling) return;
+    setState(() => _isToggling = true);
+
+    try {
+      final client = widget.client;
+      if (client == null) return;
+      final result = await client.mutate(
+        MutationOptions(
+          document: gql(toggleReactionMutation),
+          variables: {'postId': widget.post.id, 'emoji': emoji},
+        ),
+      );
+
+      if (!mounted) return;
+
+      if (!result.hasException) {
+        final wasActive = _myReactions.contains(emoji);
+        setState(() {
+          if (wasActive) {
+            _myReactions.remove(emoji);
+            _updateCount(emoji, -1);
+          } else {
+            _myReactions.add(emoji);
+            _updateCount(emoji, 1);
+          }
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isToggling = false);
+    }
+  }
+
+  void _updateCount(String emoji, int delta) {
+    final idx = _reactionCounts.indexWhere((r) => r.emoji == emoji);
+    if (idx >= 0) {
+      final newCount = _reactionCounts[idx].count + delta;
+      if (newCount <= 0) {
+        _reactionCounts.removeAt(idx);
+      } else {
+        _reactionCounts[idx] = ReactionCount(emoji: emoji, count: newCount);
+      }
+    } else if (delta > 0) {
+      _reactionCounts.add(ReactionCount(emoji: emoji, count: 1));
+    }
+    _reactionCounts.sort((a, b) => b.count.compareTo(a.count));
+  }
 
   @override
   Widget build(BuildContext context) {
+    final post = widget.post;
     final trackColor = post.trackDisplayColor;
     final seedString = '${post.title ?? ''}${post.createdAt.toIso8601String()}';
 
@@ -40,7 +112,6 @@ class _PostDetailSheet extends StatelessWidget {
             controller: scrollController,
             padding: EdgeInsets.zero,
             children: [
-              // Drag handle
               Center(
                 child: Container(
                   margin: const EdgeInsets.only(top: 8, bottom: 4),
@@ -52,9 +123,7 @@ class _PostDetailSheet extends StatelessWidget {
                   ),
                 ),
               ),
-              // Media area — type-specific
               _buildMediaArea(context, post, trackColor, seedString),
-              // Body
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -91,24 +160,10 @@ class _PostDetailSheet extends StatelessWidget {
                     const SizedBox(height: 20),
                     const Divider(color: Color(0xFF1a1a28), height: 1),
                     const SizedBox(height: 16),
-                    // Reactions placeholder
-                    const Text(
-                      'Reactions',
-                      style: TextStyle(
-                        color: Color(0xFF444460),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Coming soon',
-                      style: TextStyle(color: Color(0xFF333350), fontSize: 12),
-                    ),
+                    _buildReactionsSection(trackColor),
                     const SizedBox(height: 16),
                     const Divider(color: Color(0xFF1a1a28), height: 1),
                     const SizedBox(height: 16),
-                    // Comments placeholder
                     const Text(
                       'Comments',
                       style: TextStyle(
@@ -133,6 +188,99 @@ class _PostDetailSheet extends StatelessWidget {
     );
   }
 
+  Widget _buildReactionsSection(Color trackColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Reactions',
+          style: TextStyle(
+            color: Color(0xFF444460),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (_reactionCounts.isNotEmpty) ...[
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _reactionCounts.map((r) {
+              final isActive = _myReactions.contains(r.emoji);
+              return GestureDetector(
+                onTap: () => _toggleReaction(r.emoji),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? trackColor.withValues(alpha: 0.15)
+                        : const Color(0xFF151520),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isActive
+                          ? trackColor.withValues(alpha: 0.4)
+                          : const Color(0xFF1a1a28),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(r.emoji, style: const TextStyle(fontSize: 16)),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${r.count}',
+                        style: TextStyle(
+                          color: isActive
+                              ? trackColor
+                              : const Color(0xFF8888a0),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+        ],
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: _reactionPresets.map((emoji) {
+            final isActive = _myReactions.contains(emoji);
+            return GestureDetector(
+              onTap: () => _toggleReaction(emoji),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? trackColor.withValues(alpha: 0.15)
+                      : const Color(0xFF0c0c12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isActive
+                        ? trackColor.withValues(alpha: 0.4)
+                        : const Color(0xFF1a1a28),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(emoji, style: const TextStyle(fontSize: 18)),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  // --- Media area methods ---
+
   Widget _buildMediaArea(
     BuildContext context,
     Post post,
@@ -140,7 +288,6 @@ class _PostDetailSheet extends StatelessWidget {
     String seedString,
   ) {
     final width = MediaQuery.of(context).size.width;
-
     return switch (post.mediaType) {
       MediaType.text => _textMediaArea(post, trackColor),
       MediaType.image => _visualMediaArea(post, trackColor, seedString, width),
@@ -150,7 +297,6 @@ class _PostDetailSheet extends StatelessWidget {
     };
   }
 
-  // Text: gradient background with body excerpt
   Widget _textMediaArea(Post post, Color trackColor) {
     return Container(
       height: 160,
@@ -188,7 +334,6 @@ class _PostDetailSheet extends StatelessWidget {
     );
   }
 
-  // Image/Video shared: seed art + overlays
   Widget _visualMediaArea(
     Post post,
     Color trackColor,
@@ -224,7 +369,6 @@ class _PostDetailSheet extends StatelessWidget {
           trackColor: trackColor,
           seed: seedString,
         ),
-        // Play button
         Container(
           width: 52,
           height: 52,
@@ -240,7 +384,6 @@ class _PostDetailSheet extends StatelessWidget {
         ),
         _trackTag(post, trackColor, positioned: true),
         _typeBadge(post),
-        // Duration
         if (post.formattedDuration != null)
           Positioned(
             right: 12,
@@ -265,7 +408,6 @@ class _PostDetailSheet extends StatelessWidget {
     );
   }
 
-  // Audio: wave + play button
   Widget _audioMediaArea(Post post, Color trackColor) {
     return Container(
       height: 120,
@@ -314,12 +456,10 @@ class _PostDetailSheet extends StatelessWidget {
     );
   }
 
-  // Link: icon + URL
   Widget _linkMediaArea(Post post, Color trackColor) {
     final domain = post.mediaUrl != null
         ? Uri.tryParse(post.mediaUrl!)?.host ?? ''
         : '';
-
     return Container(
       height: 120,
       padding: const EdgeInsets.all(16),
@@ -369,7 +509,6 @@ class _PostDetailSheet extends StatelessWidget {
     );
   }
 
-  // Shared: track tag
   Widget _trackTag(Post post, Color trackColor, {bool positioned = false}) {
     final tag = post.trackName != null
         ? Container(
@@ -389,14 +528,10 @@ class _PostDetailSheet extends StatelessWidget {
             ),
           )
         : const SizedBox.shrink();
-
-    if (positioned) {
-      return Positioned(top: 12, left: 12, child: tag);
-    }
+    if (positioned) return Positioned(top: 12, left: 12, child: tag);
     return tag;
   }
 
-  // Shared: media type badge
   Widget _typeBadge(Post post) {
     return Positioned(
       top: 12,
@@ -422,9 +557,9 @@ class _PostDetailSheet extends StatelessWidget {
   }
 
   String _buildMetaLine() {
-    final local = post.createdAt.toLocal();
+    final local = widget.post.createdAt.toLocal();
     final date = formatRelativeDate(local);
-    final parts = <String>[date, post.mediaType.name.toUpperCase()];
+    final parts = <String>[date, widget.post.mediaType.name.toUpperCase()];
     return parts.join(' · ');
   }
 }
