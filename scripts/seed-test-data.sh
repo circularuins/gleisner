@@ -11,13 +11,13 @@ USERNAME="seeduser"
 echo "==> Seeding test data at $API"
 
 # 1. Signup (ignore error if user exists)
-TOKEN=$(curl -sf "$API" -X POST -H 'Content-Type: application/json' \
+TOKEN=$(curl -s "$API" -X POST -H 'Content-Type: application/json' \
   -d "{\"query\":\"mutation { signup(email:\\\"$EMAIL\\\", password:\\\"$PASSWORD\\\", username:\\\"$USERNAME\\\") { token } }\"}" \
   | python3 -c "import json,sys; print(json.load(sys.stdin)['data']['signup']['token'])" 2>/dev/null || true)
 
 # 2. Login (if signup failed, user already exists)
 if [ -z "$TOKEN" ]; then
-  TOKEN=$(curl -sf "$API" -X POST -H 'Content-Type: application/json' \
+  TOKEN=$(curl -s "$API" -X POST -H 'Content-Type: application/json' \
     -d "{\"query\":\"mutation { login(email:\\\"$EMAIL\\\", password:\\\"$PASSWORD\\\") { token } }\"}" \
     | python3 -c "import json,sys; print(json.load(sys.stdin)['data']['login']['token'])")
 fi
@@ -26,23 +26,29 @@ AUTH="Authorization: Bearer $TOKEN"
 echo "==> Logged in as $USERNAME"
 
 # 3. Register artist (ignore error if exists)
-curl -sf "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
+curl -s "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
   -d '{"query":"mutation { registerArtist(artistUsername:\"seeduser\", displayName:\"Seed Artist\") { id } }"}' > /dev/null 2>&1 || true
 
 # 4. Create tracks
 COLORS=("#f97316" "#a78bfa" "#22d3ee" "#84cc16" "#ef4444" "#fbbf24")
 NAMES=("Play" "Compose" "Life" "English" "Live" "Studio")
 for i in 0 1 2 3 4 5; do
-  curl -sf "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
+  curl -s "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
     -d "{\"query\":\"mutation { createTrack(name:\\\"${NAMES[$i]}\\\", color:\\\"${COLORS[$i]}\\\") { id } }\"}" > /dev/null 2>&1 || true
 done
 echo "==> Tracks created"
 
-# 5. Get track IDs
+# 5. Get track IDs (single query, parse all at once)
+TRACKS_JSON=$(curl -s "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
+  -d '{"query":"{ artist(username:\"seeduser\") { tracks { id name } } }"}')
+
 get_track_id() {
-  curl -sf "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
-    -d '{"query":"{ artist(username:\"seeduser\") { tracks { id name } } }"}' \
-    | python3 -c "import json,sys; ts=json.load(sys.stdin)['data']['artist']['tracks']; print([t['id'] for t in ts if t['name']=='$1'][0])"
+  echo "$TRACKS_JSON" | python3 -c "
+import json, sys
+ts = json.load(sys.stdin)['data']['artist']['tracks']
+matches = [t['id'] for t in ts if t['name'] == '$1']
+print(matches[0] if matches else '')
+"
 }
 
 PLAY=$(get_track_id Play)
@@ -52,13 +58,15 @@ ENGLISH=$(get_track_id English)
 LIVE=$(get_track_id Live)
 STUDIO=$(get_track_id Studio)
 
+echo "==> Track IDs: Play=$PLAY Compose=$COMPOSE Life=$LIFE English=$ENGLISH Live=$LIVE Studio=$STUDIO"
+
 # 6. Create posts: track_id title importance mediaType [duration] [mediaUrl]
 create_post() {
   local TID="$1" TITLE="$2" IMP="$3" MTYPE="$4" DUR="${5:-}" URL="${6:-}"
   local EXTRA=""
   [ -n "$DUR" ] && EXTRA="$EXTRA, duration:$DUR"
   [ -n "$URL" ] && EXTRA="$EXTRA, mediaUrl:\"$URL\""
-  curl -sf "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
+  curl -s "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
     -d "{\"query\":\"mutation { createPost(trackId:\\\"$TID\\\", title:\\\"$TITLE\\\", body:\\\"Test content for $TITLE\\\", mediaType:$MTYPE, importance:$IMP$EXTRA) { id } }\"}" > /dev/null
   sleep 0.3
 }
@@ -116,7 +124,7 @@ WITH src AS (
   WHERE author_id = (SELECT id FROM users WHERE username = '$USERNAME')
 )
 UPDATE posts SET created_at = now() - (
-  CASE title
+  CASE src.title
     WHEN 'Flamenco-session' THEN interval '2 hours'
     WHEN 'Chord-melody-practice' THEN interval '8 hours'
     WHEN 'Blues-scale-workout' THEN interval '1 day 6 hours'

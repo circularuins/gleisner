@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../graphql/client.dart';
+import '../../models/post.dart';
 import '../../models/track.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/timeline_provider.dart';
@@ -205,6 +206,46 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           highlight: node.post.id == highlightPostId,
           focused: isFocused,
           onTap: () => _handleNodeTap(node.post.id),
+          onToggleReaction: (postId, emoji) async {
+            final notifier = ref.read(timelineProvider.notifier);
+            final success = await notifier.toggleReaction(postId, emoji);
+            if (success) {
+              // Optimistic update: toggle myReactions + counts locally
+              final post = ref
+                  .read(timelineProvider)
+                  .posts
+                  .firstWhere((p) => p.id == postId);
+              final myR = List<String>.from(post.myReactions);
+              final counts = List<ReactionCount>.from(post.reactionCounts);
+              if (myR.contains(emoji)) {
+                myR.remove(emoji);
+                final idx = counts.indexWhere((c) => c.emoji == emoji);
+                if (idx >= 0) {
+                  final n = counts[idx].count - 1;
+                  if (n <= 0) {
+                    counts.removeAt(idx);
+                  } else {
+                    counts[idx] = ReactionCount(emoji: emoji, count: n);
+                  }
+                }
+              } else {
+                myR.add(emoji);
+                final idx = counts.indexWhere((c) => c.emoji == emoji);
+                if (idx >= 0) {
+                  counts[idx] = ReactionCount(
+                    emoji: emoji,
+                    count: counts[idx].count + 1,
+                  );
+                } else {
+                  counts.add(ReactionCount(emoji: emoji, count: 1));
+                }
+              }
+              counts.sort((a, b) => b.count.compareTo(a.count));
+              notifier.updatePostReactions(postId, counts, myR);
+            }
+            return success;
+          },
+          onOpenDetail: () => _openDetailSheet(node.post.id),
         ),
       );
 

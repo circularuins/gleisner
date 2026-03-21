@@ -30,6 +30,8 @@ class NodeCard extends StatefulWidget {
   final bool highlight;
   final bool focused;
   final VoidCallback? onTap;
+  final Future<bool> Function(String postId, String emoji)? onToggleReaction;
+  final VoidCallback? onOpenDetail;
 
   const NodeCard({
     super.key,
@@ -38,6 +40,8 @@ class NodeCard extends StatefulWidget {
     this.highlight = false,
     this.focused = false,
     this.onTap,
+    this.onToggleReaction,
+    this.onOpenDetail,
   });
 
   @override
@@ -125,6 +129,7 @@ class _NodeCardState extends State<NodeCard>
 
     // Wrap with reaction pills if present
     final reactions = post.reactionCounts;
+    final myReactions = post.myReactions.toSet();
     if (reactions.isNotEmpty) {
       card = Column(
         mainAxisSize: MainAxisSize.min,
@@ -137,47 +142,62 @@ class _NodeCardState extends State<NodeCard>
             runSpacing: 2,
             children: [
               ...reactions.take(3).map((r) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF151520),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF1a1a28)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(r.emoji, style: const TextStyle(fontSize: 10)),
-                      const SizedBox(width: 2),
-                      Text(
-                        r.count >= 1000
-                            ? '${(r.count / 1000).toStringAsFixed(1)}k'
-                            : '${r.count}',
-                        style: const TextStyle(
-                          color: Color(0xFF8888a0),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                        ),
+                final isMine = myReactions.contains(r.emoji);
+                return GestureDetector(
+                  onTap: () => widget.onToggleReaction?.call(post.id, r.emoji),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isMine
+                          ? trackColor.withValues(alpha: 0.15)
+                          : const Color(0xFF151520),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isMine
+                            ? trackColor.withValues(alpha: 0.4)
+                            : const Color(0xFF1a1a28),
                       ),
-                    ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(r.emoji, style: const TextStyle(fontSize: 10)),
+                        const SizedBox(width: 2),
+                        Text(
+                          r.count >= 1000
+                              ? '${(r.count / 1000).toStringAsFixed(1)}k'
+                              : '${r.count}',
+                          style: TextStyle(
+                            color: isMine
+                                ? trackColor
+                                : const Color(0xFF8888a0),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               }),
               if (reactions.length > 3)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 1,
-                  ),
-                  child: Text(
-                    '+${reactions.length - 3}',
-                    style: const TextStyle(
-                      color: Color(0xFF8888a0),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
+                GestureDetector(
+                  onTap: widget.onOpenDetail,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    child: Text(
+                      '+${reactions.length - 3}',
+                      style: const TextStyle(
+                        color: Color(0xFF8888a0),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
