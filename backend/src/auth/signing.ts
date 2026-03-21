@@ -12,6 +12,7 @@ export function computeContentHash(fields: {
   mediaUrl?: string | null;
   mediaType: string;
   importance: number;
+  duration?: number | null;
 }): string {
   const canonical = JSON.stringify({
     title: fields.title ?? "",
@@ -19,6 +20,7 @@ export function computeContentHash(fields: {
     mediaUrl: fields.mediaUrl ?? "",
     mediaType: fields.mediaType,
     importance: fields.importance,
+    duration: fields.duration ?? null,
   });
   return createHash("sha256").update(canonical).digest("hex");
 }

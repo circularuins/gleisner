@@ -168,8 +168,8 @@ builder.mutationFields((t) => ({
       }
 
       // Validate duration
-      if (args.duration != null && args.duration < 0) {
-        throw new GraphQLError("Duration must be non-negative");
+      if (args.duration != null && (args.duration < 0 || args.duration > 86400)) {
+        throw new GraphQLError("Duration must be between 0 and 86400 seconds");
       }
 
       // Validate importance
@@ -189,6 +189,7 @@ builder.mutationFields((t) => ({
         mediaUrl: args.mediaUrl ?? null,
         mediaType: args.mediaType,
         importance: args.importance ?? 0.5,
+        duration: args.duration ?? null,
       });
 
       // Signature is optional for MVP: clients that support Ed25519 signing
@@ -274,8 +275,8 @@ builder.mutationFields((t) => ({
       }
 
       // Validate duration
-      if (args.duration != null && args.duration < 0) {
-        throw new GraphQLError("Duration must be non-negative");
+      if (args.duration != null && (args.duration < 0 || args.duration > 86400)) {
+        throw new GraphQLError("Duration must be between 0 and 86400 seconds");
       }
 
       // Validate importance
@@ -305,7 +306,8 @@ builder.mutationFields((t) => ({
         args.body !== undefined ||
         args.mediaUrl !== undefined ||
         args.mediaType !== undefined ||
-        args.importance !== undefined;
+        args.importance !== undefined ||
+        args.duration !== undefined;
 
       if (!contentChanged && args.signature !== undefined) {
         throw new GraphQLError(
@@ -334,6 +336,8 @@ builder.mutationFields((t) => ({
           mediaType: args.mediaType != null ? args.mediaType : post.mediaType,
           importance:
             args.importance != null ? args.importance : post.importance,
+          duration:
+            args.duration !== undefined ? args.duration : post.duration,
         });
 
         // Verify signature before committing any hash/signature to updateData

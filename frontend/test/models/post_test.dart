@@ -72,5 +72,57 @@ void main() {
       final post = Post.fromJson(json);
       expect(post.mediaType, MediaType.text);
     });
+
+    test('parses duration', () {
+      final json = {...validJson, 'duration': 120};
+      final post = Post.fromJson(json);
+      expect(post.duration, 120);
+    });
+
+    test('handles null duration', () {
+      final json = {...validJson, 'duration': null};
+      final post = Post.fromJson(json);
+      expect(post.duration, isNull);
+    });
+  });
+
+  group('Post.formattedDuration', () {
+    Post withDuration(int? d) => Post(
+      id: '1',
+      mediaType: MediaType.video,
+      importance: 0.5,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+      author: const PostAuthor(id: 'a', username: 'u'),
+      duration: d,
+    );
+
+    test('returns null when duration is null', () {
+      expect(withDuration(null).formattedDuration, isNull);
+    });
+
+    test('formats 0 seconds', () {
+      expect(withDuration(0).formattedDuration, '0:00');
+    });
+
+    test('formats seconds only', () {
+      expect(withDuration(45).formattedDuration, '0:45');
+    });
+
+    test('formats minutes and seconds', () {
+      expect(withDuration(65).formattedDuration, '1:05');
+    });
+
+    test('formats exact minute', () {
+      expect(withDuration(60).formattedDuration, '1:00');
+    });
+
+    test('formats hours', () {
+      expect(withDuration(3661).formattedDuration, '1:01:01');
+    });
+
+    test('formats large duration', () {
+      expect(withDuration(7200).formattedDuration, '2:00:00');
+    });
   });
 }
