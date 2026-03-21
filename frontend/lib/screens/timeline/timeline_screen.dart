@@ -245,8 +245,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       context,
       post,
       client: client,
-      onReactionsChanged: (id, counts) {
-        ref.read(timelineProvider.notifier).updatePostReactions(id, counts);
+      onReactionsChanged: (id, counts, myReactions) {
+        ref
+            .read(timelineProvider.notifier)
+            .updatePostReactions(id, counts, myReactions);
       },
     );
   }

@@ -59,6 +59,7 @@ class Post {
   final String? trackName;
   final String? trackColor;
   final List<ReactionCount> reactionCounts;
+  final List<String> myReactions;
 
   const Post({
     required this.id,
@@ -78,6 +79,7 @@ class Post {
     this.trackName,
     this.trackColor,
     this.reactionCounts = const [],
+    this.myReactions = const [],
   });
 
   Color get trackDisplayColor => parseHexColor(trackColor);
@@ -120,6 +122,11 @@ class Post {
       reactionCounts:
           (json['reactionCounts'] as List<dynamic>?)
               ?.map((r) => ReactionCount.fromJson(r as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      myReactions:
+          (json['myReactions'] as List<dynamic>?)
+              ?.map((e) => e as String)
               .toList() ??
           const [],
     );

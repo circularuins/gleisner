@@ -186,6 +186,22 @@ builder.objectFields(PostType, (t) => ({
       return db.select().from(reactions).where(eq(reactions.postId, post.id));
     },
   }),
+  myReactions: t.field({
+    type: ["String"],
+    resolve: async (post, _args, ctx) => {
+      if (!ctx.authUser) return [];
+      const rows = await db
+        .select({ emoji: reactions.emoji })
+        .from(reactions)
+        .where(
+          and(
+            eq(reactions.postId, post.id),
+            eq(reactions.userId, ctx.authUser.userId),
+          ),
+        );
+      return rows.map((r) => r.emoji);
+    },
+  }),
   reactionCounts: t.field({
     type: [ReactionCountType],
     resolve: async (post) => {

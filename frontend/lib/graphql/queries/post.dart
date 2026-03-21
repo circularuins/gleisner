@@ -26,6 +26,7 @@ const postFields = '''
     emoji
     count
   }
+  myReactions
 ''';
 
 const postsQuery =

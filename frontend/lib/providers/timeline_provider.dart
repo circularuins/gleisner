@@ -166,8 +166,12 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
   }
 
   /// Add a single post to local state (optimistic/post-creation update).
-  /// Update reaction counts for a post (called from detail sheet).
-  void updatePostReactions(String postId, List<ReactionCount> counts) {
+  /// Update reaction counts and user's own reactions for a post.
+  void updatePostReactions(
+    String postId,
+    List<ReactionCount> counts,
+    List<String> myReactions,
+  ) {
     final posts = state.posts.map((p) {
       if (p.id == postId) {
         return Post(
@@ -188,6 +192,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
           trackName: p.trackName,
           trackColor: p.trackColor,
           reactionCounts: counts,
+          myReactions: myReactions,
         );
       }
       return p;

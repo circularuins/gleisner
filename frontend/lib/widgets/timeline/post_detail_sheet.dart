@@ -13,7 +13,12 @@ void showPostDetailSheet(
   BuildContext context,
   Post post, {
   GraphQLClient? client,
-  void Function(String postId, List<ReactionCount> counts)? onReactionsChanged,
+  void Function(
+    String postId,
+    List<ReactionCount> counts,
+    List<String> myReactions,
+  )?
+  onReactionsChanged,
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -30,7 +35,11 @@ void showPostDetailSheet(
 class _PostDetailSheet extends StatefulWidget {
   final Post post;
   final GraphQLClient? client;
-  final void Function(String postId, List<ReactionCount> counts)?
+  final void Function(
+    String postId,
+    List<ReactionCount> counts,
+    List<String> myReactions,
+  )?
   onReactionsChanged;
   const _PostDetailSheet({
     required this.post,
@@ -44,13 +53,14 @@ class _PostDetailSheet extends StatefulWidget {
 
 class _PostDetailSheetState extends State<_PostDetailSheet> {
   late List<ReactionCount> _reactionCounts;
-  final Set<String> _myReactions = {};
+  late Set<String> _myReactions;
   bool _isToggling = false;
 
   @override
   void initState() {
     super.initState();
     _reactionCounts = List.from(widget.post.reactionCounts);
+    _myReactions = Set.from(widget.post.myReactions);
   }
 
   Future<void> _toggleReaction(String emoji) async {
@@ -83,6 +93,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         widget.onReactionsChanged?.call(
           widget.post.id,
           List.from(_reactionCounts),
+          _myReactions.toList(),
         );
       }
     } finally {

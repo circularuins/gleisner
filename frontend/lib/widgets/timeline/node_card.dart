@@ -135,33 +135,53 @@ class _NodeCardState extends State<NodeCard>
           Wrap(
             spacing: 3,
             runSpacing: 2,
-            children: reactions.take(3).map((r) {
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF151520),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF1a1a28)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(r.emoji, style: const TextStyle(fontSize: 10)),
-                    const SizedBox(width: 2),
-                    Text(
-                      r.count >= 1000
-                          ? '${(r.count / 1000).toStringAsFixed(1)}k'
-                          : '${r.count}',
-                      style: const TextStyle(
-                        color: Color(0xFF8888a0),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
+            children: [
+              ...reactions.take(3).map((r) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF151520),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF1a1a28)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(r.emoji, style: const TextStyle(fontSize: 10)),
+                      const SizedBox(width: 2),
+                      Text(
+                        r.count >= 1000
+                            ? '${(r.count / 1000).toStringAsFixed(1)}k'
+                            : '${r.count}',
+                        style: const TextStyle(
+                          color: Color(0xFF8888a0),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
+                    ],
+                  ),
+                );
+              }),
+              if (reactions.length > 3)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1,
+                  ),
+                  child: Text(
+                    '+${reactions.length - 3}',
+                    style: const TextStyle(
+                      color: Color(0xFF8888a0),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
                     ),
-                  ],
+                  ),
                 ),
-              );
-            }).toList(),
+            ],
           ),
         ],
       );
