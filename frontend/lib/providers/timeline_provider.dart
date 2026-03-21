@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -213,8 +215,56 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
       }
       return p;
     }).toList();
-    state = state.copyWith(posts: posts);
-    _recomputeLayout();
+    // Update posts and patch layout nodes without recalculating positions.
+    // Node sizes stay the same until next full refresh — avoids jarring
+    // layout shifts when reacting.
+    final layout = state.layout;
+    if (layout != null) {
+      final postMap = {for (final p in posts) p.id: p};
+      final patchedNodes = layout.nodes.map((n) {
+        final updated = postMap[n.post.id];
+        if (updated != null && updated != n.post) {
+          // Recalculate size from updated reactions, keep position
+          final sz = ConstellationLayout.nodeSize(
+            updated.importance,
+            reactionCount: updated.totalReactions,
+          );
+          final isAudio = updated.mediaType == MediaType.audio;
+          final w = isAudio
+              ? min(sz * 1.8, _lastWidth - ConstellationLayout.spineWidth - 20)
+              : sz > 110
+              ? min(sz * 1.25, _lastWidth - ConstellationLayout.spineWidth - 20)
+              : sz;
+          final mediaH = isAudio
+              ? sz * 0.45
+              : sz > 110
+              ? sz * 0.7
+              : sz * 0.85;
+          return PlacedNode(
+            post: updated,
+            x: n.x,
+            y: n.y,
+            width: w,
+            height: mediaH + (isAudio ? 0 : 30),
+            nodeSize: sz,
+            mediaHeight: mediaH,
+            showInfo: !isAudio,
+          );
+        }
+        return n;
+      }).toList();
+      state = state.copyWith(
+        posts: posts,
+        layout: LayoutResult(
+          nodes: patchedNodes,
+          days: layout.days,
+          connections: layout.connections,
+          totalHeight: layout.totalHeight,
+        ),
+      );
+    } else {
+      state = state.copyWith(posts: posts);
+    }
   }
 
   void addPost(Post post) {
