@@ -34,10 +34,15 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final state = ref.read(createPostProvider);
+    final isText = state.selectedMediaType == MediaType.text;
     final result = await ref
         .read(createPostProvider.notifier)
         .submit(
-          title: _titleController.text.isEmpty ? null : _titleController.text,
+          // title only for text type; others use caption in body
+          title: isText && _titleController.text.isNotEmpty
+              ? _titleController.text
+              : null,
           body: _bodyController.text.isEmpty ? null : _bodyController.text,
           mediaUrl: _mediaUrlController.text.isEmpty
               ? null
@@ -363,7 +368,7 @@ class _MediaTypeStep extends ConsumerWidget {
   }
 }
 
-// Step 2 — Form & submit
+// Step 2 — Form & submit (media-type-specific layout)
 class _FormStep extends ConsumerWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController titleController;
@@ -383,7 +388,6 @@ class _FormStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(createPostProvider);
     final mediaType = state.selectedMediaType!;
-    final showMediaUrl = mediaType != MediaType.text;
     final theme = Theme.of(context);
 
     return SingleChildScrollView(
@@ -414,72 +418,8 @@ class _FormStep extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
 
-            // Title
-            TextFormField(
-              controller: titleController,
-              decoration: const InputDecoration(
-                labelText: 'Title (optional)',
-                border: OutlineInputBorder(),
-              ),
-              maxLength: 100,
-              validator: (value) {
-                if (value != null && value.length > 100) {
-                  return '100 characters max';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Body
-            TextFormField(
-              controller: bodyController,
-              decoration: const InputDecoration(
-                labelText: 'Body',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-              maxLines: 6,
-              maxLength: 10000,
-              validator: (value) {
-                if (mediaType == MediaType.text &&
-                    (value == null || value.trim().isEmpty)) {
-                  return 'Body is required for text posts';
-                }
-                if (value != null && value.length > 10000) {
-                  return '10,000 characters max';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Media URL
-            if (showMediaUrl) ...[
-              TextFormField(
-                controller: mediaUrlController,
-                decoration: InputDecoration(
-                  labelText: '${mediaType.name} URL',
-                  border: const OutlineInputBorder(),
-                  hintText: 'https://',
-                ),
-                keyboardType: TextInputType.url,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    if (mediaType != MediaType.text) {
-                      return '${mediaType.name} URL is required';
-                    }
-                    return null;
-                  }
-                  final uri = Uri.tryParse(value);
-                  if (uri == null || !['http', 'https'].contains(uri.scheme)) {
-                    return 'Enter a valid http(s) URL';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
+            // Media-type-specific fields
+            ..._buildContentFields(mediaType, theme),
 
             // Importance slider + node preview
             Column(
@@ -513,10 +453,12 @@ class _FormStep extends ConsumerWidget {
                 const SizedBox(height: 8),
                 _ImportancePreview(
                   importance: state.importance,
+                  mediaType: mediaType,
                   trackColor:
                       state.selectedTrack?.displayColor ??
                       theme.colorScheme.primary,
                   title: titleController.text,
+                  body: bodyController.text,
                   trackName: state.selectedTrack?.name ?? '',
                 ),
               ],
@@ -545,19 +487,168 @@ class _FormStep extends ConsumerWidget {
       ),
     );
   }
+
+  List<Widget> _buildContentFields(MediaType mediaType, ThemeData theme) {
+    switch (mediaType) {
+      case MediaType.text:
+        return _buildTextFields(theme);
+      case MediaType.image:
+      case MediaType.video:
+      case MediaType.audio:
+        return _buildMediaFields(mediaType, theme);
+      case MediaType.link:
+        return _buildLinkFields(theme);
+    }
+  }
+
+  // text: body (main) + title (optional, small)
+  List<Widget> _buildTextFields(ThemeData theme) {
+    return [
+      TextFormField(
+        controller: titleController,
+        decoration: InputDecoration(
+          labelText: 'Title (optional)',
+          border: const OutlineInputBorder(),
+          labelStyle: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withAlpha(128),
+          ),
+        ),
+        maxLength: 100,
+        style: theme.textTheme.titleMedium,
+      ),
+      const SizedBox(height: 12),
+      TextFormField(
+        controller: bodyController,
+        decoration: const InputDecoration(
+          hintText: 'Write something...',
+          border: OutlineInputBorder(),
+          alignLabelWithHint: true,
+        ),
+        minLines: 8,
+        maxLines: null,
+        maxLength: 10000,
+        autofocus: true,
+        style: theme.textTheme.bodyLarge,
+        validator: (value) {
+          if (value == null || value.trim().isEmpty) {
+            return 'Text is required';
+          }
+          return null;
+        },
+      ),
+      const SizedBox(height: 16),
+    ];
+  }
+
+  // image/video/audio: caption + upload placeholder
+  List<Widget> _buildMediaFields(MediaType mediaType, ThemeData theme) {
+    final (icon, label) = switch (mediaType) {
+      MediaType.image => (Icons.photo_library, 'Image'),
+      MediaType.video => (Icons.videocam, 'Video'),
+      MediaType.audio => (Icons.audiotrack, 'Audio'),
+      _ => (Icons.attach_file, 'Media'),
+    };
+
+    return [
+      // Upload placeholder
+      Container(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: theme.colorScheme.outline.withAlpha(80),
+            style: BorderStyle.solid,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          color: theme.colorScheme.surfaceContainerHighest.withAlpha(30),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 40,
+              color: theme.colorScheme.onSurface.withAlpha(100),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$label upload coming soon',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withAlpha(100),
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 16),
+      // Caption
+      TextFormField(
+        controller: bodyController,
+        decoration: const InputDecoration(
+          labelText: 'Caption (optional)',
+          border: OutlineInputBorder(),
+          alignLabelWithHint: true,
+        ),
+        maxLines: 3,
+        maxLength: 500,
+      ),
+      const SizedBox(height: 16),
+    ];
+  }
+
+  // link: URL (required) + caption
+  List<Widget> _buildLinkFields(ThemeData theme) {
+    return [
+      TextFormField(
+        controller: mediaUrlController,
+        decoration: const InputDecoration(
+          labelText: 'URL',
+          border: OutlineInputBorder(),
+          hintText: 'https://',
+          prefixIcon: Icon(Icons.link),
+        ),
+        keyboardType: TextInputType.url,
+        autofocus: true,
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'URL is required';
+          }
+          final uri = Uri.tryParse(value);
+          if (uri == null || !['http', 'https'].contains(uri.scheme)) {
+            return 'Enter a valid http(s) URL';
+          }
+          return null;
+        },
+      ),
+      const SizedBox(height: 16),
+      TextFormField(
+        controller: bodyController,
+        decoration: const InputDecoration(
+          labelText: 'Caption (optional)',
+          border: OutlineInputBorder(),
+          alignLabelWithHint: true,
+        ),
+        maxLines: 3,
+        maxLength: 500,
+      ),
+      const SizedBox(height: 16),
+    ];
+  }
 }
 
 /// Live preview of node size as importance slider changes.
 class _ImportancePreview extends StatelessWidget {
   final double importance;
+  final MediaType mediaType;
   final Color trackColor;
   final String title;
+  final String body;
   final String trackName;
 
   const _ImportancePreview({
     required this.importance,
+    required this.mediaType,
     required this.trackColor,
     required this.title,
+    required this.body,
     required this.trackName,
   });
 

@@ -4,6 +4,7 @@ const postFields = '''
   title
   body
   mediaUrl
+  duration
   importance
   layoutX
   layoutY

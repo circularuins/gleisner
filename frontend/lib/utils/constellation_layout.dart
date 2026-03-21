@@ -191,9 +191,18 @@ class ConstellationLayout {
       if (dI == null) continue;
 
       final sz = nodeSize(item.importance);
-      final w = sz > 110 ? min(sz * 1.25, cW - 20) : sz;
-      final mediaH = sz > 110 ? sz * 0.7 : sz * 0.85;
-      final infoH = 30.0;
+      final isAudio = item.mediaType == MediaType.audio;
+      final w = isAudio
+          ? min(sz * 1.8, cW - 20)
+          : sz > 110
+          ? min(sz * 1.25, cW - 20)
+          : sz;
+      final mediaH = isAudio
+          ? sz * 0.45
+          : sz > 110
+          ? sz * 0.7
+          : sz * 0.85;
+      final infoH = isAudio ? 0.0 : 30.0;
       final totalNodeH = mediaH + infoH;
 
       // Position based on creation order within day (newest = 0.0 = top)
@@ -353,8 +362,13 @@ class ConstellationLayout {
     final nodes = <PlacedNode>[];
     for (final p in placedItems) {
       final sz = nodeSize(p.post.importance);
-      final mediaH = sz > 110 ? sz * 0.7 : sz * 0.85;
-      final showInfo = true;
+      final isAudio = p.post.mediaType == MediaType.audio;
+      final mediaH = isAudio
+          ? sz * 0.45
+          : sz > 110
+          ? sz * 0.7
+          : sz * 0.85;
+      final showInfo = !isAudio;
       nodes.add(
         PlacedNode(
           post: p.post,
