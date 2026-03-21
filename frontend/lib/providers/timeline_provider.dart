@@ -19,6 +19,7 @@ class TimelineState {
   final bool isLoading;
   final String? error;
   final LayoutResult? layout;
+  final String? highlightPostId;
 
   const TimelineState({
     this.artist,
@@ -27,6 +28,7 @@ class TimelineState {
     this.isLoading = false,
     this.error,
     this.layout,
+    this.highlightPostId,
   });
 
   bool get allSelected =>
@@ -43,6 +45,7 @@ class TimelineState {
     bool? isLoading,
     Object? error = sentinel,
     Object? layout = sentinel,
+    Object? highlightPostId = sentinel,
   }) {
     return TimelineState(
       artist: artist == sentinel ? this.artist : artist as Artist?,
@@ -51,6 +54,9 @@ class TimelineState {
       isLoading: isLoading ?? this.isLoading,
       error: error == sentinel ? this.error : error as String?,
       layout: layout == sentinel ? this.layout : layout as LayoutResult?,
+      highlightPostId: highlightPostId == sentinel
+          ? this.highlightPostId
+          : highlightPostId as String?,
     );
   }
 }
@@ -162,8 +168,14 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
   /// Add a single post to local state (optimistic/post-creation update).
   void addPost(Post post) {
     final posts = [...state.posts, post];
-    state = state.copyWith(posts: posts);
+    state = state.copyWith(posts: posts, highlightPostId: post.id);
     _recomputeLayout();
+    // Clear highlight after animation completes
+    Future.delayed(const Duration(milliseconds: 3000), () {
+      if (mounted && state.highlightPostId == post.id) {
+        state = state.copyWith(highlightPostId: null);
+      }
+    });
   }
 
   /// Add a track ID to selectedTrackIds without fetching (sync).

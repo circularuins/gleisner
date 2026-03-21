@@ -170,6 +170,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                                       child: NodeCard(
                                         node: layout.nodes[i],
                                         index: i,
+                                        highlight:
+                                            layout.nodes[i].post.id ==
+                                            timeline.highlightPostId,
                                       ),
                                     ),
                                 ],

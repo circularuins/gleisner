@@ -22,8 +22,7 @@ class _PostDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final trackColor = post.trackDisplayColor;
-    final seedString =
-        '${post.title ?? ''}${post.createdAt.toIso8601String()}';
+    final seedString = '${post.title ?? ''}${post.createdAt.toIso8601String()}';
 
     return DraggableScrollableSheet(
       expand: false,
@@ -99,9 +98,7 @@ class _PostDetailSheet extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: const Color(0xFF151520),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: const Color(0xFF1a1a28),
-                        ),
+                        border: Border.all(color: const Color(0xFF1a1a28)),
                       ),
                       child: Text(
                         post.mediaType.name.toUpperCase(),
@@ -165,10 +162,7 @@ class _PostDetailSheet extends StatelessWidget {
                     const SizedBox(height: 8),
                     const Text(
                       'Coming soon',
-                      style: TextStyle(
-                        color: Color(0xFF333350),
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Color(0xFF333350), fontSize: 12),
                     ),
                     const SizedBox(height: 16),
                     const Divider(color: Color(0xFF1a1a28), height: 1),
@@ -185,10 +179,7 @@ class _PostDetailSheet extends StatelessWidget {
                     const SizedBox(height: 8),
                     const Text(
                       'Coming soon',
-                      style: TextStyle(
-                        color: Color(0xFF333350),
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Color(0xFF333350), fontSize: 12),
                     ),
                     const SizedBox(height: 32),
                   ],
