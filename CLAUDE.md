@@ -64,6 +64,10 @@ Greg Egan "Diaspora" の **Gleisner robots**（物理世界とデジタル世界
 cd frontend && flutter run -d chrome
 ```
 
+> **CORS 注意**: Flutter Web のポートは毎回変わるため、バックエンドは `CORS_ORIGIN=*` で起動する必要がある。
+> `dev-start.sh` を使わず手動で起動する場合: `CORS_ORIGIN="*" pnpm dev`
+> バックエンドのコード変更（スキーマ追加等）後はサーバー再起動が必要。
+
 ### バックエンド個別コマンド
 
 ```bash
@@ -74,7 +78,7 @@ pnpm lint             # ESLint 実行
 pnpm lint:fix         # ESLint 自動修正
 pnpm format           # Prettier でフォーマット
 pnpm format:check     # フォーマットチェック（CI 用）
-pnpm db:push          # スキーマをDBに反映（開発用）
+pnpm db:push          # スキーマをDBに反映（開発用）⚠ 下記注意
 pnpm db:generate      # マイグレーションファイル生成
 pnpm db:migrate       # マイグレーション実行
 pnpm db:studio        # Drizzle Studio（DB GUI）
@@ -87,6 +91,21 @@ cd frontend
 dart analyze           # 静的解析（flutter_lints）
 dart format .          # Dart フォーマッタ
 ```
+
+### テストデータ投入
+
+```bash
+./scripts/seed-test-data.sh           # デフォルト: localhost:4000
+./scripts/seed-test-data.sh <api_url> # カスタム URL
+```
+
+seeduser（`seed@test.com` / `password123`）+ 6トラック + 32投稿（全メディアタイプ、2週間に分散）を投入する。
+バックエンドが起動済みであること。既にユーザーが存在する場合はログインしてデータを追加する。
+
+### ⚠ `db:push` の注意事項
+
+`db:push` はカラム追加時にテーブルを再作成する場合があり、**既存データが消失する**。
+テストデータが蓄積している開発 DB では `db:generate` + `db:migrate` を使うか、事前に `pg_dump` でバックアップすること。
 
 ### Docker
 
@@ -109,10 +128,15 @@ docker compose down    # PostgreSQL 停止
 
 ### contentHash / signature
 
-- Post 作成・更新時に `contentHash`（SHA-256）を自動計算。対象: `JSON.stringify({ title, body, mediaUrl, mediaType, importance })`
+- Post 作成・更新時に `contentHash`（SHA-256）を自動計算。対象: `JSON.stringify({ title, body, mediaUrl, mediaType, importance, duration })`
 - `layoutX`/`layoutY` はプレゼンテーション用のため contentHash に含めない
 - `signature`（Ed25519）はクライアントからのオプショナル引数。提供された場合は author の publicKey で検証
 - 署名付き投稿のコンテンツ更新時は新しい署名が必須（署名の無断消去を防止）
+
+**⚠ Post にコンテンツフィールドを追加する場合、以下の 3 箇所を同時に更新すること:**
+1. `src/auth/signing.ts` の `computeContentHash` — ハッシュ計算対象に追加
+2. `src/graphql/types/post.ts` の `contentChanged` 判定 — updatePost で変更検知に追加
+3. `src/graphql/types/post.ts` の `newHash` 計算 — updatePost の既存値フォールバックに追加
 
 ### テスト
 

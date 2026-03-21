@@ -16,3 +16,11 @@ Replace the body excerpt in the text node's detail sheet header with an AI-gener
 - Could also be useful for search/discovery features later
 - Related to existing AI usage: title auto-generation already uses Claude Haiku
 - Monetization consideration: this could be a core feature (summary is cheap per-post) or gated behind a word-count threshold (e.g., free for <500 words, AI summary for longer posts)
+
+### Estimated reading time
+
+- Display "6 min read" alongside the summary for long-form text posts
+- Could reuse the existing `duration` field on Post — store estimated reading time in seconds (e.g., 360 for "6 min read")
+- This aligns with the PR #35 review discussion: `duration` was intentionally left unrestricted by media type, enabling this use case for text posts
+- Calculation: ~200-250 words per minute (standard reading speed), auto-computed on post creation
+- Validates the architectural decision to not restrict `duration` to audio/video only
