@@ -71,7 +71,11 @@ class _NodeCardState extends State<NodeCard>
       TweenSequenceItem(tween: Tween(begin: 0.4, end: 0.8), weight: 20),
       TweenSequenceItem(tween: Tween(begin: 0.8, end: 0), weight: 30),
     ]).animate(CurvedAnimation(parent: _controller!, curve: Curves.easeOut));
-    _controller!.forward();
+    _controller!.forward().then((_) {
+      _controller?.dispose();
+      _controller = null;
+      _glowAnimation = null;
+    });
   }
 
   @override
