@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
@@ -60,6 +61,14 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
 
   TimelineNotifier(this._client) : super(const TimelineState());
 
+  /// For testing only — set state directly.
+  @visibleForTesting
+  void debugSetState(TimelineState newState) => state = newState;
+
+  /// For testing only — add a track to state.
+  @visibleForTesting
+  void debugAddTrack(Track track) => _addTrackToState(track);
+
   Future<void> loadArtist(String username) async {
     state = state.copyWith(isLoading: true, error: null);
 
@@ -114,8 +123,8 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
   }
 
   /// Create a new track via API and add it to local state.
-  /// Returns the created Track on success, null on failure.
-  Future<Track?> createTrack(String name, String color) async {
+  /// Returns `(Track, null)` on success, `(null, errorMessage)` on failure.
+  Future<(Track?, String?)> createTrack(String name, String color) async {
     try {
       final result = await _client.mutate(
         MutationOptions(
@@ -124,16 +133,21 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
         ),
       );
 
-      if (result.hasException) return null;
+      if (result.hasException) {
+        final message =
+            result.exception?.graphqlErrors.firstOrNull?.message ??
+            'Failed to create track';
+        return (null, message);
+      }
 
       final data = result.data?['createTrack'] as Map<String, dynamic>?;
-      if (data == null) return null;
+      if (data == null) return (null, 'No data returned');
 
       final track = Track.fromJson(data);
       _addTrackToState(track);
-      return track;
-    } catch (_) {
-      return null;
+      return (track, null);
+    } catch (e) {
+      return (null, e.toString());
     }
   }
 

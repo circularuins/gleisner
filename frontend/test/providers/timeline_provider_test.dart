@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:hive_ce/hive.dart';
 
+import 'package:gleisner_web/models/artist.dart';
 import 'package:gleisner_web/models/track.dart';
 import 'package:gleisner_web/providers/timeline_provider.dart';
 
@@ -113,6 +114,56 @@ void main() {
 
       expect(notifier.state.isLoading, isFalse);
       expect(notifier.state.posts, isEmpty);
+    });
+
+    test('createTrack returns error on GraphQL failure', () async {
+      final notifier = TimelineNotifier(
+        _clientWith(errors: [const GraphQLError(message: 'Duplicate name')]),
+      );
+
+      final (track, error) = await notifier.createTrack('Dup', '#ff0000');
+
+      expect(track, isNull);
+      expect(error, 'Duplicate name');
+    });
+
+    test('addTrackToState adds track to artist and selectedTrackIds', () {
+      final notifier = TimelineNotifier(_clientWith());
+      notifier.debugSetState(
+        const TimelineState(
+          artist: Artist(
+            id: 'a1',
+            artistUsername: 'test',
+            tunedInCount: 0,
+            tracks: [],
+          ),
+        ),
+      );
+
+      final track = Track.fromJson({
+        'id': 't-new',
+        'name': 'NewTrack',
+        'color': '#ff0000',
+        'createdAt': '2026-01-01T00:00:00Z',
+      });
+      notifier.debugAddTrack(track);
+
+      expect(notifier.state.artist!.tracks, hasLength(1));
+      expect(notifier.state.artist!.tracks.first.name, 'NewTrack');
+      expect(notifier.state.selectedTrackIds, contains('t-new'));
+    });
+
+    test('ensureTrackSelected is idempotent', () {
+      final notifier = TimelineNotifier(_clientWith());
+
+      notifier.ensureTrackSelected('t1');
+      notifier.ensureTrackSelected('t1');
+      notifier.ensureTrackSelected('t1');
+
+      expect(
+        notifier.state.selectedTrackIds.where((id) => id == 't1').length,
+        1,
+      );
     });
   });
 }

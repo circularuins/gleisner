@@ -229,14 +229,14 @@ class _TrackStep extends ConsumerWidget {
             errorText = null;
           });
 
-          final track = await notifier.createTrack(name, autoColor);
+          final (track, error) = await notifier.createTrack(name, autoColor);
           if (track != null) {
             if (dialogContext.mounted) Navigator.pop(dialogContext);
           } else {
             if (dialogContext.mounted) {
               setDialogState(() {
                 isCreating = false;
-                errorText = 'Failed to create track';
+                errorText = error ?? 'Failed to create track';
               });
             }
           }
