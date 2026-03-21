@@ -34,7 +34,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final postedTrack = await ref
+    final result = await ref
         .read(createPostProvider.notifier)
         .submit(
           title: _titleController.text.isEmpty ? null : _titleController.text,
@@ -44,12 +44,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               : _mediaUrlController.text,
         );
 
-    if (postedTrack != null && mounted) {
-      // selectTrack ensures the track is in selectedTrackIds,
-      // then refresh fetches latest posts for all selected tracks.
+    if (result != null && mounted) {
+      final (postedTrack, post) = result;
       final notifier = ref.read(timelineProvider.notifier);
       notifier.ensureTrackSelected(postedTrack.id);
-      await notifier.refresh();
+      notifier.addPost(post);
       if (mounted) context.go('/timeline');
     }
   }

@@ -159,6 +159,13 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
     state = state.copyWith(artist: updatedArtist, selectedTrackIds: ids);
   }
 
+  /// Add a single post to local state (optimistic/post-creation update).
+  void addPost(Post post) {
+    final posts = [...state.posts, post];
+    state = state.copyWith(posts: posts);
+    _recomputeLayout();
+  }
+
   /// Add a track ID to selectedTrackIds without fetching (sync).
   void ensureTrackSelected(String trackId) {
     final ids = Set<String>.from(state.selectedTrackIds);

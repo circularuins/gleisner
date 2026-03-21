@@ -74,8 +74,8 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
     state = const CreatePostState();
   }
 
-  /// Returns the posted [Track] on success, or `null` on failure.
-  Future<Track?> submit({
+  /// Returns `(Track, Post)` on success, or `null` on failure.
+  Future<(Track, Post)?> submit({
     required String? title,
     required String? body,
     required String? mediaUrl,
@@ -113,8 +113,10 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
         return null;
       }
 
+      final postData = result.data?['createPost'] as Map<String, dynamic>?;
+      final post = postData != null ? Post.fromJson(postData) : null;
       state = state.copyWith(isSubmitting: false);
-      return track;
+      return post != null ? (track, post) : null;
     } catch (e) {
       if (!mounted) return null;
       state = state.copyWith(isSubmitting: false, error: e.toString());
