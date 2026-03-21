@@ -138,7 +138,40 @@ docker compose down    # PostgreSQL 停止
 2. `src/graphql/types/post.ts` の `contentChanged` 判定 — updatePost で変更検知に追加
 3. `src/graphql/types/post.ts` の `newHash` 計算 — updatePost の既存値フォールバックに追加
 
+### 認可チェック（認証ガード）の追加
+
+**⚠ GraphQL フィールドに認証を追加する場合、以下の箇所を全て確認すること:**
+1. **PostType 等のオブジェクトフィールド** — `builder.objectFields()` 内の resolve に `ctx.authUser` チェック
+2. **トップレベルクエリ** — `builder.queryFields()` 内の同名クエリにも同じチェック（別経路でアクセス可能）
+3. **テストファイル** — 該当クエリを呼ぶ全テストに認証トークンを渡す（`reaction.test.ts`, `public-user.test.ts` 等、複数ファイルに散在しうる）
+
 ### テスト
 
 - 共通ヘルパーは `src/graphql/__tests__/helpers.ts` に集約。新規テストファイルではこれを import
 - 各テストファイルの `beforeEach` で `TRUNCATE users CASCADE` を実行
+
+## PR 前チェック（Gleisner 固有）
+
+yatima ルートの共通チェック（ビルド・リンター・テスト・diff 確認）に加え、以下を実行:
+
+```bash
+# バックエンド
+cd backend && pnpm build && pnpm lint && pnpm format:check && pnpm test
+
+# フロントエンド
+cd frontend && dart analyze lib/ && dart format --set-exit-if-changed . && flutter test
+```
+
+**`pnpm format:check` を忘れない。** `sed` 等でテストファイルを手動編集した後は特に注意。
+
+## フロントエンド実装ルール
+
+### データ操作は Provider/Notifier 層で
+
+**Widget 層から GraphQL クライアントを直接操作しない。** データの取得・変更は必ず Provider/Notifier 経由で行う。
+
+- ✅ `TimelineNotifier.toggleReaction(postId, emoji)` → Widget はコールバックで呼ぶだけ
+- ❌ Widget 内で `client.mutate()` を直接実行
+
+Widget が必要とするのはコールバック（`onToggleReaction`, `onReactionsChanged` 等）のみ。
+これにより テスト容易性・保守性・関心の分離 が保たれる。
