@@ -246,7 +246,7 @@ describe("Reaction GraphQL integration", () => {
       expect(result.data!.toggleReaction).toBeNull();
 
       // Verify it's gone
-      const queryResult = await gql(app, REACTIONS_QUERY, { postId });
+      const queryResult = await gql(app, REACTIONS_QUERY, { postId }, token);
       expect(queryResult.data!.reactions).toEqual([]);
     });
 
@@ -262,7 +262,7 @@ describe("Reaction GraphQL integration", () => {
       await gql(app, TOGGLE_REACTION_MUTATION, { postId, emoji: "👍" }, token);
       await gql(app, TOGGLE_REACTION_MUTATION, { postId, emoji: "❤️" }, token);
 
-      const queryResult = await gql(app, REACTIONS_QUERY, { postId });
+      const queryResult = await gql(app, REACTIONS_QUERY, { postId }, token);
       const reactions = queryResult.data!.reactions as Array<
         Record<string, unknown>
       >;
@@ -375,7 +375,7 @@ describe("Reaction GraphQL integration", () => {
       expect(reaction.emoji).toBe("👍");
 
       // Verify it's gone
-      const queryResult = await gql(app, REACTIONS_QUERY, { postId });
+      const queryResult = await gql(app, REACTIONS_QUERY, { postId }, token);
       expect(queryResult.data!.reactions).toEqual([]);
     });
 
@@ -438,7 +438,7 @@ describe("Reaction GraphQL integration", () => {
       await gql(app, TOGGLE_REACTION_MUTATION, { postId, emoji: "👍" }, token1);
       await gql(app, TOGGLE_REACTION_MUTATION, { postId, emoji: "❤️" }, token2);
 
-      const result = await gql(app, REACTIONS_QUERY, { postId });
+      const result = await gql(app, REACTIONS_QUERY, { postId }, token1);
 
       expect(result.errors).toBeUndefined();
       const reactions = result.data!.reactions as Array<
@@ -456,7 +456,7 @@ describe("Reaction GraphQL integration", () => {
       );
       const postId = await createPostForTest(app, token);
 
-      const result = await gql(app, REACTIONS_QUERY, { postId });
+      const result = await gql(app, REACTIONS_QUERY, { postId }, token);
 
       expect(result.errors).toBeUndefined();
       expect(result.data!.reactions).toEqual([]);
@@ -502,7 +502,7 @@ describe("Reaction GraphQL integration", () => {
 
       await gql(app, TOGGLE_REACTION_MUTATION, { postId, emoji: "✨" }, token);
 
-      const result = await gql(app, REACTION_WITH_RELATIONS_QUERY, { postId });
+      const result = await gql(app, REACTION_WITH_RELATIONS_QUERY, { postId }, token);
 
       expect(result.errors).toBeUndefined();
       const reactions = result.data!.reactions as Array<

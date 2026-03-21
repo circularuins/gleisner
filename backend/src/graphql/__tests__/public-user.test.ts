@@ -232,7 +232,12 @@ describe("PublicUserType email exposure prevention", () => {
     );
 
     // Query reactions — email should not be available on PublicUser
-    const result = await gql(app, REACTIONS_WITH_EMAIL_QUERY, { postId });
+    const result = await gql(
+      app,
+      REACTIONS_WITH_EMAIL_QUERY,
+      { postId },
+      token,
+    );
 
     expect(result.errors).toBeDefined();
     expect(result.errors![0].message).toContain("email");
@@ -272,7 +277,12 @@ describe("PublicUserType email exposure prevention", () => {
       token,
     );
 
-    const result = await gql(app, REACTIONS_WITH_USER_QUERY, { postId });
+    const result = await gql(
+      app,
+      REACTIONS_WITH_USER_QUERY,
+      { postId },
+      token,
+    );
 
     expect(result.errors).toBeUndefined();
     const reactions = result.data!.reactions as Array<Record<string, unknown>>;

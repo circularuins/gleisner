@@ -151,12 +151,16 @@ builder.mutationFields((t) => ({
 }));
 
 builder.queryFields((t) => ({
+  // Individual reactions (includes user info) — requires authentication
   reactions: t.field({
     type: [ReactionType],
     args: {
       postId: t.arg.string({ required: true }),
     },
-    resolve: async (_parent, args) => {
+    resolve: async (_parent, args, ctx) => {
+      if (!ctx.authUser) {
+        throw new GraphQLError("Authentication required");
+      }
       return db
         .select()
         .from(reactions)
