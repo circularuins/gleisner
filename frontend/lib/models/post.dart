@@ -82,6 +82,9 @@ class Post {
 
   Color get trackDisplayColor => parseHexColor(trackColor);
 
+  /// Total reaction count across all emoji types.
+  int get totalReactions => reactionCounts.fold(0, (sum, r) => sum + r.count);
+
   /// Format duration as "m:ss" or "h:mm:ss". Returns null if no duration.
   String? get formattedDuration {
     if (duration == null) return null;
