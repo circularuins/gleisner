@@ -412,6 +412,19 @@ class _LinkContent extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+          if (post.body != null && post.body!.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text(
+              post.body!,
+              style: TextStyle(
+                color: const Color(0xFFeeeeee).withValues(alpha: 0.6),
+                fontSize: 10,
+                height: 1.3,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
           if (domain.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(
