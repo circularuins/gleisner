@@ -88,17 +88,10 @@ void main() {
       expect(notifier.state.isLoading, isFalse);
     });
 
-    test('selectTrack ensures track is selected', () async {
-      final notifier = TimelineNotifier(_clientWith(data: {'posts': []}));
+    test('ensureTrackSelected adds track to selection', () {
+      final notifier = TimelineNotifier(_clientWith());
 
-      final track = Track.fromJson({
-        'id': 't2',
-        'name': 'Art',
-        'color': '#00FF00',
-        'createdAt': '2026-01-01T00:00:00Z',
-      });
-
-      await notifier.selectTrack(track.id);
+      notifier.ensureTrackSelected('t2');
 
       expect(notifier.state.selectedTrackIds, contains('t2'));
     });

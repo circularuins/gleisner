@@ -2,12 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:graphql_flutter/graphql_flutter.dart';
-
-import '../../graphql/client.dart';
-import '../../graphql/mutations/track.dart';
 import '../../models/post.dart';
-import '../../models/track.dart';
+import '../../models/track.dart' show Track, parseHexColor;
 import '../../providers/create_post_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
@@ -49,8 +45,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         );
 
     if (postedTrack != null && mounted) {
+      // selectTrack ensures the track is in selectedTrackIds,
+      // then refresh fetches latest posts for all selected tracks.
       final notifier = ref.read(timelineProvider.notifier);
-      await notifier.selectTrack(postedTrack.id);
+      notifier.ensureTrackSelected(postedTrack.id);
       await notifier.refresh();
       if (mounted) context.go('/timeline');
     }
@@ -207,15 +205,42 @@ class _TrackStep extends ConsumerWidget {
       orElse: () =>
           _trackColorPresets[tracks.length % _trackColorPresets.length],
     );
-    // Capture providers before opening the dialog (dialog has a different context)
-    final client = ref.read(graphqlClientProvider);
-    final timelineNotifier = ref.read(timelineProvider.notifier);
+    final notifier = ref.read(timelineProvider.notifier);
 
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
         var isCreating = false;
         String? errorText;
+
+        Future<void> submit(StateSetter setDialogState) async {
+          final name = controller.text.trim();
+          if (name.isEmpty) {
+            setDialogState(() => errorText = 'Track name is required');
+            return;
+          }
+          if (tracks.any((t) => t.name.toLowerCase() == name.toLowerCase())) {
+            setDialogState(() => errorText = 'Track "$name" already exists');
+            return;
+          }
+
+          setDialogState(() {
+            isCreating = true;
+            errorText = null;
+          });
+
+          final track = await notifier.createTrack(name, autoColor);
+          if (track != null) {
+            if (dialogContext.mounted) Navigator.pop(dialogContext);
+          } else {
+            if (dialogContext.mounted) {
+              setDialogState(() {
+                isCreating = false;
+                errorText = 'Failed to create track';
+              });
+            }
+          }
+        }
 
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -235,16 +260,7 @@ class _TrackStep extends ConsumerWidget {
                     ),
                     onSubmitted: isCreating
                         ? null
-                        : (_) => _createTrack(
-                            dialogContext,
-                            client,
-                            timelineNotifier,
-                            controller,
-                            autoColor,
-                            setDialogState,
-                            (v) => isCreating = v,
-                            (v) => errorText = v,
-                          ),
+                        : (_) => submit(setDialogState),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -253,7 +269,7 @@ class _TrackStep extends ConsumerWidget {
                         width: 16,
                         height: 16,
                         decoration: BoxDecoration(
-                          color: _parseColor(autoColor),
+                          color: parseHexColor(autoColor),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -272,18 +288,7 @@ class _TrackStep extends ConsumerWidget {
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
-                  onPressed: isCreating
-                      ? null
-                      : () => _createTrack(
-                          dialogContext,
-                          client,
-                          timelineNotifier,
-                          controller,
-                          autoColor,
-                          setDialogState,
-                          (v) => isCreating = v,
-                          (v) => errorText = v,
-                        ),
+                  onPressed: isCreating ? null : () => submit(setDialogState),
                   child: isCreating
                       ? const SizedBox(
                           width: 16,
@@ -298,75 +303,6 @@ class _TrackStep extends ConsumerWidget {
         );
       },
     );
-  }
-
-  Future<void> _createTrack(
-    BuildContext dialogContext,
-    GraphQLClient client,
-    TimelineNotifier timelineNotifier,
-    TextEditingController controller,
-    String color,
-    void Function(void Function()) setDialogState,
-    void Function(bool) setCreating,
-    void Function(String?) setError,
-  ) async {
-    final name = controller.text.trim();
-    if (name.isEmpty) {
-      setDialogState(() => setError('Track name is required'));
-      return;
-    }
-    if (tracks.any((t) => t.name.toLowerCase() == name.toLowerCase())) {
-      setDialogState(() => setError('Track "$name" already exists'));
-      return;
-    }
-
-    setDialogState(() {
-      setCreating(true);
-      setError(null);
-    });
-
-    try {
-      final result = await client.mutate(
-        MutationOptions(
-          document: gql(createTrackMutation),
-          variables: {'name': name, 'color': color},
-        ),
-      );
-
-      if (result.hasException) {
-        if (dialogContext.mounted) {
-          setDialogState(() {
-            setCreating(false);
-            setError(
-              result.exception?.graphqlErrors.firstOrNull?.message ??
-                  'Failed to create track',
-            );
-          });
-        }
-        return;
-      }
-
-      // Add the new track to local state immediately
-      final data = result.data?['createTrack'] as Map<String, dynamic>?;
-      if (data != null) {
-        final newTrack = Track.fromJson(data);
-        timelineNotifier.addTrack(newTrack);
-      }
-
-      if (dialogContext.mounted) Navigator.pop(dialogContext);
-    } catch (e) {
-      if (dialogContext.mounted) {
-        setDialogState(() {
-          setCreating(false);
-          setError(e.toString());
-        });
-      }
-    }
-  }
-
-  static Color _parseColor(String hex) {
-    final cleaned = hex.replaceFirst('#', '');
-    return Color(int.parse('FF$cleaned', radix: 16));
   }
 }
 

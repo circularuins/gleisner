@@ -3,6 +3,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
 import '../graphql/queries/artist.dart';
+import '../graphql/mutations/track.dart';
 import '../graphql/queries/post.dart';
 import '../models/artist.dart';
 import '../models/post.dart';
@@ -112,33 +113,44 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
     }
   }
 
-  /// Add a newly created track to the local artist state.
-  void addTrack(Track track) {
+  /// Create a new track via API and add it to local state.
+  /// Returns the created Track on success, null on failure.
+  Future<Track?> createTrack(String name, String color) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(createTrackMutation),
+          variables: {'name': name, 'color': color},
+        ),
+      );
+
+      if (result.hasException) return null;
+
+      final data = result.data?['createTrack'] as Map<String, dynamic>?;
+      if (data == null) return null;
+
+      final track = Track.fromJson(data);
+      _addTrackToState(track);
+      return track;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _addTrackToState(Track track) {
     final artist = state.artist;
     if (artist == null) return;
-    final updatedTracks = [...artist.tracks, track];
-    final updatedArtist = Artist(
-      id: artist.id,
-      artistUsername: artist.artistUsername,
-      displayName: artist.displayName,
-      bio: artist.bio,
-      tagline: artist.tagline,
-      avatarUrl: artist.avatarUrl,
-      coverImageUrl: artist.coverImageUrl,
-      tunedInCount: artist.tunedInCount,
-      tracks: updatedTracks,
-    );
+    final updatedArtist = artist.withTrack(track);
     final ids = Set<String>.from(state.selectedTrackIds)..add(track.id);
     state = state.copyWith(artist: updatedArtist, selectedTrackIds: ids);
   }
 
-  /// Ensure a specific track is selected (used after creating a post).
-  Future<void> selectTrack(String trackId) async {
+  /// Add a track ID to selectedTrackIds without fetching (sync).
+  void ensureTrackSelected(String trackId) {
     final ids = Set<String>.from(state.selectedTrackIds);
     if (!ids.contains(trackId)) {
       ids.add(trackId);
-      state = state.copyWith(selectedTrackIds: ids, layout: null);
-      await _loadSelectedPosts();
+      state = state.copyWith(selectedTrackIds: ids);
     }
   }
 
