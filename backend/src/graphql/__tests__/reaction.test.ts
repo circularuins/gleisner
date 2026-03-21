@@ -475,7 +475,12 @@ describe("Reaction GraphQL integration", () => {
 
       await gql(app, TOGGLE_REACTION_MUTATION, { postId, emoji: "🔥" }, token);
 
-      const result = await gql(app, POST_WITH_REACTIONS_QUERY, { id: postId });
+      const result = await gql(
+        app,
+        POST_WITH_REACTIONS_QUERY,
+        { id: postId },
+        token,
+      );
 
       expect(result.errors).toBeUndefined();
       const post = result.data!.post as Record<string, unknown>;
