@@ -192,8 +192,7 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
         ),
       );
       if (!result.hasException) {
-        final data =
-            result.data?['createConnection'] as Map<String, dynamic>?;
+        final data = result.data?['createConnection'] as Map<String, dynamic>?;
         if (data != null) return PostConnection.fromJson(data);
       }
     } catch (_) {

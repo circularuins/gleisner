@@ -158,16 +158,12 @@ class Post {
           const [],
       outgoingConnections:
           (json['outgoingConnections'] as List<dynamic>?)
-              ?.map(
-                (c) => PostConnection.fromJson(c as Map<String, dynamic>),
-              )
+              ?.map((c) => PostConnection.fromJson(c as Map<String, dynamic>))
               .toList() ??
           const [],
       incomingConnections:
           (json['incomingConnections'] as List<dynamic>?)
-              ?.map(
-                (c) => PostConnection.fromJson(c as Map<String, dynamic>),
-              )
+              ?.map((c) => PostConnection.fromJson(c as Map<String, dynamic>))
               .toList() ??
           const [],
     );

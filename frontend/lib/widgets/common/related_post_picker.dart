@@ -40,8 +40,7 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
       );
     }
 
-    return posts.toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return posts.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   Set<String> get _trackIds {
@@ -217,8 +216,9 @@ class _PostListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final trackColor =
-        post.trackColor != null ? parseHexColor(post.trackColor) : null;
+    final trackColor = post.trackColor != null
+        ? parseHexColor(post.trackColor)
+        : null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -235,7 +235,9 @@ class _PostListTile extends StatelessWidget {
               )
             : null,
         title: Text(
-          post.title ?? post.body?.substring(0, post.body!.length.clamp(0, 50)) ?? post.mediaType.name,
+          post.title ??
+              post.body?.substring(0, post.body!.length.clamp(0, 50)) ??
+              post.mediaType.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodyMedium,

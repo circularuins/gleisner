@@ -6,6 +6,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
 import '../graphql/queries/artist.dart';
+import '../graphql/mutations/connection.dart';
 import '../graphql/mutations/reaction.dart';
 import '../graphql/mutations/track.dart';
 import '../graphql/queries/post.dart';
@@ -182,6 +183,82 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Create a connection between two posts. Returns the connection on success.
+  Future<PostConnection?> createConnection(
+    String sourceId,
+    String targetId,
+  ) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(createConnectionMutation),
+          variables: {
+            'sourceId': sourceId,
+            'targetId': targetId,
+            'connectionType': 'reference',
+          },
+        ),
+      );
+      if (!result.hasException) {
+        final data = result.data?['createConnection'] as Map<String, dynamic>?;
+        if (data != null) return PostConnection.fromJson(data);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Delete a connection. Returns true on success.
+  Future<bool> deleteConnection(String connectionId) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(deleteConnectionMutation),
+          variables: {'id': connectionId},
+        ),
+      );
+      return !result.hasException;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Update connections for a post and recompute layout to reflect synapse changes.
+  void updatePostConnections(
+    String postId,
+    List<PostConnection> outgoing,
+    List<PostConnection> incoming,
+  ) {
+    final posts = state.posts.map((p) {
+      if (p.id == postId) {
+        return Post(
+          id: p.id,
+          mediaType: p.mediaType,
+          title: p.title,
+          body: p.body,
+          mediaUrl: p.mediaUrl,
+          duration: p.duration,
+          importance: p.importance,
+          layoutX: p.layoutX,
+          layoutY: p.layoutY,
+          contentHash: p.contentHash,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+          author: p.author,
+          trackId: p.trackId,
+          trackName: p.trackName,
+          trackColor: p.trackColor,
+          reactionCounts: p.reactionCounts,
+          myReactions: p.myReactions,
+          outgoingConnections: outgoing,
+          incomingConnections: incoming,
+        );
+      }
+      return p;
+    }).toList();
+    state = state.copyWith(posts: posts);
+    _recomputeLayout();
   }
 
   /// Update reaction counts and user's own reactions for a post.

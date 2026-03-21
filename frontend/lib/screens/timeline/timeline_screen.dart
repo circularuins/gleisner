@@ -289,6 +289,14 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       onReactionsChanged: (id, counts, myReactions) {
         notifier.updatePostReactions(id, counts, myReactions);
       },
+      onCreateConnection: (sourceId, targetId) =>
+          notifier.createConnection(sourceId, targetId),
+      onDeleteConnection: (connectionId) =>
+          notifier.deleteConnection(connectionId),
+      onConnectionsChanged: (id, outgoing, incoming) {
+        notifier.updatePostConnections(id, outgoing, incoming);
+      },
+      allPosts: ref.read(timelineProvider).posts,
     );
   }
 

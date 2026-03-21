@@ -472,10 +472,7 @@ class _FormStep extends ConsumerWidget {
               allPosts: ref.watch(timelineProvider).posts,
               onClear: () =>
                   ref.read(createPostProvider.notifier).clearRelatedPost(),
-              onPickRequested: () => _showRelatedPostPicker(
-                context,
-                ref,
-              ),
+              onPickRequested: () => _showRelatedPostPicker(context, ref),
             ),
             const SizedBox(height: 24),
 
@@ -820,9 +817,7 @@ class _RelatedPostSection extends StatelessWidget {
             label: const Text('Link to existing post'),
             style: OutlinedButton.styleFrom(
               foregroundColor: theme.colorScheme.onSurface.withAlpha(180),
-              side: BorderSide(
-                color: theme.colorScheme.outline.withAlpha(80),
-              ),
+              side: BorderSide(color: theme.colorScheme.outline.withAlpha(80)),
             ),
           ),
       ],

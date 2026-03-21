@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/post.dart';
+import '../../models/track.dart' show parseHexColor;
+import '../common/related_post_picker.dart';
 import 'seed_art_painter.dart';
 
 const _reactionPresets = ['🔥', '❤️', '👏', '✨', '😍', '🎵', '💪', '🎸'];
@@ -15,6 +17,16 @@ void showPostDetailSheet(
     List<String> myReactions,
   )?
   onReactionsChanged,
+  Future<PostConnection?> Function(String sourceId, String targetId)?
+  onCreateConnection,
+  Future<bool> Function(String connectionId)? onDeleteConnection,
+  void Function(
+    String postId,
+    List<PostConnection> outgoing,
+    List<PostConnection> incoming,
+  )?
+  onConnectionsChanged,
+  List<Post> allPosts = const [],
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -24,6 +36,10 @@ void showPostDetailSheet(
       post: post,
       onToggleReaction: onToggleReaction,
       onReactionsChanged: onReactionsChanged,
+      onCreateConnection: onCreateConnection,
+      onDeleteConnection: onDeleteConnection,
+      onConnectionsChanged: onConnectionsChanged,
+      allPosts: allPosts,
     ),
   );
 }
@@ -37,10 +53,24 @@ class _PostDetailSheet extends StatefulWidget {
     List<String> myReactions,
   )?
   onReactionsChanged;
+  final Future<PostConnection?> Function(String sourceId, String targetId)?
+  onCreateConnection;
+  final Future<bool> Function(String connectionId)? onDeleteConnection;
+  final void Function(
+    String postId,
+    List<PostConnection> outgoing,
+    List<PostConnection> incoming,
+  )?
+  onConnectionsChanged;
+  final List<Post> allPosts;
   const _PostDetailSheet({
     required this.post,
     this.onToggleReaction,
     this.onReactionsChanged,
+    this.onCreateConnection,
+    this.onDeleteConnection,
+    this.onConnectionsChanged,
+    this.allPosts = const [],
   });
 
   @override
@@ -50,13 +80,18 @@ class _PostDetailSheet extends StatefulWidget {
 class _PostDetailSheetState extends State<_PostDetailSheet> {
   late List<ReactionCount> _reactionCounts;
   late Set<String> _myReactions;
+  late List<PostConnection> _outgoingConnections;
+  late List<PostConnection> _incomingConnections;
   bool _isToggling = false;
+  bool _isConnecting = false;
 
   @override
   void initState() {
     super.initState();
     _reactionCounts = List.from(widget.post.reactionCounts);
     _myReactions = Set.from(widget.post.myReactions);
+    _outgoingConnections = List.from(widget.post.outgoingConnections);
+    _incomingConnections = List.from(widget.post.incomingConnections);
   }
 
   Future<void> _toggleReaction(String emoji) async {
@@ -188,6 +223,12 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
                 child: _buildReactionsSection(trackColor),
               ),
+              // Connections
+              if (widget.allPosts.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: _buildConnectionsSection(trackColor),
+                ),
               // Comments placeholder
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -305,6 +346,175 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         ),
       ],
     );
+  }
+
+  Widget _buildConnectionsSection(Color trackColor) {
+    final postMap = {for (final p in widget.allPosts) p.id: p};
+    // Combine outgoing + incoming for display
+    final connectedPosts =
+        <({PostConnection conn, Post post, bool isOutgoing})>[];
+    for (final c in _outgoingConnections) {
+      final target = postMap[c.targetId];
+      if (target != null) {
+        connectedPosts.add((conn: c, post: target, isOutgoing: true));
+      }
+    }
+    for (final c in _incomingConnections) {
+      final source = postMap[c.sourceId];
+      if (source != null) {
+        connectedPosts.add((conn: c, post: source, isOutgoing: false));
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Divider(
+          color: const Color(0xFF1a1a28).withValues(alpha: 0.5),
+          height: 1,
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Connections',
+          style: TextStyle(
+            color: Color(0xFF666688),
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (connectedPosts.isNotEmpty)
+          ...connectedPosts.map((entry) {
+            final p = entry.post;
+            final pColor = p.trackColor != null
+                ? parseHexColor(p.trackColor)
+                : null;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    entry.isOutgoing ? Icons.arrow_forward : Icons.arrow_back,
+                    size: 14,
+                    color: const Color(0xFF666688),
+                  ),
+                  const SizedBox(width: 6),
+                  if (pColor != null)
+                    Container(
+                      width: 3,
+                      height: 20,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: pColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  Expanded(
+                    child: Text(
+                      p.title ??
+                          p.body?.substring(0, p.body!.length.clamp(0, 30)) ??
+                          p.mediaType.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFccccdd),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  if (entry.isOutgoing)
+                    GestureDetector(
+                      onTap: () => _deleteConnection(entry.conn),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.close,
+                          size: 14,
+                          color: Color(0xFF666688),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }),
+        GestureDetector(
+          onTap: _isConnecting ? null : _addConnection,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.add,
+                  size: 16,
+                  color: _isConnecting
+                      ? const Color(0xFF444466)
+                      : trackColor.withValues(alpha: 0.7),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _isConnecting ? 'Linking...' : 'Link post',
+                  style: TextStyle(
+                    color: _isConnecting
+                        ? const Color(0xFF444466)
+                        : trackColor.withValues(alpha: 0.7),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addConnection() async {
+    final selectedPost = await showModalBottomSheet<Post>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => RelatedPostPicker(
+        posts: widget.allPosts,
+        excludePostId: widget.post.id,
+        onSelected: (post) => Navigator.pop(context, post),
+      ),
+    );
+    if (selectedPost == null || !mounted) return;
+
+    setState(() => _isConnecting = true);
+    try {
+      final conn = await widget.onCreateConnection?.call(
+        widget.post.id,
+        selectedPost.id,
+      );
+      if (conn != null && mounted) {
+        setState(() {
+          _outgoingConnections.add(conn);
+        });
+        widget.onConnectionsChanged?.call(
+          widget.post.id,
+          List.from(_outgoingConnections),
+          List.from(_incomingConnections),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isConnecting = false);
+    }
+  }
+
+  Future<void> _deleteConnection(PostConnection conn) async {
+    final success = await widget.onDeleteConnection?.call(conn.id) ?? false;
+    if (success && mounted) {
+      setState(() {
+        _outgoingConnections.removeWhere((c) => c.id == conn.id);
+        _incomingConnections.removeWhere((c) => c.id == conn.id);
+      });
+      widget.onConnectionsChanged?.call(
+        widget.post.id,
+        List.from(_outgoingConnections),
+        List.from(_incomingConnections),
+      );
+    }
   }
 
   // --- Media area methods ---
