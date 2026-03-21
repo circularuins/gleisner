@@ -277,12 +277,7 @@ describe("PublicUserType email exposure prevention", () => {
       token,
     );
 
-    const result = await gql(
-      app,
-      REACTIONS_WITH_USER_QUERY,
-      { postId },
-      token,
-    );
+    const result = await gql(app, REACTIONS_WITH_USER_QUERY, { postId }, token);
 
     expect(result.errors).toBeUndefined();
     const reactions = result.data!.reactions as Array<Record<string, unknown>>;
