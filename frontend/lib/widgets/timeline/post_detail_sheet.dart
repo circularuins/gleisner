@@ -1,26 +1,114 @@
 import 'package:flutter/material.dart';
-
 import '../../models/post.dart';
-import '../../utils/date_format.dart';
 import 'seed_art_painter.dart';
 
+const _reactionPresets = ['🔥', '❤️', '👏', '✨', '😍', '🎵', '💪', '🎸'];
+
 /// Show the post detail bottom sheet.
-void showPostDetailSheet(BuildContext context, Post post) {
+void showPostDetailSheet(
+  BuildContext context,
+  Post post, {
+  Future<bool> Function(String postId, String emoji)? onToggleReaction,
+  void Function(
+    String postId,
+    List<ReactionCount> counts,
+    List<String> myReactions,
+  )?
+  onReactionsChanged,
+}) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _PostDetailSheet(post: post),
+    builder: (_) => _PostDetailSheet(
+      post: post,
+      onToggleReaction: onToggleReaction,
+      onReactionsChanged: onReactionsChanged,
+    ),
   );
 }
 
-class _PostDetailSheet extends StatelessWidget {
+class _PostDetailSheet extends StatefulWidget {
   final Post post;
+  final Future<bool> Function(String postId, String emoji)? onToggleReaction;
+  final void Function(
+    String postId,
+    List<ReactionCount> counts,
+    List<String> myReactions,
+  )?
+  onReactionsChanged;
+  const _PostDetailSheet({
+    required this.post,
+    this.onToggleReaction,
+    this.onReactionsChanged,
+  });
 
-  const _PostDetailSheet({required this.post});
+  @override
+  State<_PostDetailSheet> createState() => _PostDetailSheetState();
+}
+
+class _PostDetailSheetState extends State<_PostDetailSheet> {
+  late List<ReactionCount> _reactionCounts;
+  late Set<String> _myReactions;
+  bool _isToggling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _reactionCounts = List.from(widget.post.reactionCounts);
+    _myReactions = Set.from(widget.post.myReactions);
+  }
+
+  Future<void> _toggleReaction(String emoji) async {
+    if (_isToggling) return;
+    setState(() => _isToggling = true);
+
+    try {
+      final success =
+          await widget.onToggleReaction?.call(widget.post.id, emoji) ?? false;
+
+      if (!mounted) return;
+
+      if (success) {
+        final wasActive = _myReactions.contains(emoji);
+        setState(() {
+          if (wasActive) {
+            _myReactions.remove(emoji);
+            _updateCount(emoji, -1);
+          } else {
+            _myReactions.add(emoji);
+            _updateCount(emoji, 1);
+          }
+        });
+        widget.onReactionsChanged?.call(
+          widget.post.id,
+          List.from(_reactionCounts),
+          _myReactions.toList(),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isToggling = false);
+    }
+  }
+
+  void _updateCount(String emoji, int delta) {
+    final idx = _reactionCounts.indexWhere((r) => r.emoji == emoji);
+    if (idx >= 0) {
+      final newCount = _reactionCounts[idx].count + delta;
+      if (newCount <= 0) {
+        _reactionCounts.removeAt(idx);
+      } else {
+        _reactionCounts[idx] = ReactionCount(emoji: emoji, count: newCount);
+      }
+    } else if (delta > 0) {
+      _reactionCounts.add(ReactionCount(emoji: emoji, count: 1));
+    }
+    _reactionCounts.sort((a, b) => b.count.compareTo(a.count));
+  }
 
   @override
   Widget build(BuildContext context) {
+    final post = widget.post;
     final trackColor = post.trackDisplayColor;
     final seedString = '${post.title ?? ''}${post.createdAt.toIso8601String()}';
 
@@ -40,7 +128,6 @@ class _PostDetailSheet extends StatelessWidget {
             controller: scrollController,
             padding: EdgeInsets.zero,
             children: [
-              // Drag handle
               Center(
                 child: Container(
                   margin: const EdgeInsets.only(top: 8, bottom: 4),
@@ -52,77 +139,79 @@ class _PostDetailSheet extends StatelessWidget {
                   ),
                 ),
               ),
-              // Media area — type-specific
               _buildMediaArea(context, post, trackColor, seedString),
-              // Body
+              // Content
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (post.title != null)
+                    // Date
+                    Text(
+                      _formatDateTime(),
+                      style: const TextStyle(
+                        color: Color(0xFF9999b0),
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    // Title
+                    if (post.title != null) ...[
                       Text(
                         post.title!,
                         style: const TextStyle(
-                          color: Color(0xFFeeeeee),
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFf0f0f5),
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
                           height: 1.3,
                         ),
                       ),
-                    const SizedBox(height: 8),
-                    if (post.body != null)
+                      const SizedBox(height: 10),
+                    ],
+                    // Body
+                    if (post.body != null) ...[
                       Text(
                         post.body!,
                         style: const TextStyle(
-                          color: Color(0xFF8888a0),
-                          fontSize: 14,
-                          height: 1.5,
+                          color: Color(0xFFccccdd),
+                          fontSize: 16,
+                          height: 1.6,
                         ),
                       ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _buildMetaLine(),
-                      style: const TextStyle(
-                        color: Color(0xFF555570),
-                        fontSize: 12,
-                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ],
+                ),
+              ),
+              // Reactions — subtle, no divider above
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                child: _buildReactionsSection(trackColor),
+              ),
+              // Comments placeholder
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Divider(
+                      color: const Color(0xFF1a1a28).withValues(alpha: 0.5),
+                      height: 1,
                     ),
-                    const SizedBox(height: 20),
-                    const Divider(color: Color(0xFF1a1a28), height: 1),
-                    const SizedBox(height: 16),
-                    // Reactions placeholder
-                    const Text(
-                      'Reactions',
-                      style: TextStyle(
-                        color: Color(0xFF444460),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Coming soon',
-                      style: TextStyle(color: Color(0xFF333350), fontSize: 12),
-                    ),
-                    const SizedBox(height: 16),
-                    const Divider(color: Color(0xFF1a1a28), height: 1),
-                    const SizedBox(height: 16),
-                    // Comments placeholder
+                    const SizedBox(height: 14),
                     const Text(
                       'Comments',
                       style: TextStyle(
-                        color: Color(0xFF444460),
+                        color: Color(0xFF666688),
                         fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     const Text(
                       'Coming soon',
-                      style: TextStyle(color: Color(0xFF333350), fontSize: 12),
+                      style: TextStyle(color: Color(0xFF444466), fontSize: 12),
                     ),
-                    const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -133,6 +222,93 @@ class _PostDetailSheet extends StatelessWidget {
     );
   }
 
+  Widget _buildReactionsSection(Color trackColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Existing reactions (compact pills)
+        if (_reactionCounts.isNotEmpty) ...[
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _reactionCounts.map((r) {
+              final isActive = _myReactions.contains(r.emoji);
+              return GestureDetector(
+                onTap: () => _toggleReaction(r.emoji),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? trackColor.withValues(alpha: 0.12)
+                        : const Color(0xFF131320),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isActive
+                          ? trackColor.withValues(alpha: 0.3)
+                          : const Color(0xFF1a1a28),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(r.emoji, style: const TextStyle(fontSize: 15)),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${r.count}',
+                        style: TextStyle(
+                          color: isActive
+                              ? trackColor
+                              : const Color(0xFF9999b0),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 10),
+        ],
+        // Emoji picker (smaller, more subtle)
+        Wrap(
+          spacing: 2,
+          runSpacing: 2,
+          children: _reactionPresets.map((emoji) {
+            final isActive = _myReactions.contains(emoji);
+            return GestureDetector(
+              onTap: () => _toggleReaction(emoji),
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? trackColor.withValues(alpha: 0.12)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  emoji,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isActive ? null : const Color(0xFF666688),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  // --- Media area methods ---
+
   Widget _buildMediaArea(
     BuildContext context,
     Post post,
@@ -140,7 +316,6 @@ class _PostDetailSheet extends StatelessWidget {
     String seedString,
   ) {
     final width = MediaQuery.of(context).size.width;
-
     return switch (post.mediaType) {
       MediaType.text => _textMediaArea(post, trackColor),
       MediaType.image => _visualMediaArea(post, trackColor, seedString, width),
@@ -150,45 +325,57 @@ class _PostDetailSheet extends StatelessWidget {
     };
   }
 
-  // Text: gradient background with body excerpt
+  /// Wrap a non-Stack media area with track tag + type badge.
+  Widget _withBadges(Post post, Color trackColor, Widget child) {
+    return Stack(
+      children: [
+        SizedBox(width: double.infinity, child: child),
+        _trackTag(post, trackColor, positioned: true),
+        _typeBadge(post),
+      ],
+    );
+  }
+
   Widget _textMediaArea(Post post, Color trackColor) {
-    return Container(
-      height: 160,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            trackColor.withValues(alpha: 0.1),
-            const Color(0xFF0c0c12),
-            trackColor.withValues(alpha: 0.05),
+    return _withBadges(
+      post,
+      trackColor,
+      Container(
+        height: 160,
+        padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              trackColor.withValues(alpha: 0.1),
+              const Color(0xFF0c0c12),
+              trackColor.withValues(alpha: 0.05),
+            ],
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Spacer(),
+            if (post.body != null)
+              Text(
+                post.body!,
+                style: const TextStyle(
+                  color: Color(0xFFccccdd),
+                  fontSize: 16,
+                  height: 1.5,
+                  fontStyle: FontStyle.italic,
+                ),
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+              ),
           ],
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _trackTag(post, trackColor),
-          const Spacer(),
-          if (post.body != null)
-            Text(
-              post.body!,
-              style: const TextStyle(
-                color: Color(0xFFccccdd),
-                fontSize: 16,
-                height: 1.5,
-                fontStyle: FontStyle.italic,
-              ),
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-            ),
-        ],
       ),
     );
   }
 
-  // Image/Video shared: seed art + overlays
   Widget _visualMediaArea(
     Post post,
     Color trackColor,
@@ -224,7 +411,6 @@ class _PostDetailSheet extends StatelessWidget {
           trackColor: trackColor,
           seed: seedString,
         ),
-        // Play button
         Container(
           width: 52,
           height: 52,
@@ -240,7 +426,6 @@ class _PostDetailSheet extends StatelessWidget {
         ),
         _trackTag(post, trackColor, positioned: true),
         _typeBadge(post),
-        // Duration
         if (post.formattedDuration != null)
           Positioned(
             right: 12,
@@ -265,111 +450,119 @@ class _PostDetailSheet extends StatelessWidget {
     );
   }
 
-  // Audio: wave + play button
   Widget _audioMediaArea(Post post, Color trackColor) {
-    return Container(
-      height: 120,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [trackColor.withValues(alpha: 0.08), const Color(0xFF0c0c12)],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _trackTag(post, trackColor),
-          const Spacer(),
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: trackColor.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.play_arrow_rounded,
-                  color: trackColor,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              if (post.formattedDuration != null)
-                Text(
-                  post.formattedDuration!,
-                  style: TextStyle(
-                    color: trackColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+    return _withBadges(
+      post,
+      trackColor,
+      Container(
+        height: 120,
+        padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              trackColor.withValues(alpha: 0.08),
+              const Color(0xFF0c0c12),
             ],
           ),
-        ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Spacer(),
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: trackColor.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.play_arrow_rounded,
+                    color: trackColor,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                if (post.formattedDuration != null)
+                  Text(
+                    post.formattedDuration!,
+                    style: TextStyle(
+                      color: trackColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // Link: icon + URL
   Widget _linkMediaArea(Post post, Color trackColor) {
     final domain = post.mediaUrl != null
         ? Uri.tryParse(post.mediaUrl!)?.host ?? ''
         : '';
-
-    return Container(
-      height: 120,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [trackColor.withValues(alpha: 0.06), const Color(0xFF0c0c12)],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _trackTag(post, trackColor),
-          const Spacer(),
-          Row(
-            children: [
-              Icon(Icons.link_rounded, size: 20, color: trackColor),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  post.mediaUrl ?? '',
-                  style: TextStyle(
-                    color: trackColor.withValues(alpha: 0.8),
-                    fontSize: 13,
-                    decoration: TextDecoration.underline,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+    return _withBadges(
+      post,
+      trackColor,
+      Container(
+        height: 120,
+        padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              trackColor.withValues(alpha: 0.06),
+              const Color(0xFF0c0c12),
             ],
           ),
-          if (domain.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4, left: 28),
-              child: Text(
-                domain,
-                style: TextStyle(
-                  color: trackColor.withValues(alpha: 0.5),
-                  fontSize: 11,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Spacer(),
+            Row(
+              children: [
+                Icon(Icons.link_rounded, size: 20, color: trackColor),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    post.mediaUrl ?? '',
+                    style: TextStyle(
+                      color: trackColor.withValues(alpha: 0.8),
+                      fontSize: 13,
+                      decoration: TextDecoration.underline,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            if (domain.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, left: 28),
+                child: Text(
+                  domain,
+                  style: TextStyle(
+                    color: trackColor.withValues(alpha: 0.5),
+                    fontSize: 11,
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  // Shared: track tag
   Widget _trackTag(Post post, Color trackColor, {bool positioned = false}) {
     final tag = post.trackName != null
         ? Container(
@@ -389,14 +582,10 @@ class _PostDetailSheet extends StatelessWidget {
             ),
           )
         : const SizedBox.shrink();
-
-    if (positioned) {
-      return Positioned(top: 12, left: 12, child: tag);
-    }
+    if (positioned) return Positioned(top: 12, left: 12, child: tag);
     return tag;
   }
 
-  // Shared: media type badge
   Widget _typeBadge(Post post) {
     return Positioned(
       top: 12,
@@ -421,10 +610,8 @@ class _PostDetailSheet extends StatelessWidget {
     );
   }
 
-  String _buildMetaLine() {
-    final local = post.createdAt.toLocal();
-    final date = formatRelativeDate(local);
-    final parts = <String>[date, post.mediaType.name.toUpperCase()];
-    return parts.join(' · ');
+  String _formatDateTime() {
+    final local = widget.post.createdAt.toLocal();
+    return '${local.year}/${local.month.toString().padLeft(2, '0')}/${local.day.toString().padLeft(2, '0')} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
   }
 }

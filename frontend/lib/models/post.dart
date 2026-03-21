@@ -27,6 +27,20 @@ class PostAuthor {
 
 enum MediaType { text, image, video, audio, link }
 
+class ReactionCount {
+  final String emoji;
+  final int count;
+
+  const ReactionCount({required this.emoji, required this.count});
+
+  factory ReactionCount.fromJson(Map<String, dynamic> json) {
+    return ReactionCount(
+      emoji: json['emoji'] as String,
+      count: json['count'] as int,
+    );
+  }
+}
+
 class Post {
   final String id;
   final MediaType mediaType;
@@ -44,6 +58,8 @@ class Post {
   final String? trackId;
   final String? trackName;
   final String? trackColor;
+  final List<ReactionCount> reactionCounts;
+  final List<String> myReactions;
 
   const Post({
     required this.id,
@@ -62,9 +78,14 @@ class Post {
     this.trackId,
     this.trackName,
     this.trackColor,
+    this.reactionCounts = const [],
+    this.myReactions = const [],
   });
 
   Color get trackDisplayColor => parseHexColor(trackColor);
+
+  /// Total reaction count across all emoji types.
+  int get totalReactions => reactionCounts.fold(0, (sum, r) => sum + r.count);
 
   /// Format duration as "m:ss" or "h:mm:ss". Returns null if no duration.
   String? get formattedDuration {
@@ -98,6 +119,16 @@ class Post {
       trackId: track?['id'] as String?,
       trackName: track?['name'] as String?,
       trackColor: track?['color'] as String?,
+      reactionCounts:
+          (json['reactionCounts'] as List<dynamic>?)
+              ?.map((r) => ReactionCount.fromJson(r as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      myReactions:
+          (json['myReactions'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
     );
   }
 }

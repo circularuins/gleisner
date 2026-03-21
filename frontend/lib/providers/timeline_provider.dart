@@ -1,9 +1,12 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
 import '../graphql/queries/artist.dart';
+import '../graphql/mutations/reaction.dart';
 import '../graphql/mutations/track.dart';
 import '../graphql/queries/post.dart';
 import '../models/artist.dart';
@@ -166,6 +169,104 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
   }
 
   /// Add a single post to local state (optimistic/post-creation update).
+  /// Toggle a reaction on a post. Returns true on success.
+  Future<bool> toggleReaction(String postId, String emoji) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(toggleReactionMutation),
+          variables: {'postId': postId, 'emoji': emoji},
+        ),
+      );
+      return !result.hasException;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Update reaction counts and user's own reactions for a post.
+  void updatePostReactions(
+    String postId,
+    List<ReactionCount> counts,
+    List<String> myReactions,
+  ) {
+    final posts = state.posts.map((p) {
+      if (p.id == postId) {
+        return Post(
+          id: p.id,
+          mediaType: p.mediaType,
+          title: p.title,
+          body: p.body,
+          mediaUrl: p.mediaUrl,
+          duration: p.duration,
+          importance: p.importance,
+          layoutX: p.layoutX,
+          layoutY: p.layoutY,
+          contentHash: p.contentHash,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+          author: p.author,
+          trackId: p.trackId,
+          trackName: p.trackName,
+          trackColor: p.trackColor,
+          reactionCounts: counts,
+          myReactions: myReactions,
+        );
+      }
+      return p;
+    }).toList();
+    // Update posts and patch layout nodes without recalculating positions.
+    // Node sizes stay the same until next full refresh — avoids jarring
+    // layout shifts when reacting.
+    final layout = state.layout;
+    if (layout != null) {
+      final postMap = {for (final p in posts) p.id: p};
+      final patchedNodes = layout.nodes.map((n) {
+        final updated = postMap[n.post.id];
+        if (updated != null && updated != n.post) {
+          // Recalculate size from updated reactions, keep position
+          final sz = ConstellationLayout.nodeSize(
+            updated.importance,
+            reactionCount: updated.totalReactions,
+          );
+          final isAudio = updated.mediaType == MediaType.audio;
+          final w = isAudio
+              ? min(sz * 1.8, _lastWidth - ConstellationLayout.spineWidth - 20)
+              : sz > 110
+              ? min(sz * 1.25, _lastWidth - ConstellationLayout.spineWidth - 20)
+              : sz;
+          final mediaH = isAudio
+              ? sz * 0.45
+              : sz > 110
+              ? sz * 0.7
+              : sz * 0.85;
+          return PlacedNode(
+            post: updated,
+            x: n.x,
+            y: n.y,
+            width: w,
+            height: mediaH + (isAudio ? 0 : 30),
+            nodeSize: sz,
+            mediaHeight: mediaH,
+            showInfo: !isAudio,
+          );
+        }
+        return n;
+      }).toList();
+      state = state.copyWith(
+        posts: posts,
+        layout: LayoutResult(
+          nodes: patchedNodes,
+          days: layout.days,
+          connections: layout.connections,
+          totalHeight: layout.totalHeight,
+        ),
+      );
+    } else {
+      state = state.copyWith(posts: posts);
+    }
+  }
+
   void addPost(Post post) {
     final posts = [...state.posts, post];
     state = state.copyWith(posts: posts, highlightPostId: post.id);

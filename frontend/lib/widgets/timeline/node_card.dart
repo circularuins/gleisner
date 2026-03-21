@@ -28,12 +28,20 @@ class NodeCard extends StatefulWidget {
   final PlacedNode node;
   final int index;
   final bool highlight;
+  final bool focused;
+  final VoidCallback? onTap;
+  final Future<bool> Function(String postId, String emoji)? onToggleReaction;
+  final VoidCallback? onOpenDetail;
 
   const NodeCard({
     super.key,
     required this.node,
     required this.index,
     this.highlight = false,
+    this.focused = false,
+    this.onTap,
+    this.onToggleReaction,
+    this.onOpenDetail,
   });
 
   @override
@@ -97,7 +105,7 @@ class _NodeCardState extends State<NodeCard>
     final glowOpacity = 0.15 + importance * 0.25;
 
     Widget card = GestureDetector(
-      onTap: () => showPostDetailSheet(context, post),
+      onTap: widget.onTap ?? () => showPostDetailSheet(context, post),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: borderRadius,
@@ -118,6 +126,103 @@ class _NodeCardState extends State<NodeCard>
         child: _buildContent(node, trackColor),
       ),
     );
+
+    // Wrap with reaction pills if present
+    final reactions = post.reactionCounts;
+    final myReactions = post.myReactions.toSet();
+    if (reactions.isNotEmpty) {
+      card = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          card,
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 3,
+            runSpacing: 2,
+            children: [
+              ...reactions.take(3).map((r) {
+                final isMine = myReactions.contains(r.emoji);
+                return GestureDetector(
+                  onTap: () => widget.onToggleReaction?.call(post.id, r.emoji),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isMine
+                          ? trackColor.withValues(alpha: 0.15)
+                          : const Color(0xFF151520),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isMine
+                            ? trackColor.withValues(alpha: 0.4)
+                            : const Color(0xFF1a1a28),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(r.emoji, style: const TextStyle(fontSize: 10)),
+                        const SizedBox(width: 2),
+                        Text(
+                          r.count >= 1000
+                              ? '${(r.count / 1000).toStringAsFixed(1)}k'
+                              : '${r.count}',
+                          style: TextStyle(
+                            color: isMine
+                                ? trackColor
+                                : const Color(0xFF8888a0),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+              if (reactions.length > 3)
+                GestureDetector(
+                  onTap: widget.onOpenDetail,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    child: Text(
+                      '+${reactions.length - 3}',
+                      style: const TextStyle(
+                        color: Color(0xFF8888a0),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    // Focused state: elevated with brighter glow
+    if (widget.focused) {
+      card = Container(
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          boxShadow: [
+            BoxShadow(
+              color: trackColor.withValues(alpha: 0.5),
+              blurRadius: 24,
+              spreadRadius: 6,
+            ),
+          ],
+        ),
+        child: card,
+      );
+    }
 
     if (_glowAnimation != null) {
       return AnimatedBuilder(
@@ -328,42 +433,69 @@ class _AudioContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final post = node.post;
+    final hasBody = post.body != null && post.body!.isNotEmpty;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      child: Row(
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          // Play button
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: trackColor.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.play_arrow_rounded, color: trackColor, size: 18),
+          // Wave bars as background
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: trackColor.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.play_arrow_rounded,
+                  color: trackColor,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: CustomPaint(
+                  size: Size(double.infinity, node.mediaHeight * 0.5),
+                  painter: _WaveBarPainter(
+                    color: trackColor.withValues(alpha: hasBody ? 0.25 : 0.5),
+                    seed: '${post.title ?? ''}${post.id}',
+                  ),
+                ),
+              ),
+              if (post.formattedDuration != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  post.formattedDuration!,
+                  style: TextStyle(
+                    color: trackColor.withValues(alpha: 0.7),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(width: 6),
-          // Wave bars
-          Expanded(
-            child: CustomPaint(
-              size: Size(double.infinity, node.mediaHeight * 0.5),
-              painter: _WaveBarPainter(
-                color: trackColor,
-                seed: '${post.title ?? ''}${post.id}',
+          // Body text overlay on top of wave
+          if (hasBody)
+            Positioned(
+              left: 38,
+              right: post.formattedDuration != null ? 36 : 10,
+              child: Text(
+                post.body!,
+                style: const TextStyle(
+                  color: Color(0xFFeeeeee),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  height: 1.3,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-          if (post.formattedDuration != null) ...[
-            const SizedBox(width: 6),
-            Text(
-              post.formattedDuration!,
-              style: TextStyle(
-                color: trackColor.withValues(alpha: 0.7),
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
         ],
       ),
     );

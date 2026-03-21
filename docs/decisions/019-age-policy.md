@@ -59,17 +59,7 @@ Gleisner will support users of all ages through a **Guardian-Managed Account** s
 
 #### Tier 1: Guardian-Managed (<13)
 
-**Account creation**: Guardian creates the account on behalf of the child. The child account has no independent login credentials — the child accesses their account by the guardian logging in first and switching to the child's profile (same pattern as YouTube Supervised Accounts via Google Family Link).
-
-**Authentication flow**:
-```
-Guardian logs in (email + password)
-  → Dashboard shows "Managed accounts" section
-    → Guardian selects child's account → session switches
-      → Child operates within restricted UI
-```
-
-At Tier 2 (13+), the child may optionally register their own email to enable independent login. This is a gradual autonomy transition, not a sudden switch.
+**Account creation**: Guardian creates the account on behalf of the child.
 
 **Consent**: Verifiable Parental Consent (VPC) obtained via FTC-approved method at account creation.
 
@@ -105,7 +95,6 @@ At Tier 2 (13+), the child may optionally register their own email to enable ind
 - Receive DMs from followers
 - Guardian receives weekly activity summary (not full content access)
 - Guardian can still approve/deny setting changes
-- **Optional**: Register own email for independent login
 
 #### Tier 3: Guardian-Notified (16-17)
 
@@ -221,7 +210,7 @@ Following the UK Children's Code principles and the universal lesson that **defa
 | Consent record | Yes | Yes | Legal compliance |
 | IP address | Session only (not stored) | Session only | Abuse prevention |
 | Device ID | No | No | Not needed |
-| Email | No (guardian's only) | Optional (13+) | Notifications / independent login |
+| Email | No (guardian's only) | Optional (13+) | Notifications |
 | Phone | No | No | Not needed |
 | Behavioral data | No | No | Not collected |
 | Location | No | No | Not collected |
@@ -246,33 +235,18 @@ Following the UK Children's Code principles and the universal lesson that **defa
 
 ### Age Verification
 
-#### Why self-declaration is legally sufficient
-
-Gleisner is a **general-audience service** (artist-focused SNS), not a service "directed to children." Under COPPA's "actual knowledge" standard for general-audience services:
-
-- COPPA obligations are only triggered when the platform **actually knows** a user is under 13
-- "Constructive knowledge" (should have known) is explicitly excluded — Congress intentionally chose this narrower standard
-- **Government ID or biometric verification is NOT legally required** for age checking
-- YouTube, Instagram, TikTok, and Discord all use birth-date self-declaration — this is industry standard and legally accepted
-
-The key obligation is: once a user declares they are under 13, the system must act on that knowledge (trigger the Guardian Account Creation flow) and must NOT allow the user to go back and change their age.
-
-**Exception**: Australia's Social Media Minimum Age Act (2025) explicitly states self-declaration alone is insufficient. See the Australia Special Case section below.
-
 #### Registration Flow
 
 ```
 New user registration:
   1. Enter birth date (year-month only — day not needed)
-  2. If age >= 18: standard registration (email + password)
-  3. If age 13-17: standard registration (email + password)
-     + notification about optional guardian features
+  2. If age >= 18: standard registration
+  3. If age 13-17: standard registration + notification about guardian features
   4. If age < 13: redirect to Guardian Account Creation flow
      a. Guardian creates their own account first (if not already registered)
      b. Guardian completes VPC (email-plus for MVP)
      c. Guardian creates child's account under their supervision
-     d. Child account has NO independent login — access via guardian's session
-     e. Consent record created and signed
+     d. Consent record created and signed
 ```
 
 **Important**: Once Gleisner asks for age and learns a user is <13, COPPA obligations are triggered ("actual knowledge"). The system MUST NOT allow the user to simply go back and enter a different age.
@@ -308,22 +282,15 @@ The Social Media Minimum Age Act 2024 bans SNS accounts for under-16. Options:
 
 ### COPPA Safe Harbor Program
 
-**Priority: COULD (nice-to-have, not required for launch)**
+**Recommendation**: Apply to kidSAFE or PRIVO COPPA Safe Harbor program before or shortly after launch.
 
-COPPA Safe Harbor certification (kidSAFE, PRIVO) is NOT a legal requirement. A platform can fully comply with COPPA without it — by implementing VPC, publishing a privacy policy, and practicing data minimization.
+Benefits:
+- Significantly reduces FTC enforcement risk
+- Provides ongoing compliance guidance
+- Acts as a "good faith" signal to regulators
+- Annual audit keeps compliance current
 
-The certification is an "insurance policy" that reduces FTC enforcement risk, but at a cost of $5,000-$15,000/year — which is not realistic for a solo founder / side project at launch.
-
-**When to reconsider**: If Gleisner reaches significant scale (e.g., 100K+ users) or begins processing substantial amounts of children's data, the cost-benefit ratio shifts and certification becomes a more practical investment.
-
-**For launch, the minimum viable legal compliance is**:
-1. Privacy policy published (with COPPA-required disclosures)
-2. VPC flow implemented (email-plus)
-3. Data minimization practiced
-4. Parent access/deletion rights implemented
-5. Repeat age-misrepresentation handling in place
-
-This is sufficient for a side project / indie platform. FTC enforcement historically targets platforms with millions of users and intentional violations, not small indie projects practicing good-faith compliance.
+Cost: Varies by program, typically $5,000-$15,000/year for small platforms.
 
 ## Consequences
 
@@ -335,8 +302,7 @@ This is sufficient for a side project / indie platform. FTC enforcement historic
 - Privacy-by-default settings align with UK Children's Code, DSA, and emerging global standards
 - Email-plus VPC for MVP keeps implementation cost low while meeting legal requirements
 - Australia compliance requires special handling and may delay AU market entry
-- COPPA Safe Harbor certification is a nice-to-have at scale, not required for launch — the minimum viable compliance path (privacy policy + VPC + data minimization) is achievable at zero cost beyond development time
-- Child accounts authenticate via guardian session switch (no independent login), with optional email registration at 13+ for gradual autonomy
+- COPPA Safe Harbor certification is strongly recommended for risk reduction
 
 ## Items Requiring Legal Counsel Review
 

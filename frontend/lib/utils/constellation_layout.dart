@@ -89,10 +89,13 @@ class ConstellationLayout {
   /// Width reserved for the date spine on the left side.
   static const double spineWidth = 36;
 
-  /// Compute node size from importance (46–170).
+  /// Compute node size from importance + engagement boost.
   /// Min 90px (title always readable), max 170px.
-  static double nodeSize(double importance) {
-    return 90 + importance.clamp(0.0, 1.0) * 80;
+  /// Engagement (reaction count) adds up to 0.35 to the base importance.
+  static double nodeSize(double importance, {int reactionCount = 0}) {
+    final engBoost = min(log(reactionCount + 1) / (4 * ln10), 0.35);
+    final effective = (importance + engBoost).clamp(0.0, 1.0);
+    return 90 + effective * 80;
   }
 
   /// Compute the full constellation layout.
@@ -151,7 +154,7 @@ class ConstellationLayout {
       }
       double maxItemH = 0;
       for (final it in items) {
-        final sz = nodeSize(it.importance);
+        final sz = nodeSize(it.importance, reactionCount: it.totalReactions);
         final h = sz > 110
             ? sz * 0.7 + 30 + 18
             : sz * 0.85 + 30 + (sz >= 50 ? 18 : 0);
@@ -181,16 +184,20 @@ class ConstellationLayout {
     final rng = DeterministicRng('constellation-v3');
     final placedItems = <_PlacedItem>[];
 
-    final bySize = List<Post>.from(
-      sorted,
-    )..sort((a, b) => nodeSize(b.importance).compareTo(nodeSize(a.importance)));
+    final bySize = List<Post>.from(sorted)
+      ..sort(
+        (a, b) => nodeSize(
+          b.importance,
+          reactionCount: b.totalReactions,
+        ).compareTo(nodeSize(a.importance, reactionCount: a.totalReactions)),
+      );
 
     for (final item in bySize) {
       final daysAgo = today.difference(localDate(item.createdAt)).inDays;
       final dI = dayY[daysAgo];
       if (dI == null) continue;
 
-      final sz = nodeSize(item.importance);
+      final sz = nodeSize(item.importance, reactionCount: item.totalReactions);
       final isAudio = item.mediaType == MediaType.audio;
       final w = isAudio
           ? min(sz * 1.8, cW - 20)
@@ -361,7 +368,10 @@ class ConstellationLayout {
     // Build PlacedNode list
     final nodes = <PlacedNode>[];
     for (final p in placedItems) {
-      final sz = nodeSize(p.post.importance);
+      final sz = nodeSize(
+        p.post.importance,
+        reactionCount: p.post.totalReactions,
+      );
       final isAudio = p.post.mediaType == MediaType.audio;
       final mediaH = isAudio
           ? sz * 0.45

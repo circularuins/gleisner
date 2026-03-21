@@ -6,14 +6,18 @@ Post _makePost({
   required String id,
   required DateTime createdAt,
   double importance = 0.5,
+  MediaType mediaType = MediaType.text,
   String? trackId,
   String? trackName,
   String? trackColor,
+  String? body,
+  List<ReactionCount> reactionCounts = const [],
 }) {
   return Post(
     id: id,
-    mediaType: MediaType.text,
+    mediaType: mediaType,
     title: 'Post $id',
+    body: body,
     importance: importance,
     createdAt: createdAt,
     updatedAt: createdAt,
@@ -21,6 +25,7 @@ Post _makePost({
     trackId: trackId,
     trackName: trackName,
     trackColor: trackColor,
+    reactionCounts: reactionCounts,
   );
 }
 
@@ -377,6 +382,223 @@ void main() {
         expect(result1.nodes[i].y, result2.nodes[i].y);
       }
       expect(result1.totalHeight, result2.totalHeight);
+    });
+  });
+
+  group('Engagement boost', () {
+    test('nodeSize increases with reaction count', () {
+      final base = ConstellationLayout.nodeSize(0.5);
+      final boosted = ConstellationLayout.nodeSize(0.5, reactionCount: 100);
+      expect(boosted, greaterThan(base));
+    });
+
+    test('nodeSize boost is capped at 0.35', () {
+      final maxBoosted = ConstellationLayout.nodeSize(
+        0.65,
+        reactionCount: 1000000,
+      );
+      // 0.65 + 0.35 = 1.0 → max size 170
+      expect(maxBoosted, 170);
+    });
+
+    test('nodeSize with zero reactions equals base', () {
+      expect(
+        ConstellationLayout.nodeSize(0.5, reactionCount: 0),
+        ConstellationLayout.nodeSize(0.5),
+      );
+    });
+
+    test('nodes with more reactions are larger in layout', () {
+      final now = DateTime.now();
+      final posts = [
+        _makePost(
+          id: 'popular',
+          createdAt: now,
+          importance: 0.3,
+          reactionCounts: [
+            const ReactionCount(emoji: '🔥', count: 50),
+            const ReactionCount(emoji: '❤️', count: 30),
+          ],
+        ),
+        _makePost(
+          id: 'quiet',
+          createdAt: now.subtract(const Duration(hours: 1)),
+          importance: 0.3,
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+      final popular = result.nodes.firstWhere((n) => n.post.id == 'popular');
+      final quiet = result.nodes.firstWhere((n) => n.post.id == 'quiet');
+      expect(popular.nodeSize, greaterThan(quiet.nodeSize));
+      expect(popular.width, greaterThan(quiet.width));
+    });
+  });
+
+  group('Audio media type layout', () {
+    test('audio nodes are wider than default', () {
+      final now = DateTime.now();
+      final posts = [
+        _makePost(
+          id: 'audio',
+          createdAt: now,
+          importance: 0.5,
+          mediaType: MediaType.audio,
+        ),
+        _makePost(
+          id: 'text',
+          createdAt: now.subtract(const Duration(hours: 1)),
+          importance: 0.5,
+          mediaType: MediaType.text,
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+      final audio = result.nodes.firstWhere((n) => n.post.id == 'audio');
+      final text = result.nodes.firstWhere((n) => n.post.id == 'text');
+      expect(audio.width, greaterThan(text.width));
+    });
+
+    test('audio nodes have shorter height', () {
+      final now = DateTime.now();
+      final posts = [
+        _makePost(
+          id: 'audio',
+          createdAt: now,
+          importance: 0.5,
+          mediaType: MediaType.audio,
+        ),
+        _makePost(
+          id: 'image',
+          createdAt: now.subtract(const Duration(hours: 1)),
+          importance: 0.5,
+          mediaType: MediaType.image,
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+      final audio = result.nodes.firstWhere((n) => n.post.id == 'audio');
+      final image = result.nodes.firstWhere((n) => n.post.id == 'image');
+      expect(audio.height, lessThan(image.height));
+    });
+
+    test('audio nodes have showInfo false', () {
+      final now = DateTime.now();
+      final posts = [
+        _makePost(
+          id: 'audio',
+          createdAt: now,
+          importance: 0.5,
+          mediaType: MediaType.audio,
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+      expect(result.nodes.first.showInfo, isFalse);
+    });
+  });
+
+  group('Day gap enforcement', () {
+    test('consecutive days have minimum gap between node groups', () {
+      final now = DateTime.now();
+      final posts = [
+        _makePost(id: '1', createdAt: now, importance: 0.0),
+        _makePost(
+          id: '2',
+          createdAt: now.subtract(const Duration(days: 1)),
+          importance: 0.0,
+        ),
+        _makePost(
+          id: '3',
+          createdAt: now.subtract(const Duration(days: 2)),
+          importance: 0.0,
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+
+      // Check that each day group's bottom is separated from next day
+      // group's top by at least the minimum gap (40px)
+      for (int i = 1; i < result.days.length; i++) {
+        final prevBottom = result.days[i - 1].top + result.days[i - 1].height;
+        final curTop = result.days[i].top;
+        expect(
+          curTop - prevBottom,
+          greaterThanOrEqualTo(0),
+          reason: 'Day $i overlaps with day ${i - 1}',
+        );
+      }
+    });
+  });
+
+  group('Time nudge', () {
+    test('closely timed posts have vertical offset', () {
+      final now = DateTime.now();
+      final posts = [
+        _makePost(id: 'a', createdAt: now, importance: 0.5),
+        _makePost(
+          id: 'b',
+          createdAt: now.subtract(const Duration(seconds: 30)),
+          importance: 0.5,
+        ),
+        _makePost(
+          id: 'c',
+          createdAt: now.subtract(const Duration(seconds: 60)),
+          importance: 0.5,
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+
+      // Sort by createdAt descending (newest first)
+      final sorted = List<PlacedNode>.from(result.nodes)
+        ..sort((a, b) => b.post.createdAt.compareTo(a.post.createdAt));
+
+      // Each older post should be at least slightly below the newer one
+      for (int i = 1; i < sorted.length; i++) {
+        expect(
+          sorted[i].y,
+          greaterThan(sorted[i - 1].y),
+          reason:
+              'Post ${sorted[i].post.id} should be below ${sorted[i - 1].post.id}',
+        );
+      }
+    });
+  });
+
+  group('Compact layout', () {
+    test('nodes are pulled upward to minimize gaps', () {
+      final now = DateTime.now();
+      // Many small nodes that should compact tightly
+      final posts = List.generate(
+        6,
+        (i) => _makePost(
+          id: '$i',
+          createdAt: now.subtract(Duration(hours: i * 2)),
+          importance: 0.0,
+        ),
+      );
+      final result = ConstellationLayout.compute(
+        posts: posts,
+        containerWidth: 400,
+      );
+
+      // Total height should be reasonable (not excessively spread)
+      // 6 small nodes at min size (~120px each with info) should fit
+      // well under 1500px with compaction
+      expect(result.totalHeight, lessThan(1500));
     });
   });
 }

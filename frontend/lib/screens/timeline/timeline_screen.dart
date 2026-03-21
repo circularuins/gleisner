@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../graphql/client.dart';
+import '../../models/post.dart';
 import '../../models/track.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/node_card.dart';
+import '../../widgets/timeline/post_detail_sheet.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
   const TimelineScreen({super.key});
@@ -20,6 +22,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   double? _lastWidth;
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0;
+  String? _focusedPostId;
 
   @override
   void dispose() {
@@ -140,42 +143,38 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                           child: SingleChildScrollView(
                             controller: _scrollController,
                             physics: const AlwaysScrollableScrollPhysics(),
-                            child: SizedBox(
-                              height: layout.totalHeight,
-                              child: Stack(
-                                children: [
-                                  // Background: spine + synapses
-                                  Positioned.fill(
-                                    child: CustomPaint(
-                                      painter: ConstellationPainter(
-                                        layout: layout,
+                            child: GestureDetector(
+                              onTap: () {
+                                if (_focusedPostId != null) {
+                                  setState(() => _focusedPostId = null);
+                                }
+                              },
+                              child: SizedBox(
+                                height: layout.totalHeight,
+                                child: Stack(
+                                  children: [
+                                    // Background: spine + synapses
+                                    Positioned.fill(
+                                      child: CustomPaint(
+                                        painter: ConstellationPainter(
+                                          layout: layout,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  // Day labels on the spine
-                                  // Find the one day closest above the midpoint
-                                  ..._buildDateLabels(
-                                    layout.days,
-                                    _scrollOffset,
-                                    constraints.maxHeight,
-                                  ),
-                                  // Nodes
-                                  for (int i = 0; i < layout.nodes.length; i++)
-                                    Positioned(
-                                      left:
-                                          ConstellationLayout.spineWidth +
-                                          layout.nodes[i].x,
-                                      top: layout.nodes[i].y,
-                                      width: layout.nodes[i].width,
-                                      child: NodeCard(
-                                        node: layout.nodes[i],
-                                        index: i,
-                                        highlight:
-                                            layout.nodes[i].post.id ==
-                                            timeline.highlightPostId,
-                                      ),
+                                    // Day labels on the spine
+                                    // Find the one day closest above the midpoint
+                                    ..._buildDateLabels(
+                                      layout.days,
+                                      _scrollOffset,
+                                      constraints.maxHeight,
                                     ),
-                                ],
+                                    // Nodes (focused node rendered last for z-order)
+                                    ..._buildNodes(
+                                      layout,
+                                      timeline.highlightPostId,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -187,6 +186,145 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         ],
       ),
     );
+  }
+
+  List<Positioned> _buildNodes(LayoutResult layout, String? highlightPostId) {
+    final nodes = <Positioned>[];
+    Positioned? focusedNode;
+
+    for (int i = 0; i < layout.nodes.length; i++) {
+      final node = layout.nodes[i];
+      final isFocused = node.post.id == _focusedPostId;
+
+      final positioned = Positioned(
+        left: ConstellationLayout.spineWidth + node.x,
+        top: node.y,
+        width: node.width,
+        child: NodeCard(
+          node: node,
+          index: i,
+          highlight: node.post.id == highlightPostId,
+          focused: isFocused,
+          onTap: () => _handleNodeTap(node.post.id),
+          onToggleReaction: (postId, emoji) async {
+            final notifier = ref.read(timelineProvider.notifier);
+            final success = await notifier.toggleReaction(postId, emoji);
+            if (success) {
+              // Optimistic update: toggle myReactions + counts locally
+              final post = ref
+                  .read(timelineProvider)
+                  .posts
+                  .firstWhere((p) => p.id == postId);
+              final myR = List<String>.from(post.myReactions);
+              final counts = List<ReactionCount>.from(post.reactionCounts);
+              if (myR.contains(emoji)) {
+                myR.remove(emoji);
+                final idx = counts.indexWhere((c) => c.emoji == emoji);
+                if (idx >= 0) {
+                  final n = counts[idx].count - 1;
+                  if (n <= 0) {
+                    counts.removeAt(idx);
+                  } else {
+                    counts[idx] = ReactionCount(emoji: emoji, count: n);
+                  }
+                }
+              } else {
+                myR.add(emoji);
+                final idx = counts.indexWhere((c) => c.emoji == emoji);
+                if (idx >= 0) {
+                  counts[idx] = ReactionCount(
+                    emoji: emoji,
+                    count: counts[idx].count + 1,
+                  );
+                } else {
+                  counts.add(ReactionCount(emoji: emoji, count: 1));
+                }
+              }
+              counts.sort((a, b) => b.count.compareTo(a.count));
+              notifier.updatePostReactions(postId, counts, myR);
+            }
+            return success;
+          },
+          onOpenDetail: () => _openDetailSheet(node.post.id),
+        ),
+      );
+
+      if (isFocused) {
+        focusedNode = positioned;
+      } else {
+        nodes.add(positioned);
+      }
+    }
+
+    // Focused node rendered last = highest z-order
+    if (focusedNode != null) nodes.add(focusedNode);
+
+    return nodes;
+  }
+
+  void _handleNodeTap(String postId) {
+    if (_focusedPostId == postId) {
+      // Already focused → open detail sheet
+      setState(() => _focusedPostId = null);
+      _openDetailSheet(postId);
+    } else if (_isTopmost(postId)) {
+      // Already on top (no overlap) → open detail directly
+      _openDetailSheet(postId);
+    } else {
+      // Occluded → bring to front
+      setState(() => _focusedPostId = postId);
+    }
+  }
+
+  void _openDetailSheet(String postId) {
+    final post = ref
+        .read(timelineProvider)
+        .posts
+        .firstWhere((p) => p.id == postId);
+    final notifier = ref.read(timelineProvider.notifier);
+    showPostDetailSheet(
+      context,
+      post,
+      onToggleReaction: (id, emoji) => notifier.toggleReaction(id, emoji),
+      onReactionsChanged: (id, counts, myReactions) {
+        notifier.updatePostReactions(id, counts, myReactions);
+      },
+    );
+  }
+
+  /// Check if a node is not occluded by any node rendered after it.
+  bool _isTopmost(String postId) {
+    final layout = ref.read(timelineProvider).layout;
+    if (layout == null) return true;
+
+    final nodes = layout.nodes;
+    final idx = nodes.indexWhere((n) => n.post.id == postId);
+    if (idx < 0) return true;
+
+    final target = nodes[idx];
+    final sw = ConstellationLayout.spineWidth;
+    // Include reaction pills height (~20px) in the hit area
+    final pillH = target.post.reactionCounts.isNotEmpty ? 20.0 : 0.0;
+    final tRect = Rect.fromLTWH(
+      sw + target.x,
+      target.y,
+      target.width,
+      target.height + pillH,
+    );
+
+    // Check nodes rendered after this one (higher z-order in default order)
+    for (int i = idx + 1; i < nodes.length; i++) {
+      final other = nodes[i];
+      final otherPillH = other.post.reactionCounts.isNotEmpty ? 20.0 : 0.0;
+      final oRect = Rect.fromLTWH(
+        sw + other.x,
+        other.y,
+        other.width,
+        other.height + otherPillH,
+      );
+      if (tRect.overlaps(oRect)) return false;
+    }
+    return true;
   }
 
   List<Positioned> _buildDateLabels(

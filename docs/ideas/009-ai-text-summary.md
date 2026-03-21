@@ -24,3 +24,22 @@ Replace the body excerpt in the text node's detail sheet header with an AI-gener
 - This aligns with the PR #35 review discussion: `duration` was intentionally left unrestricted by media type, enabling this use case for text posts
 - Calculation: ~200-250 words per minute (standard reading speed), auto-computed on post creation
 - Validates the architectural decision to not restrict `duration` to audio/video only
+
+### Text sub-genre selection and genre-aware summarization
+
+- At post creation time, let the user choose a **text sub-genre**: poetry, essay, opinion/news, humor, review, fiction, etc.
+- The AI summary strategy adapts based on the selected genre:
+
+| Sub-genre | Summary strategy | Rationale |
+|-----------|-----------------|-----------|
+| Poetry | **Excerpt** (key stanza), not summary | Summarizing a poem destroys its essence; an excerpt preserves the voice |
+| Essay | Thesis + key argument summary | Standard summarization works well |
+| Opinion/News | Headline-style summary | Quick take on the stance |
+| Humor | Punchline tease ("A story about...") | Don't spoil the joke |
+| Review | Rating + one-line verdict | Actionable at a glance |
+| Fiction | Hook excerpt (opening lines) | Draw the reader in without spoilers |
+
+- Implementation: sub-genre stored as a field on Post (e.g., `textSubGenre` enum or string)
+- The AI prompt template varies by sub-genre to produce appropriate output
+- Sub-genre also influences the timeline node preview: poetry could show centered italic text, reviews could show a star rating, etc.
+- This creates a richer, more intentional text posting experience — the artist consciously frames their writing

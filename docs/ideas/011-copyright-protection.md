@@ -125,4 +125,4 @@ Gleisner's architecture (Ed25519 + contentHash + DID) provides structural copyri
 - ADR 014 (DID / identity): content ownership tied to decentralized identity
 - ADR 017 (Content hash / signature): already provides proof of authorship
 - Idea 012 (Age policy): minors' content has additional legal protections in some jurisdictions
-- **ADR 018 (Copyright Protection)**: drafted based on this research
+- **ADR 018 (Copyright Protection)**: to be drafted based on this research
