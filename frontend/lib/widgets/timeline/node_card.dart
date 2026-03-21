@@ -28,12 +28,16 @@ class NodeCard extends StatefulWidget {
   final PlacedNode node;
   final int index;
   final bool highlight;
+  final bool focused;
+  final VoidCallback? onTap;
 
   const NodeCard({
     super.key,
     required this.node,
     required this.index,
     this.highlight = false,
+    this.focused = false,
+    this.onTap,
   });
 
   @override
@@ -97,7 +101,7 @@ class _NodeCardState extends State<NodeCard>
     final glowOpacity = 0.15 + importance * 0.25;
 
     Widget card = GestureDetector(
-      onTap: () => showPostDetailSheet(context, post),
+      onTap: widget.onTap ?? () => showPostDetailSheet(context, post),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: borderRadius,
@@ -118,6 +122,67 @@ class _NodeCardState extends State<NodeCard>
         child: _buildContent(node, trackColor),
       ),
     );
+
+    // Wrap with reaction pills if present
+    final reactions = post.reactionCounts;
+    if (reactions.isNotEmpty) {
+      card = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          card,
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 3,
+            runSpacing: 2,
+            children: reactions.take(3).map((r) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF151520),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF1a1a28)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(r.emoji, style: const TextStyle(fontSize: 10)),
+                    const SizedBox(width: 2),
+                    Text(
+                      r.count >= 1000
+                          ? '${(r.count / 1000).toStringAsFixed(1)}k'
+                          : '${r.count}',
+                      style: const TextStyle(
+                        color: Color(0xFF8888a0),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      );
+    }
+
+    // Focused state: elevated with brighter glow
+    if (widget.focused) {
+      card = Container(
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          boxShadow: [
+            BoxShadow(
+              color: trackColor.withValues(alpha: 0.5),
+              blurRadius: 24,
+              spreadRadius: 6,
+            ),
+          ],
+        ),
+        child: card,
+      );
+    }
 
     if (_glowAnimation != null) {
       return AnimatedBuilder(

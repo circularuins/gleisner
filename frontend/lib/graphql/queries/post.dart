@@ -22,6 +22,10 @@ const postFields = '''
     name
     color
   }
+  reactionCounts {
+    emoji
+    count
+  }
 ''';
 
 const postsQuery =

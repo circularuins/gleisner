@@ -103,6 +103,22 @@ This means the founder's intent — "no age restriction" — **is legally achiev
 - Effective 2025-12-10
 - If Gleisner operates in Australia, age-16 restriction is legally mandatory
 
+#### Other notable jurisdictions
+- **China**: Minor Mode mandatory (2025); 40min/day for <14, banned 22:00-06:00
+- **Korea**: Shutdown Law repealed 2021; moved to parental opt-in model
+- **Brazil**: LGPD requires "clear and prominent" parental consent for <12
+
+### Age verification methods — effectiveness analysis
+
+| Method | Legal validity | Privacy impact | Implementation cost | Bypass difficulty |
+|--------|---------------|----------------|-------------------|-------------------|
+| Self-declaration (DOB) | Low (but triggers COPPA "actual knowledge") | Minimal | Very low | Trivial |
+| Parent email (email-plus) | Medium-low (COPPA: internal use only) | Low | Low | Easy |
+| Credit card / government ID | High (FTC approved) | Medium-high | Medium | Hard |
+| AI facial age estimation | Medium-high (FTC approved 2025) | High (biometric) | High | Medium |
+| Digital ID service | High | Medium | Medium-high | Hard |
+| **DID-based guardian delegation** | **Untested** (no legal precedent) | **Low** (data-minimal) | Medium | N/A |
+
 ### Gleisner's unique approach: Guardian-managed accounts
 
 #### Legal feasibility confirmed
@@ -113,15 +129,48 @@ This means the founder's intent — "no age restriction" — **is legally achiev
 
 #### DID-based guardian delegation — hybrid approach recommended
 
-**DID signatures alone are insufficient for VPC** — initial verification must use FTC-approved methods. DID signatures are used for ongoing consent management and audit trails.
+**DID signatures alone are insufficient for VPC** because:
+- DID proves "holder of this private key" but not "this person is the child's legal guardian"
+- No FTC precedent for DID-based VPC
+- No legal precedent for cryptographic consent records
+
+**Recommended hybrid model**:
+1. **Initial VPC**: Use FTC-approved method (credit card, email-plus, or ID verification)
+2. **Ongoing consent management**: Record consent via DID signature (Ed25519) for audit trail
+3. **Guardian-child relationship**: Model as DID delegation in the protocol layer
+4. **Ownership transfer at legal age**: Seamless transition from guardian-managed to self-managed
+
+This gives Gleisner the best of both worlds: legal compliance via established VPC methods + the architectural elegance of DID-based guardian delegation.
 
 #### Data minimization as competitive advantage
 
 Gleisner's architecture naturally minimizes data collection:
 - DID + content only (no email/phone for minor accounts)
 - Guardian's identity handles legal requirements
+- contentHash for content integrity, not behavioral tracking
 - No personalized ads = no tracking infrastructure
-- **COPPA compliance surface is dramatically reduced**
+
+**COPPA compliance surface is dramatically reduced** when you don't collect PII from minors.
+
+**Caveat**: DID itself may qualify as a "persistent identifier" under COPPA 2025 amendments. Content containing voice/photos of minors is also covered. Metadata (IP, device ID) counts as personal information.
+
+#### Tiered privacy by age
+
+| Age tier | Default visibility | Capabilities | Guardian control |
+|----------|-------------------|-------------|-----------------|
+| <13 | Private only | Create, upload (guardian-approved); no DM from strangers; no public timeline | Full (create account, manage settings, view activity, delete) |
+| 13-15 | Private (changeable with guardian approval) | Upload; limited DM (followers only); guardian can view activity | Moderate (can approve public switch, view weekly report) |
+| 16-17 | Private by default (self-changeable) | Full features except age-gated content | Light (notification of setting changes) |
+| 18+ | User's choice | Full features | None |
+
+#### Ownership transfer design (unique to Gleisner)
+
+At legal age, the account seamlessly transitions:
+- DID management authority transfers from guardian to owner
+- All historical content (the "lifelong creative log") remains intact
+- Guardian loses management access (not content access if previously shared)
+- No data loss, no account recreation
+- This is the "unlock your creative journey" moment
 
 ### Enforcement trends (2019-2026)
 
@@ -136,16 +185,18 @@ Gleisner's architecture naturally minimizes data collection:
 | 2025 | Texas AG | Roblox lawsuit | Child safety failures |
 | 2026 | Jury trial | Meta, YouTube et al. | Addictive design causing harm to minors |
 
-**Trend**: Enforcement is accelerating dramatically. Fines are growing by orders of magnitude.
+**Trend**: Enforcement is accelerating dramatically. Fines are growing by orders of magnitude. "Addictive design" lawsuits (not just data collection) are the new frontier.
 
 ## Open questions
 
 | # | Question | Status |
 |---|----------|--------|
-| OQ-1 | Which FTC-approved VPC method to implement for MVP? (email-plus is cheapest) | Decision needed |
-| OQ-2 | Australia market: accept 16+ restriction or delay AU launch? | Decision needed |
-| OQ-3 | Zero-knowledge proof for age verification: technically feasible with DID, but no legal precedent | Future research |
-| OQ-4 | How to handle edge cases: guardian abuse, custody disputes, emancipated minors? | Needs legal counsel |
+| OQ-1 | Which FTC-approved VPC method to implement for MVP? (email-plus is cheapest; credit card is most reliable) | Decision needed |
+| OQ-2 | Should Gleisner pursue COPPA Safe Harbor certification (kidSAFE/PRIVO)? Significantly reduces FTC enforcement risk | Decision needed |
+| OQ-3 | Australia market: accept 16+ restriction or delay AU launch? | Decision needed |
+| OQ-4 | Zero-knowledge proof for age verification: "prove I'm over 13 without revealing my age" — technically feasible with DID, but no legal precedent | Future research |
+| OQ-5 | Guardian-child DID delegation: restrict content propagation for minor accounts? (e.g., `propagation: restricted` flag) | Architecture decision |
+| OQ-6 | How to handle edge cases: guardian abuse, custody disputes, emancipated minors? | Needs legal counsel |
 
 ## Founder's intent (strong)
 
@@ -161,4 +212,4 @@ Gleisner's architecture naturally minimizes data collection:
 - ADR 016 (User Identity Privacy): PublicUserType separation already protects sensitive fields
 - Idea 011 (Copyright): minors' content has additional legal protections in some jurisdictions
 - Egan principle of "self-determination": even young users should own their creative identity
-- **ADR 019 (Age Policy)**: drafted based on this research
+- **ADR 019 (Age Policy)**: to be drafted based on this research
