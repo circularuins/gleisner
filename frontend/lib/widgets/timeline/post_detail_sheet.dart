@@ -564,6 +564,8 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                 if (name.isEmpty) return;
                 Navigator.pop(dialogContext);
                 await widget.onNameConstellation?.call(widget.post.id, name);
+                // Close detail sheet so timeline reflects the updated name
+                if (mounted) Navigator.pop(context);
               },
               child: Text('Save', style: TextStyle(color: trackColor)),
             ),
@@ -611,15 +613,27 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (namedConstellation != null)
-                      Text(
-                        namedConstellation.name,
-                        style: TextStyle(
-                          color: trackColor,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              namedConstellation.name,
+                              style: TextStyle(
+                                color: trackColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.edit,
+                            size: 12,
+                            color: trackColor.withValues(alpha: 0.4),
+                          ),
+                        ],
                       ),
                     Text(
                       namedConstellation != null
