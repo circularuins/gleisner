@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 import '../../utils/constellation_layout.dart';
@@ -32,11 +34,10 @@ class ConstellationPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3)
-        ..shader = LinearGradient(colors: [startColor, endColor]).createShader(
-          Rect.fromPoints(
-            Offset(conn.start.dx + sw, conn.start.dy),
-            Offset(conn.end.dx + sw, conn.end.dy),
-          ),
+        ..shader = ui.Gradient.linear(
+          Offset(conn.start.dx + sw, conn.start.dy),
+          Offset(conn.end.dx + sw, conn.end.dy),
+          [startColor, endColor],
         );
 
       final path = Path()
