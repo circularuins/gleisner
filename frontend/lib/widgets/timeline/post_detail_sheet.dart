@@ -468,13 +468,16 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   }
 
   Future<void> _addConnection() async {
-    final selectedPost = await showModalBottomSheet<Post>(
+    Post? selectedPost;
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (_) => RelatedPostPicker(
         posts: widget.allPosts,
         excludePostId: widget.post.id,
-        onSelected: (post) => Navigator.pop(context, post),
+        onSelected: (post) {
+          selectedPost = post;
+        },
       ),
     );
     if (selectedPost == null || !mounted) return;
@@ -483,7 +486,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     try {
       final conn = await widget.onCreateConnection?.call(
         widget.post.id,
-        selectedPost.id,
+        selectedPost!.id,
       );
       if (conn != null && mounted) {
         setState(() {
