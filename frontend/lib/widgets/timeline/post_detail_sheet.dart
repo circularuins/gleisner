@@ -411,9 +411,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                     ),
                   Expanded(
                     child: Text(
-                      p.title ??
-                          p.body?.substring(0, p.body!.length.clamp(0, 30)) ??
-                          p.mediaType.name,
+                      _connectionLabel(p),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -823,5 +821,23 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   String _formatDateTime() {
     final local = widget.post.createdAt.toLocal();
     return '${local.year}/${local.month.toString().padLeft(2, '0')}/${local.day.toString().padLeft(2, '0')} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  static String _connectionLabel(Post p) {
+    if (p.title != null && p.title!.isNotEmpty) return p.title!;
+    if (p.body != null && p.body!.isNotEmpty) {
+      return p.body!.substring(0, p.body!.length.clamp(0, 30));
+    }
+    final icon = switch (p.mediaType) {
+      MediaType.image => '📷',
+      MediaType.video => '🎬',
+      MediaType.audio => '🎵',
+      MediaType.link => '🔗',
+      MediaType.text => '📝',
+    };
+    final date = p.createdAt.toLocal();
+    final dateStr = '${date.month}/${date.day}';
+    final track = p.trackName ?? '';
+    return '$icon ${p.mediaType.name[0].toUpperCase()}${p.mediaType.name.substring(1)} · $track · $dateStr';
   }
 }

@@ -235,9 +235,7 @@ class _PostListTile extends StatelessWidget {
               )
             : null,
         title: Text(
-          post.title ??
-              post.body?.substring(0, post.body!.length.clamp(0, 50)) ??
-              post.mediaType.name,
+          _postLabel(post),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodyMedium,
@@ -269,5 +267,23 @@ class _PostListTile extends StatelessWidget {
       MediaType.audio => Icons.audiotrack,
       MediaType.link => Icons.link,
     };
+  }
+
+  static String _postLabel(Post p) {
+    if (p.title != null && p.title!.isNotEmpty) return p.title!;
+    if (p.body != null && p.body!.isNotEmpty) {
+      return p.body!.substring(0, p.body!.length.clamp(0, 50));
+    }
+    final icon = switch (p.mediaType) {
+      MediaType.image => '📷',
+      MediaType.video => '🎬',
+      MediaType.audio => '🎵',
+      MediaType.link => '🔗',
+      MediaType.text => '📝',
+    };
+    final date = p.createdAt.toLocal();
+    final dateStr = '${date.month}/${date.day}';
+    final track = p.trackName ?? '';
+    return '$icon ${p.mediaType.name[0].toUpperCase()}${p.mediaType.name.substring(1)} · $track · $dateStr';
   }
 }
