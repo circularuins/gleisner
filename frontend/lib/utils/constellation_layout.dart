@@ -48,6 +48,8 @@ class DaySection {
 
 /// A synapse connection between two nodes.
 class SynapseConnection {
+  final String sourcePostId;
+  final String targetPostId;
   final Offset start;
   final Offset end;
   final Offset cp1;
@@ -58,6 +60,8 @@ class SynapseConnection {
   final double strokeWidth;
 
   const SynapseConnection({
+    required this.sourcePostId,
+    required this.targetPostId,
     required this.start,
     required this.end,
     required this.cp1,
@@ -504,6 +508,8 @@ class ConstellationLayout {
     final cy2 = a.centerY + (b.centerY - a.centerY) * 0.75;
 
     return SynapseConnection(
+      sourcePostId: a.post.id,
+      targetPostId: b.post.id,
       start: Offset(a.centerX, a.centerY),
       end: Offset(b.centerX, b.centerY),
       cp1: Offset(cx1, cy1),

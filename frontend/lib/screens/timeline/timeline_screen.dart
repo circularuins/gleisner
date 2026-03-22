@@ -145,7 +145,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                             physics: const AlwaysScrollableScrollPhysics(),
                             child: GestureDetector(
                               onTap: () {
-                                if (_focusedPostId != null) {
+                                if (timeline.constellationPostIds != null) {
+                                  ref
+                                      .read(timelineProvider.notifier)
+                                      .clearConstellation();
+                                } else if (_focusedPostId != null) {
                                   setState(() => _focusedPostId = null);
                                 }
                               },
@@ -158,6 +162,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                                       child: CustomPaint(
                                         painter: ConstellationPainter(
                                           layout: layout,
+                                          constellationPostIds:
+                                              timeline.constellationPostIds,
                                         ),
                                       ),
                                     ),
@@ -172,6 +178,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                                     ..._buildNodes(
                                       layout,
                                       timeline.highlightPostId,
+                                      timeline.constellationPostIds,
                                     ),
                                   ],
                                 ),
@@ -183,70 +190,114 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     ),
                   ),
           ),
+          // Constellation highlight banner
+          if (timeline.constellationPostIds != null)
+            Container(
+              color: const Color(0xFF0c0c12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.auto_awesome,
+                    size: 16,
+                    color: Color(0xFF8888a0),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Constellation · ${timeline.constellationPostIds!.length} posts',
+                    style: const TextStyle(
+                      color: Color(0xFFccccdd),
+                      fontSize: 13,
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => ref
+                        .read(timelineProvider.notifier)
+                        .clearConstellation(),
+                    child: const Icon(
+                      Icons.close,
+                      size: 18,
+                      color: Color(0xFF8888a0),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
 
-  List<Positioned> _buildNodes(LayoutResult layout, String? highlightPostId) {
+  List<Positioned> _buildNodes(
+    LayoutResult layout,
+    String? highlightPostId,
+    Set<String>? constellationIds,
+  ) {
     final nodes = <Positioned>[];
     Positioned? focusedNode;
 
     for (int i = 0; i < layout.nodes.length; i++) {
       final node = layout.nodes[i];
       final isFocused = node.post.id == _focusedPostId;
+      final dimmed =
+          constellationIds != null && !constellationIds.contains(node.post.id);
+
+      final card = NodeCard(
+        node: node,
+        index: i,
+        highlight: node.post.id == highlightPostId,
+        focused: isFocused,
+        onTap: () => _handleNodeTap(node.post.id),
+        onToggleReaction: (postId, emoji) async {
+          final notifier = ref.read(timelineProvider.notifier);
+          final success = await notifier.toggleReaction(postId, emoji);
+          if (success) {
+            // Optimistic update: toggle myReactions + counts locally
+            final post = ref
+                .read(timelineProvider)
+                .posts
+                .firstWhere((p) => p.id == postId);
+            final myR = List<String>.from(post.myReactions);
+            final counts = List<ReactionCount>.from(post.reactionCounts);
+            if (myR.contains(emoji)) {
+              myR.remove(emoji);
+              final idx = counts.indexWhere((c) => c.emoji == emoji);
+              if (idx >= 0) {
+                final n = counts[idx].count - 1;
+                if (n <= 0) {
+                  counts.removeAt(idx);
+                } else {
+                  counts[idx] = ReactionCount(emoji: emoji, count: n);
+                }
+              }
+            } else {
+              myR.add(emoji);
+              final idx = counts.indexWhere((c) => c.emoji == emoji);
+              if (idx >= 0) {
+                counts[idx] = ReactionCount(
+                  emoji: emoji,
+                  count: counts[idx].count + 1,
+                );
+              } else {
+                counts.add(ReactionCount(emoji: emoji, count: 1));
+              }
+            }
+            counts.sort((a, b) => b.count.compareTo(a.count));
+            notifier.updatePostReactions(postId, counts, myR);
+          }
+          return success;
+        },
+        onOpenDetail: () => _openDetailSheet(node.post.id),
+      );
 
       final positioned = Positioned(
         left: ConstellationLayout.spineWidth + node.x,
         top: node.y,
         width: node.width,
-        child: NodeCard(
-          node: node,
-          index: i,
-          highlight: node.post.id == highlightPostId,
-          focused: isFocused,
-          onTap: () => _handleNodeTap(node.post.id),
-          onToggleReaction: (postId, emoji) async {
-            final notifier = ref.read(timelineProvider.notifier);
-            final success = await notifier.toggleReaction(postId, emoji);
-            if (success) {
-              // Optimistic update: toggle myReactions + counts locally
-              final post = ref
-                  .read(timelineProvider)
-                  .posts
-                  .firstWhere((p) => p.id == postId);
-              final myR = List<String>.from(post.myReactions);
-              final counts = List<ReactionCount>.from(post.reactionCounts);
-              if (myR.contains(emoji)) {
-                myR.remove(emoji);
-                final idx = counts.indexWhere((c) => c.emoji == emoji);
-                if (idx >= 0) {
-                  final n = counts[idx].count - 1;
-                  if (n <= 0) {
-                    counts.removeAt(idx);
-                  } else {
-                    counts[idx] = ReactionCount(emoji: emoji, count: n);
-                  }
-                }
-              } else {
-                myR.add(emoji);
-                final idx = counts.indexWhere((c) => c.emoji == emoji);
-                if (idx >= 0) {
-                  counts[idx] = ReactionCount(
-                    emoji: emoji,
-                    count: counts[idx].count + 1,
-                  );
-                } else {
-                  counts.add(ReactionCount(emoji: emoji, count: 1));
-                }
-              }
-              counts.sort((a, b) => b.count.compareTo(a.count));
-              notifier.updatePostReactions(postId, counts, myR);
-            }
-            return success;
-          },
-          onOpenDetail: () => _openDetailSheet(node.post.id),
-        ),
+        child: dimmed
+            ? Opacity(opacity: 0.15, child: IgnorePointer(child: card))
+            : card,
       );
 
       if (isFocused) {
@@ -295,6 +346,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           notifier.deleteConnection(connectionId),
       onConnectionAdded: (conn) => notifier.addConnectionToState(conn),
       onConnectionRemoved: (conn) => notifier.removeConnectionFromState(conn),
+      onViewConstellation: (ids) => notifier.showConstellation(ids),
       allPosts: ref.read(timelineProvider).posts,
     );
   }

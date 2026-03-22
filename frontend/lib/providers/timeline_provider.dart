@@ -24,6 +24,7 @@ class TimelineState {
   final String? error;
   final LayoutResult? layout;
   final String? highlightPostId;
+  final Set<String>? constellationPostIds;
 
   const TimelineState({
     this.artist,
@@ -33,6 +34,7 @@ class TimelineState {
     this.error,
     this.layout,
     this.highlightPostId,
+    this.constellationPostIds,
   });
 
   bool get allSelected =>
@@ -50,6 +52,7 @@ class TimelineState {
     Object? error = sentinel,
     Object? layout = sentinel,
     Object? highlightPostId = sentinel,
+    Object? constellationPostIds = sentinel,
   }) {
     return TimelineState(
       artist: artist == sentinel ? this.artist : artist as Artist?,
@@ -61,6 +64,9 @@ class TimelineState {
       highlightPostId: highlightPostId == sentinel
           ? this.highlightPostId
           : highlightPostId as String?,
+      constellationPostIds: constellationPostIds == sentinel
+          ? this.constellationPostIds
+          : constellationPostIds as Set<String>?,
     );
   }
 }
@@ -499,6 +505,14 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
       containerWidth: _lastWidth,
     );
     state = state.copyWith(layout: result);
+  }
+
+  void showConstellation(Set<String> postIds) {
+    state = state.copyWith(constellationPostIds: postIds);
+  }
+
+  void clearConstellation() {
+    state = state.copyWith(constellationPostIds: null);
   }
 
   Future<void> refresh() async {

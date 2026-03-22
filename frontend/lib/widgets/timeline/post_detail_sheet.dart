@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/post.dart';
 import '../../models/track.dart' show parseHexColor;
+import '../../utils/constellation_graph.dart';
 import '../common/related_post_picker.dart';
 import 'seed_art_painter.dart';
 
@@ -22,6 +23,7 @@ void showPostDetailSheet(
   Future<bool> Function(String connectionId)? onDeleteConnection,
   void Function(PostConnection conn)? onConnectionAdded,
   void Function(PostConnection conn)? onConnectionRemoved,
+  void Function(Set<String> postIds)? onViewConstellation,
   List<Post> allPosts = const [],
 }) {
   showModalBottomSheet<void>(
@@ -36,6 +38,7 @@ void showPostDetailSheet(
       onDeleteConnection: onDeleteConnection,
       onConnectionAdded: onConnectionAdded,
       onConnectionRemoved: onConnectionRemoved,
+      onViewConstellation: onViewConstellation,
       allPosts: allPosts,
     ),
   );
@@ -55,6 +58,7 @@ class _PostDetailSheet extends StatefulWidget {
   final Future<bool> Function(String connectionId)? onDeleteConnection;
   final void Function(PostConnection conn)? onConnectionAdded;
   final void Function(PostConnection conn)? onConnectionRemoved;
+  final void Function(Set<String> postIds)? onViewConstellation;
   final List<Post> allPosts;
   const _PostDetailSheet({
     required this.post,
@@ -64,6 +68,7 @@ class _PostDetailSheet extends StatefulWidget {
     this.onDeleteConnection,
     this.onConnectionAdded,
     this.onConnectionRemoved,
+    this.onViewConstellation,
     this.allPosts = const [],
   });
 
@@ -222,6 +227,12 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                   child: _buildConnectionsSection(trackColor),
+                ),
+              // Constellation
+              if (widget.allPosts.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: _buildConstellationSection(trackColor),
                 ),
               // Comments placeholder
               Padding(
@@ -501,6 +512,102 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       });
       widget.onConnectionRemoved?.call(conn);
     }
+  }
+
+  Widget _buildConstellationSection(Color trackColor) {
+    final constellation = findConstellation(widget.post.id, widget.allPosts);
+    // Hide if only self (no connections)
+    if (constellation.length <= 1) return const SizedBox.shrink();
+
+    final postMap = {for (final p in widget.allPosts) p.id: p};
+    final members =
+        constellation
+            .where((id) => id != widget.post.id && postMap.containsKey(id))
+            .map((id) => postMap[id]!)
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Divider(
+          color: const Color(0xFF1a1a28).withValues(alpha: 0.5),
+          height: 1,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Text(
+              'Constellation · ${constellation.length} posts',
+              style: const TextStyle(
+                color: Color(0xFF666688),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                widget.onViewConstellation?.call(constellation);
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    size: 14,
+                    color: trackColor.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'View',
+                    style: TextStyle(
+                      color: trackColor.withValues(alpha: 0.7),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...members.map((p) {
+          final pColor = p.trackColor != null
+              ? parseHexColor(p.trackColor)
+              : null;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                if (pColor != null)
+                  Container(
+                    width: 3,
+                    height: 16,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: pColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                Expanded(
+                  child: Text(
+                    _connectionLabel(p),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF9999b0),
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
   }
 
   // --- Media area methods ---
