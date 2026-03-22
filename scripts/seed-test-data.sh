@@ -204,4 +204,55 @@ for PID in $(docker exec gleisner-db psql -U gleisner -d gleisner -t -c \
 done
 echo "==> Fan reactions added to $i posts"
 
+# 10. Create connections (synapses) between posts to form constellations
+get_post_id() {
+  docker exec gleisner-db psql -U gleisner -d gleisner -t -c \
+    "SELECT id FROM posts WHERE title = '$1' AND author_id = (SELECT id FROM users WHERE username = '$USERNAME') LIMIT 1;" \
+    | tr -d ' ' | grep -v '^$'
+}
+
+create_connection() {
+  local SRC="$1" TGT="$2"
+  curl -s "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
+    -d "{\"query\":\"mutation { createConnection(sourceId:\\\"$SRC\\\", targetId:\\\"$TGT\\\", connectionType:reference) { id } }\"}" > /dev/null 2>&1
+}
+
+PID_FLAMENCO=$(get_post_id "Flamenco-session")
+PID_RASGUEADO=$(get_post_id "New-rasgueado-pattern")
+PID_OPEN_MIC=$(get_post_id "Live-at-open-mic")
+PID_FLAMENCO_BB=$(get_post_id "Flamenco-x-beatbox")
+PID_WIP_SUNRISE=$(get_post_id "WIP-Sunrise-Protocol")
+PID_SIDECHAIN=$(get_post_id "Sidechain-experiment")
+PID_FINAL_MIX=$(get_post_id "Final-mix-Sunrise")
+PID_NEON_GARDEN=$(get_post_id "Sketch-Neon-Garden")
+PID_COLLAB=$(get_post_id "Collab-sketch")
+PID_GLASS_OCEAN=$(get_post_id "Demo-Glass-Ocean")
+
+# Constellation "Flamenco Journey" — Play + Live cross-track, long distances
+create_connection "$PID_FLAMENCO" "$PID_RASGUEADO"
+create_connection "$PID_FLAMENCO" "$PID_FLAMENCO_BB"
+create_connection "$PID_RASGUEADO" "$PID_OPEN_MIC"
+
+# Constellation "Sunrise Protocol" — Compose + Studio cross-track
+create_connection "$PID_WIP_SUNRISE" "$PID_SIDECHAIN"
+create_connection "$PID_WIP_SUNRISE" "$PID_FINAL_MIX"
+create_connection "$PID_WIP_SUNRISE" "$PID_NEON_GARDEN"
+
+# Unnamed small constellation — Studio only
+create_connection "$PID_COLLAB" "$PID_GLASS_OCEAN"
+
+echo "==> 7 connections created (3 constellations)"
+
+# 11. Name two constellations
+name_constellation() {
+  local PID="$1" NAME="$2"
+  curl -s "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
+    -d "{\"query\":\"mutation { nameConstellation(postId:\\\"$PID\\\", name:\\\"$NAME\\\") { id name } }\"}" > /dev/null 2>&1
+}
+
+name_constellation "$PID_FLAMENCO" "Flamenco Journey"
+name_constellation "$PID_WIP_SUNRISE" "Sunrise Protocol"
+
+echo "==> 2 constellations named (1 unnamed)"
+
 echo "==> Done! Login: $EMAIL / $PASSWORD"
