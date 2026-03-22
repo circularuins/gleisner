@@ -224,41 +224,79 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
     }
   }
 
-  /// Update connections for a post and recompute layout to reflect synapse changes.
-  void updatePostConnections(
-    String postId,
-    List<PostConnection> outgoing,
-    List<PostConnection> incoming,
-  ) {
+  /// Add a connection to both source and target posts, then recompute layout.
+  void addConnectionToState(PostConnection conn) {
     final posts = state.posts.map((p) {
-      if (p.id == postId) {
-        return Post(
-          id: p.id,
-          mediaType: p.mediaType,
-          title: p.title,
-          body: p.body,
-          mediaUrl: p.mediaUrl,
-          duration: p.duration,
-          importance: p.importance,
-          layoutX: p.layoutX,
-          layoutY: p.layoutY,
-          contentHash: p.contentHash,
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt,
-          author: p.author,
-          trackId: p.trackId,
-          trackName: p.trackName,
-          trackColor: p.trackColor,
-          reactionCounts: p.reactionCounts,
-          myReactions: p.myReactions,
-          outgoingConnections: outgoing,
-          incomingConnections: incoming,
+      if (p.id == conn.sourceId) {
+        return _copyPostWith(
+          p,
+          outgoingConnections: [...p.outgoingConnections, conn],
+        );
+      }
+      if (p.id == conn.targetId) {
+        return _copyPostWith(
+          p,
+          incomingConnections: [...p.incomingConnections, conn],
         );
       }
       return p;
     }).toList();
     state = state.copyWith(posts: posts);
     _recomputeLayout();
+  }
+
+  /// Remove a connection from both source and target posts, then recompute layout.
+  void removeConnectionFromState(PostConnection conn) {
+    final posts = state.posts.map((p) {
+      if (p.id == conn.sourceId) {
+        return _copyPostWith(
+          p,
+          outgoingConnections: p.outgoingConnections
+              .where((c) => c.id != conn.id)
+              .toList(),
+        );
+      }
+      if (p.id == conn.targetId) {
+        return _copyPostWith(
+          p,
+          incomingConnections: p.incomingConnections
+              .where((c) => c.id != conn.id)
+              .toList(),
+        );
+      }
+      return p;
+    }).toList();
+    state = state.copyWith(posts: posts);
+    _recomputeLayout();
+  }
+
+  static Post _copyPostWith(
+    Post p, {
+    List<PostConnection>? outgoingConnections,
+    List<PostConnection>? incomingConnections,
+  }) {
+    return Post(
+      id: p.id,
+      mediaType: p.mediaType,
+      title: p.title,
+      body: p.body,
+      mediaUrl: p.mediaUrl,
+      duration: p.duration,
+      importance: p.importance,
+      layoutX: p.layoutX,
+      layoutY: p.layoutY,
+      contentHash: p.contentHash,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      author: p.author,
+      trackId: p.trackId,
+      trackName: p.trackName,
+      trackColor: p.trackColor,
+      reactionCounts: p.reactionCounts,
+      myReactions: p.myReactions,
+      outgoingConnections: outgoingConnections ?? p.outgoingConnections,
+      incomingConnections: incomingConnections ?? p.incomingConnections,
+    );
   }
 
   /// Update reaction counts and user's own reactions for a post.

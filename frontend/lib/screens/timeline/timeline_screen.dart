@@ -293,9 +293,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           notifier.createConnection(sourceId, targetId),
       onDeleteConnection: (connectionId) =>
           notifier.deleteConnection(connectionId),
-      onConnectionsChanged: (id, outgoing, incoming) {
-        notifier.updatePostConnections(id, outgoing, incoming);
-      },
+      onConnectionAdded: (conn) => notifier.addConnectionToState(conn),
+      onConnectionRemoved: (conn) => notifier.removeConnectionFromState(conn),
       allPosts: ref.read(timelineProvider).posts,
     );
   }

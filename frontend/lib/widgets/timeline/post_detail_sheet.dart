@@ -20,12 +20,8 @@ void showPostDetailSheet(
   Future<PostConnection?> Function(String sourceId, String targetId)?
   onCreateConnection,
   Future<bool> Function(String connectionId)? onDeleteConnection,
-  void Function(
-    String postId,
-    List<PostConnection> outgoing,
-    List<PostConnection> incoming,
-  )?
-  onConnectionsChanged,
+  void Function(PostConnection conn)? onConnectionAdded,
+  void Function(PostConnection conn)? onConnectionRemoved,
   List<Post> allPosts = const [],
 }) {
   showModalBottomSheet<void>(
@@ -38,7 +34,8 @@ void showPostDetailSheet(
       onReactionsChanged: onReactionsChanged,
       onCreateConnection: onCreateConnection,
       onDeleteConnection: onDeleteConnection,
-      onConnectionsChanged: onConnectionsChanged,
+      onConnectionAdded: onConnectionAdded,
+      onConnectionRemoved: onConnectionRemoved,
       allPosts: allPosts,
     ),
   );
@@ -56,12 +53,8 @@ class _PostDetailSheet extends StatefulWidget {
   final Future<PostConnection?> Function(String sourceId, String targetId)?
   onCreateConnection;
   final Future<bool> Function(String connectionId)? onDeleteConnection;
-  final void Function(
-    String postId,
-    List<PostConnection> outgoing,
-    List<PostConnection> incoming,
-  )?
-  onConnectionsChanged;
+  final void Function(PostConnection conn)? onConnectionAdded;
+  final void Function(PostConnection conn)? onConnectionRemoved;
   final List<Post> allPosts;
   const _PostDetailSheet({
     required this.post,
@@ -69,7 +62,8 @@ class _PostDetailSheet extends StatefulWidget {
     this.onReactionsChanged,
     this.onCreateConnection,
     this.onDeleteConnection,
-    this.onConnectionsChanged,
+    this.onConnectionAdded,
+    this.onConnectionRemoved,
     this.allPosts = const [],
   });
 
@@ -492,11 +486,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         setState(() {
           _outgoingConnections.add(conn);
         });
-        widget.onConnectionsChanged?.call(
-          widget.post.id,
-          List.from(_outgoingConnections),
-          List.from(_incomingConnections),
-        );
+        widget.onConnectionAdded?.call(conn);
       }
     } finally {
       if (mounted) setState(() => _isConnecting = false);
@@ -510,11 +500,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         _outgoingConnections.removeWhere((c) => c.id == conn.id);
         _incomingConnections.removeWhere((c) => c.id == conn.id);
       });
-      widget.onConnectionsChanged?.call(
-        widget.post.id,
-        List.from(_outgoingConnections),
-        List.from(_incomingConnections),
-      );
+      widget.onConnectionRemoved?.call(conn);
     }
   }
 
