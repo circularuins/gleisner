@@ -22,15 +22,23 @@ class ConstellationPainter extends CustomPainter {
   }
 
   void _drawSynapses(Canvas canvas) {
+    const sw = ConstellationLayout.spineWidth;
     for (final conn in layout.connections) {
+      final startColor = conn.color.withValues(alpha: conn.opacity);
+      final endColor = conn.endColor.withValues(alpha: conn.opacity);
+
       final paint = Paint()
-        ..color = conn.color.withValues(alpha: conn.opacity)
         ..strokeWidth = conn.strokeWidth
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3)
+        ..shader = LinearGradient(colors: [startColor, endColor]).createShader(
+          Rect.fromPoints(
+            Offset(conn.start.dx + sw, conn.start.dy),
+            Offset(conn.end.dx + sw, conn.end.dy),
+          ),
+        );
 
-      const sw = ConstellationLayout.spineWidth;
       final path = Path()
         ..moveTo(conn.start.dx + sw, conn.start.dy)
         ..cubicTo(

@@ -53,6 +53,7 @@ class SynapseConnection {
   final Offset cp1;
   final Offset cp2;
   final Color color;
+  final Color endColor;
   final double opacity;
   final double strokeWidth;
 
@@ -62,6 +63,7 @@ class SynapseConnection {
     required this.cp1,
     required this.cp2,
     required this.color,
+    required this.endColor,
     required this.opacity,
     required this.strokeWidth,
   });
@@ -507,6 +509,7 @@ class ConstellationLayout {
       cp1: Offset(cx1, cy1),
       cp2: Offset(cx2, cy2),
       color: color,
+      endColor: b.post.trackDisplayColor,
       opacity: opacity,
       strokeWidth: width,
     );
