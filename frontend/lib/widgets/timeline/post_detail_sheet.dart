@@ -414,8 +414,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                       ),
                     ),
                   ),
-                  if (entry.isOutgoing)
-                    GestureDetector(
+                  GestureDetector(
                       onTap: () => _deleteConnection(entry.conn),
                       child: const Padding(
                         padding: EdgeInsets.all(4),
