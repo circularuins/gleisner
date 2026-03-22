@@ -415,16 +415,16 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                     ),
                   ),
                   GestureDetector(
-                      onTap: () => _deleteConnection(entry.conn),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Icon(
-                          Icons.close,
-                          size: 14,
-                          color: Color(0xFF666688),
-                        ),
+                    onTap: () => _deleteConnection(entry.conn),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.close,
+                        size: 14,
+                        color: Color(0xFF666688),
                       ),
                     ),
+                  ),
                 ],
               ),
             );

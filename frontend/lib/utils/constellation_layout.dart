@@ -463,32 +463,7 @@ class ConstellationLayout {
 
         final a = node;
         final b = target;
-        final dist = sqrt(
-          pow(a.centerX - b.centerX, 2) + pow(a.centerY - b.centerY, 2),
-        );
-        if (dist > 500) continue;
-
-        final color = a.post.trackDisplayColor;
-        final opacity = min(0.08 + a.post.importance * 0.32, 0.4);
-        final width = 0.8 + min(a.post.importance * 2.5, 2.5);
-
-        final dy = b.centerY - a.centerY;
-        final cx1 = a.centerX + (b.centerX - a.centerX) * 0.25 + dy * 0.15;
-        final cy1 = a.centerY + (b.centerY - a.centerY) * 0.25;
-        final cx2 = a.centerX + (b.centerX - a.centerX) * 0.75 - dy * 0.15;
-        final cy2 = a.centerY + (b.centerY - a.centerY) * 0.75;
-
-        connections.add(
-          SynapseConnection(
-            start: Offset(a.centerX, a.centerY),
-            end: Offset(b.centerX, b.centerY),
-            cp1: Offset(cx1, cy1),
-            cp2: Offset(cx2, cy2),
-            color: color,
-            opacity: opacity,
-            strokeWidth: width,
-          ),
-        );
+        connections.add(_makeSynapse(a, b));
       }
 
       // Also check incomingConnections for connections from posts
@@ -502,36 +477,39 @@ class ConstellationLayout {
 
         final a = source;
         final b = node;
-        final dist = sqrt(
-          pow(a.centerX - b.centerX, 2) + pow(a.centerY - b.centerY, 2),
-        );
-        if (dist > 500) continue;
-
-        final color = a.post.trackDisplayColor;
-        final opacity = min(0.08 + a.post.importance * 0.32, 0.4);
-        final width = 0.8 + min(a.post.importance * 2.5, 2.5);
-
-        final dy = b.centerY - a.centerY;
-        final cx1 = a.centerX + (b.centerX - a.centerX) * 0.25 + dy * 0.15;
-        final cy1 = a.centerY + (b.centerY - a.centerY) * 0.25;
-        final cx2 = a.centerX + (b.centerX - a.centerX) * 0.75 - dy * 0.15;
-        final cy2 = a.centerY + (b.centerY - a.centerY) * 0.75;
-
-        connections.add(
-          SynapseConnection(
-            start: Offset(a.centerX, a.centerY),
-            end: Offset(b.centerX, b.centerY),
-            cp1: Offset(cx1, cy1),
-            cp2: Offset(cx2, cy2),
-            color: color,
-            opacity: opacity,
-            strokeWidth: width,
-          ),
-        );
+        connections.add(_makeSynapse(a, b));
       }
     }
 
     return connections;
+  }
+
+  static SynapseConnection _makeSynapse(PlacedNode a, PlacedNode b) {
+    final dist = sqrt(
+      pow(a.centerX - b.centerX, 2) + pow(a.centerY - b.centerY, 2),
+    );
+
+    final color = a.post.trackDisplayColor;
+    // Fade out long connections: full strength up to 300px, fading to 0.4x at 1500px+
+    final distFade = dist < 300 ? 1.0 : max(0.4, 1.0 - (dist - 300) / 3000);
+    final opacity = min(0.08 + a.post.importance * 0.32, 0.4) * distFade;
+    final width = (0.8 + min(a.post.importance * 2.5, 2.5)) * distFade;
+
+    final dy = b.centerY - a.centerY;
+    final cx1 = a.centerX + (b.centerX - a.centerX) * 0.25 + dy * 0.15;
+    final cy1 = a.centerY + (b.centerY - a.centerY) * 0.25;
+    final cx2 = a.centerX + (b.centerX - a.centerX) * 0.75 - dy * 0.15;
+    final cy2 = a.centerY + (b.centerY - a.centerY) * 0.75;
+
+    return SynapseConnection(
+      start: Offset(a.centerX, a.centerY),
+      end: Offset(b.centerX, b.centerY),
+      cp1: Offset(cx1, cy1),
+      cp2: Offset(cx2, cy2),
+      color: color,
+      opacity: opacity,
+      strokeWidth: width,
+    );
   }
 }
 
