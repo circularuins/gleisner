@@ -520,7 +520,11 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     }
   }
 
-  void _showNameDialog(Color trackColor, PostConstellation? existing) {
+  void _showNameDialog(
+    Color trackColor,
+    PostConstellation? existing,
+    Set<String> constellationIds,
+  ) {
     final controller = TextEditingController(text: existing?.name ?? '');
     showDialog<void>(
       context: context,
@@ -564,8 +568,11 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                 if (name.isEmpty) return;
                 Navigator.pop(dialogContext);
                 await widget.onNameConstellation?.call(widget.post.id, name);
-                // Close detail sheet so timeline reflects the updated name
-                if (mounted) Navigator.pop(context);
+                // Close detail sheet and enter constellation view
+                if (mounted) {
+                  Navigator.pop(context);
+                  widget.onViewConstellation?.call(constellationIds);
+                }
               },
               child: Text('Save', style: TextStyle(color: trackColor)),
             ),
@@ -608,7 +615,11 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
           children: [
             Expanded(
               child: GestureDetector(
-                onTap: () => _showNameDialog(trackColor, namedConstellation),
+                onTap: () => _showNameDialog(
+                  trackColor,
+                  namedConstellation,
+                  constellationIds,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -627,11 +638,11 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                           Icon(
                             Icons.edit,
-                            size: 12,
-                            color: trackColor.withValues(alpha: 0.4),
+                            size: 16,
+                            color: trackColor.withValues(alpha: 0.5),
                           ),
                         ],
                       ),
@@ -650,7 +661,8 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
             ),
             if (namedConstellation == null)
               GestureDetector(
-                onTap: () => _showNameDialog(trackColor, null),
+                onTap: () =>
+                    _showNameDialog(trackColor, null, constellationIds),
                 child: Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: Row(
