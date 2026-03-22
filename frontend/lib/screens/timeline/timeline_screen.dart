@@ -192,37 +192,57 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           ),
           // Constellation highlight banner
           if (timeline.constellationPostIds != null)
-            Container(
-              color: const Color(0xFF0c0c12),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.auto_awesome,
-                    size: 16,
-                    color: Color(0xFF8888a0),
+            Builder(
+              builder: (context) {
+                final constellationName = timeline.posts
+                    .where(
+                      (p) =>
+                          timeline.constellationPostIds!.contains(p.id) &&
+                          p.constellation != null,
+                    )
+                    .map((p) => p.constellation!.name)
+                    .firstOrNull;
+                return Container(
+                  color: const Color(0xFF0c0c12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Constellation · ${timeline.constellationPostIds!.length} posts',
-                    style: const TextStyle(
-                      color: Color(0xFFccccdd),
-                      fontSize: 13,
-                    ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.auto_awesome,
+                        size: 16,
+                        color: Color(0xFF8888a0),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          constellationName != null
+                              ? '$constellationName · ${timeline.constellationPostIds!.length} posts'
+                              : 'Constellation · ${timeline.constellationPostIds!.length} posts',
+                          style: const TextStyle(
+                            color: Color(0xFFccccdd),
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => ref
+                            .read(timelineProvider.notifier)
+                            .clearConstellation(),
+                        child: const Icon(
+                          Icons.close,
+                          size: 18,
+                          color: Color(0xFF8888a0),
+                        ),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => ref
-                        .read(timelineProvider.notifier)
-                        .clearConstellation(),
-                    child: const Icon(
-                      Icons.close,
-                      size: 18,
-                      color: Color(0xFF8888a0),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
         ],
       ),
@@ -347,6 +367,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       onConnectionAdded: (conn) => notifier.addConnectionToState(conn),
       onConnectionRemoved: (conn) => notifier.removeConnectionFromState(conn),
       onViewConstellation: (ids) => notifier.showConstellation(ids),
+      onNameConstellation: (postId, name) =>
+          notifier.nameConstellation(postId, name),
       allPosts: ref.read(timelineProvider).posts,
     );
   }

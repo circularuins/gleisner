@@ -24,6 +24,8 @@ void showPostDetailSheet(
   void Function(PostConnection conn)? onConnectionAdded,
   void Function(PostConnection conn)? onConnectionRemoved,
   void Function(Set<String> postIds)? onViewConstellation,
+  Future<PostConstellation?> Function(String postId, String name)?
+  onNameConstellation,
   List<Post> allPosts = const [],
 }) {
   showModalBottomSheet<void>(
@@ -39,6 +41,7 @@ void showPostDetailSheet(
       onConnectionAdded: onConnectionAdded,
       onConnectionRemoved: onConnectionRemoved,
       onViewConstellation: onViewConstellation,
+      onNameConstellation: onNameConstellation,
       allPosts: allPosts,
     ),
   );
@@ -59,6 +62,8 @@ class _PostDetailSheet extends StatefulWidget {
   final void Function(PostConnection conn)? onConnectionAdded;
   final void Function(PostConnection conn)? onConnectionRemoved;
   final void Function(Set<String> postIds)? onViewConstellation;
+  final Future<PostConstellation?> Function(String postId, String name)?
+  onNameConstellation;
   final List<Post> allPosts;
   const _PostDetailSheet({
     required this.post,
@@ -69,6 +74,7 @@ class _PostDetailSheet extends StatefulWidget {
     this.onConnectionAdded,
     this.onConnectionRemoved,
     this.onViewConstellation,
+    this.onNameConstellation,
     this.allPosts = const [],
   });
 
@@ -514,18 +520,79 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     }
   }
 
+  void _showNameDialog(Color trackColor, PostConstellation? existing) {
+    final controller = TextEditingController(text: existing?.name ?? '');
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1a1a28),
+          title: Text(
+            existing != null
+                ? 'Rename constellation'
+                : 'Name this constellation',
+            style: const TextStyle(color: Color(0xFFf0f0f5), fontSize: 18),
+          ),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: 100,
+            style: const TextStyle(color: Color(0xFFf0f0f5)),
+            decoration: InputDecoration(
+              hintText: 'e.g., Initial impulse',
+              hintStyle: TextStyle(
+                color: const Color(0xFF666688).withValues(alpha: 0.5),
+              ),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(
+                  color: trackColor.withValues(alpha: 0.3),
+                ),
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: trackColor),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final name = controller.text.trim();
+                if (name.isEmpty) return;
+                Navigator.pop(dialogContext);
+                await widget.onNameConstellation?.call(widget.post.id, name);
+              },
+              child: Text('Save', style: TextStyle(color: trackColor)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildConstellationSection(Color trackColor) {
-    final constellation = findConstellation(widget.post.id, widget.allPosts);
+    final constellationIds = findConstellation(widget.post.id, widget.allPosts);
     // Hide if only self (no connections)
-    if (constellation.length <= 1) return const SizedBox.shrink();
+    if (constellationIds.length <= 1) return const SizedBox.shrink();
 
     final postMap = {for (final p in widget.allPosts) p.id: p};
     final members =
-        constellation
+        constellationIds
             .where((id) => id != widget.post.id && postMap.containsKey(id))
             .map((id) => postMap[id]!)
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    // Check if this constellation has a name (via any member's constellation field)
+    final namedConstellation =
+        widget.post.constellation ??
+        members
+            .where((p) => p.constellation != null)
+            .map((p) => p.constellation!)
+            .firstOrNull;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -537,19 +604,65 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         const SizedBox(height: 12),
         Row(
           children: [
-            Text(
-              'Constellation · ${constellation.length} posts',
-              style: const TextStyle(
-                color: Color(0xFF666688),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+            Expanded(
+              child: GestureDetector(
+                onTap: () => _showNameDialog(trackColor, namedConstellation),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (namedConstellation != null)
+                      Text(
+                        namedConstellation.name,
+                        style: TextStyle(
+                          color: trackColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    Text(
+                      namedConstellation != null
+                          ? '${constellationIds.length} posts'
+                          : 'Constellation · ${constellationIds.length} posts',
+                      style: const TextStyle(
+                        color: Color(0xFF666688),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const Spacer(),
+            if (namedConstellation == null)
+              GestureDetector(
+                onTap: () => _showNameDialog(trackColor, null),
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.edit,
+                        size: 14,
+                        color: trackColor.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Name',
+                        style: TextStyle(
+                          color: trackColor.withValues(alpha: 0.5),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             GestureDetector(
               onTap: () {
                 Navigator.pop(context);
-                widget.onViewConstellation?.call(constellation);
+                widget.onViewConstellation?.call(constellationIds);
               },
               child: Row(
                 mainAxisSize: MainAxisSize.min,

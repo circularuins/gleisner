@@ -39,6 +39,11 @@ const postFields = '''
     targetId
     connectionType
   }
+  constellation {
+    id
+    name
+    anchorPostId
+  }
 ''';
 
 const postsQuery =

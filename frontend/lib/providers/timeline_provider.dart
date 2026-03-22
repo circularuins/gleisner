@@ -7,6 +7,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import '../graphql/client.dart';
 import '../graphql/queries/artist.dart';
 import '../graphql/mutations/connection.dart';
+import '../graphql/mutations/constellation.dart';
 import '../graphql/mutations/reaction.dart';
 import '../graphql/mutations/track.dart';
 import '../graphql/queries/post.dart';
@@ -302,6 +303,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
       myReactions: p.myReactions,
       outgoingConnections: outgoingConnections ?? p.outgoingConnections,
       incomingConnections: incomingConnections ?? p.incomingConnections,
+      constellation: p.constellation,
     );
   }
 
@@ -334,6 +336,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
           myReactions: myReactions,
           outgoingConnections: p.outgoingConnections,
           incomingConnections: p.incomingConnections,
+          constellation: p.constellation,
         );
       }
       return p;
@@ -505,6 +508,31 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
       containerWidth: _lastWidth,
     );
     state = state.copyWith(layout: result);
+  }
+
+  /// Name or rename a constellation. Returns the constellation on success.
+  Future<PostConstellation?> nameConstellation(
+    String postId,
+    String name,
+  ) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(nameConstellationMutation),
+          variables: {'postId': postId, 'name': name},
+        ),
+      );
+      if (!result.hasException) {
+        final data = result.data?['nameConstellation'] as Map<String, dynamic>?;
+        if (data != null) {
+          final constellation = PostConstellation.fromJson(data);
+          // Refresh to pick up constellation data on all posts
+          await _loadSelectedPosts();
+          return constellation;
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 
   void showConstellation(Set<String> postIds) {

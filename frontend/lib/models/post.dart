@@ -41,6 +41,26 @@ class ReactionCount {
   }
 }
 
+class PostConstellation {
+  final String id;
+  final String name;
+  final String anchorPostId;
+
+  const PostConstellation({
+    required this.id,
+    required this.name,
+    required this.anchorPostId,
+  });
+
+  factory PostConstellation.fromJson(Map<String, dynamic> json) {
+    return PostConstellation(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      anchorPostId: json['anchorPostId'] as String,
+    );
+  }
+}
+
 class PostConnection {
   final String id;
   final String sourceId;
@@ -85,6 +105,7 @@ class Post {
   final List<String> myReactions;
   final List<PostConnection> outgoingConnections;
   final List<PostConnection> incomingConnections;
+  final PostConstellation? constellation;
 
   const Post({
     required this.id,
@@ -107,6 +128,7 @@ class Post {
     this.myReactions = const [],
     this.outgoingConnections = const [],
     this.incomingConnections = const [],
+    this.constellation,
   });
 
   Color get trackDisplayColor => parseHexColor(trackColor);
@@ -166,6 +188,11 @@ class Post {
               ?.map((c) => PostConnection.fromJson(c as Map<String, dynamic>))
               .toList() ??
           const [],
+      constellation: json['constellation'] != null
+          ? PostConstellation.fromJson(
+              json['constellation'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 }
