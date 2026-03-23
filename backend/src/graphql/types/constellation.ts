@@ -157,44 +157,49 @@ builder.mutationFields((t) => ({
   }),
 }));
 
-// Per-request cache builder for constellation lookups (avoids N+1).
-async function getConstellationForPost(
-  postId: string,
+// Per-request cache for constellation lookups (avoids N+1).
+// Uses a Promise guard to prevent duplicate DB fetches when resolvers
+// run in parallel within the same GraphQL request.
+async function ensureConstellationCache(
   ctx: import("../builder.js").GraphQLContext,
 ) {
-  if (!ctx.constellationCache) {
-    ctx.constellationCache = new Map();
+  if (!ctx.constellationCachePromise) {
+    ctx.constellationCachePromise = (async () => {
+      ctx.constellationCache = new Map();
 
-    const allConstellationRows = await db
-      .select()
-      .from(constellations)
-      .orderBy(constellations.createdAt);
-    if (allConstellationRows.length > 0) {
-      const anchorIds = allConstellationRows.map((c) => c.anchorPostId);
-      const componentMap = await findAllConstellations(anchorIds);
+      const allConstellationRows = await db
+        .select()
+        .from(constellations)
+        .orderBy(constellations.createdAt);
+      if (allConstellationRows.length > 0) {
+        const anchorIds = allConstellationRows.map((c) => c.anchorPostId);
+        const componentMap = await findAllConstellations(anchorIds);
 
-      for (const row of allConstellationRows) {
-        const component = componentMap.get(row.anchorPostId);
-        if (component) {
-          for (const memberId of component) {
-            // First constellation wins (oldest anchor, via ORDER BY)
-            if (!ctx.constellationCache.has(memberId)) {
-              ctx.constellationCache.set(memberId, row);
+        for (const row of allConstellationRows) {
+          const component = componentMap.get(row.anchorPostId);
+          if (component) {
+            for (const memberId of component) {
+              if (!ctx.constellationCache!.has(memberId)) {
+                ctx.constellationCache!.set(memberId, row);
+              }
             }
           }
         }
       }
-    }
+    })();
   }
-
-  return ctx.constellationCache.get(postId) ?? null;
+  await ctx.constellationCachePromise;
 }
 
-// Add constellation field to PostType
+// Public field: constellation topology is non-sensitive.
+// artistId is not exposed in ConstellationType.
 builder.objectFields(PostType, (t) => ({
   constellation: t.field({
     type: ConstellationType,
     nullable: true,
-    resolve: async (post, _args, ctx) => getConstellationForPost(post.id, ctx),
+    resolve: async (post, _args, ctx) => {
+      await ensureConstellationCache(ctx);
+      return ctx.constellationCache?.get(post.id) ?? null;
+    },
   }),
 }));

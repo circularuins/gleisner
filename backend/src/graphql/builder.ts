@@ -14,6 +14,8 @@ export interface GraphQLContext {
       createdAt: Date;
     } | null
   >;
+  /** Promise guard to prevent parallel cache initialization. */
+  constellationCachePromise?: Promise<void>;
 }
 
 export const builder = new SchemaBuilder<{ Context: GraphQLContext }>({});
