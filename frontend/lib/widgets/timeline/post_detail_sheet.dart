@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../models/post.dart';
+import '../../models/track.dart' show parseHexColor;
+import '../../utils/constellation_graph.dart';
+import '../common/related_post_picker.dart';
 import 'seed_art_painter.dart';
 
 const _reactionPresets = ['🔥', '❤️', '👏', '✨', '😍', '🎵', '💪', '🎸'];
@@ -15,6 +18,15 @@ void showPostDetailSheet(
     List<String> myReactions,
   )?
   onReactionsChanged,
+  Future<PostConnection?> Function(String sourceId, String targetId)?
+  onCreateConnection,
+  Future<bool> Function(String connectionId)? onDeleteConnection,
+  void Function(PostConnection conn)? onConnectionAdded,
+  void Function(PostConnection conn)? onConnectionRemoved,
+  void Function(Set<String> postIds)? onViewConstellation,
+  Future<PostConstellation?> Function(String postId, String name)?
+  onNameConstellation,
+  List<Post> allPosts = const [],
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -24,6 +36,13 @@ void showPostDetailSheet(
       post: post,
       onToggleReaction: onToggleReaction,
       onReactionsChanged: onReactionsChanged,
+      onCreateConnection: onCreateConnection,
+      onDeleteConnection: onDeleteConnection,
+      onConnectionAdded: onConnectionAdded,
+      onConnectionRemoved: onConnectionRemoved,
+      onViewConstellation: onViewConstellation,
+      onNameConstellation: onNameConstellation,
+      allPosts: allPosts,
     ),
   );
 }
@@ -37,10 +56,26 @@ class _PostDetailSheet extends StatefulWidget {
     List<String> myReactions,
   )?
   onReactionsChanged;
+  final Future<PostConnection?> Function(String sourceId, String targetId)?
+  onCreateConnection;
+  final Future<bool> Function(String connectionId)? onDeleteConnection;
+  final void Function(PostConnection conn)? onConnectionAdded;
+  final void Function(PostConnection conn)? onConnectionRemoved;
+  final void Function(Set<String> postIds)? onViewConstellation;
+  final Future<PostConstellation?> Function(String postId, String name)?
+  onNameConstellation;
+  final List<Post> allPosts;
   const _PostDetailSheet({
     required this.post,
     this.onToggleReaction,
     this.onReactionsChanged,
+    this.onCreateConnection,
+    this.onDeleteConnection,
+    this.onConnectionAdded,
+    this.onConnectionRemoved,
+    this.onViewConstellation,
+    this.onNameConstellation,
+    this.allPosts = const [],
   });
 
   @override
@@ -50,13 +85,18 @@ class _PostDetailSheet extends StatefulWidget {
 class _PostDetailSheetState extends State<_PostDetailSheet> {
   late List<ReactionCount> _reactionCounts;
   late Set<String> _myReactions;
+  late List<PostConnection> _outgoingConnections;
+  late List<PostConnection> _incomingConnections;
   bool _isToggling = false;
+  bool _isConnecting = false;
 
   @override
   void initState() {
     super.initState();
     _reactionCounts = List.from(widget.post.reactionCounts);
     _myReactions = Set.from(widget.post.myReactions);
+    _outgoingConnections = List.from(widget.post.outgoingConnections);
+    _incomingConnections = List.from(widget.post.incomingConnections);
   }
 
   Future<void> _toggleReaction(String emoji) async {
@@ -188,6 +228,18 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
                 child: _buildReactionsSection(trackColor),
               ),
+              // Connections
+              if (widget.allPosts.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: _buildConnectionsSection(trackColor),
+                ),
+              // Constellation
+              if (widget.allPosts.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: _buildConstellationSection(trackColor),
+                ),
               // Comments placeholder
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -303,6 +355,396 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
             );
           }).toList(),
         ),
+      ],
+    );
+  }
+
+  Widget _buildConnectionsSection(Color trackColor) {
+    final postMap = {for (final p in widget.allPosts) p.id: p};
+    // Combine outgoing + incoming for display
+    final connectedPosts =
+        <({PostConnection conn, Post post, bool isOutgoing})>[];
+    for (final c in _outgoingConnections) {
+      final target = postMap[c.targetId];
+      if (target != null) {
+        connectedPosts.add((conn: c, post: target, isOutgoing: true));
+      }
+    }
+    for (final c in _incomingConnections) {
+      final source = postMap[c.sourceId];
+      if (source != null) {
+        connectedPosts.add((conn: c, post: source, isOutgoing: false));
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Divider(
+          color: const Color(0xFF1a1a28).withValues(alpha: 0.5),
+          height: 1,
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Connections',
+          style: TextStyle(
+            color: Color(0xFF666688),
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (connectedPosts.isNotEmpty)
+          ...connectedPosts.map((entry) {
+            final p = entry.post;
+            final pColor = p.trackColor != null
+                ? parseHexColor(p.trackColor)
+                : null;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    entry.isOutgoing ? Icons.arrow_forward : Icons.arrow_back,
+                    size: 14,
+                    color: const Color(0xFF666688),
+                  ),
+                  const SizedBox(width: 6),
+                  if (pColor != null)
+                    Container(
+                      width: 3,
+                      height: 20,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: pColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  Expanded(
+                    child: Text(
+                      _connectionLabel(p),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFccccdd),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _deleteConnection(entry.conn),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.close,
+                        size: 14,
+                        color: Color(0xFF666688),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        GestureDetector(
+          onTap: _isConnecting ? null : _addConnection,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.add,
+                  size: 16,
+                  color: _isConnecting
+                      ? const Color(0xFF444466)
+                      : trackColor.withValues(alpha: 0.7),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _isConnecting ? 'Linking...' : 'Link post',
+                  style: TextStyle(
+                    color: _isConnecting
+                        ? const Color(0xFF444466)
+                        : trackColor.withValues(alpha: 0.7),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addConnection() async {
+    Post? selectedPost;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => RelatedPostPicker(
+        posts: widget.allPosts,
+        excludePostId: widget.post.id,
+        onSelected: (post) {
+          selectedPost = post;
+        },
+      ),
+    );
+    if (selectedPost == null || !mounted) return;
+
+    setState(() => _isConnecting = true);
+    try {
+      final conn = await widget.onCreateConnection?.call(
+        widget.post.id,
+        selectedPost!.id,
+      );
+      if (conn != null && mounted) {
+        setState(() {
+          _outgoingConnections.add(conn);
+        });
+        widget.onConnectionAdded?.call(conn);
+      }
+    } finally {
+      if (mounted) setState(() => _isConnecting = false);
+    }
+  }
+
+  Future<void> _deleteConnection(PostConnection conn) async {
+    final success = await widget.onDeleteConnection?.call(conn.id) ?? false;
+    if (success && mounted) {
+      setState(() {
+        _outgoingConnections.removeWhere((c) => c.id == conn.id);
+        _incomingConnections.removeWhere((c) => c.id == conn.id);
+      });
+      widget.onConnectionRemoved?.call(conn);
+    }
+  }
+
+  void _showNameDialog(
+    Color trackColor,
+    PostConstellation? existing,
+    Set<String> constellationIds,
+  ) {
+    final controller = TextEditingController(text: existing?.name ?? '');
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1a1a28),
+          title: Text(
+            existing != null
+                ? 'Rename constellation'
+                : 'Name this constellation',
+            style: const TextStyle(color: Color(0xFFf0f0f5), fontSize: 18),
+          ),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: 100,
+            style: const TextStyle(color: Color(0xFFf0f0f5)),
+            decoration: InputDecoration(
+              hintText: 'e.g., Initial impulse',
+              hintStyle: TextStyle(
+                color: const Color(0xFF666688).withValues(alpha: 0.5),
+              ),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(
+                  color: trackColor.withValues(alpha: 0.3),
+                ),
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: trackColor),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final name = controller.text.trim();
+                if (name.isEmpty) return;
+                Navigator.pop(dialogContext);
+                await widget.onNameConstellation?.call(widget.post.id, name);
+                // Close detail sheet and enter constellation view
+                if (mounted) {
+                  Navigator.pop(context);
+                  widget.onViewConstellation?.call(constellationIds);
+                }
+              },
+              child: Text('Save', style: TextStyle(color: trackColor)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildConstellationSection(Color trackColor) {
+    final constellationIds = findConstellation(widget.post.id, widget.allPosts);
+    // Hide if only self (no connections)
+    if (constellationIds.length <= 1) return const SizedBox.shrink();
+
+    final postMap = {for (final p in widget.allPosts) p.id: p};
+    final members =
+        constellationIds
+            .where((id) => id != widget.post.id && postMap.containsKey(id))
+            .map((id) => postMap[id]!)
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    // Check if this constellation has a name (via any member's constellation field)
+    final namedConstellation =
+        widget.post.constellation ??
+        members
+            .where((p) => p.constellation != null)
+            .map((p) => p.constellation!)
+            .firstOrNull;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Divider(
+          color: const Color(0xFF1a1a28).withValues(alpha: 0.5),
+          height: 1,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => _showNameDialog(
+                  trackColor,
+                  namedConstellation,
+                  constellationIds,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (namedConstellation != null)
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              namedConstellation.name,
+                              style: TextStyle(
+                                color: trackColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.edit,
+                            size: 16,
+                            color: trackColor.withValues(alpha: 0.5),
+                          ),
+                        ],
+                      ),
+                    Text(
+                      namedConstellation != null
+                          ? '${constellationIds.length} posts'
+                          : 'Constellation · ${constellationIds.length} posts',
+                      style: const TextStyle(
+                        color: Color(0xFF666688),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (namedConstellation == null)
+              GestureDetector(
+                onTap: () =>
+                    _showNameDialog(trackColor, null, constellationIds),
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.edit,
+                        size: 14,
+                        color: trackColor.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Name',
+                        style: TextStyle(
+                          color: trackColor.withValues(alpha: 0.5),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                widget.onViewConstellation?.call(constellationIds);
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    size: 14,
+                    color: trackColor.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'View',
+                    style: TextStyle(
+                      color: trackColor.withValues(alpha: 0.7),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...members.map((p) {
+          final pColor = p.trackColor != null
+              ? parseHexColor(p.trackColor)
+              : null;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                if (pColor != null)
+                  Container(
+                    width: 3,
+                    height: 16,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: pColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                Expanded(
+                  child: Text(
+                    _connectionLabel(p),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF9999b0),
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
       ],
     );
   }
@@ -613,5 +1055,23 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   String _formatDateTime() {
     final local = widget.post.createdAt.toLocal();
     return '${local.year}/${local.month.toString().padLeft(2, '0')}/${local.day.toString().padLeft(2, '0')} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  static String _connectionLabel(Post p) {
+    if (p.title != null && p.title!.isNotEmpty) return p.title!;
+    if (p.body != null && p.body!.isNotEmpty) {
+      return p.body!.substring(0, p.body!.length.clamp(0, 30));
+    }
+    final icon = switch (p.mediaType) {
+      MediaType.image => '📷',
+      MediaType.video => '🎬',
+      MediaType.audio => '🎵',
+      MediaType.link => '🔗',
+      MediaType.text => '📝',
+    };
+    final date = p.createdAt.toLocal();
+    final dateStr = '${date.month}/${date.day}';
+    final track = p.trackName ?? '';
+    return '$icon ${p.mediaType.name[0].toUpperCase()}${p.mediaType.name.substring(1)} · $track · $dateStr';
   }
 }

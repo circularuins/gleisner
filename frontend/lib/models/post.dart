@@ -41,6 +41,49 @@ class ReactionCount {
   }
 }
 
+class PostConstellation {
+  final String id;
+  final String name;
+  final String anchorPostId;
+
+  const PostConstellation({
+    required this.id,
+    required this.name,
+    required this.anchorPostId,
+  });
+
+  factory PostConstellation.fromJson(Map<String, dynamic> json) {
+    return PostConstellation(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      anchorPostId: json['anchorPostId'] as String,
+    );
+  }
+}
+
+class PostConnection {
+  final String id;
+  final String sourceId;
+  final String targetId;
+  final String connectionType;
+
+  const PostConnection({
+    required this.id,
+    required this.sourceId,
+    required this.targetId,
+    required this.connectionType,
+  });
+
+  factory PostConnection.fromJson(Map<String, dynamic> json) {
+    return PostConnection(
+      id: json['id'] as String,
+      sourceId: json['sourceId'] as String,
+      targetId: json['targetId'] as String,
+      connectionType: json['connectionType'] as String,
+    );
+  }
+}
+
 class Post {
   final String id;
   final MediaType mediaType;
@@ -60,6 +103,9 @@ class Post {
   final String? trackColor;
   final List<ReactionCount> reactionCounts;
   final List<String> myReactions;
+  final List<PostConnection> outgoingConnections;
+  final List<PostConnection> incomingConnections;
+  final PostConstellation? constellation;
 
   const Post({
     required this.id,
@@ -80,6 +126,9 @@ class Post {
     this.trackColor,
     this.reactionCounts = const [],
     this.myReactions = const [],
+    this.outgoingConnections = const [],
+    this.incomingConnections = const [],
+    this.constellation,
   });
 
   Color get trackDisplayColor => parseHexColor(trackColor);
@@ -129,6 +178,21 @@ class Post {
               ?.map((e) => e as String)
               .toList() ??
           const [],
+      outgoingConnections:
+          (json['outgoingConnections'] as List<dynamic>?)
+              ?.map((c) => PostConnection.fromJson(c as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      incomingConnections:
+          (json['incomingConnections'] as List<dynamic>?)
+              ?.map((c) => PostConnection.fromJson(c as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      constellation: json['constellation'] != null
+          ? PostConstellation.fromJson(
+              json['constellation'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 }

@@ -10,6 +10,7 @@ import "./post.js";
 import "./reaction.js";
 import "./comment.js";
 import "./connection.js";
+import "./constellation.js";
 import "./follow.js";
 import "./tune-in.js";
 import "./artist-link.js";

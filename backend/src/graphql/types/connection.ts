@@ -21,6 +21,8 @@ const ConnectionObjectType = builder.objectRef<{
 ConnectionObjectType.implement({
   fields: (t) => ({
     id: t.exposeID("id"),
+    sourceId: t.exposeID("sourceId"),
+    targetId: t.exposeID("targetId"),
     connectionType: t.field({
       type: ConnectionTypeEnum,
       resolve: (conn) => conn.connectionType,
@@ -175,7 +177,8 @@ builder.queryFields((t) => ({
             eq(connections.sourceId, args.postId),
             eq(connections.targetId, args.postId),
           ),
-        );
+        )
+        .limit(100);
     },
   }),
 }));
@@ -188,7 +191,8 @@ builder.objectFields(PostType, (t) => ({
       return db
         .select()
         .from(connections)
-        .where(eq(connections.sourceId, post.id));
+        .where(eq(connections.sourceId, post.id))
+        .limit(50);
     },
   }),
   incomingConnections: t.field({
@@ -197,7 +201,8 @@ builder.objectFields(PostType, (t) => ({
       return db
         .select()
         .from(connections)
-        .where(eq(connections.targetId, post.id));
+        .where(eq(connections.targetId, post.id))
+        .limit(50);
     },
   }),
 }));

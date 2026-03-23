@@ -1,4 +1,11 @@
-import { pgTable, uuid, timestamp, pgEnum, check } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  timestamp,
+  pgEnum,
+  check,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { posts } from "./post.js";
 
@@ -25,5 +32,12 @@ export const connections = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (t) => [check("source_neq_target", sql`${t.sourceId} != ${t.targetId}`)],
+  (t) => [
+    check("source_neq_target", sql`${t.sourceId} != ${t.targetId}`),
+    uniqueIndex("unique_connection").on(
+      t.sourceId,
+      t.targetId,
+      t.connectionType,
+    ),
+  ],
 );

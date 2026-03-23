@@ -48,20 +48,26 @@ class DaySection {
 
 /// A synapse connection between two nodes.
 class SynapseConnection {
+  final String sourcePostId;
+  final String targetPostId;
   final Offset start;
   final Offset end;
   final Offset cp1;
   final Offset cp2;
   final Color color;
+  final Color endColor;
   final double opacity;
   final double strokeWidth;
 
   const SynapseConnection({
+    required this.sourcePostId,
+    required this.targetPostId,
     required this.start,
     required this.end,
     required this.cp1,
     required this.cp2,
     required this.color,
+    required this.endColor,
     required this.opacity,
     required this.strokeWidth,
   });
@@ -413,10 +419,7 @@ class ConstellationLayout {
     final dayBottomY = days.isEmpty ? 0.0 : days.last.top + days.last.height;
     final totalHeight = max(nodeBottomY, dayBottomY) + 40;
 
-    // Build synapse connections
-    // TODO(synapse): 仮実装 — 同一トラック時系列隣接ペアを自動接続。
-    // 本来はユーザー指定 or AI 判定による接続データをバックエンドから取得する。
-    // 接続ロジック・データモデル実装後にこの仮実装を置き換えること。
+    // Build synapse connections from backend data
     final connections = _buildSynapses(nodes);
 
     return LayoutResult(
@@ -444,57 +447,78 @@ class ConstellationLayout {
     return worst;
   }
 
-  /// 仮実装: 同一トラック内の時系列隣接ノードをベジェ曲線で接続。
-  /// 本番では接続データ（ユーザー指定 or AI 判定）をバックエンドから取得して描画する。
+  /// Build synapse connections from backend connection data.
+  /// Uses outgoingConnections on each post to find connected pairs.
   static List<SynapseConnection> _buildSynapses(List<PlacedNode> nodes) {
     final connections = <SynapseConnection>[];
-
-    // Group by trackId
-    final byTrack = <String, List<PlacedNode>>{};
+    final nodeById = <String, PlacedNode>{};
     for (final node in nodes) {
-      final tid = node.post.trackId;
-      if (tid == null) continue;
-      byTrack.putIfAbsent(tid, () => []).add(node);
+      nodeById[node.post.id] = node;
     }
 
-    for (final entry in byTrack.entries) {
-      final trackNodes = entry.value
-        ..sort((a, b) => a.post.createdAt.compareTo(b.post.createdAt));
+    final seen = <String>{};
 
-      final color = trackNodes.first.post.trackDisplayColor;
+    for (final node in nodes) {
+      for (final conn in node.post.outgoingConnections) {
+        // Deduplicate: skip if already drawn from the other side
+        if (seen.contains(conn.id)) continue;
+        seen.add(conn.id);
 
-      for (int i = 0; i < trackNodes.length - 1; i++) {
-        final a = trackNodes[i];
-        final b = trackNodes[i + 1];
-        final dist = sqrt(
-          pow(a.centerX - b.centerX, 2) + pow(a.centerY - b.centerY, 2),
-        );
-        if (dist > 500) continue;
+        final target = nodeById[conn.targetId];
+        if (target == null) continue;
 
-        final opacity = min(0.08 + a.post.importance * 0.32, 0.4);
-        final width = 0.8 + min(a.post.importance * 2.5, 2.5);
+        final a = node;
+        final b = target;
+        connections.add(_makeSynapse(a, b));
+      }
 
-        final dy = b.centerY - a.centerY;
-        final cx1 = a.centerX + (b.centerX - a.centerX) * 0.25 + dy * 0.15;
-        final cy1 = a.centerY + (b.centerY - a.centerY) * 0.25;
-        final cx2 = a.centerX + (b.centerX - a.centerX) * 0.75 - dy * 0.15;
-        final cy2 = a.centerY + (b.centerY - a.centerY) * 0.75;
+      // Also check incomingConnections for connections from posts
+      // not in the current view
+      for (final conn in node.post.incomingConnections) {
+        if (seen.contains(conn.id)) continue;
+        seen.add(conn.id);
 
-        connections.add(
-          SynapseConnection(
-            start: Offset(a.centerX, a.centerY),
-            end: Offset(b.centerX, b.centerY),
-            cp1: Offset(cx1, cy1),
-            cp2: Offset(cx2, cy2),
-            color: color,
-            opacity: opacity,
-            strokeWidth: width,
-          ),
-        );
+        final source = nodeById[conn.sourceId];
+        if (source == null) continue;
+
+        final a = source;
+        final b = node;
+        connections.add(_makeSynapse(a, b));
       }
     }
 
     return connections;
+  }
+
+  static SynapseConnection _makeSynapse(PlacedNode a, PlacedNode b) {
+    final dist = sqrt(
+      pow(a.centerX - b.centerX, 2) + pow(a.centerY - b.centerY, 2),
+    );
+
+    final color = a.post.trackDisplayColor;
+    // Fade out long connections: full strength up to 300px, fading to 0.4x at 1500px+
+    final distFade = dist < 300 ? 1.0 : max(0.4, 1.0 - (dist - 300) / 3000);
+    final opacity = min(0.08 + a.post.importance * 0.32, 0.4) * distFade;
+    final width = (0.8 + min(a.post.importance * 2.5, 2.5)) * distFade;
+
+    final dy = b.centerY - a.centerY;
+    final cx1 = a.centerX + (b.centerX - a.centerX) * 0.25 + dy * 0.15;
+    final cy1 = a.centerY + (b.centerY - a.centerY) * 0.25;
+    final cx2 = a.centerX + (b.centerX - a.centerX) * 0.75 - dy * 0.15;
+    final cy2 = a.centerY + (b.centerY - a.centerY) * 0.75;
+
+    return SynapseConnection(
+      sourcePostId: a.post.id,
+      targetPostId: b.post.id,
+      start: Offset(a.centerX, a.centerY),
+      end: Offset(b.centerX, b.centerY),
+      cp1: Offset(cx1, cy1),
+      cp2: Offset(cx2, cy2),
+      color: color,
+      endColor: b.post.trackDisplayColor,
+      opacity: opacity,
+      strokeWidth: width,
+    );
   }
 }
 

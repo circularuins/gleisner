@@ -27,6 +27,23 @@ const postFields = '''
     count
   }
   myReactions
+  outgoingConnections {
+    id
+    sourceId
+    targetId
+    connectionType
+  }
+  incomingConnections {
+    id
+    sourceId
+    targetId
+    connectionType
+  }
+  constellation {
+    id
+    name
+    anchorPostId
+  }
 ''';
 
 const postsQuery =

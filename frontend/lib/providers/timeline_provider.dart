@@ -6,6 +6,8 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
 import '../graphql/queries/artist.dart';
+import '../graphql/mutations/connection.dart';
+import '../graphql/mutations/constellation.dart';
 import '../graphql/mutations/reaction.dart';
 import '../graphql/mutations/track.dart';
 import '../graphql/queries/post.dart';
@@ -23,6 +25,7 @@ class TimelineState {
   final String? error;
   final LayoutResult? layout;
   final String? highlightPostId;
+  final Set<String>? constellationPostIds;
 
   const TimelineState({
     this.artist,
@@ -32,6 +35,7 @@ class TimelineState {
     this.error,
     this.layout,
     this.highlightPostId,
+    this.constellationPostIds,
   });
 
   bool get allSelected =>
@@ -49,6 +53,7 @@ class TimelineState {
     Object? error = sentinel,
     Object? layout = sentinel,
     Object? highlightPostId = sentinel,
+    Object? constellationPostIds = sentinel,
   }) {
     return TimelineState(
       artist: artist == sentinel ? this.artist : artist as Artist?,
@@ -60,6 +65,9 @@ class TimelineState {
       highlightPostId: highlightPostId == sentinel
           ? this.highlightPostId
           : highlightPostId as String?,
+      constellationPostIds: constellationPostIds == sentinel
+          ? this.constellationPostIds
+          : constellationPostIds as Set<String>?,
     );
   }
 }
@@ -184,6 +192,121 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
     }
   }
 
+  /// Create a connection between two posts. Returns the connection on success.
+  Future<PostConnection?> createConnection(
+    String sourceId,
+    String targetId,
+  ) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(createConnectionMutation),
+          variables: {
+            'sourceId': sourceId,
+            'targetId': targetId,
+            'connectionType': 'reference',
+          },
+        ),
+      );
+      if (!result.hasException) {
+        final data = result.data?['createConnection'] as Map<String, dynamic>?;
+        if (data != null) return PostConnection.fromJson(data);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Delete a connection. Returns true on success.
+  Future<bool> deleteConnection(String connectionId) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(deleteConnectionMutation),
+          variables: {'id': connectionId},
+        ),
+      );
+      return !result.hasException;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Add a connection to both source and target posts, then recompute layout.
+  void addConnectionToState(PostConnection conn) {
+    final posts = state.posts.map((p) {
+      if (p.id == conn.sourceId) {
+        return _copyPostWith(
+          p,
+          outgoingConnections: [...p.outgoingConnections, conn],
+        );
+      }
+      if (p.id == conn.targetId) {
+        return _copyPostWith(
+          p,
+          incomingConnections: [...p.incomingConnections, conn],
+        );
+      }
+      return p;
+    }).toList();
+    state = state.copyWith(posts: posts);
+    _recomputeLayout();
+  }
+
+  /// Remove a connection from both source and target posts, then recompute layout.
+  void removeConnectionFromState(PostConnection conn) {
+    final posts = state.posts.map((p) {
+      if (p.id == conn.sourceId) {
+        return _copyPostWith(
+          p,
+          outgoingConnections: p.outgoingConnections
+              .where((c) => c.id != conn.id)
+              .toList(),
+        );
+      }
+      if (p.id == conn.targetId) {
+        return _copyPostWith(
+          p,
+          incomingConnections: p.incomingConnections
+              .where((c) => c.id != conn.id)
+              .toList(),
+        );
+      }
+      return p;
+    }).toList();
+    state = state.copyWith(posts: posts);
+    _recomputeLayout();
+  }
+
+  static Post _copyPostWith(
+    Post p, {
+    List<PostConnection>? outgoingConnections,
+    List<PostConnection>? incomingConnections,
+  }) {
+    return Post(
+      id: p.id,
+      mediaType: p.mediaType,
+      title: p.title,
+      body: p.body,
+      mediaUrl: p.mediaUrl,
+      duration: p.duration,
+      importance: p.importance,
+      layoutX: p.layoutX,
+      layoutY: p.layoutY,
+      contentHash: p.contentHash,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      author: p.author,
+      trackId: p.trackId,
+      trackName: p.trackName,
+      trackColor: p.trackColor,
+      reactionCounts: p.reactionCounts,
+      myReactions: p.myReactions,
+      outgoingConnections: outgoingConnections ?? p.outgoingConnections,
+      incomingConnections: incomingConnections ?? p.incomingConnections,
+      constellation: p.constellation,
+    );
+  }
+
   /// Update reaction counts and user's own reactions for a post.
   void updatePostReactions(
     String postId,
@@ -211,6 +334,9 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
           trackColor: p.trackColor,
           reactionCounts: counts,
           myReactions: myReactions,
+          outgoingConnections: p.outgoingConnections,
+          incomingConnections: p.incomingConnections,
+          constellation: p.constellation,
         );
       }
       return p;
@@ -382,6 +508,39 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
       containerWidth: _lastWidth,
     );
     state = state.copyWith(layout: result);
+  }
+
+  /// Name or rename a constellation. Returns the constellation on success.
+  Future<PostConstellation?> nameConstellation(
+    String postId,
+    String name,
+  ) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(nameConstellationMutation),
+          variables: {'postId': postId, 'name': name},
+        ),
+      );
+      if (!result.hasException) {
+        final data = result.data?['nameConstellation'] as Map<String, dynamic>?;
+        if (data != null) {
+          final constellation = PostConstellation.fromJson(data);
+          // Refresh to pick up constellation data on all posts
+          await _loadSelectedPosts();
+          return constellation;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  void showConstellation(Set<String> postIds) {
+    state = state.copyWith(constellationPostIds: postIds);
+  }
+
+  void clearConstellation() {
+    state = state.copyWith(constellationPostIds: null);
   }
 
   Future<void> refresh() async {

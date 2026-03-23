@@ -8,6 +8,7 @@ export { artistGenres } from "./artist-genre.js";
 export { tracks } from "./track.js";
 export { posts, mediaTypeEnum } from "./post.js";
 export { connections, connectionTypeEnum } from "./connection.js";
+export { constellations } from "./constellation.js";
 export { reactions } from "./reaction.js";
 export { comments } from "./comment.js";
 export { tuneIns } from "./tune-in.js";
@@ -27,6 +28,7 @@ import { comments } from "./comment.js";
 import { tuneIns } from "./tune-in.js";
 import { follows } from "./follow.js";
 import { artistLinks } from "./artist-link.js";
+import { constellations } from "./constellation.js";
 
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -124,5 +126,16 @@ export const artistLinksRelations = relations(artistLinks, ({ one }) => ({
   artist: one(artists, {
     fields: [artistLinks.artistId],
     references: [artists.id],
+  }),
+}));
+
+export const constellationsRelations = relations(constellations, ({ one }) => ({
+  artist: one(artists, {
+    fields: [constellations.artistId],
+    references: [artists.id],
+  }),
+  anchorPost: one(posts, {
+    fields: [constellations.anchorPostId],
+    references: [posts.id],
   }),
 }));

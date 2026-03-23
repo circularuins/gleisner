@@ -40,8 +40,6 @@ Greg Egan "Diaspora" の **Gleisner robots**（物理世界とデジタル世界
 
 `docs/decisions/` に ADR（Architecture Decision Records）を蓄積する。
 
-### ADR 運用ルール
-
 - 新規 ADR は連番で追加: `NNN-slug.md`
 - 既存 ADR の変更は「Superseded by」で新 ADR を参照
 - フォーマット: タイトル / ステータス / コンテキスト / 決定 / 結果
@@ -114,41 +112,12 @@ docker compose up -d   # PostgreSQL 起動
 docker compose down    # PostgreSQL 停止
 ```
 
-## バックエンド実装ルール
+## 実装ルール
 
-### UserType vs PublicUserType
+バックエンド・フロントエンドの詳細な実装ルールは `.claude/rules/` に分離（自動読み込み）。
 
-| 型 | 用途 | 含まれるフィールド |
-|----|------|-------------------|
-| `UserType` | `me` クエリ、`signup`/`login` の AuthPayload | id, did, email, username, displayName, bio, avatarUrl, publicKey, createdAt, updatedAt |
-| `PublicUserType` | 公開クエリ（post author, reaction user, comment user, follow, tune-in） | id, did, username, displayName, bio, avatarUrl, createdAt |
-
-- **新しい公開フィールドを追加する場合**: `PublicUserType` と `publicUserColumns` の両方を更新
-- **DB クエリ**: `UserType` は `userColumns`、`PublicUserType` は `publicUserColumns` を使用。`select()` で全カラム取得は禁止（passwordHash 等が漏洩するため）
-
-### contentHash / signature
-
-- Post 作成・更新時に `contentHash`（SHA-256）を自動計算。対象: `JSON.stringify({ title, body, mediaUrl, mediaType, importance, duration })`
-- `layoutX`/`layoutY` はプレゼンテーション用のため contentHash に含めない
-- `signature`（Ed25519）はクライアントからのオプショナル引数。提供された場合は author の publicKey で検証
-- 署名付き投稿のコンテンツ更新時は新しい署名が必須（署名の無断消去を防止）
-
-**⚠ Post にコンテンツフィールドを追加する場合、以下の 3 箇所を同時に更新すること:**
-1. `src/auth/signing.ts` の `computeContentHash` — ハッシュ計算対象に追加
-2. `src/graphql/types/post.ts` の `contentChanged` 判定 — updatePost で変更検知に追加
-3. `src/graphql/types/post.ts` の `newHash` 計算 — updatePost の既存値フォールバックに追加
-
-### 認可チェック（認証ガード）の追加
-
-**⚠ GraphQL フィールドに認証を追加する場合、以下の箇所を全て確認すること:**
-1. **PostType 等のオブジェクトフィールド** — `builder.objectFields()` 内の resolve に `ctx.authUser` チェック
-2. **トップレベルクエリ** — `builder.queryFields()` 内の同名クエリにも同じチェック（別経路でアクセス可能）
-3. **テストファイル** — 該当クエリを呼ぶ全テストに認証トークンを渡す（`reaction.test.ts`, `public-user.test.ts` 等、複数ファイルに散在しうる）
-
-### テスト
-
-- 共通ヘルパーは `src/graphql/__tests__/helpers.ts` に集約。新規テストファイルではこれを import
-- 各テストファイルの `beforeEach` で `TRUNCATE users CASCADE` を実行
+- `.claude/rules/backend-implementation.md` — UserType 分離、contentHash、認可チェック等
+- `.claude/rules/frontend-implementation.md` — Provider 層ルール、Post フィールド追加チェックリスト等
 
 ## PR 前チェック（Gleisner 固有）
 
@@ -163,15 +132,3 @@ cd frontend && dart analyze lib/ && dart format --set-exit-if-changed . && flutt
 ```
 
 **`pnpm format:check` を忘れない。** `sed` 等でテストファイルを手動編集した後は特に注意。
-
-## フロントエンド実装ルール
-
-### データ操作は Provider/Notifier 層で
-
-**Widget 層から GraphQL クライアントを直接操作しない。** データの取得・変更は必ず Provider/Notifier 経由で行う。
-
-- ✅ `TimelineNotifier.toggleReaction(postId, emoji)` → Widget はコールバックで呼ぶだけ
-- ❌ Widget 内で `client.mutate()` を直接実行
-
-Widget が必要とするのはコールバック（`onToggleReaction`, `onReactionsChanged` 等）のみ。
-これにより テスト容易性・保守性・関心の分離 が保たれる。

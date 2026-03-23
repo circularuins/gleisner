@@ -589,4 +589,62 @@ describe("Connection GraphQL integration", () => {
       expect((conn.target as { id: string }).id).toBe(targetId);
     });
   });
+
+  describe("unique constraint", () => {
+    it("rejects duplicate connection (same source, target, type)", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "uc1@example.com",
+        "ucuser1",
+        "ucartist1",
+      );
+      const sourceId = await createPostForTest(app, token);
+      const targetId = await createPostForTest(app, token);
+
+      // First creation succeeds
+      const result1 = await gql(
+        app,
+        CREATE_CONNECTION_MUTATION,
+        { sourceId, targetId, connectionType: "reference" },
+        token,
+      );
+      expect(result1.errors).toBeUndefined();
+
+      // Duplicate creation fails
+      const result2 = await gql(
+        app,
+        CREATE_CONNECTION_MUTATION,
+        { sourceId, targetId, connectionType: "reference" },
+        token,
+      );
+      expect(result2.errors).toBeDefined();
+    });
+
+    it("allows same pair with different connection type", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "uc2@example.com",
+        "ucuser2",
+        "ucartist2",
+      );
+      const sourceId = await createPostForTest(app, token);
+      const targetId = await createPostForTest(app, token);
+
+      const result1 = await gql(
+        app,
+        CREATE_CONNECTION_MUTATION,
+        { sourceId, targetId, connectionType: "reference" },
+        token,
+      );
+      expect(result1.errors).toBeUndefined();
+
+      const result2 = await gql(
+        app,
+        CREATE_CONNECTION_MUTATION,
+        { sourceId, targetId, connectionType: "reply" },
+        token,
+      );
+      expect(result2.errors).toBeUndefined();
+    });
+  });
 });
