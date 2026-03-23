@@ -91,6 +91,10 @@ builder.mutationFields((t) => ({
           }
         }
 
+        // Create new constellation. The anchor is args.postId, which is
+        // verified above as owned by the authenticated user. BFS members
+        // may include other artists' posts (via cross-artist connections),
+        // but the constellation is owned by the anchor's artist.
         try {
           const [created] = await tx
             .insert(constellations)
@@ -153,44 +157,29 @@ builder.mutationFields((t) => ({
   }),
 }));
 
-// Request-scoped cache for constellation lookups.
-// Avoids N+1: one BFS + one DB query per request instead of per post.
-let cachedConstellationMap: Map<
-  string,
-  {
-    id: string;
-    name: string;
-    artistId: string;
-    anchorPostId: string;
-    createdAt: Date;
-  } | null
-> | null = null;
-let cacheTimestamp = 0;
+// Per-request cache builder for constellation lookups (avoids N+1).
+async function getConstellationForPost(
+  postId: string,
+  ctx: import("../builder.js").GraphQLContext,
+) {
+  if (!ctx.constellationCache) {
+    ctx.constellationCache = new Map();
 
-async function getConstellationForPost(postId: string) {
-  const now = Date.now();
-  // Cache expires after 100ms (covers a single GraphQL request's resolvers)
-  if (!cachedConstellationMap || now - cacheTimestamp > 100) {
-    cachedConstellationMap = new Map();
-    cacheTimestamp = now;
-
-    // Fetch all constellations
     const allConstellationRows = await db
       .select()
       .from(constellations)
       .orderBy(constellations.createdAt);
     if (allConstellationRows.length > 0) {
       const anchorIds = allConstellationRows.map((c) => c.anchorPostId);
-      // Build constellation map: for each anchor, find its component
       const componentMap = await findAllConstellations(anchorIds);
 
       for (const row of allConstellationRows) {
         const component = componentMap.get(row.anchorPostId);
         if (component) {
           for (const memberId of component) {
-            // First constellation wins (oldest anchor)
-            if (!cachedConstellationMap.has(memberId)) {
-              cachedConstellationMap.set(memberId, row);
+            // First constellation wins (oldest anchor, via ORDER BY)
+            if (!ctx.constellationCache.has(memberId)) {
+              ctx.constellationCache.set(memberId, row);
             }
           }
         }
@@ -198,7 +187,7 @@ async function getConstellationForPost(postId: string) {
     }
   }
 
-  return cachedConstellationMap.get(postId) ?? null;
+  return ctx.constellationCache.get(postId) ?? null;
 }
 
 // Add constellation field to PostType
@@ -206,6 +195,6 @@ builder.objectFields(PostType, (t) => ({
   constellation: t.field({
     type: ConstellationType,
     nullable: true,
-    resolve: async (post) => getConstellationForPost(post.id),
+    resolve: async (post, _args, ctx) => getConstellationForPost(post.id, ctx),
   }),
 }));
