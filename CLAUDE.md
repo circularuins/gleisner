@@ -138,6 +138,20 @@ docker compose down    # PostgreSQL 停止
 2. `src/graphql/types/post.ts` の `contentChanged` 判定 — updatePost で変更検知に追加
 3. `src/graphql/types/post.ts` の `newHash` 計算 — updatePost の既存値フォールバックに追加
 
+**⚠ Post にフィールドを追加する場合（フロントエンド側）、以下も同時に更新すること:**
+1. `frontend/lib/models/post.dart` の `Post` クラス — フィールド定義 + コンストラクタ + `fromJson`
+2. `frontend/lib/providers/timeline_provider.dart` の `updatePostReactions` — 手動コピー箇所に追加
+3. `frontend/lib/providers/timeline_provider.dart` の `_copyPostWith` — コピーヘルパーに追加
+4. `frontend/lib/providers/create_post_provider.dart` の `submit` — Post 再構築箇所（接続追加時等）
+
+### GraphQL フィールドの追加（フロントエンド → バックエンド整合性）
+
+**フロントエンドの GraphQL クエリ/フラグメントにフィールドを追加する前に、バックエンドの GraphQL 型定義で当該フィールドが expose されているか確認すること。**
+
+- Drizzle スキーマの DB カラムと GraphQL 型のフィールドは自動マッピングされない
+- 例: `connections` テーブルに `sourceId` カラムがあっても、`ConnectionObjectType` で `t.exposeID("sourceId")` していなければ GraphQL から取得できない
+- 不一致があるとフロントエンド側で `Cannot query field` エラーが出て全クエリが失敗する
+
 ### 認可チェック（認証ガード）の追加
 
 **⚠ GraphQL フィールドに認証を追加する場合、以下の箇所を全て確認すること:**
@@ -149,6 +163,7 @@ docker compose down    # PostgreSQL 停止
 
 - 共通ヘルパーは `src/graphql/__tests__/helpers.ts` に集約。新規テストファイルではこれを import
 - 各テストファイルの `beforeEach` で `TRUNCATE users CASCADE` を実行
+- **⚠ テスト実行後は seed データが消える。** 動作確認前に `./scripts/seed-test-data.sh` を再実行すること
 
 ## PR 前チェック（Gleisner 固有）
 
@@ -175,3 +190,20 @@ cd frontend && dart analyze lib/ && dart format --set-exit-if-changed . && flutt
 
 Widget が必要とするのはコールバック（`onToggleReaction`, `onReactionsChanged` 等）のみ。
 これにより テスト容易性・保守性・関心の分離 が保たれる。
+
+### ボトムシートからボトムシートを開く場合
+
+**`onSelected` コールバック内で `Navigator.pop(context, value)` を呼ばないこと。** picker 系ウィジェット（`RelatedPostPicker` 等）は内部で `Navigator.pop(context)` を呼ぶため、外から追加で pop すると二重 pop になり、親のボトムシートまで閉じてしまう。
+
+```dart
+// ❌ 二重 pop — picker 内部の pop + この pop で 2 回閉じる
+onSelected: (post) => Navigator.pop(context, post),
+
+// ✅ ローカル変数で受け取り、picker の pop に任せる
+Post? selected;
+await showModalBottomSheet<void>(
+  builder: (_) => RelatedPostPicker(
+    onSelected: (post) { selected = post; },
+  ),
+);
+```
