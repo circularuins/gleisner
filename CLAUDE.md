@@ -114,10 +114,10 @@ docker compose down    # PostgreSQL 停止
 
 ## 実装ルール
 
-バックエンド・フロントエンドの詳細な実装ルールは `.claude/rules/` に分離。
+バックエンド・フロントエンドの詳細な実装ルールは `.claude/rules/` に分離（自動読み込み）。
 
-@.claude/rules/backend-implementation.md
-@.claude/rules/frontend-implementation.md
+- `.claude/rules/backend-implementation.md` — UserType 分離、contentHash、認可チェック等
+- `.claude/rules/frontend-implementation.md` — Provider 層ルール、Post フィールド追加チェックリスト等
 
 ## PR 前チェック（Gleisner 固有）
 
