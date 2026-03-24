@@ -3,17 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/track.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/public_timeline_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/node_card.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
 import '../../theme/gleisner_tokens.dart';
-
-/// A separate TimelineNotifier instance for public (unauthenticated) viewing.
-/// Keeps state independent from the authenticated user's own timeline.
-final publicTimelineProvider =
-    NotifierProvider<TimelineNotifier, TimelineState>(TimelineNotifier.new);
 
 class PublicTimelineScreen extends ConsumerStatefulWidget {
   final String username;
@@ -28,12 +24,13 @@ class PublicTimelineScreen extends ConsumerStatefulWidget {
 class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
   double? _lastWidth;
   final ScrollController _scrollController = ScrollController();
-  double _scrollOffset = 0;
+  final ValueNotifier<double> _scrollOffset = ValueNotifier(0);
   String? _focusedPostId;
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _scrollOffset.dispose();
     super.dispose();
   }
 
@@ -131,7 +128,7 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
 
                         return NotificationListener<ScrollNotification>(
                           onNotification: (n) {
-                            setState(() => _scrollOffset = n.metrics.pixels);
+                            _scrollOffset.value = n.metrics.pixels;
                             return false;
                           },
                           child: SingleChildScrollView(
@@ -160,10 +157,18 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
                                         ),
                                       ),
                                     ),
-                                    ..._buildDateLabels(
-                                      layout.days,
-                                      _scrollOffset,
-                                      constraints.maxHeight,
+                                    // Date labels rebuild only on scroll
+                                    ValueListenableBuilder<double>(
+                                      valueListenable: _scrollOffset,
+                                      builder: (context, offset, _) {
+                                        return Stack(
+                                          children: _buildDateLabels(
+                                            layout.days,
+                                            offset,
+                                            constraints.maxHeight,
+                                          ),
+                                        );
+                                      },
                                     ),
                                     ..._buildNodes(
                                       layout,
@@ -322,10 +327,10 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
   }
 
   void _openDetailSheet(String postId) {
-    final post = ref
-        .read(publicTimelineProvider)
-        .posts
-        .firstWhere((p) => p.id == postId);
+    final posts = ref.read(publicTimelineProvider).posts;
+    final postMap = {for (final p in posts) p.id: p};
+    final post = postMap[postId];
+    if (post == null) return;
     showPostDetailSheet(
       context,
       post,

@@ -36,7 +36,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       final isAuthRoute = path == '/login' || path == '/signup';
-      final isPublicProfile = path.startsWith('/@');
+      final isPublicProfile = RegExp(r'^/@[^/]+$').hasMatch(path);
 
       if (status == AuthStatus.unauthenticated) {
         return (isAuthRoute || isPublicProfile) ? null : '/login';
