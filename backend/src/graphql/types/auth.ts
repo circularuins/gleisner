@@ -14,6 +14,8 @@ import {
 import { generateDid } from "../../auth/did.js";
 import { signToken } from "../../auth/jwt.js";
 
+const MAX_PASSWORD_LENGTH = 128;
+
 const AuthPayload = builder.objectRef<{
   token: string;
   user: UserShape;
@@ -43,8 +45,13 @@ builder.mutationType({
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(args.email)) {
           throw new GraphQLError("Invalid email format");
         }
-        if (args.password.length < 8) {
-          throw new GraphQLError("Password must be at least 8 characters");
+        if (
+          args.password.length < 8 ||
+          args.password.length > MAX_PASSWORD_LENGTH
+        ) {
+          throw new GraphQLError(
+            `Password must be between 8 and ${MAX_PASSWORD_LENGTH} characters`,
+          );
         }
         if (args.username.length < 2 || args.username.length > 30) {
           throw new GraphQLError(
@@ -122,6 +129,11 @@ builder.mutationType({
         password: t.arg.string({ required: true }),
       },
       resolve: async (_parent, args) => {
+        // Reject oversized passwords before scrypt computation (DoS prevention)
+        if (args.password.length > MAX_PASSWORD_LENGTH) {
+          throw new GraphQLError("Invalid credentials");
+        }
+
         // Fetch safe columns + password fields in one query
         const [row] = await db
           .select({

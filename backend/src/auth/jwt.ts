@@ -3,8 +3,6 @@ import {
   jwtVerify,
   importPKCS8,
   importSPKI,
-  exportPKCS8,
-  exportSPKI,
   generateKeyPair,
 } from "jose";
 
@@ -26,14 +24,11 @@ export async function initJwtKeys(
     const keyPair = await generateKeyPair(ALG, { extractable: true });
     privateKey = keyPair.privateKey;
     publicKey = keyPair.publicKey;
-    const privPem = await exportPKCS8(keyPair.privateKey);
-    const pubPem = await exportSPKI(keyPair.publicKey);
+    // Log guidance without exposing key material
     console.log("JWT keys auto-generated (development mode)");
     console.log(
       "Set JWT_PRIVATE_KEY and JWT_PUBLIC_KEY env vars for production",
     );
-    console.log(`JWT_PRIVATE_KEY=${JSON.stringify(privPem)}`);
-    console.log(`JWT_PUBLIC_KEY=${JSON.stringify(pubPem)}`);
   }
 }
 
