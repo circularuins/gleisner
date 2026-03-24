@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../theme/gleisner_tokens.dart';
 import 'gleisner_hero.dart';
@@ -10,10 +9,11 @@ import 'gleisner_hero.dart';
 class AuthLayout extends StatelessWidget {
   final Widget form;
 
-  const AuthLayout({super.key, required this.form});
+  /// Called when the user taps "Try it first" in the hero.
+  /// Navigation is handled by the caller (Screen level).
+  final VoidCallback? onTryIt;
 
-  // TODO(featured-artist): Replace with featured/demo artist from API
-  void _handleTryIt(BuildContext context) => context.go('/@seeduser');
+  const AuthLayout({super.key, required this.form, this.onTryIt});
 
   @override
   Widget build(BuildContext context) {
@@ -27,11 +27,7 @@ class AuthLayout extends StatelessWidget {
             if (isWide) {
               return Row(
                 children: [
-                  Expanded(
-                    child: GleisnerHero(
-                      onTryIt: () => _handleTryIt(context),
-                    ),
-                  ),
+                  Expanded(child: GleisnerHero(onTryIt: onTryIt)),
                   Container(width: 1, color: colorBorder),
                   Expanded(child: Center(child: form)),
                 ],
@@ -44,10 +40,7 @@ class AuthLayout extends StatelessWidget {
                   const SizedBox(height: spaceXxl),
                   form,
                   const SizedBox(height: spaceLg),
-                  GleisnerHero(
-                    compact: true,
-                    onTryIt: () => _handleTryIt(context),
-                  ),
+                  GleisnerHero(compact: true, onTryIt: onTryIt),
                 ],
               ),
             );

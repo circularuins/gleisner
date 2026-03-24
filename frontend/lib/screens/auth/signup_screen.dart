@@ -51,6 +51,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final authState = ref.watch(authProvider);
 
     return AuthLayout(
+      // TODO(featured-artist): Replace with featured/demo artist from API
+      onTryIt: () => context.go('/@seeduser'),
       form: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),
         child: Padding(
