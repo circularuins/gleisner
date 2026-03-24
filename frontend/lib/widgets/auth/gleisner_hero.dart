@@ -71,6 +71,8 @@ class GleisnerHero extends StatelessWidget {
               child: p,
             ),
           ),
+          const SizedBox(height: spaceSm),
+          _TryItLink(),
         ],
       ),
     );
@@ -81,7 +83,7 @@ class GleisnerHero extends StatelessWidget {
       icon: Icons.shield_outlined,
       title: 'Own your creative identity',
       description:
-          'Your data, your connections, your rules. No platform lock-in.',
+          'Your data, your connections, your rules. No platform lock-in. (Pro)',
     ),
     _Proposition(
       icon: Icons.auto_awesome,
@@ -149,6 +151,7 @@ class _TryItLink extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      // TODO(featured-artist): Replace with featured/demo artist from API
       onTap: () => context.go('/@seeduser'),
       child: Row(
         mainAxisSize: MainAxisSize.min,
