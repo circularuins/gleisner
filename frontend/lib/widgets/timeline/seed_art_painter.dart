@@ -8,6 +8,8 @@ import '../../utils/deterministic_rng.dart';
 
 /// CustomPainter that generates deterministic art from a seed string.
 /// Renders different visual styles based on media type.
+/// Colors are derived from the seed (not track color) to simulate
+/// the visual variety of real uploaded media.
 class SeedArtPainter extends CustomPainter {
   final Color trackColor;
   final String seed;
@@ -18,6 +20,15 @@ class SeedArtPainter extends CustomPainter {
     required this.seed,
     this.mediaType,
   });
+
+  /// Generate a deterministic color from the RNG, independent of track color.
+  static Color _seedColor(DeterministicRng rng) {
+    // HSL with constrained saturation/lightness for pleasant dark-theme colors
+    final hue = rng.next() * 360;
+    final sat = 0.3 + rng.next() * 0.5; // 30-80% saturation
+    final light = 0.25 + rng.next() * 0.3; // 25-55% lightness
+    return HSLColor.fromAHSL(1.0, hue, sat, light).toColor();
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -33,9 +44,11 @@ class SeedArtPainter extends CustomPainter {
     }
   }
 
-  /// Image: warm, photo-like layered gradients with complementary accent color
+  /// Image: warm, photo-like layered gradients with seed-derived colors
   void _paintImageStyle(Canvas canvas, Size size) {
     final rng = DeterministicRng(seed);
+    final primary = _seedColor(rng);
+    final secondary = _seedColor(rng);
 
     // Warm dark background
     final bgPaint = Paint()
@@ -47,16 +60,12 @@ class SeedArtPainter extends CustomPainter {
       );
     canvas.drawRect(Offset.zero & size, bgPaint);
 
-    // Complementary accent: shift hue by ~120 degrees via RGB rotation
-    final accent = _shiftHue(trackColor, rng.next() * 0.4 + 0.2);
-
     // Large soft shapes with mixed colors
     for (int i = 0; i < 3; i++) {
       final cx = size.width * (0.1 + rng.next() * 0.8);
       final cy = size.height * (0.1 + rng.next() * 0.8);
       final radius = size.width * (0.4 + rng.next() * 0.4);
-      final useAccent = i == 1;
-      final color = useAccent ? accent : trackColor;
+      final color = i == 1 ? secondary : primary;
 
       final gradient = RadialGradient(
         center: Alignment(
@@ -78,7 +87,7 @@ class SeedArtPainter extends CustomPainter {
     // Scattered warm particles (photo grain feel)
     final count = 6 + (rng.next() * 8).toInt();
     for (int i = 0; i < count; i++) {
-      final color = i % 3 == 0 ? accent : trackColor;
+      final color = i % 3 == 0 ? secondary : primary;
       final alpha = 0.04 + rng.next() * 0.08;
       final x = rng.next() * size.width;
       final y = rng.next() * size.height;
@@ -94,16 +103,17 @@ class SeedArtPainter extends CustomPainter {
   /// Video: cinematic dark tone with letterbox bars and lens flare
   void _paintVideoStyle(Canvas canvas, Size size) {
     final rng = DeterministicRng(seed);
+    final primary = _seedColor(rng);
+    final secondary = _seedColor(rng);
 
     // Very dark background
     canvas.drawRect(Offset.zero & size, Paint()..color = colorSurface0);
 
     // Subtle ambient light
-    final accent = _shiftHue(trackColor, 0.3);
     for (int i = 0; i < 2; i++) {
       final cx = size.width * (0.2 + rng.next() * 0.6);
       final cy = size.height * (0.3 + rng.next() * 0.4);
-      final color = i == 0 ? trackColor : accent;
+      final color = i == 0 ? primary : secondary;
       final gradient = RadialGradient(
         center: Alignment(
           (cx / size.width) * 2 - 1,
@@ -139,10 +149,7 @@ class SeedArtPainter extends CustomPainter {
         (flareY / size.height) * 2 - 1,
       ),
       radius: 0.15,
-      colors: [
-        trackColor.withValues(alpha: 0.2),
-        trackColor.withValues(alpha: 0),
-      ],
+      colors: [primary.withValues(alpha: 0.2), primary.withValues(alpha: 0)],
     );
     canvas.drawRect(
       Offset.zero & size,
@@ -153,17 +160,18 @@ class SeedArtPainter extends CustomPainter {
   /// Audio: dark with horizontal wave lines
   void _paintAudioStyle(Canvas canvas, Size size) {
     final rng = DeterministicRng(seed);
+    final primary = _seedColor(rng);
+    final secondary = _seedColor(rng);
 
     canvas.drawRect(Offset.zero & size, Paint()..color = colorSurface1);
 
     // Subtle gradient base
-    final accent = _shiftHue(trackColor, 0.15);
     final gradient = LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        trackColor.withValues(alpha: 0.06),
-        accent.withValues(alpha: 0.04),
+        primary.withValues(alpha: 0.06),
+        secondary.withValues(alpha: 0.04),
       ],
     );
     canvas.drawRect(
@@ -186,7 +194,7 @@ class SeedArtPainter extends CustomPainter {
       canvas.drawPath(
         path,
         Paint()
-          ..color = trackColor.withValues(alpha: alpha)
+          ..color = primary.withValues(alpha: alpha)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1,
       );
@@ -196,6 +204,8 @@ class SeedArtPainter extends CustomPainter {
   /// Default: abstract ellipses (for text, link, or unknown)
   void _paintDefaultStyle(Canvas canvas, Size size) {
     final rng = DeterministicRng(seed);
+    final primary = _seedColor(rng);
+    final secondary = _seedColor(rng);
 
     // Dark background
     final bgPaint = Paint()
@@ -207,14 +217,13 @@ class SeedArtPainter extends CustomPainter {
       );
     canvas.drawRect(Offset.zero & size, bgPaint);
 
-    // Radial gradients with accent variation
-    final accent = _shiftHue(trackColor, 0.25);
+    // Radial gradients
     for (int i = 0; i < 4; i++) {
       final cx = size.width * (0.1 + rng.next() * 0.8);
       final cy = size.height * (0.1 + rng.next() * 0.8);
       final radius = size.width * (0.3 + rng.next() * 0.5);
       final alpha = 0.1 + rng.next() * 0.2;
-      final color = i == 2 ? accent : trackColor;
+      final color = i == 2 ? secondary : primary;
 
       final gradient = RadialGradient(
         center: Alignment(
@@ -236,27 +245,8 @@ class SeedArtPainter extends CustomPainter {
     // Ellipses with color variation
     final count = 5 + (rng.next() * 6).toInt();
     for (int i = 0; i < count; i++) {
-      final useAccent = i % 3 == 0;
-      final baseColor = useAccent ? accent : trackColor;
+      final color = i % 3 == 0 ? secondary : primary;
       final alpha = 0.03 + rng.next() * 0.08;
-      final r =
-          ((useAccent ? baseColor.r : trackColor.r) * 255.0 +
-                  rng.next() * 40 -
-                  20)
-              .clamp(0, 255)
-              .toInt();
-      final g =
-          ((useAccent ? baseColor.g : trackColor.g) * 255.0 +
-                  rng.next() * 40 -
-                  20)
-              .clamp(0, 255)
-              .toInt();
-      final b =
-          ((useAccent ? baseColor.b : trackColor.b) * 255.0 +
-                  rng.next() * 40 -
-                  20)
-              .clamp(0, 255)
-              .toInt();
 
       final x = rng.next() * size.width;
       final y = rng.next() * size.height;
@@ -273,24 +263,10 @@ class SeedArtPainter extends CustomPainter {
           width: s * 2,
           height: s * ratio * 2,
         ),
-        Paint()..color = Color.fromARGB((alpha * 255).toInt(), r, g, b),
+        Paint()..color = color.withValues(alpha: alpha),
       );
       canvas.restore();
     }
-  }
-
-  /// Shift a color's hue by rotating RGB channels with a blend factor.
-  static Color _shiftHue(Color color, double amount) {
-    final r = color.r;
-    final g = color.g;
-    final b = color.b;
-    // Simple channel rotation blend for hue shift effect
-    return Color.fromARGB(
-      255,
-      ((r * (1 - amount) + b * amount) * 255).round().clamp(0, 255),
-      ((g * (1 - amount) + r * amount) * 255).round().clamp(0, 255),
-      ((b * (1 - amount) + g * amount) * 255).round().clamp(0, 255),
-    );
   }
 
   @override
