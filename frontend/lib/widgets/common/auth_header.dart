@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../../theme/gleisner_tokens.dart';
 
 class AuthHeader extends StatelessWidget {
   final String subtitle;
@@ -11,17 +14,24 @@ class AuthHeader extends StatelessWidget {
       children: [
         Text(
           'Gleisner',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold),
+          style: GoogleFonts.urbanist(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: colorTextPrimary,
+            letterSpacing: -0.5,
+          ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: spaceXxs),
+        Text(
+          'Your creative universe',
+          style: textCaption.copyWith(color: colorTextMuted),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: spaceLg),
         Text(
           subtitle,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: Theme.of(context).colorScheme.onSurface.withAlpha(179),
-          ),
+          style: textBody.copyWith(color: colorTextSecondary),
           textAlign: TextAlign.center,
         ),
       ],
