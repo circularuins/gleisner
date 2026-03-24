@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:hive_ce/hive.dart';
 
+import 'package:gleisner_web/graphql/client.dart';
 import 'package:gleisner_web/models/artist.dart';
 import 'package:gleisner_web/models/track.dart';
 import 'package:gleisner_web/providers/timeline_provider.dart';
@@ -33,6 +35,12 @@ GraphQLClient _clientWith({
   );
 }
 
+ProviderContainer _createContainer({required GraphQLClient client}) {
+  return ProviderContainer(
+    overrides: [graphqlClientProvider.overrideWithValue(client)],
+  );
+}
+
 void main() {
   late Directory tempDir;
 
@@ -47,88 +55,124 @@ void main() {
 
   group('TimelineNotifier', () {
     test('initial state', () {
-      final notifier = TimelineNotifier(_clientWith());
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
 
-      expect(notifier.state.artist, isNull);
-      expect(notifier.state.selectedTrackIds, isEmpty);
-      expect(notifier.state.posts, isEmpty);
-      expect(notifier.state.isLoading, isFalse);
-      expect(notifier.state.error, isNull);
+      final state = container.read(timelineProvider);
+      expect(state.artist, isNull);
+      expect(state.selectedTrackIds, isEmpty);
+      expect(state.posts, isEmpty);
+      expect(state.isLoading, isFalse);
+      expect(state.error, isNull);
     });
 
     test('loadArtist clears state when artist not found', () async {
-      final notifier = TimelineNotifier(_clientWith(data: {'artist': null}));
+      final container = _createContainer(
+        client: _clientWith(data: {'artist': null}),
+      );
+      addTearDown(container.dispose);
 
-      await notifier.loadArtist('nobody');
+      await container.read(timelineProvider.notifier).loadArtist('nobody');
 
-      expect(notifier.state.artist, isNull);
-      expect(notifier.state.selectedTrackIds, isEmpty);
-      expect(notifier.state.posts, isEmpty);
-      expect(notifier.state.isLoading, isFalse);
+      final state = container.read(timelineProvider);
+      expect(state.artist, isNull);
+      expect(state.selectedTrackIds, isEmpty);
+      expect(state.posts, isEmpty);
+      expect(state.isLoading, isFalse);
     });
 
     test('loadArtist sets error on GraphQL exception', () async {
-      final notifier = TimelineNotifier(
-        _clientWith(errors: [const GraphQLError(message: 'Server error')]),
+      final container = _createContainer(
+        client: _clientWith(
+          errors: [const GraphQLError(message: 'Server error')],
+        ),
       );
+      addTearDown(container.dispose);
 
-      await notifier.loadArtist('alice');
+      await container.read(timelineProvider.notifier).loadArtist('alice');
 
-      expect(notifier.state.error, 'Server error');
-      expect(notifier.state.isLoading, isFalse);
+      final state = container.read(timelineProvider);
+      expect(state.error, 'Server error');
+      expect(state.isLoading, isFalse);
     });
 
     test('loadArtist sets error on network exception', () async {
-      final notifier = TimelineNotifier(
-        _clientWith(exception: const SocketException('Connection refused')),
+      final container = _createContainer(
+        client: _clientWith(
+          exception: const SocketException('Connection refused'),
+        ),
       );
+      addTearDown(container.dispose);
 
-      await notifier.loadArtist('alice');
+      await container.read(timelineProvider.notifier).loadArtist('alice');
 
-      expect(notifier.state.error, isNotNull);
-      expect(notifier.state.isLoading, isFalse);
+      final state = container.read(timelineProvider);
+      expect(state.error, isNotNull);
+      expect(state.isLoading, isFalse);
     });
 
     test('ensureTrackSelected adds track to selection', () {
-      final notifier = TimelineNotifier(_clientWith());
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
 
-      notifier.ensureTrackSelected('t2');
+      container.read(timelineProvider.notifier).ensureTrackSelected('t2');
 
-      expect(notifier.state.selectedTrackIds, contains('t2'));
+      expect(container.read(timelineProvider).selectedTrackIds, contains('t2'));
     });
 
     test('toggleTrack adds and removes track', () async {
-      final notifier = TimelineNotifier(_clientWith(data: {'posts': []}));
+      final container = _createContainer(
+        client: _clientWith(data: {'posts': []}),
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(timelineProvider.notifier);
 
       await notifier.toggleTrack('t1');
-      expect(notifier.state.selectedTrackIds, contains('t1'));
+      expect(
+        container.read(timelineProvider).selectedTrackIds,
+        contains('t1'),
+      );
 
       await notifier.toggleTrack('t1');
-      expect(notifier.state.selectedTrackIds, isNot(contains('t1')));
+      expect(
+        container.read(timelineProvider).selectedTrackIds,
+        isNot(contains('t1')),
+      );
     });
 
     test('refresh does nothing without selected tracks', () async {
-      final notifier = TimelineNotifier(_clientWith());
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
 
-      await notifier.refresh();
+      await container.read(timelineProvider.notifier).refresh();
 
-      expect(notifier.state.isLoading, isFalse);
-      expect(notifier.state.posts, isEmpty);
+      final state = container.read(timelineProvider);
+      expect(state.isLoading, isFalse);
+      expect(state.posts, isEmpty);
     });
 
     test('createTrack returns error on GraphQL failure', () async {
-      final notifier = TimelineNotifier(
-        _clientWith(errors: [const GraphQLError(message: 'Duplicate name')]),
+      final container = _createContainer(
+        client: _clientWith(
+          errors: [const GraphQLError(message: 'Duplicate name')],
+        ),
       );
+      addTearDown(container.dispose);
 
-      final (track, error) = await notifier.createTrack('Dup', '#ff0000');
+      final (track, error) = await container
+          .read(timelineProvider.notifier)
+          .createTrack('Dup', '#ff0000');
 
       expect(track, isNull);
       expect(error, 'Duplicate name');
     });
 
     test('addTrackToState adds track to artist and selectedTrackIds', () {
-      final notifier = TimelineNotifier(_clientWith());
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
+
+      final notifier = container.read(timelineProvider.notifier);
       notifier.debugSetState(
         const TimelineState(
           artist: Artist(
@@ -148,35 +192,50 @@ void main() {
       });
       notifier.debugAddTrack(track);
 
-      expect(notifier.state.artist!.tracks, hasLength(1));
-      expect(notifier.state.artist!.tracks.first.name, 'NewTrack');
-      expect(notifier.state.selectedTrackIds, contains('t-new'));
+      final state = container.read(timelineProvider);
+      expect(state.artist!.tracks, hasLength(1));
+      expect(state.artist!.tracks.first.name, 'NewTrack');
+      expect(state.selectedTrackIds, contains('t-new'));
     });
 
     test('ensureTrackSelected is idempotent from empty state', () {
-      final notifier = TimelineNotifier(_clientWith());
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
 
+      final notifier = container.read(timelineProvider.notifier);
       notifier.ensureTrackSelected('t1');
       notifier.ensureTrackSelected('t1');
       notifier.ensureTrackSelected('t1');
 
       expect(
-        notifier.state.selectedTrackIds.where((id) => id == 't1').length,
+        container
+            .read(timelineProvider)
+            .selectedTrackIds
+            .where((id) => id == 't1')
+            .length,
         1,
       );
     });
 
     test('ensureTrackSelected is idempotent with existing tracks', () {
-      final notifier = TimelineNotifier(_clientWith());
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
+
+      final notifier = container.read(timelineProvider.notifier);
       notifier.debugSetState(
-        notifier.state.copyWith(selectedTrackIds: {'t0', 't1'}),
+        container
+            .read(timelineProvider)
+            .copyWith(selectedTrackIds: {'t0', 't1'}),
       );
 
       notifier.ensureTrackSelected('t1');
       notifier.ensureTrackSelected('t2');
       notifier.ensureTrackSelected('t2');
 
-      expect(notifier.state.selectedTrackIds, {'t0', 't1', 't2'});
+      expect(
+        container.read(timelineProvider).selectedTrackIds,
+        {'t0', 't1', 't2'},
+      );
     });
   });
 }

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
+import 'disposable_notifier.dart';
 import '../graphql/mutations/connection.dart';
 import '../graphql/mutations/post.dart';
 import '../models/post.dart';
@@ -54,10 +55,16 @@ class CreatePostState {
   }
 }
 
-class CreatePostNotifier extends StateNotifier<CreatePostState> {
-  final GraphQLClient _client;
+class CreatePostNotifier extends Notifier<CreatePostState>
+    with DisposableNotifier {
+  late GraphQLClient _client;
 
-  CreatePostNotifier(this._client) : super(const CreatePostState());
+  @override
+  CreatePostState build() {
+    _client = ref.watch(graphqlClientProvider);
+    initDisposable();
+    return const CreatePostState();
+  }
 
   void selectTrack(Track track) {
     state = state.copyWith(selectedTrack: track, step: 1, error: null);
@@ -116,7 +123,7 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
         ),
       );
 
-      if (!mounted) return null;
+      if (disposed) return null;
 
       if (result.hasException) {
         state = state.copyWith(
@@ -170,7 +177,7 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
       state = state.copyWith(isSubmitting: false);
       return (track, enrichedPost);
     } catch (e) {
-      if (!mounted) return null;
+      if (disposed) return null;
       state = state.copyWith(isSubmitting: false, error: e.toString());
       return null;
     }
@@ -203,9 +210,6 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
 }
 
 final createPostProvider =
-    StateNotifierProvider.autoDispose<CreatePostNotifier, CreatePostState>((
-      ref,
-    ) {
-      final client = ref.watch(graphqlClientProvider);
-      return CreatePostNotifier(client);
-    });
+    NotifierProvider.autoDispose<CreatePostNotifier, CreatePostState>(
+      CreatePostNotifier.new,
+    );
