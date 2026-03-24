@@ -24,6 +24,9 @@ final _authNotifierProvider = Provider<ValueNotifier<AuthStatus>>((ref) {
 /// Matches /@username exactly (no subpaths like /@user/settings).
 final _publicProfilePattern = RegExp(r'^/@[^/]+$');
 
+/// Valid username: alphanumeric + underscore, 1-39 chars.
+final _validUsernamePattern = RegExp(r'^[a-zA-Z0-9_]{1,39}$');
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.watch(_authNotifierProvider);
 
@@ -69,6 +72,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/@:username',
+        redirect: (context, state) {
+          final username = state.pathParameters['username'] ?? '';
+          if (!_validUsernamePattern.hasMatch(username)) return '/login';
+          return null;
+        },
         builder: (context, state) {
           final username = state.pathParameters['username']!;
           return PublicTimelineScreen(username: username);

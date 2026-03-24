@@ -8,24 +8,23 @@ import '../graphql/queries/post.dart';
 import '../models/artist.dart';
 import '../models/post.dart';
 import '../utils/constellation_layout.dart';
+import 'disposable_notifier.dart';
 import 'timeline_provider.dart';
 
-/// Read-only timeline notifier for public (unauthenticated) viewing.
-/// Only exposes read operations — no mutations (createTrack, toggleReaction, etc).
+/// Timeline notifier for public (unauthenticated) viewing.
+/// No backend mutations (createTrack, toggleReaction, etc.) — only read queries
+/// and local UI state changes (track selection, constellation highlight).
 /// Auto-disposed when no screen is watching, so /@alice → /@bob transitions
 /// start fresh without stale data.
-class PublicTimelineNotifier extends Notifier<TimelineState> {
+class PublicTimelineNotifier extends Notifier<TimelineState>
+    with DisposableNotifier {
   late GraphQLClient _client;
   double _lastWidth = 0;
-  bool _disposed = false;
-
-  bool get disposed => _disposed;
 
   @override
   TimelineState build() {
     _client = ref.watch(graphqlClientProvider);
-    _disposed = false;
-    ref.onDispose(() => _disposed = true);
+    initDisposable();
     return const TimelineState();
   }
 

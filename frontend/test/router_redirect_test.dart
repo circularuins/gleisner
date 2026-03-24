@@ -27,6 +27,24 @@ void main() {
     });
   });
 
+  group('Username validation', () {
+    final validUsername = RegExp(r'^[a-zA-Z0-9_]{1,39}$');
+
+    test('accepts valid usernames', () {
+      expect(validUsername.hasMatch('seeduser'), isTrue);
+      expect(validUsername.hasMatch('alice_123'), isTrue);
+      expect(validUsername.hasMatch('A'), isTrue);
+    });
+
+    test('rejects invalid usernames', () {
+      expect(validUsername.hasMatch(''), isFalse);
+      expect(validUsername.hasMatch('user name'), isFalse);
+      expect(validUsername.hasMatch('user/path'), isFalse);
+      expect(validUsername.hasMatch('<script>'), isFalse);
+      expect(validUsername.hasMatch('a' * 40), isFalse);
+    });
+  });
+
   group('Auth redirect rules', () {
     // Simulates the redirect logic from router.dart
     String? redirect({

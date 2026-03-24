@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -112,6 +113,7 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
                         if (_lastWidth != width) {
                           _lastWidth = width;
                           WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (!context.mounted) return;
                             ref
                                 .read(publicTimelineProvider.notifier)
                                 .computeLayout(width);
@@ -326,8 +328,8 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
   }
 
   void _openDetailSheet(String postId) {
-    final state = ref.read(publicTimelineProvider);
-    final post = {for (final p in state.posts) p.id: p}[postId];
+    final posts = ref.read(publicTimelineProvider).posts;
+    final post = posts.firstWhereOrNull((p) => p.id == postId);
     if (post == null) return;
     showPostDetailSheet(
       context,
