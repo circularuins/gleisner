@@ -16,8 +16,11 @@ export async function authMiddleware(
       const token = header.slice(7);
       const { userId } = await verifyToken(token);
       c.set("authUser", { userId } satisfies AuthUser);
-    } catch {
-      // Invalid token — continue as unauthenticated
+    } catch (err) {
+      // Invalid/expired token — log for security monitoring, continue as unauthenticated
+      const ip = c.req.header("x-forwarded-for") ?? "unknown";
+      const reason = err instanceof Error ? err.message : "unknown";
+      console.warn(`[auth] token rejected: ip=${ip} reason=${reason}`);
     }
   }
   await next();

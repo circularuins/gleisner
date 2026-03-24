@@ -122,7 +122,20 @@ describe("Auth GraphQL integration", () => {
 
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toContain(
-        "Password must be at least 8 characters",
+        "Password must be between 8 and 128 characters",
+      );
+    });
+
+    it("rejects password longer than 128 characters", async () => {
+      const result = await gql(app, SIGNUP_MUTATION, {
+        email: "test@example.com",
+        password: "a".repeat(129),
+        username: "testuser",
+      });
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain(
+        "Password must be between 8 and 128 characters",
       );
     });
 

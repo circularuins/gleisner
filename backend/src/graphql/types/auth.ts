@@ -43,8 +43,10 @@ builder.mutationType({
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(args.email)) {
           throw new GraphQLError("Invalid email format");
         }
-        if (args.password.length < 8) {
-          throw new GraphQLError("Password must be at least 8 characters");
+        if (args.password.length < 8 || args.password.length > 128) {
+          throw new GraphQLError(
+            "Password must be between 8 and 128 characters",
+          );
         }
         if (args.username.length < 2 || args.username.length > 30) {
           throw new GraphQLError(
@@ -122,6 +124,11 @@ builder.mutationType({
         password: t.arg.string({ required: true }),
       },
       resolve: async (_parent, args) => {
+        // Reject oversized passwords before scrypt computation (DoS prevention)
+        if (args.password.length > 128) {
+          throw new GraphQLError("Invalid credentials");
+        }
+
         // Fetch safe columns + password fields in one query
         const [row] = await db
           .select({
