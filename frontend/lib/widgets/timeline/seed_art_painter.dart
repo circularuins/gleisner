@@ -96,10 +96,7 @@ class SeedArtPainter extends CustomPainter {
     final rng = DeterministicRng(seed);
 
     // Very dark background
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = const Color(0xFF080810),
-    );
+    canvas.drawRect(Offset.zero & size, Paint()..color = colorSurface0);
 
     // Subtle ambient light
     final accent = _shiftHue(trackColor, 0.3);
