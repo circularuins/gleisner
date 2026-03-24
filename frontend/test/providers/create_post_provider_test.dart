@@ -163,9 +163,7 @@ void main() {
 
     test('submit sets isSubmitting during request', () async {
       final container = _createContainer(
-        client: _clientWith(
-          errors: [const GraphQLError(message: 'fail')],
-        ),
+        client: _clientWith(errors: [const GraphQLError(message: 'fail')]),
       );
       addTearDown(container.dispose);
 
@@ -191,11 +189,9 @@ void main() {
       final container = _createContainer(client: _clientWith());
       addTearDown(container.dispose);
 
-      final result = await container.read(createPostProvider.notifier).submit(
-        title: 'Hello',
-        body: 'World',
-        mediaUrl: null,
-      );
+      final result = await container
+          .read(createPostProvider.notifier)
+          .submit(title: 'Hello', body: 'World', mediaUrl: null);
 
       expect(result, isNull);
     });
