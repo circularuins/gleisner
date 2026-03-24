@@ -245,6 +245,16 @@ describe("Auth GraphQL integration", () => {
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toContain("Invalid credentials");
     });
+
+    it("rejects password longer than 128 characters (DoS prevention)", async () => {
+      const result = await gql(app, LOGIN_MUTATION, {
+        email: "login@example.com",
+        password: "a".repeat(129),
+      });
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("Invalid credentials");
+    });
   });
 
   describe("me", () => {

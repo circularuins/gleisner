@@ -1,4 +1,6 @@
 import { GraphQLError } from "graphql";
+
+const MAX_PASSWORD_LENGTH = 128;
 import { builder } from "../builder.js";
 import { UserType, type UserShape, userColumns } from "./user.js";
 import { db } from "../../db/index.js";
@@ -43,9 +45,12 @@ builder.mutationType({
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(args.email)) {
           throw new GraphQLError("Invalid email format");
         }
-        if (args.password.length < 8 || args.password.length > 128) {
+        if (
+          args.password.length < 8 ||
+          args.password.length > MAX_PASSWORD_LENGTH
+        ) {
           throw new GraphQLError(
-            "Password must be between 8 and 128 characters",
+            `Password must be between 8 and ${MAX_PASSWORD_LENGTH} characters`,
           );
         }
         if (args.username.length < 2 || args.username.length > 30) {
@@ -125,7 +130,7 @@ builder.mutationType({
       },
       resolve: async (_parent, args) => {
         // Reject oversized passwords before scrypt computation (DoS prevention)
-        if (args.password.length > 128) {
+        if (args.password.length > MAX_PASSWORD_LENGTH) {
           throw new GraphQLError("Invalid credentials");
         }
 

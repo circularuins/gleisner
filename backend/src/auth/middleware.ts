@@ -18,8 +18,16 @@ export async function authMiddleware(
       c.set("authUser", { userId } satisfies AuthUser);
     } catch (err) {
       // Invalid/expired token — log for security monitoring, continue as unauthenticated
-      const ip = c.req.header("x-forwarded-for") ?? "unknown";
-      const reason = err instanceof Error ? err.message : "unknown";
+      // Sanitize header values to prevent log injection
+      const rawIp = c.req.header("x-forwarded-for") ?? "unknown";
+      const ip = rawIp
+        .split(",")[0]
+        .trim()
+        .replace(/[\r\n]/g, "");
+      const reason =
+        err instanceof Error
+          ? err.message.slice(0, 100).replace(/[\r\n]/g, "")
+          : "unknown";
       console.warn(`[auth] token rejected: ip=${ip} reason=${reason}`);
     }
   }
