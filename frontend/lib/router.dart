@@ -21,6 +21,9 @@ final _authNotifierProvider = Provider<ValueNotifier<AuthStatus>>((ref) {
   return notifier;
 });
 
+/// Matches /@username exactly (no subpaths like /@user/settings).
+final _publicProfilePattern = RegExp(r'^/@[^/]+$');
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.watch(_authNotifierProvider);
 
@@ -36,7 +39,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       final isAuthRoute = path == '/login' || path == '/signup';
-      final isPublicProfile = RegExp(r'^/@[^/]+$').hasMatch(path);
+      final isPublicProfile = _publicProfilePattern.hasMatch(path);
 
       if (status == AuthStatus.unauthenticated) {
         return (isAuthRoute || isPublicProfile) ? null : '/login';

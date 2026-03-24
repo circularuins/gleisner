@@ -48,7 +48,6 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
     final theme = Theme.of(context);
     final isAuthenticated =
         ref.watch(authProvider).status == AuthStatus.authenticated;
-
     return Scaffold(
       backgroundColor: colorSurface0,
       appBar: AppBar(
@@ -327,9 +326,8 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
   }
 
   void _openDetailSheet(String postId) {
-    final posts = ref.read(publicTimelineProvider).posts;
-    final postMap = {for (final p in posts) p.id: p};
-    final post = postMap[postId];
+    final state = ref.read(publicTimelineProvider);
+    final post = {for (final p in state.posts) p.id: p}[postId];
     if (post == null) return;
     showPostDetailSheet(
       context,
