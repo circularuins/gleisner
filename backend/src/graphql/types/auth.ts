@@ -1,6 +1,4 @@
 import { GraphQLError } from "graphql";
-
-const MAX_PASSWORD_LENGTH = 128;
 import { builder } from "../builder.js";
 import { UserType, type UserShape, userColumns } from "./user.js";
 import { db } from "../../db/index.js";
@@ -15,6 +13,8 @@ import {
 } from "../../auth/crypto.js";
 import { generateDid } from "../../auth/did.js";
 import { signToken } from "../../auth/jwt.js";
+
+const MAX_PASSWORD_LENGTH = 128;
 
 const AuthPayload = builder.objectRef<{
   token: string;
