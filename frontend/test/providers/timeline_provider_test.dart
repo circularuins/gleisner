@@ -129,10 +129,7 @@ void main() {
       final notifier = container.read(timelineProvider.notifier);
 
       await notifier.toggleTrack('t1');
-      expect(
-        container.read(timelineProvider).selectedTrackIds,
-        contains('t1'),
-      );
+      expect(container.read(timelineProvider).selectedTrackIds, contains('t1'));
 
       await notifier.toggleTrack('t1');
       expect(
@@ -232,10 +229,11 @@ void main() {
       notifier.ensureTrackSelected('t2');
       notifier.ensureTrackSelected('t2');
 
-      expect(
-        container.read(timelineProvider).selectedTrackIds,
-        {'t0', 't1', 't2'},
-      );
+      expect(container.read(timelineProvider).selectedTrackIds, {
+        't0',
+        't1',
+        't2',
+      });
     });
   });
 }
