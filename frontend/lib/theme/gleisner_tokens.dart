@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Gleisner Design Tokens
 ///
@@ -108,35 +109,40 @@ const opacityBorder = 0.3;
 // Common text styles (convenience)
 // ---------------------------------------------------------------------------
 
-const textTitle = TextStyle(
+/// Display font for headings and titles.
+final textTitle = GoogleFonts.urbanist(
   color: colorTextPrimary,
   fontSize: fontSizeTitle,
   fontWeight: weightBold,
   height: 1.3,
 );
 
-const textHeading = TextStyle(
+final textHeading = GoogleFonts.urbanist(
   color: colorTextPrimary,
   fontSize: fontSizeXl,
   fontWeight: weightSemibold,
 );
 
-const textBody = TextStyle(
+/// Body font for readable content.
+final textBody = GoogleFonts.plusJakartaSans(
   color: colorTextSecondary,
   fontSize: fontSizeLg,
   height: 1.6,
 );
 
-const textCaption = TextStyle(color: colorTextMuted, fontSize: fontSizeSm);
+final textCaption = GoogleFonts.plusJakartaSans(
+  color: colorTextMuted,
+  fontSize: fontSizeSm,
+);
 
-const textMicro = TextStyle(
+final textMicro = GoogleFonts.plusJakartaSans(
   color: colorTextMuted,
   fontSize: fontSizeXs,
   fontWeight: weightSemibold,
   letterSpacing: 0.5,
 );
 
-const textLabel = TextStyle(
+final textLabel = GoogleFonts.plusJakartaSans(
   color: colorInteractiveMuted,
   fontSize: fontSizeSm,
   fontWeight: weightMedium,
