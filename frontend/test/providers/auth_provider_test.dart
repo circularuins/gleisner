@@ -1,10 +1,12 @@
 import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:hive_ce/hive.dart';
 
+import 'package:gleisner_web/graphql/client.dart';
 import 'package:gleisner_web/providers/auth_provider.dart';
 
 class MockSecureStorage implements FlutterSecureStorage {
@@ -85,6 +87,18 @@ GraphQLClient _clientWith({
   );
 }
 
+ProviderContainer _createContainer({
+  required GraphQLClient client,
+  required MockSecureStorage storage,
+}) {
+  return ProviderContainer(
+    overrides: [
+      graphqlClientProvider.overrideWithValue(client),
+      secureStorageProvider.overrideWithValue(storage),
+    ],
+  );
+}
+
 void main() {
   late MockSecureStorage mockStorage;
   late Directory tempDir;
@@ -104,20 +118,29 @@ void main() {
 
   group('AuthNotifier', () {
     test('initial state is loading', () {
-      final notifier = AuthNotifier(_clientWith(), storage: mockStorage);
+      final container = _createContainer(
+        client: _clientWith(),
+        storage: mockStorage,
+      );
+      addTearDown(container.dispose);
 
-      expect(notifier.state.status, AuthStatus.loading);
-      expect(notifier.state.user, isNull);
-      expect(notifier.state.error, isNull);
+      final state = container.read(authProvider);
+      expect(state.status, AuthStatus.loading);
+      expect(state.user, isNull);
+      expect(state.error, isNull);
     });
 
     test('initialize without JWT sets unauthenticated', () async {
-      final notifier = AuthNotifier(_clientWith(), storage: mockStorage);
+      final container = _createContainer(
+        client: _clientWith(),
+        storage: mockStorage,
+      );
+      addTearDown(container.dispose);
 
-      await notifier.initialize();
+      await container.read(authProvider.notifier).initialize();
 
-      expect(notifier.state.status, AuthStatus.unauthenticated);
-      expect(notifier.state.user, isNull);
+      expect(container.read(authProvider).status, AuthStatus.unauthenticated);
+      expect(container.read(authProvider).user, isNull);
     });
 
     test(
@@ -125,14 +148,15 @@ void main() {
       () async {
         await mockStorage.write(key: 'jwt', value: 'valid-token');
 
-        final notifier = AuthNotifier(
-          _clientWith(data: {'me': null}),
+        final container = _createContainer(
+          client: _clientWith(data: {'me': null}),
           storage: mockStorage,
         );
+        addTearDown(container.dispose);
 
-        await notifier.initialize();
+        await container.read(authProvider.notifier).initialize();
 
-        expect(notifier.state.status, AuthStatus.authenticated);
+        expect(container.read(authProvider).status, AuthStatus.authenticated);
         expect(await mockStorage.read(key: 'jwt'), 'valid-token');
       },
     );
@@ -140,54 +164,67 @@ void main() {
     test('initialize with JWT but GraphQL me=null deletes JWT', () async {
       await mockStorage.write(key: 'jwt', value: 'expired-token');
 
-      final notifier = AuthNotifier(
-        _clientWith(errors: [const GraphQLError(message: 'Unauthorized')]),
+      final container = _createContainer(
+        client: _clientWith(
+          errors: [const GraphQLError(message: 'Unauthorized')],
+        ),
         storage: mockStorage,
       );
+      addTearDown(container.dispose);
 
-      await notifier.initialize();
+      await container.read(authProvider.notifier).initialize();
 
-      expect(notifier.state.status, AuthStatus.unauthenticated);
+      expect(container.read(authProvider).status, AuthStatus.unauthenticated);
       expect(await mockStorage.read(key: 'jwt'), isNull);
     });
 
     test('initialize with JWT but GraphQL error deletes JWT', () async {
       await mockStorage.write(key: 'jwt', value: 'bad-token');
 
-      final notifier = AuthNotifier(
-        _clientWith(errors: [const GraphQLError(message: 'Not authenticated')]),
+      final container = _createContainer(
+        client: _clientWith(
+          errors: [const GraphQLError(message: 'Not authenticated')],
+        ),
         storage: mockStorage,
       );
+      addTearDown(container.dispose);
 
-      await notifier.initialize();
+      await container.read(authProvider.notifier).initialize();
 
-      expect(notifier.state.status, AuthStatus.unauthenticated);
+      expect(container.read(authProvider).status, AuthStatus.unauthenticated);
       expect(await mockStorage.read(key: 'jwt'), isNull);
     });
 
     test('initialize with JWT but network error preserves JWT', () async {
       await mockStorage.write(key: 'jwt', value: 'valid-token');
 
-      final notifier = AuthNotifier(
-        _clientWith(exception: const SocketException('Connection refused')),
+      final container = _createContainer(
+        client: _clientWith(
+          exception: const SocketException('Connection refused'),
+        ),
         storage: mockStorage,
       );
+      addTearDown(container.dispose);
 
-      await notifier.initialize();
+      await container.read(authProvider.notifier).initialize();
 
       expect(await mockStorage.read(key: 'jwt'), 'valid-token');
-      expect(notifier.state.status, AuthStatus.authenticated);
-      expect(notifier.state.error, 'Network unavailable');
+      expect(container.read(authProvider).status, AuthStatus.authenticated);
+      expect(container.read(authProvider).error, 'Network unavailable');
     });
 
     test('logout clears JWT from storage', () async {
       await mockStorage.write(key: 'jwt', value: 'test-token');
 
-      final notifier = AuthNotifier(_clientWith(), storage: mockStorage);
+      final container = _createContainer(
+        client: _clientWith(),
+        storage: mockStorage,
+      );
+      addTearDown(container.dispose);
 
-      await notifier.logout();
+      await container.read(authProvider.notifier).logout();
 
-      expect(notifier.state.status, AuthStatus.unauthenticated);
+      expect(container.read(authProvider).status, AuthStatus.unauthenticated);
       expect(await mockStorage.read(key: 'jwt'), isNull);
     });
   });

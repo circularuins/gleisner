@@ -54,10 +54,17 @@ class CreatePostState {
   }
 }
 
-class CreatePostNotifier extends StateNotifier<CreatePostState> {
-  final GraphQLClient _client;
+class CreatePostNotifier extends Notifier<CreatePostState> {
+  late GraphQLClient _client;
+  bool _disposed = false;
 
-  CreatePostNotifier(this._client) : super(const CreatePostState());
+  @override
+  CreatePostState build() {
+    _client = ref.watch(graphqlClientProvider);
+    _disposed = false;
+    ref.onDispose(() => _disposed = true);
+    return const CreatePostState();
+  }
 
   void selectTrack(Track track) {
     state = state.copyWith(selectedTrack: track, step: 1, error: null);
@@ -116,7 +123,7 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
         ),
       );
 
-      if (!mounted) return null;
+      if (_disposed) return null;
 
       if (result.hasException) {
         state = state.copyWith(
@@ -170,7 +177,7 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
       state = state.copyWith(isSubmitting: false);
       return (track, enrichedPost);
     } catch (e) {
-      if (!mounted) return null;
+      if (_disposed) return null;
       state = state.copyWith(isSubmitting: false, error: e.toString());
       return null;
     }
@@ -203,9 +210,6 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
 }
 
 final createPostProvider =
-    StateNotifierProvider.autoDispose<CreatePostNotifier, CreatePostState>((
-      ref,
-    ) {
-      final client = ref.watch(graphqlClientProvider);
-      return CreatePostNotifier(client);
-    });
+    NotifierProvider.autoDispose<CreatePostNotifier, CreatePostState>(
+      CreatePostNotifier.new,
+    );

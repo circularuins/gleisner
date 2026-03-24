@@ -73,11 +73,18 @@ class TimelineState {
   }
 }
 
-class TimelineNotifier extends StateNotifier<TimelineState> {
-  final GraphQLClient _client;
+class TimelineNotifier extends Notifier<TimelineState> {
+  late GraphQLClient _client;
   double _lastWidth = 0;
+  bool _disposed = false;
 
-  TimelineNotifier(this._client) : super(const TimelineState());
+  @override
+  TimelineState build() {
+    _client = ref.watch(graphqlClientProvider);
+    _disposed = false;
+    ref.onDispose(() => _disposed = true);
+    return const TimelineState();
+  }
 
   /// For testing only — set state directly.
   @visibleForTesting
@@ -98,7 +105,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
         ),
       );
 
-      if (!mounted) return;
+      if (_disposed) return;
 
       if (result.hasException) {
         state = state.copyWith(
@@ -135,7 +142,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
         await _loadSelectedPosts();
       }
     } catch (e) {
-      if (!mounted) return;
+      if (_disposed) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -432,7 +439,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
     _recomputeLayout();
     // Clear highlight after animation completes
     Future.delayed(const Duration(milliseconds: 3000), () {
-      if (mounted && state.highlightPostId == post.id) {
+      if (!_disposed && state.highlightPostId == post.id) {
         state = state.copyWith(highlightPostId: null);
       }
     });
@@ -499,7 +506,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
 
       final results = await Future.wait(futures);
 
-      if (!mounted) return;
+      if (_disposed) return;
 
       final allPosts = <Post>[];
       var failedCount = 0;
@@ -520,7 +527,7 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
       state = state.copyWith(posts: allPosts, isLoading: false, error: error);
       _recomputeLayout();
     } catch (e) {
-      if (!mounted) return;
+      if (_disposed) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -581,9 +588,6 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
   }
 }
 
-final timelineProvider = StateNotifierProvider<TimelineNotifier, TimelineState>(
-  (ref) {
-    final client = ref.watch(graphqlClientProvider);
-    return TimelineNotifier(client);
-  },
+final timelineProvider = NotifierProvider<TimelineNotifier, TimelineState>(
+  TimelineNotifier.new,
 );

@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:hive_ce/hive.dart';
 
+import 'package:gleisner_web/graphql/client.dart';
 import 'package:gleisner_web/models/post.dart';
 import 'package:gleisner_web/models/track.dart';
 import 'package:gleisner_web/providers/create_post_provider.dart';
@@ -36,6 +38,12 @@ GraphQLClient _clientWith({
   return GraphQLClient(
     link: _MockLink(data: data, errors: errors, exception: exception),
     cache: GraphQLCache(store: InMemoryStore()),
+  );
+}
+
+ProviderContainer _createContainer({required GraphQLClient client}) {
+  return ProviderContainer(
+    overrides: [graphqlClientProvider.overrideWithValue(client)],
   );
 }
 
@@ -82,98 +90,125 @@ void main() {
 
   group('CreatePostNotifier', () {
     test('initial state', () {
-      final notifier = CreatePostNotifier(_clientWith());
-      expect(notifier.state.step, 0);
-      expect(notifier.state.selectedTrack, isNull);
-      expect(notifier.state.selectedMediaType, isNull);
-      expect(notifier.state.importance, 0.5);
-      expect(notifier.state.isSubmitting, false);
-      expect(notifier.state.error, isNull);
-      notifier.dispose();
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
+
+      final state = container.read(createPostProvider);
+      expect(state.step, 0);
+      expect(state.selectedTrack, isNull);
+      expect(state.selectedMediaType, isNull);
+      expect(state.importance, 0.5);
+      expect(state.isSubmitting, false);
+      expect(state.error, isNull);
     });
 
     test('selectTrack advances to step 1', () {
-      final notifier = CreatePostNotifier(_clientWith());
-      notifier.selectTrack(_testTrack);
-      expect(notifier.state.step, 1);
-      expect(notifier.state.selectedTrack, _testTrack);
-      notifier.dispose();
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
+
+      container.read(createPostProvider.notifier).selectTrack(_testTrack);
+
+      final state = container.read(createPostProvider);
+      expect(state.step, 1);
+      expect(state.selectedTrack, _testTrack);
     });
 
     test('selectMediaType advances to step 2', () {
-      final notifier = CreatePostNotifier(_clientWith());
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
+
+      final notifier = container.read(createPostProvider.notifier);
       notifier.selectTrack(_testTrack);
       notifier.selectMediaType(MediaType.text);
-      expect(notifier.state.step, 2);
-      expect(notifier.state.selectedMediaType, MediaType.text);
-      notifier.dispose();
+
+      final state = container.read(createPostProvider);
+      expect(state.step, 2);
+      expect(state.selectedMediaType, MediaType.text);
     });
 
     test('goBack decrements step', () {
-      final notifier = CreatePostNotifier(_clientWith());
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
+
+      final notifier = container.read(createPostProvider.notifier);
       notifier.selectTrack(_testTrack);
       notifier.selectMediaType(MediaType.text);
-      expect(notifier.state.step, 2);
+      expect(container.read(createPostProvider).step, 2);
+
       notifier.goBack();
-      expect(notifier.state.step, 1);
+      expect(container.read(createPostProvider).step, 1);
+
       notifier.goBack();
-      expect(notifier.state.step, 0);
+      expect(container.read(createPostProvider).step, 0);
+
       notifier.goBack(); // should not go below 0
-      expect(notifier.state.step, 0);
-      notifier.dispose();
+      expect(container.read(createPostProvider).step, 0);
     });
 
     test('reset returns to initial state', () {
-      final notifier = CreatePostNotifier(_clientWith());
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
+
+      final notifier = container.read(createPostProvider.notifier);
       notifier.selectTrack(_testTrack);
       notifier.selectMediaType(MediaType.text);
       notifier.setImportance(0.8);
       notifier.reset();
-      expect(notifier.state.step, 0);
-      expect(notifier.state.selectedTrack, isNull);
-      expect(notifier.state.importance, 0.5);
-      notifier.dispose();
+
+      final state = container.read(createPostProvider);
+      expect(state.step, 0);
+      expect(state.selectedTrack, isNull);
+      expect(state.importance, 0.5);
     });
 
     test('submit sets isSubmitting during request', () async {
-      final notifier = CreatePostNotifier(
-        _clientWith(errors: [const GraphQLError(message: 'fail')]),
+      final container = _createContainer(
+        client: _clientWith(
+          errors: [const GraphQLError(message: 'fail')],
+        ),
       );
-      notifier.addListener((_) {});
+      addTearDown(container.dispose);
+
+      final notifier = container.read(createPostProvider.notifier);
       notifier.selectTrack(_testTrack);
       notifier.selectMediaType(MediaType.text);
 
       // Capture isSubmitting during the mutation
       final states = <bool>[];
-      notifier.addListener((state) => states.add(state.isSubmitting));
+      container.listen(
+        createPostProvider,
+        (_, next) => states.add(next.isSubmitting),
+      );
 
       await notifier.submit(title: 'Hello', body: 'World', mediaUrl: null);
 
       // Should have been true (submitting) then false (done)
       expect(states, contains(true));
-      expect(notifier.state.isSubmitting, false);
-      notifier.dispose();
+      expect(container.read(createPostProvider).isSubmitting, false);
     });
 
     test('submit returns null without track/mediaType', () async {
-      final notifier = CreatePostNotifier(_clientWith());
-      notifier.addListener((_) {});
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
 
-      final result = await notifier.submit(
+      final result = await container.read(createPostProvider.notifier).submit(
         title: 'Hello',
         body: 'World',
         mediaUrl: null,
       );
 
       expect(result, isNull);
-      notifier.dispose();
     });
 
     test('submit returns null and sets error on GraphQL error', () async {
-      final notifier = CreatePostNotifier(
-        _clientWith(errors: [const GraphQLError(message: 'Track not found')]),
+      final container = _createContainer(
+        client: _clientWith(
+          errors: [const GraphQLError(message: 'Track not found')],
+        ),
       );
-      notifier.addListener((_) {});
+      addTearDown(container.dispose);
+
+      final notifier = container.read(createPostProvider.notifier);
       notifier.selectTrack(_testTrack);
       notifier.selectMediaType(MediaType.text);
 
@@ -184,16 +219,18 @@ void main() {
       );
 
       expect(result, isNull);
-      expect(notifier.state.error, 'Track not found');
-      expect(notifier.state.isSubmitting, false);
-      notifier.dispose();
+      final state = container.read(createPostProvider);
+      expect(state.error, 'Track not found');
+      expect(state.isSubmitting, false);
     });
 
     test('submit returns null on network exception', () async {
-      final notifier = CreatePostNotifier(
-        _clientWith(exception: Exception('Network error')),
+      final container = _createContainer(
+        client: _clientWith(exception: Exception('Network error')),
       );
-      notifier.addListener((_) {});
+      addTearDown(container.dispose);
+
+      final notifier = container.read(createPostProvider.notifier);
       notifier.selectTrack(_testTrack);
       notifier.selectMediaType(MediaType.text);
 
@@ -204,9 +241,9 @@ void main() {
       );
 
       expect(result, isNull);
-      expect(notifier.state.error, isNotNull);
-      expect(notifier.state.isSubmitting, false);
-      notifier.dispose();
+      final state = container.read(createPostProvider);
+      expect(state.error, isNotNull);
+      expect(state.isSubmitting, false);
     });
 
     test('copyWith preserves error when not explicitly set', () {

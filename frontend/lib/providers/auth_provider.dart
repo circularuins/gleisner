@@ -30,13 +30,20 @@ class AuthState {
   }
 }
 
-class AuthNotifier extends StateNotifier<AuthState> {
-  final GraphQLClient _client;
-  final FlutterSecureStorage _storage;
+final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
+  return const FlutterSecureStorage();
+});
 
-  AuthNotifier(this._client, {FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage(),
-      super(const AuthState());
+class AuthNotifier extends Notifier<AuthState> {
+  late GraphQLClient _client;
+  late FlutterSecureStorage _storage;
+
+  @override
+  AuthState build() {
+    _client = ref.watch(graphqlClientProvider);
+    _storage = ref.read(secureStorageProvider);
+    return const AuthState();
+  }
 
   Future<void> initialize() async {
     final token = await _storage.read(key: 'jwt');
@@ -152,7 +159,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  final client = ref.watch(graphqlClientProvider);
-  return AuthNotifier(client);
-});
+final authProvider = NotifierProvider<AuthNotifier, AuthState>(
+  AuthNotifier.new,
+);
