@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
+import 'disposable_notifier.dart';
 import '../graphql/queries/auth.dart';
 import '../models/user.dart';
 
@@ -34,14 +35,15 @@ final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
   return const FlutterSecureStorage();
 });
 
-class AuthNotifier extends Notifier<AuthState> {
+class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
   late GraphQLClient _client;
   late FlutterSecureStorage _storage;
 
   @override
   AuthState build() {
     _client = ref.watch(graphqlClientProvider);
-    _storage = ref.read(secureStorageProvider);
+    _storage = ref.watch(secureStorageProvider);
+    initDisposable();
     return const AuthState();
   }
 

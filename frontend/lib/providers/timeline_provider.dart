@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
+import 'disposable_notifier.dart';
 import '../graphql/queries/artist.dart';
 import '../graphql/mutations/connection.dart';
 import '../graphql/mutations/constellation.dart';
@@ -73,16 +74,15 @@ class TimelineState {
   }
 }
 
-class TimelineNotifier extends Notifier<TimelineState> {
+class TimelineNotifier extends Notifier<TimelineState>
+    with DisposableNotifier {
   late GraphQLClient _client;
   double _lastWidth = 0;
-  bool _disposed = false;
 
   @override
   TimelineState build() {
     _client = ref.watch(graphqlClientProvider);
-    _disposed = false;
-    ref.onDispose(() => _disposed = true);
+    initDisposable();
     return const TimelineState();
   }
 
@@ -105,7 +105,7 @@ class TimelineNotifier extends Notifier<TimelineState> {
         ),
       );
 
-      if (_disposed) return;
+      if (disposed) return;
 
       if (result.hasException) {
         state = state.copyWith(
@@ -142,7 +142,7 @@ class TimelineNotifier extends Notifier<TimelineState> {
         await _loadSelectedPosts();
       }
     } catch (e) {
-      if (_disposed) return;
+      if (disposed) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -439,7 +439,7 @@ class TimelineNotifier extends Notifier<TimelineState> {
     _recomputeLayout();
     // Clear highlight after animation completes
     Future.delayed(const Duration(milliseconds: 3000), () {
-      if (!_disposed && state.highlightPostId == post.id) {
+      if (!disposed && state.highlightPostId == post.id) {
         state = state.copyWith(highlightPostId: null);
       }
     });
@@ -506,7 +506,7 @@ class TimelineNotifier extends Notifier<TimelineState> {
 
       final results = await Future.wait(futures);
 
-      if (_disposed) return;
+      if (disposed) return;
 
       final allPosts = <Post>[];
       var failedCount = 0;
@@ -527,7 +527,7 @@ class TimelineNotifier extends Notifier<TimelineState> {
       state = state.copyWith(posts: allPosts, isLoading: false, error: error);
       _recomputeLayout();
     } catch (e) {
-      if (_disposed) return;
+      if (disposed) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }

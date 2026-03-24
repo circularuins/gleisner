@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
+import 'disposable_notifier.dart';
 import '../graphql/mutations/connection.dart';
 import '../graphql/mutations/post.dart';
 import '../models/post.dart';
@@ -54,15 +55,14 @@ class CreatePostState {
   }
 }
 
-class CreatePostNotifier extends Notifier<CreatePostState> {
+class CreatePostNotifier extends Notifier<CreatePostState>
+    with DisposableNotifier {
   late GraphQLClient _client;
-  bool _disposed = false;
 
   @override
   CreatePostState build() {
     _client = ref.watch(graphqlClientProvider);
-    _disposed = false;
-    ref.onDispose(() => _disposed = true);
+    initDisposable();
     return const CreatePostState();
   }
 
@@ -123,7 +123,7 @@ class CreatePostNotifier extends Notifier<CreatePostState> {
         ),
       );
 
-      if (_disposed) return null;
+      if (disposed) return null;
 
       if (result.hasException) {
         state = state.copyWith(
@@ -177,7 +177,7 @@ class CreatePostNotifier extends Notifier<CreatePostState> {
       state = state.copyWith(isSubmitting: false);
       return (track, enrichedPost);
     } catch (e) {
-      if (_disposed) return null;
+      if (disposed) return null;
       state = state.copyWith(isSubmitting: false, error: e.toString());
       return null;
     }
