@@ -67,8 +67,8 @@ create_post() {
   [ -n "$DUR" ] && EXTRA="$EXTRA, duration:$DUR"
   [ -n "$URL" ] && EXTRA="$EXTRA, mediaUrl:\"$URL\""
   [ -z "$BODY" ] && BODY="Test content for $TITLE"
-  # Escape double quotes in body for JSON
-  BODY=$(echo "$BODY" | sed 's/"/\\"/g')
+  # Safely escape for JSON (handles quotes, newlines, backslashes)
+  BODY=$(printf '%s' "$BODY" | jq -Rs . | sed 's/^"//;s/"$//')
   curl -s "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
     -d "{\"query\":\"mutation { createPost(trackId:\\\"$TID\\\", title:\\\"$TITLE\\\", body:\\\"$BODY\\\", mediaType:$MTYPE, importance:$IMP$EXTRA) { id } }\"}" > /dev/null
   sleep 0.3

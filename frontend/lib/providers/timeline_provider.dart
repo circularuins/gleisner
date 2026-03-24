@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -189,7 +190,8 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
       if (result.hasException) return false;
 
       // Optimistic update: toggle myReactions + counts locally
-      final post = state.posts.firstWhere((p) => p.id == postId);
+      final post = state.posts.firstWhereOrNull((p) => p.id == postId);
+      if (post == null) return true; // DB succeeded, post not in current view
       final myR = List<String>.from(post.myReactions);
       final counts = List<ReactionCount>.from(post.reactionCounts);
       if (myR.contains(emoji)) {

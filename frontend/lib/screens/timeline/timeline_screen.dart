@@ -570,8 +570,9 @@ class _TrackSelector extends StatelessWidget {
 }
 
 /// A glowing star button that replaces the generic Material FAB.
-/// Uses the first track's color for the glow effect, connecting
-/// the "add post" action to the constellation metaphor.
+/// Uses warm gold accent (distinct from track colors) with a breathing
+/// pulse animation. The auto_awesome + badge connects to the
+/// constellation metaphor of "adding a new star."
 class _GlowingStarButton extends StatefulWidget {
   final VoidCallback onPressed;
 
