@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../theme/gleisner_tokens.dart';
@@ -11,15 +10,19 @@ class GleisnerHero extends StatelessWidget {
   /// If false, renders full layout with branding header (for wide screens).
   final bool compact;
 
-  const GleisnerHero({super.key, this.compact = false});
+  /// Called when the user taps the "Try it first" link.
+  /// Navigation is handled by the caller, not this widget.
+  final VoidCallback? onTryIt;
+
+  const GleisnerHero({super.key, this.compact = false, this.onTryIt});
 
   @override
   Widget build(BuildContext context) {
-    if (compact) return _buildCompact(context);
-    return _buildFull(context);
+    if (compact) return _buildCompact();
+    return _buildFull();
   }
 
-  Widget _buildFull(BuildContext context) {
+  Widget _buildFull() {
     return Container(
       color: colorSurface0,
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
@@ -47,14 +50,16 @@ class GleisnerHero extends StatelessWidget {
           ),
           const SizedBox(height: spaceXxl + spaceLg),
           ..._propositions.expand((p) => [p, const SizedBox(height: spaceXl)]),
-          const SizedBox(height: spaceLg),
-          _TryItLink(),
+          if (onTryIt != null) ...[
+            const SizedBox(height: spaceLg),
+            _TryItLink(onTap: onTryIt!),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildCompact(BuildContext context) {
+  Widget _buildCompact() {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: spaceXl,
@@ -71,8 +76,10 @@ class GleisnerHero extends StatelessWidget {
               child: p,
             ),
           ),
-          const SizedBox(height: spaceSm),
-          _TryItLink(),
+          if (onTryIt != null) ...[
+            const SizedBox(height: spaceSm),
+            _TryItLink(onTap: onTryIt!),
+          ],
         ],
       ),
     );
@@ -148,11 +155,14 @@ class _Proposition extends StatelessWidget {
 }
 
 class _TryItLink extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _TryItLink({required this.onTap});
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      // TODO(featured-artist): Replace with featured/demo artist from API
-      onTap: () => context.go('/@seeduser'),
+      onTap: onTap,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
