@@ -1,13 +1,23 @@
 ## フロントエンド実装ルール
 
-### データ操作は Provider/Notifier 層で
+### デザイントークンの使用
 
-**Widget 層から GraphQL クライアントを直接操作しない。** データの取得・変更は必ず Provider/Notifier 経由で行う。
+**新しい色・フォントサイズ・余白・角丸を使う場合、`lib/theme/gleisner_tokens.dart` に定義してから参照すること。**
+
+- `Color(0xFF...)` のハードコードは禁止。トークン定数を使う
+- 新しい値が必要な場合はトークンファイルに追加してからウィジェットで使う
+- 既存トークンで近い値がある場合はそちらを使う（微妙な差のバリエーションを増やさない）
+
+### データ操作・ビジネスロジックは Provider/Notifier 層で
+
+**Widget 層から GraphQL クライアントを直接操作しない。** データの取得・変更・楽観的更新ロジックは必ず Provider/Notifier 経由で行う。
 
 - ✅ `TimelineNotifier.toggleReaction(postId, emoji)` → Widget はコールバックで呼ぶだけ
 - ❌ Widget 内で `client.mutate()` を直接実行
+- ❌ Widget 内でリアクションのカウント計算やソートなどのビジネスロジックを実行
 
 Widget が必要とするのはコールバック（`onToggleReaction`, `onReactionsChanged` 等）のみ。
+楽観的更新（API 成功後のローカル状態更新）も Notifier 内で完結させる。
 これにより テスト容易性・保守性・関心の分離 が保たれる。
 
 ### ボトムシートからボトムシートを開く場合
