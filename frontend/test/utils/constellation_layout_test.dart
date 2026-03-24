@@ -12,6 +12,8 @@ Post _makePost({
   String? trackColor,
   String? body,
   List<ReactionCount> reactionCounts = const [],
+  List<PostConnection> outgoingConnections = const [],
+  List<PostConnection> incomingConnections = const [],
 }) {
   return Post(
     id: id,
@@ -26,6 +28,8 @@ Post _makePost({
     trackName: trackName,
     trackColor: trackColor,
     reactionCounts: reactionCounts,
+    outgoingConnections: outgoingConnections,
+    incomingConnections: incomingConnections,
   );
 }
 
@@ -301,6 +305,14 @@ void main() {
           createdAt: now,
           trackId: 'track-a',
           trackColor: '#ff0000',
+          outgoingConnections: [
+            const PostConnection(
+              id: 'conn-1',
+              sourceId: '1',
+              targetId: '2',
+              connectionType: 'synapse',
+            ),
+          ],
         ),
         _makePost(
           id: '2',
