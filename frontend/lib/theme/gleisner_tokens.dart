@@ -33,6 +33,9 @@ const colorError = Color(0xFFef4444);
 /// Material 3 seed
 const colorSeed = Color(0xFF6C63FF);
 
+/// Accent: warm gold for primary actions (distinct from all track colors)
+const colorAccentGold = Color(0xFFd4af37);
+
 /// Fallback
 const colorTrackFallback = Color(0xFF808080);
 

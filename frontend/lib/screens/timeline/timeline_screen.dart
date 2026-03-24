@@ -649,9 +649,7 @@ class _GlowingStarButtonState extends State<_GlowingStarButton>
 
   @override
   Widget build(BuildContext context) {
-    final glowColor = widget.tracks.isNotEmpty
-        ? widget.tracks.first.displayColor
-        : Theme.of(context).colorScheme.primary;
+    const glowColor = colorAccentGold;
 
     return AnimatedBuilder(
       animation: _pulse,
