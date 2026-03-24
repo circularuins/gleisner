@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../graphql/client.dart';
 import '../../models/track.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/timeline_provider.dart';
@@ -62,15 +61,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           'Gleisner',
           style: TextStyle(color: colorTextPrimary),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: colorInteractive),
-            onPressed: () async {
-              await ref.read(authProvider.notifier).logout();
-              ref.invalidate(graphqlClientProvider);
-            },
-          ),
-        ],
+        actions: const [],
       ),
       floatingActionButton: timeline.artist != null
           ? _GlowingStarButton(onPressed: () => context.go('/create-post'))
