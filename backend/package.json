@@ -26,7 +26,7 @@
     "drizzle-orm": "^0.45.1",
     "graphql": "^16.13.1",
     "graphql-yoga": "^5.18.1",
-    "hono": "^4.12.8",
+    "hono": "^4.12.9",
     "jose": "^6.2.2",
     "postgres": "^3.4.8"
   },
