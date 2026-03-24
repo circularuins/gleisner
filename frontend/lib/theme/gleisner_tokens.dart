@@ -29,6 +29,9 @@ const colorInteractiveMuted = Color(0xFF666688); // Disabled, secondary actions
 /// Functional
 const colorError = Color(0xFFef4444);
 
+/// Material 3 seed
+const colorSeed = Color(0xFF6C63FF);
+
 /// Fallback
 const colorTrackFallback = Color(0xFF808080);
 
@@ -124,10 +127,7 @@ const textBody = TextStyle(
   height: 1.6,
 );
 
-const textCaption = TextStyle(
-  color: colorTextMuted,
-  fontSize: fontSizeSm,
-);
+const textCaption = TextStyle(color: colorTextMuted, fontSize: fontSizeSm);
 
 const textMicro = TextStyle(
   color: colorTextMuted,

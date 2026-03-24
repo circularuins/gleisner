@@ -9,6 +9,7 @@ import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/node_card.dart';
+import '../../theme/gleisner_tokens.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
@@ -55,16 +56,16 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0a0a0f),
+      backgroundColor: colorSurface0,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0a0a0f),
+        backgroundColor: colorSurface0,
         title: const Text(
           'Gleisner',
-          style: TextStyle(color: Color(0xFFeeeeee)),
+          style: TextStyle(color: colorTextPrimary),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Color(0xFF8888a0)),
+            icon: const Icon(Icons.logout, color: colorInteractive),
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               ref.invalidate(graphqlClientProvider);
@@ -108,7 +109,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                           ? 'Register as an artist to get started'
                           : 'No posts yet',
                       style: TextStyle(
-                        color: const Color(0xFF8888a0),
+                        color: colorInteractive,
                         fontSize: theme.textTheme.bodyLarge?.fontSize,
                       ),
                     ),
@@ -203,7 +204,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     .map((p) => p.constellation!.name)
                     .firstOrNull;
                 return Container(
-                  color: const Color(0xFF0c0c12),
+                  color: colorSurface1,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 10,
@@ -213,7 +214,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                       const Icon(
                         Icons.auto_awesome,
                         size: 16,
-                        color: Color(0xFF8888a0),
+                        color: colorInteractive,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -222,7 +223,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                               ? '$constellationName · ${timeline.constellationPostIds!.length} posts'
                               : 'Constellation · ${timeline.constellationPostIds!.length} posts',
                           style: const TextStyle(
-                            color: Color(0xFFccccdd),
+                            color: colorTextSecondary,
                             fontSize: 13,
                           ),
                           maxLines: 1,
@@ -236,7 +237,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         child: const Icon(
                           Icons.close,
                           size: 18,
-                          color: Color(0xFF8888a0),
+                          color: colorInteractive,
                         ),
                       ),
                     ],
@@ -467,14 +468,14 @@ class _DateLabel extends StatelessWidget {
     final Color dayColor;
     final Color monthColor;
     if (isHighlighted) {
-      dayColor = const Color(0xFFeeeeee);
-      monthColor = const Color(0xFFccccdd);
+      dayColor = colorTextPrimary;
+      monthColor = colorTextSecondary;
     } else if (isToday && !todayDimmed) {
-      dayColor = const Color(0xFFeeeeee);
-      monthColor = const Color(0xFFaaaacc);
+      dayColor = colorTextPrimary;
+      monthColor = colorTextSecondary;
     } else {
-      dayColor = const Color(0xFF6a6a80);
-      monthColor = const Color(0xFF555570);
+      dayColor = colorInteractiveMuted;
+      monthColor = colorInteractiveMuted;
     }
 
     return SizedBox(
@@ -487,7 +488,7 @@ class _DateLabel extends StatelessWidget {
               height: 7,
               margin: const EdgeInsets.only(bottom: 3),
               decoration: const BoxDecoration(
-                color: Color(0xFFef4444),
+                color: colorError,
                 shape: BoxShape.circle,
               ),
             ),
@@ -564,7 +565,7 @@ class _TrackSelector extends StatelessWidget {
               label: 'All',
               selected: allSelected,
               onTap: onToggleAll,
-              selectedColor: const Color(0xFF8888a0),
+              selectedColor: colorInteractive,
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -594,15 +595,13 @@ class _TrackSelector extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: borderRadius ?? BorderRadius.circular(10),
           color: selected ? selectedColor.withValues(alpha: 0.2) : null,
-          border: Border.all(
-            color: selected ? selectedColor : const Color(0xFF1a1a28),
-          ),
+          border: Border.all(color: selected ? selectedColor : colorBorder),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 11,
-            color: selected ? selectedColor : const Color(0xFF8888a0),
+            color: selected ? selectedColor : colorInteractive,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),

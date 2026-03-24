@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import 'graphql/client.dart';
+import 'theme/gleisner_tokens.dart';
 import 'router.dart';
 
 class GleisnerApp extends ConsumerWidget {
@@ -21,7 +22,7 @@ class GleisnerApp extends ConsumerWidget {
         theme: ThemeData(
           brightness: Brightness.dark,
           colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF6C63FF),
+            seedColor: colorSeed,
             brightness: Brightness.dark,
           ),
           useMaterial3: true,

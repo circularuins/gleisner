@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/post.dart';
 import '../../models/track.dart' show parseHexColor;
+import '../../theme/gleisner_tokens.dart';
 import '../../utils/constellation_graph.dart';
 import '../common/related_post_picker.dart';
 import 'seed_art_painter.dart';
@@ -159,9 +160,11 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       maxChildSize: 0.92,
       builder: (context, scrollController) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF0c0c12),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: colorSurface1,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(radiusSheet),
+            ),
           ),
           clipBehavior: Clip.antiAlias,
           child: ListView(
@@ -170,19 +173,19 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
             children: [
               Center(
                 child: Container(
-                  margin: const EdgeInsets.only(top: 8, bottom: 4),
+                  margin: const EdgeInsets.only(top: spaceSm, bottom: spaceXs),
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF444460),
-                    borderRadius: BorderRadius.circular(2),
+                    color: colorInteractive,
+                    borderRadius: BorderRadius.circular(spaceXxs),
                   ),
                 ),
               ),
               _buildMediaArea(context, post, trackColor, seedString),
               // Content
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, spaceLg, 20, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -190,79 +193,60 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                     Text(
                       _formatDateTime(),
                       style: const TextStyle(
-                        color: Color(0xFF9999b0),
-                        fontSize: 13,
+                        color: colorTextMuted,
+                        fontSize: fontSizeMd,
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: spaceMd),
                     // Title
                     if (post.title != null) ...[
-                      Text(
-                        post.title!,
-                        style: const TextStyle(
-                          color: Color(0xFFf0f0f5),
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          height: 1.3,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
+                      Text(post.title!, style: textTitle),
+                      const SizedBox(height: spaceSm),
                     ],
                     // Body
                     if (post.body != null) ...[
-                      Text(
-                        post.body!,
-                        style: const TextStyle(
-                          color: Color(0xFFccccdd),
-                          fontSize: 16,
-                          height: 1.6,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
+                      Text(post.body!, style: textBody),
+                      const SizedBox(height: spaceLg),
                     ],
                   ],
                 ),
               ),
               // Reactions — subtle, no divider above
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, spaceXs, 20, 0),
                 child: _buildReactionsSection(trackColor),
               ),
               // Connections
               if (widget.allPosts.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, spaceMd, 20, 0),
                   child: _buildConnectionsSection(trackColor),
                 ),
               // Constellation
               if (widget.allPosts.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, spaceMd, 20, 0),
                   child: _buildConstellationSection(trackColor),
                 ),
               // Comments placeholder
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                padding: const EdgeInsets.fromLTRB(20, spaceLg, 20, spaceXxl),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Divider(
-                      color: const Color(0xFF1a1a28).withValues(alpha: 0.5),
+                      color: colorBorder.withValues(alpha: opacityOverlay),
                       height: 1,
                     ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'Comments',
-                      style: TextStyle(
-                        color: Color(0xFF666688),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: spaceMd),
+                    Text('Comments', style: textLabel),
+                    const SizedBox(height: spaceXs),
                     const Text(
                       'Coming soon',
-                      style: TextStyle(color: Color(0xFF444466), fontSize: 12),
+                      style: TextStyle(
+                        color: colorInteractiveMuted,
+                        fontSize: fontSizeSm,
+                      ),
                     ),
                   ],
                 ),
@@ -281,41 +265,42 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         // Existing reactions (compact pills)
         if (_reactionCounts.isNotEmpty) ...[
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: spaceXs,
+            runSpacing: spaceXs,
             children: _reactionCounts.map((r) {
               final isActive = _myReactions.contains(r.emoji);
               return GestureDetector(
                 onTap: () => _toggleReaction(r.emoji),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
+                    horizontal: spaceSm,
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
                     color: isActive
-                        ? trackColor.withValues(alpha: 0.12)
-                        : const Color(0xFF131320),
-                    borderRadius: BorderRadius.circular(16),
+                        ? trackColor.withValues(alpha: opacitySubtle)
+                        : colorSurface2,
+                    borderRadius: BorderRadius.circular(radiusXl),
                     border: Border.all(
                       color: isActive
-                          ? trackColor.withValues(alpha: 0.3)
-                          : const Color(0xFF1a1a28),
+                          ? trackColor.withValues(alpha: opacityBorder)
+                          : colorBorder,
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(r.emoji, style: const TextStyle(fontSize: 15)),
-                      const SizedBox(width: 4),
+                      Text(
+                        r.emoji,
+                        style: const TextStyle(fontSize: fontSizeLg),
+                      ),
+                      const SizedBox(width: spaceXs),
                       Text(
                         '${r.count}',
                         style: TextStyle(
-                          color: isActive
-                              ? trackColor
-                              : const Color(0xFF9999b0),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          color: isActive ? trackColor : colorTextMuted,
+                          fontSize: fontSizeMd,
+                          fontWeight: weightSemibold,
                         ),
                       ),
                     ],
@@ -324,12 +309,12 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
               );
             }).toList(),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: spaceSm),
         ],
         // Emoji picker (smaller, more subtle)
         Wrap(
-          spacing: 2,
-          runSpacing: 2,
+          spacing: spaceXxs,
+          runSpacing: spaceXxs,
           children: _reactionPresets.map((emoji) {
             final isActive = _myReactions.contains(emoji);
             return GestureDetector(
@@ -339,16 +324,16 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                 height: 34,
                 decoration: BoxDecoration(
                   color: isActive
-                      ? trackColor.withValues(alpha: 0.12)
+                      ? trackColor.withValues(alpha: opacitySubtle)
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(radiusMd),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   emoji,
                   style: TextStyle(
-                    fontSize: 16,
-                    color: isActive ? null : const Color(0xFF666688),
+                    fontSize: fontSizeLg,
+                    color: isActive ? null : colorInteractiveMuted,
                   ),
                 ),
               ),
@@ -361,7 +346,6 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
 
   Widget _buildConnectionsSection(Color trackColor) {
     final postMap = {for (final p in widget.allPosts) p.id: p};
-    // Combine outgoing + incoming for display
     final connectedPosts =
         <({PostConnection conn, Post post, bool isOutgoing})>[];
     for (final c in _outgoingConnections) {
@@ -381,19 +365,12 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Divider(
-          color: const Color(0xFF1a1a28).withValues(alpha: 0.5),
+          color: colorBorder.withValues(alpha: opacityOverlay),
           height: 1,
         ),
-        const SizedBox(height: 12),
-        const Text(
-          'Connections',
-          style: TextStyle(
-            color: Color(0xFF666688),
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
+        const SizedBox(height: spaceMd),
+        Text('Connections', style: textLabel),
+        const SizedBox(height: spaceSm),
         if (connectedPosts.isNotEmpty)
           ...connectedPosts.map((entry) {
             final p = entry.post;
@@ -401,23 +378,23 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                 ? parseHexColor(p.trackColor)
                 : null;
             return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.only(bottom: spaceXs),
               child: Row(
                 children: [
                   Icon(
                     entry.isOutgoing ? Icons.arrow_forward : Icons.arrow_back,
-                    size: 14,
-                    color: const Color(0xFF666688),
+                    size: fontSizeMd,
+                    color: colorInteractiveMuted,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: spaceXs),
                   if (pColor != null)
                     Container(
                       width: 3,
                       height: 20,
-                      margin: const EdgeInsets.only(right: 8),
+                      margin: const EdgeInsets.only(right: spaceSm),
                       decoration: BoxDecoration(
                         color: pColor,
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: BorderRadius.circular(spaceXxs),
                       ),
                     ),
                   Expanded(
@@ -426,19 +403,19 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFFccccdd),
-                        fontSize: 13,
+                        color: colorTextSecondary,
+                        fontSize: fontSizeMd,
                       ),
                     ),
                   ),
                   GestureDetector(
                     onTap: () => _deleteConnection(entry.conn),
                     child: const Padding(
-                      padding: EdgeInsets.all(4),
+                      padding: EdgeInsets.all(spaceXs),
                       child: Icon(
                         Icons.close,
-                        size: 14,
-                        color: Color(0xFF666688),
+                        size: fontSizeMd,
+                        color: colorInteractiveMuted,
                       ),
                     ),
                   ),
@@ -449,24 +426,24 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         GestureDetector(
           onTap: _isConnecting ? null : _addConnection,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(vertical: spaceXs),
             child: Row(
               children: [
                 Icon(
                   Icons.add,
-                  size: 16,
+                  size: fontSizeLg,
                   color: _isConnecting
-                      ? const Color(0xFF444466)
+                      ? colorInteractiveMuted
                       : trackColor.withValues(alpha: 0.7),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: spaceXs),
                 Text(
                   _isConnecting ? 'Linking...' : 'Link post',
                   style: TextStyle(
                     color: _isConnecting
-                        ? const Color(0xFF444466)
+                        ? colorInteractiveMuted
                         : trackColor.withValues(alpha: 0.7),
-                    fontSize: 13,
+                    fontSize: fontSizeMd,
                   ),
                 ),
               ],
@@ -530,26 +507,29 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF1a1a28),
+          backgroundColor: colorBorder,
           title: Text(
             existing != null
                 ? 'Rename constellation'
                 : 'Name this constellation',
-            style: const TextStyle(color: Color(0xFFf0f0f5), fontSize: 18),
+            style: const TextStyle(
+              color: colorTextPrimary,
+              fontSize: fontSizeXl,
+            ),
           ),
           content: TextField(
             controller: controller,
             autofocus: true,
             maxLength: 100,
-            style: const TextStyle(color: Color(0xFFf0f0f5)),
+            style: const TextStyle(color: colorTextPrimary),
             decoration: InputDecoration(
               hintText: 'e.g., Initial impulse',
               hintStyle: TextStyle(
-                color: const Color(0xFF666688).withValues(alpha: 0.5),
+                color: colorInteractiveMuted.withValues(alpha: opacityOverlay),
               ),
               enabledBorder: UnderlineInputBorder(
                 borderSide: BorderSide(
-                  color: trackColor.withValues(alpha: 0.3),
+                  color: trackColor.withValues(alpha: opacityBorder),
                 ),
               ),
               focusedBorder: UnderlineInputBorder(
@@ -568,7 +548,6 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                 if (name.isEmpty) return;
                 Navigator.pop(dialogContext);
                 await widget.onNameConstellation?.call(widget.post.id, name);
-                // Close detail sheet and enter constellation view
                 if (mounted) {
                   Navigator.pop(context);
                   widget.onViewConstellation?.call(constellationIds);
@@ -584,7 +563,6 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
 
   Widget _buildConstellationSection(Color trackColor) {
     final constellationIds = findConstellation(widget.post.id, widget.allPosts);
-    // Hide if only self (no connections)
     if (constellationIds.length <= 1) return const SizedBox.shrink();
 
     final postMap = {for (final p in widget.allPosts) p.id: p};
@@ -595,7 +573,6 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    // Check if this constellation has a name (via any member's constellation field)
     final namedConstellation =
         widget.post.constellation ??
         members
@@ -607,10 +584,10 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Divider(
-          color: const Color(0xFF1a1a28).withValues(alpha: 0.5),
+          color: colorBorder.withValues(alpha: opacityOverlay),
           height: 1,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: spaceMd),
         Row(
           children: [
             Expanded(
@@ -631,18 +608,18 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                               namedConstellation.name,
                               style: TextStyle(
                                 color: trackColor,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                                fontSize: fontSizeMd,
+                                fontWeight: weightSemibold,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: spaceSm),
                           Icon(
                             Icons.edit,
-                            size: 16,
-                            color: trackColor.withValues(alpha: 0.5),
+                            size: fontSizeLg,
+                            color: trackColor.withValues(alpha: opacityOverlay),
                           ),
                         ],
                       ),
@@ -651,8 +628,8 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                           ? '${constellationIds.length} posts'
                           : 'Constellation · ${constellationIds.length} posts',
                       style: const TextStyle(
-                        color: Color(0xFF666688),
-                        fontSize: 12,
+                        color: colorInteractiveMuted,
+                        fontSize: fontSizeSm,
                       ),
                     ),
                   ],
@@ -664,21 +641,21 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                 onTap: () =>
                     _showNameDialog(trackColor, null, constellationIds),
                 child: Padding(
-                  padding: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.only(right: spaceMd),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.edit,
-                        size: 14,
-                        color: trackColor.withValues(alpha: 0.5),
+                        size: fontSizeMd,
+                        color: trackColor.withValues(alpha: opacityOverlay),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: spaceXs),
                       Text(
                         'Name',
                         style: TextStyle(
-                          color: trackColor.withValues(alpha: 0.5),
-                          fontSize: 12,
+                          color: trackColor.withValues(alpha: opacityOverlay),
+                          fontSize: fontSizeSm,
                         ),
                       ),
                     ],
@@ -695,15 +672,15 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                 children: [
                   Icon(
                     Icons.auto_awesome,
-                    size: 14,
+                    size: fontSizeMd,
                     color: trackColor.withValues(alpha: 0.7),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: spaceXs),
                   Text(
                     'View',
                     style: TextStyle(
                       color: trackColor.withValues(alpha: 0.7),
-                      fontSize: 13,
+                      fontSize: fontSizeMd,
                     ),
                   ),
                 ],
@@ -711,23 +688,23 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: spaceSm),
         ...members.map((p) {
           final pColor = p.trackColor != null
               ? parseHexColor(p.trackColor)
               : null;
           return Padding(
-            padding: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.only(bottom: spaceXs),
             child: Row(
               children: [
                 if (pColor != null)
                   Container(
                     width: 3,
-                    height: 16,
-                    margin: const EdgeInsets.only(right: 8),
+                    height: spaceLg,
+                    margin: const EdgeInsets.only(right: spaceSm),
                     decoration: BoxDecoration(
                       color: pColor,
-                      borderRadius: BorderRadius.circular(2),
+                      borderRadius: BorderRadius.circular(spaceXxs),
                     ),
                   ),
                 Expanded(
@@ -736,8 +713,8 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Color(0xFF9999b0),
-                      fontSize: 12,
+                      color: colorTextMuted,
+                      fontSize: fontSizeSm,
                     ),
                   ),
                 ),
@@ -767,7 +744,6 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     };
   }
 
-  /// Wrap a non-Stack media area with track tag + type badge.
   Widget _withBadges(Post post, Color trackColor, Widget child) {
     return Stack(
       children: [
@@ -784,14 +760,14 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       trackColor,
       Container(
         height: 160,
-        padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
+        padding: const EdgeInsets.fromLTRB(spaceLg, 40, spaceLg, spaceLg),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
               trackColor.withValues(alpha: 0.1),
-              const Color(0xFF0c0c12),
+              colorSurface1,
               trackColor.withValues(alpha: 0.05),
             ],
           ),
@@ -804,8 +780,8 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
               Text(
                 post.body!,
                 style: const TextStyle(
-                  color: Color(0xFFccccdd),
-                  fontSize: 16,
+                  color: colorTextSecondary,
+                  fontSize: fontSizeLg,
                   height: 1.5,
                   fontStyle: FontStyle.italic,
                 ),
@@ -857,7 +833,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
           width: 52,
           height: 52,
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.5),
+            color: Colors.black.withValues(alpha: opacityOverlay),
             shape: BoxShape.circle,
           ),
           child: const Icon(
@@ -870,20 +846,23 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         _typeBadge(post),
         if (post.formattedDuration != null)
           Positioned(
-            right: 12,
-            bottom: 12,
+            right: spaceMd,
+            bottom: spaceMd,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(
+                horizontal: spaceXs,
+                vertical: spaceXxs,
+              ),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(radiusSm),
               ),
               child: Text(
                 post.formattedDuration!,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontSize: fontSizeSm,
+                  fontWeight: weightSemibold,
                 ),
               ),
             ),
@@ -898,15 +877,12 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       trackColor,
       Container(
         height: 120,
-        padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
+        padding: const EdgeInsets.fromLTRB(spaceLg, 40, spaceLg, spaceLg),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              trackColor.withValues(alpha: 0.08),
-              const Color(0xFF0c0c12),
-            ],
+            colors: [trackColor.withValues(alpha: 0.08), colorSurface1],
           ),
         ),
         child: Column(
@@ -925,17 +901,17 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                   child: Icon(
                     Icons.play_arrow_rounded,
                     color: trackColor,
-                    size: 24,
+                    size: spaceXl,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: spaceMd),
                 if (post.formattedDuration != null)
                   Text(
                     post.formattedDuration!,
                     style: TextStyle(
                       color: trackColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                      fontSize: fontSizeMd,
+                      fontWeight: weightSemibold,
                     ),
                   ),
               ],
@@ -955,15 +931,12 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       trackColor,
       Container(
         height: 120,
-        padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
+        padding: const EdgeInsets.fromLTRB(spaceLg, 40, spaceLg, spaceLg),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              trackColor.withValues(alpha: 0.06),
-              const Color(0xFF0c0c12),
-            ],
+            colors: [trackColor.withValues(alpha: 0.06), colorSurface1],
           ),
         ),
         child: Column(
@@ -973,13 +946,13 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
             Row(
               children: [
                 Icon(Icons.link_rounded, size: 20, color: trackColor),
-                const SizedBox(width: 8),
+                const SizedBox(width: spaceSm),
                 Expanded(
                   child: Text(
                     post.mediaUrl ?? '',
                     style: TextStyle(
                       color: trackColor.withValues(alpha: 0.8),
-                      fontSize: 13,
+                      fontSize: fontSizeMd,
                       decoration: TextDecoration.underline,
                     ),
                     maxLines: 1,
@@ -990,12 +963,12 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
             ),
             if (domain.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 4, left: 28),
+                padding: const EdgeInsets.only(top: spaceXs, left: 28),
                 child: Text(
                   domain,
                   style: TextStyle(
-                    color: trackColor.withValues(alpha: 0.5),
-                    fontSize: 11,
+                    color: trackColor.withValues(alpha: opacityOverlay),
+                    fontSize: fontSizeXs,
                   ),
                 ),
               ),
@@ -1008,45 +981,48 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   Widget _trackTag(Post post, Color trackColor, {bool positioned = false}) {
     final tag = post.trackName != null
         ? Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(
+              horizontal: spaceSm,
+              vertical: 3,
+            ),
             decoration: BoxDecoration(
               color: trackColor.withValues(alpha: 0.25),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(radiusMd),
             ),
             child: Text(
               post.trackName!.toUpperCase(),
               style: TextStyle(
                 color: trackColor,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
+                fontSize: fontSizeXs,
+                fontWeight: weightBold,
                 letterSpacing: 0.5,
               ),
             ),
           )
         : const SizedBox.shrink();
-    if (positioned) return Positioned(top: 12, left: 12, child: tag);
+    if (positioned) {
+      return Positioned(top: spaceMd, left: spaceMd, child: tag);
+    }
     return tag;
   }
 
   Widget _typeBadge(Post post) {
     return Positioned(
-      top: 12,
-      right: 12,
+      top: spaceMd,
+      right: spaceMd,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: const EdgeInsets.symmetric(
+          horizontal: spaceXs,
+          vertical: spaceXxs,
+        ),
         decoration: BoxDecoration(
-          color: const Color(0xFF151520),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFF1a1a28)),
+          color: colorSurface2,
+          borderRadius: BorderRadius.circular(radiusSm),
+          border: Border.all(color: colorBorder),
         ),
         child: Text(
           post.mediaType.name.toUpperCase(),
-          style: const TextStyle(
-            color: Color(0xFF8888a0),
-            fontSize: 9,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
+          style: textMicro.copyWith(color: colorInteractive),
         ),
       ),
     );

@@ -9,6 +9,7 @@ import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/common/error_banner.dart';
 import '../../widgets/common/related_post_picker.dart';
+import '../../theme/gleisner_tokens.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
@@ -110,18 +111,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 }
 
 // Preset colors for auto-assignment (avoids duplicates with existing tracks)
-const _trackColorPresets = [
-  '#f97316', // orange
-  '#a78bfa', // purple
-  '#22d3ee', // cyan
-  '#84cc16', // lime
-  '#ef4444', // red
-  '#fbbf24', // amber
-  '#ec4899', // pink
-  '#14b8a6', // teal
-  '#8b5cf6', // violet
-  '#f43f5e', // rose
-];
+const _trackColorPresets = trackColorPresets;
 
 const _maxTracks = 10;
 
@@ -700,7 +690,7 @@ class _ImportancePreview extends StatelessWidget {
             ),
           ],
           border: Border.all(color: trackColor.withValues(alpha: 0.3)),
-          color: const Color(0xFF0c0c12),
+          color: colorSurface1,
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -733,7 +723,7 @@ class _ImportancePreview extends StatelessWidget {
                     Text(
                       title,
                       style: const TextStyle(
-                        color: Color(0xFFeeeeee),
+                        color: colorTextPrimary,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                         height: 1.3,

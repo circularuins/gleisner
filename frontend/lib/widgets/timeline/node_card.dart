@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../models/post.dart';
+import '../../theme/gleisner_tokens.dart';
 import '../../utils/constellation_layout.dart';
 import 'post_detail_sheet.dart';
 import 'seed_art_painter.dart';
@@ -10,16 +11,16 @@ import 'seed_art_painter.dart';
 /// Border radius by media type.
 BorderRadius _borderForType(MediaType type) {
   return switch (type) {
-    MediaType.text => BorderRadius.circular(8),
-    MediaType.image => BorderRadius.circular(16),
+    MediaType.text => BorderRadius.circular(radiusMd),
+    MediaType.image => BorderRadius.circular(radiusXl),
     MediaType.video => const BorderRadius.only(
-      topLeft: Radius.circular(12),
-      topRight: Radius.circular(12),
-      bottomLeft: Radius.circular(4),
-      bottomRight: Radius.circular(4),
+      topLeft: Radius.circular(radiusLg),
+      topRight: Radius.circular(radiusLg),
+      bottomLeft: Radius.circular(radiusSm),
+      bottomRight: Radius.circular(radiusSm),
     ),
-    MediaType.audio => BorderRadius.circular(999),
-    MediaType.link => BorderRadius.circular(12),
+    MediaType.audio => BorderRadius.circular(radiusFull),
+    MediaType.link => BorderRadius.circular(radiusLg),
   };
 }
 
@@ -117,10 +118,10 @@ class _NodeCardState extends State<NodeCard>
             ),
           ],
           border: Border.all(
-            color: trackColor.withValues(alpha: 0.3),
+            color: trackColor.withValues(alpha: opacityBorder),
             width: 1,
           ),
-          color: const Color(0xFF0c0c12),
+          color: colorSurface1,
         ),
         clipBehavior: Clip.antiAlias,
         child: _buildContent(node, trackColor),
@@ -136,10 +137,10 @@ class _NodeCardState extends State<NodeCard>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           card,
-          const SizedBox(height: 4),
+          const SizedBox(height: spaceXs),
           Wrap(
             spacing: 3,
-            runSpacing: 2,
+            runSpacing: spaceXxs,
             children: [
               ...reactions.take(3).map((r) {
                 final isMine = myReactions.contains(r.emoji);
@@ -147,35 +148,36 @@ class _NodeCardState extends State<NodeCard>
                   onTap: () => widget.onToggleReaction?.call(post.id, r.emoji),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
+                      horizontal: spaceXs,
                       vertical: 1,
                     ),
                     decoration: BoxDecoration(
                       color: isMine
                           ? trackColor.withValues(alpha: 0.15)
-                          : const Color(0xFF151520),
-                      borderRadius: BorderRadius.circular(8),
+                          : colorSurface2,
+                      borderRadius: BorderRadius.circular(radiusMd),
                       border: Border.all(
                         color: isMine
                             ? trackColor.withValues(alpha: 0.4)
-                            : const Color(0xFF1a1a28),
+                            : colorBorder,
                       ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(r.emoji, style: const TextStyle(fontSize: 10)),
-                        const SizedBox(width: 2),
+                        Text(
+                          r.emoji,
+                          style: const TextStyle(fontSize: fontSizeXs),
+                        ),
+                        const SizedBox(width: spaceXxs),
                         Text(
                           r.count >= 1000
                               ? '${(r.count / 1000).toStringAsFixed(1)}k'
                               : '${r.count}',
                           style: TextStyle(
-                            color: isMine
-                                ? trackColor
-                                : const Color(0xFF8888a0),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
+                            color: isMine ? trackColor : colorInteractive,
+                            fontSize: fontSizeXs,
+                            fontWeight: weightSemibold,
                           ),
                         ),
                       ],
@@ -188,15 +190,15 @@ class _NodeCardState extends State<NodeCard>
                   onTap: widget.onOpenDetail,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
+                      horizontal: spaceXs,
                       vertical: 1,
                     ),
                     child: Text(
                       '+${reactions.length - 3}',
                       style: const TextStyle(
-                        color: Color(0xFF8888a0),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
+                        color: colorInteractive,
+                        fontSize: fontSizeXs,
+                        fontWeight: weightSemibold,
                       ),
                     ),
                   ),
@@ -214,7 +216,7 @@ class _NodeCardState extends State<NodeCard>
           borderRadius: borderRadius,
           boxShadow: [
             BoxShadow(
-              color: trackColor.withValues(alpha: 0.5),
+              color: trackColor.withValues(alpha: opacityOverlay),
               blurRadius: 24,
               spreadRadius: 6,
             ),
@@ -270,25 +272,21 @@ class _TextContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final post = node.post;
-    // Limit height to node's media area; calculate max body lines from space
-    final totalH = node.mediaHeight + 30; // same as layout infoH
-    const headerH = 14.0; // track label
-    const titleH = 30.0; // ~2 lines of title
+    final totalH = node.mediaHeight + 30;
+    const headerH = 14.0;
+    const titleH = 30.0;
     final bodyMaxH = totalH - headerH - (post.title != null ? titleH : 0) - 16;
     final bodyMaxLines = (bodyMaxH / 14).floor().clamp(1, 12);
 
     return SizedBox(
       height: totalH,
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(spaceSm),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              trackColor.withValues(alpha: 0.06),
-              const Color(0xFF0c0c12),
-            ],
+            colors: [trackColor.withValues(alpha: 0.06), colorSurface1],
           ),
         ),
         child: Column(
@@ -299,23 +297,23 @@ class _TextContent extends StatelessWidget {
               Text(
                 post.title!,
                 style: const TextStyle(
-                  color: Color(0xFFeeeeee),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+                  color: colorTextPrimary,
+                  fontSize: fontSizeSm,
+                  fontWeight: weightBold,
                   height: 1.3,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: spaceXxs),
             ],
             if (post.body != null)
               Expanded(
                 child: Text(
                   post.body!,
                   style: TextStyle(
-                    color: const Color(0xFFeeeeee).withValues(alpha: 0.7),
-                    fontSize: 10,
+                    color: colorTextPrimary.withValues(alpha: 0.7),
+                    fontSize: fontSizeXs,
                     height: 1.4,
                   ),
                   maxLines: bodyMaxLines,
@@ -378,12 +376,11 @@ class _VideoContent extends StatelessWidget {
               trackColor: trackColor,
               seed: seed,
             ),
-            // Play button
             Container(
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.5),
+                color: Colors.black.withValues(alpha: opacityOverlay),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -392,27 +389,22 @@ class _VideoContent extends StatelessWidget {
                 size: 20,
               ),
             ),
-            // Duration badge
             if (post.formattedDuration != null)
               Positioned(
-                right: 4,
-                bottom: 4,
+                right: spaceXs,
+                bottom: spaceXs,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
+                    horizontal: spaceXs,
                     vertical: 1,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(radiusSm),
                   ),
                   child: Text(
                     post.formattedDuration!,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: textMicro.copyWith(color: Colors.white),
                   ),
                 ),
               ),
@@ -435,11 +427,10 @@ class _AudioContent extends StatelessWidget {
     final post = node.post;
     final hasBody = post.body != null && post.body!.isNotEmpty;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: spaceXs),
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Wave bars as background
           Row(
             children: [
               Container(
@@ -455,7 +446,7 @@ class _AudioContent extends StatelessWidget {
                   size: 18,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: spaceXs),
               Expanded(
                 child: CustomPaint(
                   size: Size(double.infinity, node.mediaHeight * 0.5),
@@ -466,19 +457,18 @@ class _AudioContent extends StatelessWidget {
                 ),
               ),
               if (post.formattedDuration != null) ...[
-                const SizedBox(width: 6),
+                const SizedBox(width: spaceXs),
                 Text(
                   post.formattedDuration!,
                   style: TextStyle(
                     color: trackColor.withValues(alpha: 0.7),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
+                    fontSize: fontSizeXs,
+                    fontWeight: weightSemibold,
                   ),
                 ),
               ],
             ],
           ),
-          // Body text overlay on top of wave
           if (hasBody)
             Positioned(
               left: 38,
@@ -486,9 +476,9 @@ class _AudioContent extends StatelessWidget {
               child: Text(
                 post.body!,
                 style: const TextStyle(
-                  color: Color(0xFFeeeeee),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
+                  color: colorTextPrimary,
+                  fontSize: fontSizeXs,
+                  fontWeight: weightMedium,
                   height: 1.3,
                 ),
                 textAlign: TextAlign.center,
@@ -516,12 +506,12 @@ class _LinkContent extends StatelessWidget {
         : '';
 
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(spaceSm),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [trackColor.withValues(alpha: 0.04), const Color(0xFF0c0c12)],
+          colors: [trackColor.withValues(alpha: 0.04), colorSurface1],
         ),
       ),
       child: Column(
@@ -530,19 +520,19 @@ class _LinkContent extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.link_rounded, size: 14, color: trackColor),
-              const SizedBox(width: 4),
+              Icon(Icons.link_rounded, size: fontSizeMd, color: trackColor),
+              const SizedBox(width: spaceXs),
               _TrackLabel(trackName: post.trackName, color: trackColor),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: spaceXs),
           if (post.title != null)
             Text(
               post.title!,
               style: const TextStyle(
-                color: Color(0xFFeeeeee),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+                color: colorTextPrimary,
+                fontSize: fontSizeSm,
+                fontWeight: weightSemibold,
                 height: 1.3,
               ),
               maxLines: 2,
@@ -553,8 +543,8 @@ class _LinkContent extends StatelessWidget {
             Text(
               post.body!,
               style: TextStyle(
-                color: const Color(0xFFeeeeee).withValues(alpha: 0.6),
-                fontSize: 10,
+                color: colorTextPrimary.withValues(alpha: 0.6),
+                fontSize: fontSizeXs,
                 height: 1.3,
               ),
               maxLines: 2,
@@ -562,12 +552,12 @@ class _LinkContent extends StatelessWidget {
             ),
           ],
           if (domain.isNotEmpty) ...[
-            const SizedBox(height: 2),
+            const SizedBox(height: spaceXxs),
             Text(
               domain,
               style: TextStyle(
                 color: trackColor.withValues(alpha: 0.6),
-                fontSize: 9,
+                fontSize: fontSizeXs,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -592,8 +582,8 @@ class _TrackLabel extends StatelessWidget {
       (trackName ?? '').toUpperCase(),
       style: TextStyle(
         color: color,
-        fontSize: 8,
-        fontWeight: FontWeight.w600,
+        fontSize: fontSizeXs,
+        fontWeight: weightSemibold,
         letterSpacing: 0.5,
       ),
       maxLines: 1,
@@ -610,7 +600,10 @@ class _InfoBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: spaceXs,
+        vertical: spaceXs,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -619,9 +612,9 @@ class _InfoBar extends StatelessWidget {
             Text(
               post.title!,
               style: const TextStyle(
-                color: Color(0xFFeeeeee),
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
+                color: colorTextPrimary,
+                fontSize: fontSizeSm,
+                fontWeight: weightMedium,
                 height: 1.3,
               ),
               maxLines: 2,
@@ -641,7 +634,6 @@ class _WaveBarPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Generate deterministic bar heights
     var h = 0;
     for (int i = 0; i < seed.length; i++) {
       h = ((h << 5) - h + seed.codeUnitAt(i)) & 0xFFFFFF;
@@ -651,7 +643,7 @@ class _WaveBarPainter extends CustomPainter {
     final barWidth = size.width / barCount * 0.6;
     final gap = size.width / barCount;
 
-    final paint = Paint()..color = color.withValues(alpha: 0.5);
+    final paint = Paint()..color = color.withValues(alpha: opacityOverlay);
 
     for (int i = 0; i < barCount; i++) {
       h = (h * 16807) % 2147483647;

@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../theme/gleisner_tokens.dart';
 import '../../utils/constellation_layout.dart';
 
 /// Paints the background layer: date spine line + synapse connections.
@@ -19,7 +20,7 @@ class ConstellationPainter extends CustomPainter {
 
   void _drawSpineLine(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF1a1a28)
+      ..color = colorBorder
       ..strokeWidth = 1;
     canvas.drawLine(const Offset(18, 0), Offset(18, size.height), paint);
   }
