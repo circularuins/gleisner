@@ -62,12 +62,15 @@ echo "==> Track IDs: Play=$PLAY Compose=$COMPOSE Life=$LIFE English=$ENGLISH Liv
 
 # 6. Create posts: track_id title importance mediaType [duration] [mediaUrl]
 create_post() {
-  local TID="$1" TITLE="$2" IMP="$3" MTYPE="$4" DUR="${5:-}" URL="${6:-}"
+  local TID="$1" TITLE="$2" IMP="$3" MTYPE="$4" DUR="${5:-}" URL="${6:-}" BODY="${7:-}"
   local EXTRA=""
   [ -n "$DUR" ] && EXTRA="$EXTRA, duration:$DUR"
   [ -n "$URL" ] && EXTRA="$EXTRA, mediaUrl:\"$URL\""
+  [ -z "$BODY" ] && BODY="Test content for $TITLE"
+  # Safely escape for JSON (handles quotes, newlines, backslashes)
+  BODY=$(printf '%s' "$BODY" | jq -Rs . | sed 's/^"//;s/"$//')
   curl -s "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
-    -d "{\"query\":\"mutation { createPost(trackId:\\\"$TID\\\", title:\\\"$TITLE\\\", body:\\\"Test content for $TITLE\\\", mediaType:$MTYPE, importance:$IMP$EXTRA) { id } }\"}" > /dev/null
+    -d "{\"query\":\"mutation { createPost(trackId:\\\"$TID\\\", title:\\\"$TITLE\\\", body:\\\"$BODY\\\", mediaType:$MTYPE, importance:$IMP$EXTRA) { id } }\"}" > /dev/null
   sleep 0.3
 }
 
@@ -75,17 +78,17 @@ create_post() {
 create_post "$PLAY" "Flamenco-session" 1.0 video 204
 create_post "$PLAY" "Chord-melody-practice" 0.6 video 292
 create_post "$PLAY" "Blues-scale-workout" 0.25 audio 150
-create_post "$PLAY" "New-rasgueado-pattern" 0.8 text
+create_post "$PLAY" "New-rasgueado-pattern" 0.8 text "" "" "Been working on a new rasgueado technique all week. The key insight: instead of fanning all four fingers evenly, I delay the ring finger slightly to create a triplet feel against the strummed bass. It sounds almost like two guitarists playing at once. Still need to clean up the transition back into picado, but the core pattern is solid. Going to try it on the Bulerias piece next."
 create_post "$PLAY" "Fingerpicking-exercise" 0.15 audio 310
-create_post "$PLAY" "Jazz-improv-notes" 0.4 text
+create_post "$PLAY" "Jazz-improv-notes" 0.4 text "" "" "Transcribed the Wes Montgomery solo from Four on Six today. His octave technique is deceptively simple — the real magic is in the rhythmic displacement. He anticipates the chord changes by a half beat, creating this floating feeling over the groove. Tried applying the same concept to my own ii-V-I lines and it immediately made everything sound more musical. Less notes, more intention."
 create_post "$PLAY" "Live-at-open-mic" 0.95 video 464
 
 # Compose track
 create_post "$COMPOSE" "Final-mix-Sunrise" 0.8 audio 222
 create_post "$COMPOSE" "Sidechain-experiment" 0.3 audio 48
 create_post "$COMPOSE" "WIP-Sunrise-Protocol" 0.65 audio 107
-create_post "$COMPOSE" "Mix-notes" 0.1 text
-create_post "$COMPOSE" "Lyrics-Digital-Citizen" 0.4 text
+create_post "$COMPOSE" "Mix-notes" 0.1 text "" "" "Mixing session notes: The kick and bass are finally sitting right after sidechain compression at 3:1 ratio with 20ms attack. Vocals need more air around 12kHz — shelf boost maybe +2dB. The bridge section still feels empty. Thinking about adding a reversed reverb swell from the guitar hook. Also the snare sounds papery on laptop speakers, need to check the 200Hz region."
+create_post "$COMPOSE" "Lyrics-Digital-Citizen" 0.4 text "" "" "Draft lyrics for Digital Citizen (verse 2):\n\nWe built our homes on borrowed ground\nServers hum where roots should grow\nEvery memory a rented room\nEvery voice an echo of the algorithm\n\nBut I remember the sound of rain on a real window\nAnd the weight of a letter that someone actually wrote\n\nStill working on the chorus. The theme is about reclaiming authenticity in digital spaces — which is literally what this platform is about."
 create_post "$COMPOSE" "Beat-tape-vol3" 0.55 audio 382
 
 # Life track
@@ -98,7 +101,7 @@ create_post "$LIFE" "Birthday" 0.6 image
 # English track
 create_post "$ENGLISH" "1K-followers-thankyou" 0.9 video 131
 create_post "$ENGLISH" "QA-How-I-started" 0.6 video 225
-create_post "$ENGLISH" "English-diary-5" 0.15 text
+create_post "$ENGLISH" "English-diary-5" 0.15 text "" "" "English diary day 5. Today I tried explaining my music production process in English to a friend from Berlin. I kept mixing up past tense and present tense when talking about the creative process. She said my English is getting much better though. New words I learned: resonance, overtone, sustain (I knew these in a music context but not how to use them in casual conversation). Going to try writing my next song bio in English first instead of translating from Japanese."
 create_post "$ENGLISH" "Studio-tour" 0.55 video 255
 
 # Live track
@@ -109,7 +112,7 @@ create_post "$LIVE" "Evening-jam-circle" 0.85 audio 720
 
 # Studio track
 create_post "$STUDIO" "Sketch-Neon-Garden" 0.35 audio 72
-create_post "$STUDIO" "EP-structure" 0.1 text
+create_post "$STUDIO" "EP-structure" 0.1 text "" "" "EP track listing draft:\n\n1. Glass Ocean (intro, 1:30) — ambient pads + reversed guitar\n2. Neon Garden (3:45) — uptempo, main single candidate\n3. Sunrise Protocol (4:12) — the one with the sidechain experiment\n4. Digital Citizen (3:58) — lyrics almost done\n5. Midnight Drift (outro, 2:15) — stripped back, just guitar + delay\n\nTotal runtime ~15:40. Might be too short? But I like the idea of a tight, focused EP rather than padding it out. Quality over quantity."
 create_post "$STUDIO" "Collab-sketch" 0.7 audio 93
 create_post "$STUDIO" "Demo-Glass-Ocean" 0.65 audio 178
 create_post "$STUDIO" "cool-guitar-lesson" 0.45 link "" "https://www.youtube.com/watch?v=example"

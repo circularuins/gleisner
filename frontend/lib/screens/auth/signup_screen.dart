@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../theme/gleisner_tokens.dart';
 import '../../utils/validators.dart';
 import '../../widgets/common/auth_header.dart';
 import '../../widgets/common/error_banner.dart';
@@ -53,7 +54,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(spaceXl),
             child: Form(
               key: _formKey,
               child: Column(
@@ -61,10 +62,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const AuthHeader(subtitle: 'Create your account'),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: spaceXxl),
                   if (authState.error != null) ...[
                     ErrorBanner(message: authState.error!),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: spaceLg),
                   ],
                   TextFormField(
                     controller: _usernameController,
@@ -74,7 +75,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     ),
                     validator: validateUsername,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: spaceLg),
                   TextFormField(
                     controller: _emailController,
                     decoration: const InputDecoration(
@@ -84,7 +85,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     keyboardType: TextInputType.emailAddress,
                     validator: validateEmail,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: spaceLg),
                   TextFormField(
                     controller: _passwordController,
                     decoration: const InputDecoration(
@@ -94,7 +95,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     obscureText: true,
                     validator: validatePassword,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: spaceXl),
                   FilledButton(
                     onPressed: _isSubmitting ? null : _handleSignup,
                     child: _isSubmitting
@@ -105,7 +106,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           )
                         : const Text('Create Account'),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: spaceLg),
                   TextButton(
                     onPressed: () => context.go('/login'),
                     child: const Text('Already have an account? Sign in'),

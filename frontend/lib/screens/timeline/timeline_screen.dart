@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../graphql/client.dart';
-import '../../models/post.dart';
 import '../../models/track.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/node_card.dart';
+import '../../theme/gleisner_tokens.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
@@ -55,16 +55,16 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0a0a0f),
+      backgroundColor: colorSurface0,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0a0a0f),
+        backgroundColor: colorSurface0,
         title: const Text(
           'Gleisner',
-          style: TextStyle(color: Color(0xFFeeeeee)),
+          style: TextStyle(color: colorTextPrimary),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Color(0xFF8888a0)),
+            icon: const Icon(Icons.logout, color: colorInteractive),
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               ref.invalidate(graphqlClientProvider);
@@ -73,10 +73,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         ],
       ),
       floatingActionButton: timeline.artist != null
-          ? FloatingActionButton(
-              onPressed: () => context.go('/create-post'),
-              child: const Icon(Icons.add),
-            )
+          ? _GlowingStarButton(onPressed: () => context.go('/create-post'))
           : null,
       body: Column(
         children: [
@@ -108,7 +105,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                           ? 'Register as an artist to get started'
                           : 'No posts yet',
                       style: TextStyle(
-                        color: const Color(0xFF8888a0),
+                        color: colorInteractive,
                         fontSize: theme.textTheme.bodyLarge?.fontSize,
                       ),
                     ),
@@ -203,7 +200,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     .map((p) => p.constellation!.name)
                     .firstOrNull;
                 return Container(
-                  color: const Color(0xFF0c0c12),
+                  color: colorSurface1,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 10,
@@ -213,7 +210,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                       const Icon(
                         Icons.auto_awesome,
                         size: 16,
-                        color: Color(0xFF8888a0),
+                        color: colorInteractive,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -222,7 +219,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                               ? '$constellationName · ${timeline.constellationPostIds!.length} posts'
                               : 'Constellation · ${timeline.constellationPostIds!.length} posts',
                           style: const TextStyle(
-                            color: Color(0xFFccccdd),
+                            color: colorTextSecondary,
                             fontSize: 13,
                           ),
                           maxLines: 1,
@@ -236,7 +233,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         child: const Icon(
                           Icons.close,
                           size: 18,
-                          color: Color(0xFF8888a0),
+                          color: colorInteractive,
                         ),
                       ),
                     ],
@@ -269,45 +266,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         highlight: node.post.id == highlightPostId,
         focused: isFocused,
         onTap: () => _handleNodeTap(node.post.id),
-        onToggleReaction: (postId, emoji) async {
-          final notifier = ref.read(timelineProvider.notifier);
-          final success = await notifier.toggleReaction(postId, emoji);
-          if (success) {
-            // Optimistic update: toggle myReactions + counts locally
-            final post = ref
-                .read(timelineProvider)
-                .posts
-                .firstWhere((p) => p.id == postId);
-            final myR = List<String>.from(post.myReactions);
-            final counts = List<ReactionCount>.from(post.reactionCounts);
-            if (myR.contains(emoji)) {
-              myR.remove(emoji);
-              final idx = counts.indexWhere((c) => c.emoji == emoji);
-              if (idx >= 0) {
-                final n = counts[idx].count - 1;
-                if (n <= 0) {
-                  counts.removeAt(idx);
-                } else {
-                  counts[idx] = ReactionCount(emoji: emoji, count: n);
-                }
-              }
-            } else {
-              myR.add(emoji);
-              final idx = counts.indexWhere((c) => c.emoji == emoji);
-              if (idx >= 0) {
-                counts[idx] = ReactionCount(
-                  emoji: emoji,
-                  count: counts[idx].count + 1,
-                );
-              } else {
-                counts.add(ReactionCount(emoji: emoji, count: 1));
-              }
-            }
-            counts.sort((a, b) => b.count.compareTo(a.count));
-            notifier.updatePostReactions(postId, counts, myR);
-          }
-          return success;
-        },
+        onToggleReaction: (postId, emoji) =>
+            ref.read(timelineProvider.notifier).toggleReaction(postId, emoji),
         onOpenDetail: () => _openDetailSheet(node.post.id),
       );
 
@@ -467,14 +427,14 @@ class _DateLabel extends StatelessWidget {
     final Color dayColor;
     final Color monthColor;
     if (isHighlighted) {
-      dayColor = const Color(0xFFeeeeee);
-      monthColor = const Color(0xFFccccdd);
+      dayColor = colorTextPrimary;
+      monthColor = colorTextSecondary;
     } else if (isToday && !todayDimmed) {
-      dayColor = const Color(0xFFeeeeee);
-      monthColor = const Color(0xFFaaaacc);
+      dayColor = colorTextPrimary;
+      monthColor = colorTextSecondary;
     } else {
-      dayColor = const Color(0xFF6a6a80);
-      monthColor = const Color(0xFF555570);
+      dayColor = colorInteractiveMuted;
+      monthColor = colorInteractiveMuted;
     }
 
     return SizedBox(
@@ -487,7 +447,7 @@ class _DateLabel extends StatelessWidget {
               height: 7,
               margin: const EdgeInsets.only(bottom: 3),
               decoration: const BoxDecoration(
-                color: Color(0xFFef4444),
+                color: colorError,
                 shape: BoxShape.circle,
               ),
             ),
@@ -564,7 +524,7 @@ class _TrackSelector extends StatelessWidget {
               label: 'All',
               selected: allSelected,
               onTap: onToggleAll,
-              selectedColor: const Color(0xFF8888a0),
+              selectedColor: colorInteractive,
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -594,16 +554,126 @@ class _TrackSelector extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: borderRadius ?? BorderRadius.circular(10),
           color: selected ? selectedColor.withValues(alpha: 0.2) : null,
-          border: Border.all(
-            color: selected ? selectedColor : const Color(0xFF1a1a28),
-          ),
+          border: Border.all(color: selected ? selectedColor : colorBorder),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 11,
-            color: selected ? selectedColor : const Color(0xFF8888a0),
+            color: selected ? selectedColor : colorInteractive,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A glowing star button that replaces the generic Material FAB.
+/// Uses warm gold accent (distinct from track colors) with a breathing
+/// pulse animation. The auto_awesome + badge connects to the
+/// constellation metaphor of "adding a new star."
+class _GlowingStarButton extends StatefulWidget {
+  final VoidCallback onPressed;
+
+  const _GlowingStarButton({required this.onPressed});
+
+  @override
+  State<_GlowingStarButton> createState() => _GlowingStarButtonState();
+}
+
+class _GlowingStarButtonState extends State<_GlowingStarButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 2400),
+      vsync: this,
+    )..repeat(reverse: true);
+    _pulse = Tween(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const glowColor = colorAccentGold;
+
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (context, child) {
+        final v = _pulse.value;
+        return Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: glowColor.withValues(alpha: 0.25 + v * 0.15),
+                blurRadius: 12 + v * 8,
+                spreadRadius: 2 + v * 3,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onPressed,
+          customBorder: const CircleBorder(),
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [glowColor.withValues(alpha: 0.3), colorSurface1],
+                stops: const [0.0, 0.85],
+              ),
+              border: Border.all(
+                color: glowColor.withValues(alpha: 0.4),
+                width: 1.5,
+              ),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(Icons.auto_awesome, color: glowColor, size: 24),
+                Positioned(
+                  right: 10,
+                  bottom: 10,
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: colorSurface1,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: glowColor.withValues(alpha: 0.6),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.add,
+                      size: 10,
+                      color: colorAccentGold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

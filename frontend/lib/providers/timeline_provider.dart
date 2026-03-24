@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -176,8 +177,8 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
     state = state.copyWith(artist: updatedArtist, selectedTrackIds: ids);
   }
 
-  /// Add a single post to local state (optimistic/post-creation update).
-  /// Toggle a reaction on a post. Returns true on success.
+  /// Toggle a reaction on a post with optimistic local update.
+  /// Returns true on success.
   Future<bool> toggleReaction(String postId, String emoji) async {
     try {
       final result = await _client.mutate(
@@ -186,7 +187,39 @@ class TimelineNotifier extends StateNotifier<TimelineState> {
           variables: {'postId': postId, 'emoji': emoji},
         ),
       );
-      return !result.hasException;
+      if (result.hasException) return false;
+
+      // Optimistic update: toggle myReactions + counts locally
+      final post = state.posts.firstWhereOrNull((p) => p.id == postId);
+      if (post == null) return true; // DB succeeded, post not in current view
+      final myR = List<String>.from(post.myReactions);
+      final counts = List<ReactionCount>.from(post.reactionCounts);
+      if (myR.contains(emoji)) {
+        myR.remove(emoji);
+        final idx = counts.indexWhere((c) => c.emoji == emoji);
+        if (idx >= 0) {
+          final n = counts[idx].count - 1;
+          if (n <= 0) {
+            counts.removeAt(idx);
+          } else {
+            counts[idx] = ReactionCount(emoji: emoji, count: n);
+          }
+        }
+      } else {
+        myR.add(emoji);
+        final idx = counts.indexWhere((c) => c.emoji == emoji);
+        if (idx >= 0) {
+          counts[idx] = ReactionCount(
+            emoji: emoji,
+            count: counts[idx].count + 1,
+          );
+        } else {
+          counts.add(ReactionCount(emoji: emoji, count: 1));
+        }
+      }
+      counts.sort((a, b) => b.count.compareTo(a.count));
+      updatePostReactions(postId, counts, myR);
+      return true;
     } catch (_) {
       return false;
     }

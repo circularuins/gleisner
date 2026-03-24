@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../theme/gleisner_tokens.dart';
 import '../../utils/validators.dart';
 import '../../widgets/common/auth_header.dart';
 import '../../widgets/common/error_banner.dart';
@@ -50,7 +51,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(spaceXl),
             child: Form(
               key: _formKey,
               child: Column(
@@ -58,10 +59,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const AuthHeader(subtitle: 'Sign in to your account'),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: spaceXxl),
                   if (authState.error != null) ...[
                     ErrorBanner(message: authState.error!),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: spaceLg),
                   ],
                   TextFormField(
                     controller: _emailController,
@@ -72,7 +73,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     keyboardType: TextInputType.emailAddress,
                     validator: validateEmail,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: spaceLg),
                   TextFormField(
                     controller: _passwordController,
                     decoration: const InputDecoration(
@@ -82,7 +83,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     obscureText: true,
                     validator: (v) => validateRequired(v, 'Password'),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: spaceXl),
                   FilledButton(
                     onPressed: _isSubmitting ? null : _handleLogin,
                     child: _isSubmitting
@@ -93,7 +94,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           )
                         : const Text('Sign In'),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: spaceLg),
                   TextButton(
                     onPressed: () => context.go('/signup'),
                     child: const Text("Don't have an account? Sign up"),

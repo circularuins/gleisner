@@ -9,6 +9,7 @@ import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/common/error_banner.dart';
 import '../../widgets/common/related_post_picker.dart';
+import '../../theme/gleisner_tokens.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
@@ -110,18 +111,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 }
 
 // Preset colors for auto-assignment (avoids duplicates with existing tracks)
-const _trackColorPresets = [
-  '#f97316', // orange
-  '#a78bfa', // purple
-  '#22d3ee', // cyan
-  '#84cc16', // lime
-  '#ef4444', // red
-  '#fbbf24', // amber
-  '#ec4899', // pink
-  '#14b8a6', // teal
-  '#8b5cf6', // violet
-  '#f43f5e', // rose
-];
+const _trackColorPresets = trackColorPresets;
 
 const _maxTracks = 10;
 
@@ -143,7 +133,7 @@ class _TrackStep extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('Select a track', style: theme.textTheme.headlineSmall),
-            const SizedBox(height: 24),
+            const SizedBox(height: spaceXl),
             Wrap(
               spacing: 12,
               runSpacing: 12,
@@ -267,7 +257,7 @@ class _TrackStep extends ConsumerWidget {
                         ? null
                         : (_) => submit(setDialogState),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: spaceSm),
                   Row(
                     children: [
                       Container(
@@ -278,7 +268,7 @@ class _TrackStep extends ConsumerWidget {
                           shape: BoxShape.circle,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: spaceSm),
                       Text(
                         'Color: auto-assigned',
                         style: Theme.of(context).textTheme.labelSmall,
@@ -334,7 +324,7 @@ class _MediaTypeStep extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('Content type', style: theme.textTheme.headlineSmall),
-            const SizedBox(height: 32),
+            const SizedBox(height: spaceXxl),
             Wrap(
               spacing: 20,
               runSpacing: 16,
@@ -355,7 +345,7 @@ class _MediaTypeStep extends ConsumerWidget {
                             .selectMediaType(type),
                         icon: Icon(icon),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: spaceXs),
                       Text(label, style: theme.textTheme.labelMedium),
                     ],
                   ),
@@ -410,14 +400,14 @@ class _FormStep extends ConsumerWidget {
                     label: Text(state.selectedTrack!.name),
                     visualDensity: VisualDensity.compact,
                   ),
-                const SizedBox(width: 8),
+                const SizedBox(width: spaceSm),
                 Chip(
                   label: Text(mediaType.name),
                   visualDensity: VisualDensity.compact,
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: spaceLg),
 
             // Media-type-specific fields
             ..._buildContentFields(mediaType, theme),
@@ -451,7 +441,7 @@ class _FormStep extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: spaceSm),
                 _ImportancePreview(
                   importance: state.importance,
                   mediaType: mediaType,
@@ -464,7 +454,7 @@ class _FormStep extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: spaceXl),
 
             // Related post
             _RelatedPostSection(
@@ -474,12 +464,12 @@ class _FormStep extends ConsumerWidget {
                   ref.read(createPostProvider.notifier).clearRelatedPost(),
               onPickRequested: () => _showRelatedPostPicker(context, ref),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: spaceXl),
 
             // Error
             if (state.error != null) ...[
               ErrorBanner(message: state.error!),
-              const SizedBox(height: 16),
+              const SizedBox(height: spaceLg),
             ],
 
             // Submit
@@ -540,7 +530,7 @@ class _FormStep extends ConsumerWidget {
         maxLength: 100,
         style: theme.textTheme.titleMedium,
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: spaceMd),
       TextFormField(
         controller: bodyController,
         decoration: const InputDecoration(
@@ -560,7 +550,7 @@ class _FormStep extends ConsumerWidget {
           return null;
         },
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: spaceLg),
     ];
   }
 
@@ -592,7 +582,7 @@ class _FormStep extends ConsumerWidget {
               size: 40,
               color: theme.colorScheme.onSurface.withAlpha(100),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: spaceSm),
             Text(
               '$label upload coming soon',
               style: theme.textTheme.bodySmall?.copyWith(
@@ -602,7 +592,7 @@ class _FormStep extends ConsumerWidget {
           ],
         ),
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: spaceLg),
       // Caption
       TextFormField(
         controller: bodyController,
@@ -614,7 +604,7 @@ class _FormStep extends ConsumerWidget {
         maxLines: 3,
         maxLength: 500,
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: spaceLg),
     ];
   }
 
@@ -642,7 +632,7 @@ class _FormStep extends ConsumerWidget {
           return null;
         },
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: spaceLg),
       TextFormField(
         controller: bodyController,
         decoration: const InputDecoration(
@@ -653,7 +643,7 @@ class _FormStep extends ConsumerWidget {
         maxLines: 3,
         maxLength: 500,
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: spaceLg),
     ];
   }
 }
@@ -700,7 +690,7 @@ class _ImportancePreview extends StatelessWidget {
             ),
           ],
           border: Border.all(color: trackColor.withValues(alpha: 0.3)),
-          color: const Color(0xFF0c0c12),
+          color: colorSurface1,
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -733,7 +723,7 @@ class _ImportancePreview extends StatelessWidget {
                     Text(
                       title,
                       style: const TextStyle(
-                        color: Color(0xFFeeeeee),
+                        color: colorTextPrimary,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                         height: 1.3,
@@ -775,7 +765,7 @@ class _RelatedPostSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Related post', style: theme.textTheme.titleSmall),
-        const SizedBox(height: 8),
+        const SizedBox(height: spaceSm),
         if (selectedPost != null)
           Card(
             child: ListTile(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-const fallbackTrackColor = Color(0xFF808080);
+import '../theme/gleisner_tokens.dart';
+
+const fallbackTrackColor = colorTrackFallback;
 
 /// Parse a hex color string (e.g. "#ff5500" or "ff5500") to a Color.
 Color parseHexColor(String? hex, {Color fallback = fallbackTrackColor}) {
