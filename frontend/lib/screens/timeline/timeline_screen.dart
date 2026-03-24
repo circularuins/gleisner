@@ -688,7 +688,33 @@ class _GlowingStarButtonState extends State<_GlowingStarButton>
                 width: 1.5,
               ),
             ),
-            child: Icon(Icons.auto_awesome, color: glowColor, size: 24),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(Icons.auto_awesome, color: glowColor, size: 24),
+                Positioned(
+                  right: 10,
+                  bottom: 10,
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: colorSurface1,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: glowColor.withValues(alpha: 0.6),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.add,
+                      size: 10,
+                      color: colorAccentGold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

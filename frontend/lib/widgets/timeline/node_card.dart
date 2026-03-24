@@ -346,6 +346,7 @@ class _ImageContent extends StatelessWidget {
           height: node.mediaHeight,
           trackColor: trackColor,
           seed: seed,
+          mediaType: MediaType.image,
         ),
         if (node.showInfo) _InfoBar(post: post, trackColor: trackColor),
       ],
@@ -375,6 +376,7 @@ class _VideoContent extends StatelessWidget {
               height: node.mediaHeight,
               trackColor: trackColor,
               seed: seed,
+              mediaType: MediaType.video,
             ),
             Container(
               width: 32,

@@ -807,6 +807,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
           height: 220,
           trackColor: trackColor,
           seed: seedString,
+          mediaType: MediaType.image,
         ),
         _trackTag(post, trackColor, positioned: true),
         _typeBadge(post),
@@ -828,6 +829,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
           height: 220,
           trackColor: trackColor,
           seed: seedString,
+          mediaType: MediaType.video,
         ),
         Container(
           width: 52,
