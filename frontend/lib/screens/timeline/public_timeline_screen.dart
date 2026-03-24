@@ -226,7 +226,10 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
           if (!isAuthenticated)
             Container(
               color: colorSurface1,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(
+                horizontal: spaceLg,
+                vertical: spaceMd,
+              ),
               child: Row(
                 children: [
                   const Icon(
@@ -234,18 +237,18 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
                     size: 18,
                     color: colorAccentGold,
                   ),
-                  const SizedBox(width: 10),
-                  const Expanded(
+                  const SizedBox(width: spaceMd),
+                  Expanded(
                     child: Text(
                       'Create your own constellation',
-                      style: TextStyle(color: colorTextSecondary, fontSize: 13),
+                      style: textHeading.copyWith(fontSize: 13),
                     ),
                   ),
-                  TextButton(
+                  FilledButton.tonal(
                     onPressed: () => context.go('/signup'),
                     child: const Text('Sign up'),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: spaceSm),
                   TextButton(
                     onPressed: () => context.go('/login'),
                     child: const Text('Login'),
