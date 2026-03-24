@@ -20,6 +20,15 @@ Widget が必要とするのはコールバック（`onToggleReaction`, `onReact
 楽観的更新（API 成功後のローカル状態更新）も Notifier 内で完結させる。
 これにより テスト容易性・保守性・関心の分離 が保たれる。
 
+### 表示ウィジェットにナビゲーションを混ぜない
+
+**再利用可能なウィジェット（Hero、Card、Layout 等）の中で `context.go()` / `context.push()` を直接呼ばないこと。** ナビゲーション決定は Screen/Page レベルで行い、子ウィジェットには `VoidCallback` で渡す。
+
+- ✅ `AuthLayout(onTryIt: () => context.go('/@seeduser'))` → Screen がルーティングを決定
+- ❌ ウィジェット内部で `context.go('/some-route')` をハードコード
+
+これにより テスタビリティ（GoRouter 不要でテスト可能）・再利用性（異なる画面で別の遷移先を指定可能）が保たれる。
+
 ### ボトムシートからボトムシートを開く場合
 
 **`onSelected` コールバック内で `Navigator.pop(context, value)` を呼ばないこと。** picker 系ウィジェット（`RelatedPostPicker` 等）は内部で `Navigator.pop(context)` を呼ぶため、外から追加で pop すると二重 pop になり、親のボトムシートまで閉じてしまう。
