@@ -74,9 +74,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         ],
       ),
       floatingActionButton: timeline.artist != null
-          ? FloatingActionButton(
+          ? _GlowingStarButton(
+              tracks: timeline.artist!.tracks,
               onPressed: () => context.go('/create-post'),
-              child: const Icon(Icons.add),
             )
           : null,
       body: Column(
@@ -603,6 +603,94 @@ class _TrackSelector extends StatelessWidget {
             fontSize: 11,
             color: selected ? selectedColor : colorInteractive,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A glowing star button that replaces the generic Material FAB.
+/// Uses the first track's color for the glow effect, connecting
+/// the "add post" action to the constellation metaphor.
+class _GlowingStarButton extends StatefulWidget {
+  final List<Track> tracks;
+  final VoidCallback onPressed;
+
+  const _GlowingStarButton({required this.tracks, required this.onPressed});
+
+  @override
+  State<_GlowingStarButton> createState() => _GlowingStarButtonState();
+}
+
+class _GlowingStarButtonState extends State<_GlowingStarButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 2400),
+      vsync: this,
+    )..repeat(reverse: true);
+    _pulse = Tween(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final glowColor = widget.tracks.isNotEmpty
+        ? widget.tracks.first.displayColor
+        : Theme.of(context).colorScheme.primary;
+
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (context, child) {
+        final v = _pulse.value;
+        return Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: glowColor.withValues(alpha: 0.25 + v * 0.15),
+                blurRadius: 12 + v * 8,
+                spreadRadius: 2 + v * 3,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onPressed,
+          customBorder: const CircleBorder(),
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [glowColor.withValues(alpha: 0.3), colorSurface1],
+                stops: const [0.0, 0.85],
+              ),
+              border: Border.all(
+                color: glowColor.withValues(alpha: 0.4),
+                width: 1.5,
+              ),
+            ),
+            child: Icon(Icons.auto_awesome, color: glowColor, size: 24),
           ),
         ),
       ),
