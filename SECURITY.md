@@ -8,7 +8,7 @@ If you discover a security vulnerability in Gleisner, please report it responsib
 
 ### How to report
 
-Email: **security@gleisner.app** (or create a private GitHub Security Advisory)
+> **Note**: Gleisner is pre-launch. A dedicated security email (e.g., `security@gleisner.app`) has not been set up yet. For now, please use the GitHub Security Advisory method below.
 
 To create a private advisory:
 1. Go to the [Security tab](../../security/advisories) of this repository
