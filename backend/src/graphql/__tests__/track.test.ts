@@ -259,6 +259,95 @@ describe("Track GraphQL integration", () => {
       );
     });
 
+    it("rejects duplicate track name (exact match)", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "dup1@example.com",
+        "dupuser1",
+        "dupartist1",
+      );
+
+      await gql(
+        app,
+        CREATE_TRACK_MUTATION,
+        { name: "Music", color: "#FF0000" },
+        token,
+      );
+
+      const result = await gql(
+        app,
+        CREATE_TRACK_MUTATION,
+        { name: "Music", color: "#00FF00" },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "A track with this name already exists",
+      );
+    });
+
+    it("rejects duplicate track name (case-insensitive)", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "dup2@example.com",
+        "dupuser2",
+        "dupartist2",
+      );
+
+      await gql(
+        app,
+        CREATE_TRACK_MUTATION,
+        { name: "Music", color: "#FF0000" },
+        token,
+      );
+
+      const result = await gql(
+        app,
+        CREATE_TRACK_MUTATION,
+        { name: "MUSIC", color: "#00FF00" },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "A track with this name already exists",
+      );
+    });
+
+    it("allows same track name for different artists", async () => {
+      const token1 = await signupAndRegisterArtist(
+        app,
+        "dup3@example.com",
+        "dupuser3",
+        "dupartist3",
+      );
+      const token2 = await signupAndRegisterArtist(
+        app,
+        "dup4@example.com",
+        "dupuser4",
+        "dupartist4",
+      );
+
+      await gql(
+        app,
+        CREATE_TRACK_MUTATION,
+        { name: "Music", color: "#FF0000" },
+        token1,
+      );
+
+      const result = await gql(
+        app,
+        CREATE_TRACK_MUTATION,
+        { name: "Music", color: "#00FF00" },
+        token2,
+      );
+
+      expect(result.errors).toBeUndefined();
+      const track = result.data!.createTrack as Record<string, unknown>;
+      expect(track.name).toBe("Music");
+    });
+
     it("rejects invalid color format", async () => {
       const token = await signupAndRegisterArtist(
         app,
@@ -346,6 +435,73 @@ describe("Track GraphQL integration", () => {
       expect(result.errors![0].message).toBe(
         "Not authorized to update this track",
       );
+    });
+
+    it("rejects rename to duplicate name (case-insensitive)", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "udup1@example.com",
+        "udupuser1",
+        "udupartist1",
+      );
+
+      await gql(
+        app,
+        CREATE_TRACK_MUTATION,
+        { name: "First", color: "#000000" },
+        token,
+      );
+      const createResult = await gql(
+        app,
+        CREATE_TRACK_MUTATION,
+        { name: "Second", color: "#111111" },
+        token,
+      );
+      const secondId = (
+        createResult.data!.createTrack as Record<string, unknown>
+      ).id as string;
+
+      const result = await gql(
+        app,
+        UPDATE_TRACK_MUTATION,
+        { id: secondId, name: "FIRST" },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "A track with this name already exists",
+      );
+    });
+
+    it("allows renaming a track to its own name (different case)", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "udup2@example.com",
+        "udupuser2",
+        "udupartist2",
+      );
+
+      const createResult = await gql(
+        app,
+        CREATE_TRACK_MUTATION,
+        { name: "MyTrack", color: "#000000" },
+        token,
+      );
+      const trackId = (
+        createResult.data!.createTrack as Record<string, unknown>
+      ).id as string;
+
+      const result = await gql(
+        app,
+        UPDATE_TRACK_MUTATION,
+        { id: trackId, name: "MYTRACK" },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+      const track = result.data!.updateTrack as Record<string, unknown>;
+      expect(track.name).toBe("MYTRACK");
     });
 
     it("rejects unauthenticated request", async () => {

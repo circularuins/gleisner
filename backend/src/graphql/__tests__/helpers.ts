@@ -156,7 +156,7 @@ export async function createPostForTest(
   const trackResult = await gql(
     testApp,
     CREATE_TRACK_MUTATION,
-    { name: "TestTrack", color: "#FF0000" },
+    { name: `Track_${crypto.randomUUID().slice(0, 8)}`, color: "#FF0000" },
     token,
   );
   const trackId = (trackResult.data!.createTrack as { id: string }).id;

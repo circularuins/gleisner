@@ -1,8 +1,8 @@
 import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
-import { artists } from "../../db/schema/index.js";
-import { eq } from "drizzle-orm";
+import { artists, artistGenres } from "../../db/schema/index.js";
+import { eq, desc, sql } from "drizzle-orm";
 import { validateUrl } from "../validators.js";
 
 export const ArtistType = builder.objectRef<{
@@ -230,6 +230,89 @@ builder.queryFields((t) => ({
         .where(eq(artists.artistUsername, args.username))
         .limit(1);
       return artist ?? null;
+    },
+  }),
+
+  myArtist: t.field({
+    type: ArtistType,
+    nullable: true,
+    resolve: async (_parent, _args, ctx) => {
+      if (!ctx.authUser) return null;
+      const [artist] = await db
+        .select()
+        .from(artists)
+        .where(eq(artists.userId, ctx.authUser.userId))
+        .limit(1);
+      return artist ?? null;
+    },
+  }),
+
+  discoverArtists: t.field({
+    type: [ArtistType],
+    args: {
+      genreId: t.arg.string(),
+      query: t.arg.string(),
+      limit: t.arg.int(),
+      offset: t.arg.int(),
+    },
+    resolve: async (_parent, args) => {
+      const limit = Math.min(args.limit ?? 20, 50);
+      const offset = args.offset ?? 0;
+      const pattern = args.query?.trim() ? `%${args.query.trim()}%` : null;
+
+      // Genre filter: single JOIN query instead of 2-query split
+      if (args.genreId) {
+        const textFilter = pattern
+          ? sql` AND (${artists.displayName} ILIKE ${pattern} OR ${artists.artistUsername} ILIKE ${pattern} OR ${artists.tagline} ILIKE ${pattern})`
+          : sql``;
+
+        return db
+          .select({
+            id: artists.id,
+            userId: artists.userId,
+            artistUsername: artists.artistUsername,
+            displayName: artists.displayName,
+            bio: artists.bio,
+            tagline: artists.tagline,
+            location: artists.location,
+            activeSince: artists.activeSince,
+            avatarUrl: artists.avatarUrl,
+            coverImageUrl: artists.coverImageUrl,
+            tunedInCount: artists.tunedInCount,
+            createdAt: artists.createdAt,
+            updatedAt: artists.updatedAt,
+          })
+          .from(artists)
+          .innerJoin(
+            artistGenres,
+            sql`${artistGenres.artistId} = ${artists.id} AND ${artistGenres.genreId} = ${args.genreId}`,
+          )
+          .where(sql`1=1${textFilter}`)
+          .orderBy(desc(artists.tunedInCount))
+          .limit(limit)
+          .offset(offset);
+      }
+
+      // Text search only
+      if (pattern) {
+        return db
+          .select()
+          .from(artists)
+          .where(
+            sql`${artists.displayName} ILIKE ${pattern} OR ${artists.artistUsername} ILIKE ${pattern} OR ${artists.tagline} ILIKE ${pattern}`,
+          )
+          .orderBy(desc(artists.tunedInCount))
+          .limit(limit)
+          .offset(offset);
+      }
+
+      // No filters — all artists by popularity
+      return db
+        .select()
+        .from(artists)
+        .orderBy(desc(artists.tunedInCount))
+        .limit(limit)
+        .offset(offset);
     },
   }),
 }));
