@@ -81,15 +81,6 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Artist profile required");
       }
 
-      // Check genre limit (max 5 per artist)
-      const existingGenres = await db
-        .select({ genreId: artistGenres.genreId })
-        .from(artistGenres)
-        .where(eq(artistGenres.artistId, artist.id));
-      if (existingGenres.length >= 5) {
-        throw new GraphQLError("Maximum 5 genres per artist");
-      }
-
       // Verify genre exists
       const [genre] = await db
         .select({ id: genres.id })
@@ -100,17 +91,32 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Genre not found");
       }
 
+      // Check limit + insert atomically to prevent TOCTOU race condition
       try {
-        const [ag] = await db
-          .insert(artistGenres)
-          .values({
-            artistId: artist.id,
-            genreId: args.genreId,
-            ...(args.position != null ? { position: args.position } : {}),
-          })
-          .returning();
-        return ag;
-      } catch {
+        let result:
+          | { artistId: string; genreId: string; position: number }
+          | undefined;
+        await db.transaction(async (tx) => {
+          const existing = await tx
+            .select({ genreId: artistGenres.genreId })
+            .from(artistGenres)
+            .where(eq(artistGenres.artistId, artist.id));
+          if (existing.length >= 5) {
+            throw new GraphQLError("Maximum 5 genres per artist");
+          }
+          const [ag] = await tx
+            .insert(artistGenres)
+            .values({
+              artistId: artist.id,
+              genreId: args.genreId,
+              ...(args.position != null ? { position: args.position } : {}),
+            })
+            .returning();
+          result = ag;
+        });
+        return result!;
+      } catch (e) {
+        if (e instanceof GraphQLError) throw e;
         throw new GraphQLError("Genre already added or failed to add");
       }
     },
