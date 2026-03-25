@@ -35,5 +35,6 @@ class MyArtistNotifier extends Notifier<Artist?> with DisposableNotifier {
   }
 }
 
-final myArtistProvider =
-    NotifierProvider<MyArtistNotifier, Artist?>(MyArtistNotifier.new);
+final myArtistProvider = NotifierProvider<MyArtistNotifier, Artist?>(
+  MyArtistNotifier.new,
+);

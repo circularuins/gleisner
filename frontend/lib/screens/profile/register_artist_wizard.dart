@@ -4,7 +4,11 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../../graphql/client.dart';
 import '../../graphql/mutations/artist.dart';
+import '../../graphql/mutations/genre.dart';
 import '../../graphql/mutations/track.dart';
+import '../../graphql/queries/artist.dart';
+import '../../models/genre.dart';
+import '../../providers/my_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 
 /// ADR 013: 4-step artist registration wizard.
@@ -35,12 +39,35 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
   final _activeSinceController = TextEditingController();
   final _profileFormKey = GlobalKey<FormState>();
 
+  // Step 2: Genre selection
+  List<Genre> _availableGenres = [];
+  final List<Genre> _selectedGenres = [];
+
   // Step 3: Track Setup
   String? _selectedTemplate;
   List<_TrackDraft> _tracks = [];
 
   // Step 4: Result
   String? _registeredArtistUsername;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGenres();
+  }
+
+  Future<void> _loadGenres() async {
+    final client = ref.read(graphqlClientProvider);
+    final result = await client.query(QueryOptions(document: gql(genresQuery)));
+    if (!mounted || result.hasException) return;
+    final list =
+        (result.data?['genres'] as List?)
+            ?.map((g) => Genre.fromJson(g as Map<String, dynamic>))
+            .where((g) => g.isPromoted)
+            .toList() ??
+        [];
+    setState(() => _availableGenres = list);
+  }
 
   @override
   void dispose() {
@@ -114,6 +141,17 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
       taglineController: _taglineController,
       locationController: _locationController,
       activeSinceController: _activeSinceController,
+      availableGenres: _availableGenres,
+      selectedGenres: _selectedGenres,
+      onGenreToggle: (genre) {
+        setState(() {
+          if (_selectedGenres.any((g) => g.id == genre.id)) {
+            _selectedGenres.removeWhere((g) => g.id == genre.id);
+          } else if (_selectedGenres.length < 5) {
+            _selectedGenres.add(genre);
+          }
+        });
+      },
       error: _error,
       onNext: () {
         if (_profileFormKey.currentState!.validate()) {
@@ -217,7 +255,8 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
             variables: {'name': track.name, 'color': track.color},
           ),
         );
-        if (trackResult.hasException || trackResult.data?['createTrack'] == null) {
+        if (trackResult.hasException ||
+            trackResult.data?['createTrack'] == null) {
           debugPrint('[RegisterArtist] track creation failed: ${track.name}');
           failedTracks.add(track.name);
         }
@@ -225,11 +264,44 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
 
       if (!mounted) return;
 
+      // 3. Add genres (parallel)
+      final genreResults = await Future.wait([
+        for (var i = 0; i < _selectedGenres.length; i++)
+          client.mutate(
+            MutationOptions(
+              document: gql(addArtistGenreMutation),
+              variables: {'genreId': _selectedGenres[i].id, 'position': i},
+            ),
+          ),
+      ]);
+      final failedGenres = <String>[];
+      for (var i = 0; i < genreResults.length; i++) {
+        if (genreResults[i].hasException) {
+          debugPrint('[RegisterArtist] genre failed: ${_selectedGenres[i].name}');
+          failedGenres.add(_selectedGenres[i].name);
+        }
+      }
+
+      if (!mounted) return;
+
+      // 4. Refresh myArtistProvider so Profile screen updates
+      await ref.read(myArtistProvider.notifier).load();
+
+      if (!mounted) return;
+
+      final errors = <String>[];
       if (failedTracks.isNotEmpty) {
+        errors.add('Tracks: ${failedTracks.join(", ")}');
+      }
+      if (failedGenres.isNotEmpty) {
+        errors.add('Genres: ${failedGenres.join(", ")}');
+      }
+      if (errors.isNotEmpty) {
         setState(() {
           _isSubmitting = false;
-          _error = 'Failed to create tracks: ${failedTracks.join(", ")}. '
-              'You can add them later from your timeline.';
+          _error =
+              'Some items failed: ${errors.join("; ")}. '
+              'You can update them later.';
           _step = 3; // Still proceed to Complete — artist is registered
         });
         return;
@@ -376,6 +448,9 @@ class _StepProfile extends StatelessWidget {
   final TextEditingController taglineController;
   final TextEditingController locationController;
   final TextEditingController activeSinceController;
+  final List<Genre> availableGenres;
+  final List<Genre> selectedGenres;
+  final ValueChanged<Genre> onGenreToggle;
   final String? error;
   final VoidCallback onNext;
 
@@ -387,6 +462,9 @@ class _StepProfile extends StatelessWidget {
     required this.taglineController,
     required this.locationController,
     required this.activeSinceController,
+    required this.availableGenres,
+    required this.selectedGenres,
+    required this.onGenreToggle,
     this.error,
     required this.onNext,
   });
@@ -496,6 +574,54 @@ class _StepProfile extends StatelessWidget {
                 return null;
               },
             ),
+            // Genre selection (ADR 013: up to 5)
+            if (availableGenres.isNotEmpty) ...[
+              const SizedBox(height: spaceXl),
+              Text(
+                'Genres (up to 5)',
+                style: TextStyle(
+                  color: colorTextPrimary,
+                  fontSize: fontSizeMd,
+                  fontWeight: weightSemibold,
+                ),
+              ),
+              const SizedBox(height: spaceSm),
+              Wrap(
+                spacing: spaceSm,
+                runSpacing: spaceSm,
+                children: availableGenres.map((genre) {
+                  final selected = selectedGenres.any((g) => g.id == genre.id);
+                  return GestureDetector(
+                    onTap: () => onGenreToggle(genre),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: spaceMd,
+                        vertical: spaceXs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? colorAccentGold.withValues(alpha: 0.15)
+                            : colorSurface2,
+                        borderRadius: BorderRadius.circular(radiusFull),
+                        border: Border.all(
+                          color: selected ? colorAccentGold : colorBorder,
+                        ),
+                      ),
+                      child: Text(
+                        genre.name,
+                        style: TextStyle(
+                          color: selected
+                              ? colorAccentGold
+                              : colorTextSecondary,
+                          fontSize: fontSizeSm,
+                          fontWeight: selected ? weightSemibold : weightNormal,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
             const SizedBox(height: spaceXl),
             FilledButton(
               onPressed: onNext,
@@ -665,6 +791,14 @@ class _StepTracks extends StatelessWidget {
                   final updated = List<_TrackDraft>.from(tracks)..removeAt(i);
                   onTracksChanged(updated);
                 },
+                onRename: (newName) {
+                  final updated = List<_TrackDraft>.from(tracks);
+                  updated[i] = _TrackDraft(
+                    name: newName,
+                    color: tracks[i].color,
+                  );
+                  onTracksChanged(updated);
+                },
               ),
             const SizedBox(height: spaceMd),
           ],
@@ -762,8 +896,13 @@ class _TemplateChip extends StatelessWidget {
 class _TrackChip extends StatelessWidget {
   final _TrackDraft track;
   final VoidCallback onRemove;
+  final ValueChanged<String> onRename;
 
-  const _TrackChip({required this.track, required this.onRemove});
+  const _TrackChip({
+    required this.track,
+    required this.onRemove,
+    required this.onRename,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -789,12 +928,65 @@ class _TrackChip extends StatelessWidget {
             ),
             const SizedBox(width: spaceMd),
             Expanded(
-              child: Text(
-                track.name,
-                style: TextStyle(
-                  color: color,
-                  fontSize: fontSizeMd,
-                  fontWeight: weightMedium,
+              child: GestureDetector(
+                onTap: () async {
+                  final controller = TextEditingController(text: track.name);
+                  try {
+                  final result = await showDialog<String>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: colorSurface1,
+                      title: const Text(
+                        'Rename Track',
+                        style: TextStyle(color: colorTextPrimary),
+                      ),
+                      content: TextField(
+                        controller: controller,
+                        autofocus: true,
+                        style: const TextStyle(color: colorTextPrimary),
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.pop(ctx, controller.text.trim()),
+                          child: const Text('Save'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (result != null && result.isNotEmpty) {
+                    onRename(result);
+                  }
+                  } finally {
+                    controller.dispose();
+                  }
+                },
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        track.name,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: fontSizeMd,
+                          fontWeight: weightMedium,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: spaceXs),
+                    Icon(
+                      Icons.edit,
+                      size: 12,
+                      color: color.withValues(alpha: 0.5),
+                    ),
+                  ],
                 ),
               ),
             ),

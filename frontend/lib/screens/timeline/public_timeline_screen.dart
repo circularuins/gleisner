@@ -50,12 +50,12 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
     final tuneIn = ref.watch(tuneInProvider);
     final theme = Theme.of(context);
     final authState = ref.watch(authProvider);
-    final isAuthenticated =
-        authState.status == AuthStatus.authenticated;
+    final isAuthenticated = authState.status == AuthStatus.authenticated;
     final artistId = timeline.artist?.id;
     final isTunedIn = artistId != null && tuneIn.isTunedIn(artistId);
     // Hide Tune In on own public timeline
-    final isSelf = isAuthenticated &&
+    final isSelf =
+        isAuthenticated &&
         timeline.artist != null &&
         timeline.artist!.artistUsername == widget.username;
 

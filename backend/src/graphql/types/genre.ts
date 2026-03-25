@@ -2,7 +2,7 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, artistGenres, genres } from "../../db/schema/index.js";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
 
 const GenreType = builder.objectRef<{
@@ -91,17 +91,36 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Genre not found");
       }
 
+      // Check limit + insert atomically to prevent TOCTOU race condition
       try {
-        const [ag] = await db
-          .insert(artistGenres)
-          .values({
-            artistId: artist.id,
-            genreId: args.genreId,
-            ...(args.position != null ? { position: args.position } : {}),
-          })
-          .returning();
-        return ag;
-      } catch {
+        let result:
+          | { artistId: string; genreId: string; position: number }
+          | undefined;
+        await db.transaction(async (tx) => {
+          // Lock artist row to serialize concurrent genre additions
+          await tx.execute(
+            sql`SELECT 1 FROM artists WHERE id = ${artist.id} FOR UPDATE`,
+          );
+          const existing = await tx
+            .select({ genreId: artistGenres.genreId })
+            .from(artistGenres)
+            .where(eq(artistGenres.artistId, artist.id));
+          if (existing.length >= 5) {
+            throw new GraphQLError("Maximum 5 genres per artist");
+          }
+          const [ag] = await tx
+            .insert(artistGenres)
+            .values({
+              artistId: artist.id,
+              genreId: args.genreId,
+              ...(args.position != null ? { position: args.position } : {}),
+            })
+            .returning();
+          result = ag;
+        });
+        return result!;
+      } catch (e) {
+        if (e instanceof GraphQLError) throw e;
         throw new GraphQLError("Genre already added or failed to add");
       }
     },

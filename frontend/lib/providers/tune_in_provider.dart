@@ -142,14 +142,11 @@ class TuneInNotifier extends Notifier<TuneInState> with DisposableNotifier {
         return false;
       } else {
         // Tuned in (got data back) — deduplicate to prevent race with loadMyTuneIns
-        final newTuneIn =
-            TunedInArtist.fromJson(data as Map<String, dynamic>);
+        final newTuneIn = TunedInArtist.fromJson(data as Map<String, dynamic>);
         final filtered = state.tunedInArtists
             .where((a) => a.id != newTuneIn.id)
             .toList();
-        state = state.copyWith(
-          tunedInArtists: [...filtered, newTuneIn],
-        );
+        state = state.copyWith(tunedInArtists: [...filtered, newTuneIn]);
         return true;
       }
     } catch (e) {

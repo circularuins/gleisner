@@ -446,12 +446,12 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                           ? colorInteractiveMuted
                           : trackColor.withValues(alpha: 0.7),
                       fontSize: fontSizeMd,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
       ],
     );
   }

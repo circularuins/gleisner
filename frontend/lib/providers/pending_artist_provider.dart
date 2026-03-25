@@ -10,5 +10,6 @@ class PendingArtistNotifier extends Notifier<String?> {
   void clear() => state = null;
 }
 
-final pendingArtistProvider =
-    NotifierProvider<PendingArtistNotifier, String?>(PendingArtistNotifier.new);
+final pendingArtistProvider = NotifierProvider<PendingArtistNotifier, String?>(
+  PendingArtistNotifier.new,
+);

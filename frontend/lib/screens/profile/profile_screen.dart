@@ -110,9 +110,8 @@ class ProfileScreen extends ConsumerWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => context.push(
-                        '/artist/${artist.artistUsername}',
-                      ),
+                      onPressed: () =>
+                          context.push('/artist/${artist.artistUsername}'),
                       icon: const Icon(Icons.person, size: 16),
                       label: const Text('View Artist Page'),
                       style: OutlinedButton.styleFrom(

@@ -14,8 +14,7 @@ bool isOwnTimeline({
   required String? ownArtistUsername,
 }) {
   return viewingArtistUsername == null ||
-      (ownArtistUsername != null &&
-          viewingArtistUsername == ownArtistUsername);
+      (ownArtistUsername != null && viewingArtistUsername == ownArtistUsername);
 }
 
 /// Decides what to show on initial load.
@@ -99,8 +98,7 @@ void main() {
 
     test('false for fan-only user viewing an artist', () {
       expect(
-        isOwnTimeline(
-            viewingArtistUsername: 'other', ownArtistUsername: null),
+        isOwnTimeline(viewingArtistUsername: 'other', ownArtistUsername: null),
         isFalse,
       );
     });
@@ -126,10 +124,7 @@ void main() {
     test('fan-only with tuned-in → loads first tuned-in artist', () {
       final result = decideInitialTimeline(
         ownArtistUsername: null,
-        tunedInArtists: [
-          _artist('a1', 'artist1'),
-          _artist('a2', 'artist2'),
-        ],
+        tunedInArtists: [_artist('a1', 'artist1'), _artist('a2', 'artist2')],
       );
       expect(result.artistToLoad, 'artist1');
       expect(result.isOwn, isFalse);
@@ -157,10 +152,7 @@ void main() {
   group('decideAfterTuneOut', () {
     test('remaining artists → switch to first remaining', () {
       final result = decideAfterTuneOut(
-        remainingArtists: [
-          _artist('a2', 'artist2'),
-          _artist('a3', 'artist3'),
-        ],
+        remainingArtists: [_artist('a2', 'artist2'), _artist('a3', 'artist3')],
         ownArtistUsername: 'me',
       );
       expect(result, 'artist2');
@@ -220,22 +212,19 @@ void main() {
 
       artists = artists.where((a) => a.id != 'a1').toList();
       expect(
-        decideAfterTuneOut(
-            remainingArtists: artists, ownArtistUsername: null),
+        decideAfterTuneOut(remainingArtists: artists, ownArtistUsername: null),
         'artist2',
       );
 
       artists = artists.where((a) => a.id != 'a2').toList();
       expect(
-        decideAfterTuneOut(
-            remainingArtists: artists, ownArtistUsername: null),
+        decideAfterTuneOut(remainingArtists: artists, ownArtistUsername: null),
         'artist3',
       );
 
       artists = artists.where((a) => a.id != 'a3').toList();
       expect(
-        decideAfterTuneOut(
-            remainingArtists: artists, ownArtistUsername: null),
+        decideAfterTuneOut(remainingArtists: artists, ownArtistUsername: null),
         isNull,
       );
     });

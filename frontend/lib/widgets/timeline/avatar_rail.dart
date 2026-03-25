@@ -26,9 +26,7 @@ class AvatarRail extends StatelessWidget {
   Widget build(BuildContext context) {
     // Filter out self from tuned-in list to prevent duplicate display
     final filteredArtists = selfArtistUsername != null
-        ? artists
-              .where((a) => a.artistUsername != selfArtistUsername)
-              .toList()
+        ? artists.where((a) => a.artistUsername != selfArtistUsername).toList()
         : artists;
 
     if (filteredArtists.isEmpty && selfArtistUsername == null) {
