@@ -37,6 +37,27 @@
 2. **トップレベルクエリ** — `builder.queryFields()` 内の同名クエリにも同じチェック（別経路でアクセス可能）
 3. **テストファイル** — 該当クエリを呼ぶ全テストに認証トークンを渡す（`reaction.test.ts`, `public-user.test.ts` 等、複数ファイルに散在しうる）
 
+### 件数上限付き INSERT は SELECT FOR UPDATE + トランザクション
+
+**「COUNT で件数チェック → INSERT」パターンには必ず行ロックを使うこと。** READ COMMITTED では並列トランザクションが同時に COUNT を通過し、上限を超えて INSERT される（TOCTOU）。
+
+```typescript
+// ❌ トランザクションなし — 並列リクエストで上限突破
+const existing = await db.select().from(table).where(eq(table.parentId, id));
+if (existing.length >= MAX) throw new GraphQLError("Limit exceeded");
+await db.insert(table).values({ ... });
+
+// ✅ SELECT FOR UPDATE で親行をロック → COUNT → INSERT を原子化
+await db.transaction(async (tx) => {
+  await tx.execute(sql`SELECT 1 FROM parent_table WHERE id = ${id} FOR UPDATE`);
+  const existing = await tx.select().from(table).where(eq(table.parentId, id));
+  if (existing.length >= MAX) throw new GraphQLError("Limit exceeded");
+  await tx.insert(table).values({ ... });
+});
+```
+
+該当箇所: `addArtistGenre`（5件上限）、今後 `createTrack`（10件上限）にも適用すべき。
+
 ### テスト
 
 - 共通ヘルパーは `src/graphql/__tests__/helpers.ts` に集約。新規テストファイルではこれを import

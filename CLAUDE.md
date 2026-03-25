@@ -137,6 +137,13 @@ docker compose down    # PostgreSQL 停止
 - `.claude/rules/backend-implementation.md` — UserType 分離、contentHash、認可チェック等
 - `.claude/rules/frontend-implementation.md` — Provider 層ルール、Post フィールド追加チェックリスト等
 
+## Git ワークフロー
+
+**main ブランチへの直接 push は GitHub リポジトリルールで禁止。** 必ずブランチ → PR → マージのフローで作業すること。
+
+- コミット前にブランチを切る: `git checkout -b feature-name`
+- main で作業してしまった場合: `git checkout -b feature-name` で現在の変更をブランチに移す
+
 ## PR 前チェック（Gleisner 固有）
 
 yatima ルートの共通チェック（ビルド・リンター・テスト・diff 確認）に加え、以下を実行:
