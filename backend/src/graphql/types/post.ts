@@ -431,6 +431,7 @@ builder.queryFields((t) => ({
     },
   }),
 
+  // TODO(visibility): Add public/draft filter when post visibility is implemented
   artistPosts: t.field({
     type: [PostType],
     args: {

@@ -27,9 +27,10 @@ class ArtistPageState {
     bool? isLoading,
     String? error,
     bool clearError = false,
+    bool clearArtist = false,
   }) {
     return ArtistPageState(
-      artist: artist ?? this.artist,
+      artist: clearArtist ? null : (artist ?? this.artist),
       recentPosts: recentPosts ?? this.recentPosts,
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
@@ -48,14 +49,17 @@ class ArtistPageNotifier extends Notifier<ArtistPageState>
     return const ArtistPageState();
   }
 
+  /// Reset state and load a new artist. Call when navigating to a different
+  /// artist page to prevent stale data from the previous artist being shown.
   Future<void> loadArtist(String username) async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = const ArtistPageState(isLoading: true);
 
     try {
       final result = await _client.query(
         QueryOptions(
           document: gql(artistQuery),
           variables: {'username': username},
+          fetchPolicy: FetchPolicy.networkOnly,
         ),
       );
 
@@ -84,7 +88,10 @@ class ArtistPageNotifier extends Notifier<ArtistPageState>
     } catch (e) {
       if (disposed) return;
       debugPrint('[ArtistPage] load error: $e');
-      state = state.copyWith(isLoading: false, error: 'Failed to load artist.');
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load artist.',
+      );
     }
   }
 
@@ -94,6 +101,7 @@ class ArtistPageNotifier extends Notifier<ArtistPageState>
         QueryOptions(
           document: gql(artistRecentPostsQuery),
           variables: {'artistId': artistId, 'limit': 5},
+          fetchPolicy: FetchPolicy.networkOnly,
         ),
       );
 
@@ -117,5 +125,5 @@ class ArtistPageNotifier extends Notifier<ArtistPageState>
 
 final artistPageProvider =
     NotifierProvider<ArtistPageNotifier, ArtistPageState>(
-      ArtistPageNotifier.new,
-    );
+  ArtistPageNotifier.new,
+);
