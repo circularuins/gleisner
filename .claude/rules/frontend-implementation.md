@@ -29,6 +29,27 @@ Widget が必要とするのはコールバック（`onToggleReaction`, `onReact
 
 これにより テスタビリティ（GoRouter 不要でテスト可能）・再利用性（異なる画面で別の遷移先を指定可能）が保たれる。
 
+### サーバーエラーメッセージを UI に露出しない
+
+**`catch` ブロックや GraphQL エラー分岐で `e.toString()` や `result.exception?.graphqlErrors.firstOrNull?.message` をそのまま UI に表示しないこと。** サーバーの内部実装詳細（テーブル名、制約名、スタックトレース）がユーザーに漏れるリスクがある。
+
+- ✅ `debugPrint('[Context] error: $e');` でログ + `'Something went wrong. Please try again.'` を UI に表示
+- ❌ `setState(() { _error = e.toString(); })` で生エラーを表示
+- ❌ `_error = result.exception?.graphqlErrors.firstOrNull?.message` でサーバーメッセージを直接表示
+
+### ログアウト時のプロバイダー invalidate
+
+**ログアウト処理では `graphqlClientProvider` だけでなく、ユーザー固有の状態を持つ全プロバイダーを invalidate すること。**
+
+```dart
+await ref.read(authProvider.notifier).logout();
+ref.invalidate(graphqlClientProvider);
+ref.invalidate(timelineProvider);
+// 今後追加されるユーザー固有プロバイダーも忘れずに
+```
+
+invalidate を忘れると、次にログインしたユーザーに前ユーザーのデータが表示される。
+
 ### ボトムシートからボトムシートを開く場合
 
 **`onSelected` コールバック内で `Navigator.pop(context, value)` を呼ばないこと。** picker 系ウィジェット（`RelatedPostPicker` 等）は内部で `Navigator.pop(context)` を呼ぶため、外から追加で pop すると二重 pop になり、親のボトムシートまで閉じてしまう。
