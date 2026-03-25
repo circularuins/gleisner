@@ -104,14 +104,13 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Avatar overlapping cover
-                        Transform.translate(
-                          offset: const Offset(0, -32),
-                          child: _GenerativeAvatar(
-                            seed: artist.artistUsername,
-                            size: 72,
-                          ),
+                        const SizedBox(height: spaceLg),
+                        // Avatar
+                        _GenerativeAvatar(
+                          seed: artist.artistUsername,
+                          size: 72,
                         ),
+                        const SizedBox(height: spaceMd),
 
                         // Header: name + username + tuned in count
                         Text(
