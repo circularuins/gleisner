@@ -52,8 +52,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   String? _viewingArtistUsername;
 
   /// Own artist username, derived from myArtistProvider.
-  String? get _ownArtistUsername =>
-      ref.read(myArtistProvider)?.artistUsername;
+  String? get _ownArtistUsername => ref.read(myArtistProvider)?.artistUsername;
 
   /// Whether the current view is the user's own timeline (Artist Mode).
   bool get _isOwnTimeline {
@@ -111,8 +110,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final timeline = ref.watch(timelineProvider);
     final tuneIn = ref.watch(tuneInProvider);
 
-
-
     final theme = Theme.of(context);
     final isOwn = _isOwnTimeline;
 
@@ -140,9 +137,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 onTap: isOwn
                     ? () => context.go('/profile')
                     : timeline.artist != null
-                        ? () => context.push(
-                            '/artist/${timeline.artist!.artistUsername}')
-                        : null,
+                    ? () => context.push(
+                        '/artist/${timeline.artist!.artistUsername}',
+                      )
+                    : null,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -207,13 +205,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         .toggleTuneIn(artistId);
                     if (!mounted) return;
                     // 2. Sync with server
-                    await ref
-                        .read(tuneInProvider.notifier)
-                        .loadMyTuneIns();
+                    await ref.read(tuneInProvider.notifier).loadMyTuneIns();
                     if (!mounted) return;
                     // 3. Decide what to show next
-                    final remaining =
-                        ref.read(tuneInProvider).tunedInArtists;
+                    final remaining = ref.read(tuneInProvider).tunedInArtists;
                     if (remaining.isNotEmpty) {
                       // Switch to first remaining artist
                       _switchToArtist(remaining.first.artistUsername);
@@ -261,11 +256,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                           ),
                         ),
                         SizedBox(width: 3),
-                        Icon(
-                          Icons.close,
-                          size: 10,
-                          color: colorAccentGold,
-                        ),
+                        Icon(Icons.close, size: 10, color: colorAccentGold),
                       ],
                     ),
                   ),
@@ -375,7 +366,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                                     selfArtistUsername: selfArtistUsername,
                                     selectedArtistUsername:
                                         _viewingArtistUsername ??
-                                            (timeline.artist?.artistUsername),
+                                        (timeline.artist?.artistUsername),
                                     onSelectArtist: _switchToArtist,
                                     onSelectSelf: () {
                                       if (_ownArtistUsername != null) {
@@ -384,46 +375,46 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                                     },
                                   ),
                                 GestureDetector(
-                              onTap: () {
-                                if (timeline.constellationPostIds != null) {
-                                  ref
-                                      .read(timelineProvider.notifier)
-                                      .clearConstellation();
-                                } else if (_focusedPostId != null) {
-                                  setState(() => _focusedPostId = null);
-                                }
-                              },
-                              child: SizedBox(
-                                height: layout.totalHeight,
-                                child: Stack(
-                                  children: [
-                                    // Background: spine + synapses
-                                    Positioned.fill(
-                                      child: CustomPaint(
-                                        painter: ConstellationPainter(
-                                          layout: layout,
-                                          constellationPostIds:
-                                              timeline.constellationPostIds,
+                                  onTap: () {
+                                    if (timeline.constellationPostIds != null) {
+                                      ref
+                                          .read(timelineProvider.notifier)
+                                          .clearConstellation();
+                                    } else if (_focusedPostId != null) {
+                                      setState(() => _focusedPostId = null);
+                                    }
+                                  },
+                                  child: SizedBox(
+                                    height: layout.totalHeight,
+                                    child: Stack(
+                                      children: [
+                                        // Background: spine + synapses
+                                        Positioned.fill(
+                                          child: CustomPaint(
+                                            painter: ConstellationPainter(
+                                              layout: layout,
+                                              constellationPostIds:
+                                                  timeline.constellationPostIds,
+                                            ),
+                                          ),
                                         ),
-                                      ),
+                                        // Day labels on the spine
+                                        // Find the one day closest above the midpoint
+                                        ..._buildDateLabels(
+                                          layout.days,
+                                          _scrollOffset,
+                                          constraints.maxHeight,
+                                        ),
+                                        // Nodes (focused node rendered last for z-order)
+                                        ..._buildNodes(
+                                          layout,
+                                          timeline.highlightPostId,
+                                          timeline.constellationPostIds,
+                                        ),
+                                      ],
                                     ),
-                                    // Day labels on the spine
-                                    // Find the one day closest above the midpoint
-                                    ..._buildDateLabels(
-                                      layout.days,
-                                      _scrollOffset,
-                                      constraints.maxHeight,
-                                    ),
-                                    // Nodes (focused node rendered last for z-order)
-                                    ..._buildNodes(
-                                      layout,
-                                      timeline.highlightPostId,
-                                      timeline.constellationPostIds,
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ),
                               ],
                             ),
                           ),
@@ -569,7 +560,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       },
       onCreateConnection: isOwn
           ? (sourceId, targetId) =>
-              notifier.createConnection(sourceId, targetId)
+                notifier.createConnection(sourceId, targetId)
           : null,
       onDeleteConnection: isOwn
           ? (connectionId) => notifier.deleteConnection(connectionId)

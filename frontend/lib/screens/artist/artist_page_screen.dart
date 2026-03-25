@@ -48,8 +48,9 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
 
     final data = result.data?['artist'];
     setState(() {
-      _artist =
-          data != null ? Artist.fromJson(data as Map<String, dynamic>) : null;
+      _artist = data != null
+          ? Artist.fromJson(data as Map<String, dynamic>)
+          : null;
       _isLoading = false;
     });
   }
@@ -58,280 +59,289 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
   Widget build(BuildContext context) {
     final tuneIn = ref.watch(tuneInProvider);
     final authState = ref.watch(authProvider);
-    final isAuthenticated =
-        authState.status == AuthStatus.authenticated;
-    final isTunedIn =
-        _artist != null && tuneIn.isTunedIn(_artist!.id);
+    final isAuthenticated = authState.status == AuthStatus.authenticated;
+    final isTunedIn = _artist != null && tuneIn.isTunedIn(_artist!.id);
     // Don't show Tune In for own artist page
     final myArtist = ref.watch(myArtistProvider);
-    final isSelf = _artist != null &&
-        myArtist != null &&
-        _artist!.id == myArtist.id;
+    final isSelf =
+        _artist != null && myArtist != null && _artist!.id == myArtist.id;
 
     return Scaffold(
       backgroundColor: colorSurface0,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: colorAccentGold))
+          ? const Center(
+              child: CircularProgressIndicator(color: colorAccentGold),
+            )
           : _artist == null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Artist not found',
-                        style: TextStyle(color: colorTextMuted, fontSize: fontSizeLg),
-                      ),
-                      const SizedBox(height: spaceLg),
-                      TextButton(
-                        onPressed: () => context.pop(),
-                        child: const Text('Go back'),
-                      ),
-                    ],
-                  ),
-                )
-              : CustomScrollView(
-                  slivers: [
-                    // Cover + back button
-                    SliverAppBar(
-                      expandedHeight: 180,
-                      pinned: true,
-                      backgroundColor: colorSurface0,
-                      leading: IconButton(
-                        icon: const Icon(Icons.arrow_back, color: colorTextPrimary),
-                        onPressed: () => context.pop(),
-                      ),
-                      flexibleSpace: FlexibleSpaceBar(
-                        background: CustomPaint(
-                          painter: _CoverPainter(seed: _artist!.artistUsername),
-                        ),
-                      ),
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Artist not found',
+                    style: TextStyle(
+                      color: colorTextMuted,
+                      fontSize: fontSizeLg,
                     ),
+                  ),
+                  const SizedBox(height: spaceLg),
+                  TextButton(
+                    onPressed: () => context.pop(),
+                    child: const Text('Go back'),
+                  ),
+                ],
+              ),
+            )
+          : CustomScrollView(
+              slivers: [
+                // Cover + back button
+                SliverAppBar(
+                  expandedHeight: 180,
+                  pinned: true,
+                  backgroundColor: colorSurface0,
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: colorTextPrimary),
+                    onPressed: () => context.pop(),
+                  ),
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: CustomPaint(
+                      painter: _CoverPainter(seed: _artist!.artistUsername),
+                    ),
+                  ),
+                ),
 
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.all(spaceXl),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(spaceXl),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Avatar + name row
+                        Row(
                           children: [
-                            // Avatar + name row
-                            Row(
-                              children: [
-                                _GenerativeAvatar(
-                                  seed: _artist!.artistUsername,
-                                  size: 64,
-                                ),
-                                const SizedBox(width: spaceLg),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _artist!.displayName ??
-                                            _artist!.artistUsername,
-                                        style: const TextStyle(
-                                          color: colorTextPrimary,
-                                          fontSize: fontSizeTitle,
-                                          fontWeight: weightBold,
-                                        ),
-                                      ),
-                                      Text(
-                                        '@${_artist!.artistUsername}',
-                                        style: const TextStyle(
-                                          color: colorTextMuted,
-                                          fontSize: fontSizeMd,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                            _GenerativeAvatar(
+                              seed: _artist!.artistUsername,
+                              size: 64,
                             ),
-
-                            const SizedBox(height: spaceLg),
-
-                            // Tune In button + count (not shown on own page)
-                            if (isAuthenticated && !isSelf)
-                              Row(
+                            const SizedBox(width: spaceLg),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: _TuneInButton(
-                                      isTunedIn: isTunedIn,
-                                      onTap: () async {
-                                        final tunedIn = await ref
-                                            .read(tuneInProvider.notifier)
-                                            .toggleTuneIn(_artist!.id);
-                                        if (!context.mounted) return;
-                                        if (tunedIn) {
-                                          // Set pending artist and navigate to Timeline
-                                          ref.read(pendingArtistProvider.notifier).set(
-                                              _artist!.artistUsername);
-                                          context.go('/timeline');
-                                        }
-                                      },
+                                  Text(
+                                    _artist!.displayName ??
+                                        _artist!.artistUsername,
+                                    style: const TextStyle(
+                                      color: colorTextPrimary,
+                                      fontSize: fontSizeTitle,
+                                      fontWeight: weightBold,
                                     ),
                                   ),
-                                ],
-                              ),
-
-                            if (!isAuthenticated)
-                              Row(
-                                children: [
-                                  const Icon(Icons.headphones,
-                                      size: 14, color: colorTextMuted),
-                                  const SizedBox(width: spaceXs),
                                   Text(
-                                    '${_artist!.tunedInCount} Tuned In',
+                                    '@${_artist!.artistUsername}',
                                     style: const TextStyle(
                                       color: colorTextMuted,
-                                      fontSize: fontSizeSm,
+                                      fontSize: fontSizeMd,
                                     ),
                                   ),
                                 ],
-                              ),
-
-                            // Tagline
-                            if (_artist!.tagline != null) ...[
-                              const SizedBox(height: spaceLg),
-                              Text(
-                                _artist!.tagline!,
-                                style: const TextStyle(
-                                  color: colorTextSecondary,
-                                  fontSize: fontSizeLg,
-                                  fontStyle: FontStyle.italic,
-                                  height: 1.5,
-                                ),
-                              ),
-                            ],
-
-                            // Bio
-                            if (_artist!.bio != null) ...[
-                              const SizedBox(height: spaceMd),
-                              Text(
-                                _artist!.bio!,
-                                style: const TextStyle(
-                                  color: colorTextSecondary,
-                                  fontSize: fontSizeMd,
-                                  height: 1.6,
-                                ),
-                              ),
-                            ],
-
-                            // Genres
-                            if (_artist!.genres.isNotEmpty) ...[
-                              const SizedBox(height: spaceXl),
-                              Wrap(
-                                spacing: spaceSm,
-                                runSpacing: spaceSm,
-                                children: _artist!.genres.map((ag) {
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: spaceMd,
-                                      vertical: spaceXs,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: colorSurface2,
-                                      borderRadius:
-                                          BorderRadius.circular(radiusFull),
-                                      border:
-                                          Border.all(color: colorBorder),
-                                    ),
-                                    child: Text(
-                                      ag.genre.name,
-                                      style: const TextStyle(
-                                        color: colorTextSecondary,
-                                        fontSize: fontSizeSm,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ],
-
-                            // Tracks
-                            if (_artist!.tracks.isNotEmpty) ...[
-                              const SizedBox(height: spaceXl),
-                              const Text(
-                                'TRACKS',
-                                style: TextStyle(
-                                  color: colorTextMuted,
-                                  fontSize: fontSizeXs,
-                                  fontWeight: weightSemibold,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              const SizedBox(height: spaceXxs),
-                              const Text(
-                                "This artist's content streams",
-                                style: TextStyle(
-                                  color: colorTextMuted,
-                                  fontSize: fontSizeXs,
-                                ),
-                              ),
-                              const SizedBox(height: spaceMd),
-                              Wrap(
-                                spacing: spaceSm,
-                                runSpacing: spaceSm,
-                                children: _artist!.tracks.map((track) {
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: spaceMd,
-                                      vertical: spaceXs,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: track.displayColor
-                                          .withValues(alpha: 0.1),
-                                      borderRadius:
-                                          BorderRadius.circular(radiusFull),
-                                      border: Border.all(
-                                        color: track.displayColor
-                                            .withValues(alpha: 0.3),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          width: 8,
-                                          height: 8,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: track.displayColor,
-                                          ),
-                                        ),
-                                        const SizedBox(width: spaceXs),
-                                        Text(
-                                          track.name,
-                                          style: TextStyle(
-                                            color: track.displayColor,
-                                            fontSize: fontSizeSm,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ],
-
-                            // Public timeline link
-                            const SizedBox(height: spaceXl),
-                            const Divider(color: colorBorder),
-                            const SizedBox(height: spaceMd),
-                            TextButton.icon(
-                              onPressed: () =>
-                                  context.push('/@${_artist!.artistUsername}'),
-                              icon: const Icon(Icons.grid_view, size: 16),
-                              label: const Text('View full timeline'),
-                              style: TextButton.styleFrom(
-                                foregroundColor: colorInteractive,
                               ),
                             ),
                           ],
                         ),
-                      ),
+
+                        const SizedBox(height: spaceLg),
+
+                        // Tune In button + count (not shown on own page)
+                        if (isAuthenticated && !isSelf)
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _TuneInButton(
+                                  isTunedIn: isTunedIn,
+                                  onTap: () async {
+                                    final tunedIn = await ref
+                                        .read(tuneInProvider.notifier)
+                                        .toggleTuneIn(_artist!.id);
+                                    if (!context.mounted) return;
+                                    if (tunedIn) {
+                                      // Set pending artist and navigate to Timeline
+                                      ref
+                                          .read(pendingArtistProvider.notifier)
+                                          .set(_artist!.artistUsername);
+                                      context.go('/timeline');
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+
+                        if (!isAuthenticated)
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.headphones,
+                                size: 14,
+                                color: colorTextMuted,
+                              ),
+                              const SizedBox(width: spaceXs),
+                              Text(
+                                '${_artist!.tunedInCount} Tuned In',
+                                style: const TextStyle(
+                                  color: colorTextMuted,
+                                  fontSize: fontSizeSm,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                        // Tagline
+                        if (_artist!.tagline != null) ...[
+                          const SizedBox(height: spaceLg),
+                          Text(
+                            _artist!.tagline!,
+                            style: const TextStyle(
+                              color: colorTextSecondary,
+                              fontSize: fontSizeLg,
+                              fontStyle: FontStyle.italic,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+
+                        // Bio
+                        if (_artist!.bio != null) ...[
+                          const SizedBox(height: spaceMd),
+                          Text(
+                            _artist!.bio!,
+                            style: const TextStyle(
+                              color: colorTextSecondary,
+                              fontSize: fontSizeMd,
+                              height: 1.6,
+                            ),
+                          ),
+                        ],
+
+                        // Genres
+                        if (_artist!.genres.isNotEmpty) ...[
+                          const SizedBox(height: spaceXl),
+                          Wrap(
+                            spacing: spaceSm,
+                            runSpacing: spaceSm,
+                            children: _artist!.genres.map((ag) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: spaceMd,
+                                  vertical: spaceXs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colorSurface2,
+                                  borderRadius: BorderRadius.circular(
+                                    radiusFull,
+                                  ),
+                                  border: Border.all(color: colorBorder),
+                                ),
+                                child: Text(
+                                  ag.genre.name,
+                                  style: const TextStyle(
+                                    color: colorTextSecondary,
+                                    fontSize: fontSizeSm,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+
+                        // Tracks
+                        if (_artist!.tracks.isNotEmpty) ...[
+                          const SizedBox(height: spaceXl),
+                          const Text(
+                            'TRACKS',
+                            style: TextStyle(
+                              color: colorTextMuted,
+                              fontSize: fontSizeXs,
+                              fontWeight: weightSemibold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: spaceXxs),
+                          const Text(
+                            "This artist's content streams",
+                            style: TextStyle(
+                              color: colorTextMuted,
+                              fontSize: fontSizeXs,
+                            ),
+                          ),
+                          const SizedBox(height: spaceMd),
+                          Wrap(
+                            spacing: spaceSm,
+                            runSpacing: spaceSm,
+                            children: _artist!.tracks.map((track) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: spaceMd,
+                                  vertical: spaceXs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: track.displayColor.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                    radiusFull,
+                                  ),
+                                  border: Border.all(
+                                    color: track.displayColor.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: track.displayColor,
+                                      ),
+                                    ),
+                                    const SizedBox(width: spaceXs),
+                                    Text(
+                                      track.name,
+                                      style: TextStyle(
+                                        color: track.displayColor,
+                                        fontSize: fontSizeSm,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+
+                        // Public timeline link
+                        const SizedBox(height: spaceXl),
+                        const Divider(color: colorBorder),
+                        const SizedBox(height: spaceMd),
+                        TextButton.icon(
+                          onPressed: () =>
+                              context.push('/@${_artist!.artistUsername}'),
+                          icon: const Icon(Icons.grid_view, size: 16),
+                          label: const Text('View full timeline'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: colorInteractive,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
+              ],
+            ),
     );
   }
 }

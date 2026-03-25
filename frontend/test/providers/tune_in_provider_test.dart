@@ -61,16 +61,17 @@ Map<String, dynamic> _tuneOutResponse() {
   return {'toggleTuneIn': null};
 }
 
-Map<String, dynamic> _myTuneInsResponse(
-    List<Map<String, dynamic>> artists) {
+Map<String, dynamic> _myTuneInsResponse(List<Map<String, dynamic>> artists) {
   return {
     '__typename': 'Query',
     'myTuneIns': artists
-        .map((a) => {
-              '__typename': 'TuneIn',
-              'createdAt': '2026-01-01T00:00:00Z',
-              'artist': a,
-            })
+        .map(
+          (a) => {
+            '__typename': 'TuneIn',
+            'createdAt': '2026-01-01T00:00:00Z',
+            'artist': a,
+          },
+        )
         .toList(),
   };
 }
@@ -203,9 +204,7 @@ void main() {
       });
 
       test('returns empty list when no tune-ins', () async {
-        final client = _clientWithResponses([
-          _myTuneInsResponse([]),
-        ]);
+        final client = _clientWithResponses([_myTuneInsResponse([])]);
         final container = _createContainer(client: client);
         addTearDown(container.dispose);
 
@@ -253,65 +252,64 @@ void main() {
 
     group('Tune Out sequence (simulating Timeline behavior)', () {
       test(
-          'sequential Tune Out: 3 artists → 2 → 1 → 0, remaining list is correct',
-          () async {
-        final client = _clientWithResponses([
-          // Initial load
-          _myTuneInsResponse([
-            _artistData('a1', 'artist1', 'One'),
-            _artistData('a2', 'artist2', 'Two'),
-            _artistData('a3', 'artist3', 'Three'),
-          ]),
-          // Tune out a1
-          _tuneOutResponse(),
-          _myTuneInsResponse([
-            _artistData('a2', 'artist2', 'Two'),
-            _artistData('a3', 'artist3', 'Three'),
-          ]),
-          // Tune out a2
-          _tuneOutResponse(),
-          _myTuneInsResponse([
-            _artistData('a3', 'artist3', 'Three'),
-          ]),
-          // Tune out a3
-          _tuneOutResponse(),
-          _myTuneInsResponse([]),
-        ]);
-        final container = _createContainer(client: client);
-        addTearDown(container.dispose);
+        'sequential Tune Out: 3 artists → 2 → 1 → 0, remaining list is correct',
+        () async {
+          final client = _clientWithResponses([
+            // Initial load
+            _myTuneInsResponse([
+              _artistData('a1', 'artist1', 'One'),
+              _artistData('a2', 'artist2', 'Two'),
+              _artistData('a3', 'artist3', 'Three'),
+            ]),
+            // Tune out a1
+            _tuneOutResponse(),
+            _myTuneInsResponse([
+              _artistData('a2', 'artist2', 'Two'),
+              _artistData('a3', 'artist3', 'Three'),
+            ]),
+            // Tune out a2
+            _tuneOutResponse(),
+            _myTuneInsResponse([_artistData('a3', 'artist3', 'Three')]),
+            // Tune out a3
+            _tuneOutResponse(),
+            _myTuneInsResponse([]),
+          ]);
+          final container = _createContainer(client: client);
+          addTearDown(container.dispose);
 
-        final notifier = container.read(tuneInProvider.notifier);
+          final notifier = container.read(tuneInProvider.notifier);
 
-        // Load initial 3 artists
-        await notifier.loadMyTuneIns();
-        var state = container.read(tuneInProvider);
-        expect(state.tunedInArtists, hasLength(3));
+          // Load initial 3 artists
+          await notifier.loadMyTuneIns();
+          var state = container.read(tuneInProvider);
+          expect(state.tunedInArtists, hasLength(3));
 
-        // Tune out artist1 → 2 remaining
-        await notifier.toggleTuneIn('a1');
-        await notifier.loadMyTuneIns();
-        state = container.read(tuneInProvider);
-        expect(state.tunedInArtists, hasLength(2));
-        expect(state.isTunedIn('a1'), isFalse);
-        expect(state.isTunedIn('a2'), isTrue);
-        expect(state.isTunedIn('a3'), isTrue);
+          // Tune out artist1 → 2 remaining
+          await notifier.toggleTuneIn('a1');
+          await notifier.loadMyTuneIns();
+          state = container.read(tuneInProvider);
+          expect(state.tunedInArtists, hasLength(2));
+          expect(state.isTunedIn('a1'), isFalse);
+          expect(state.isTunedIn('a2'), isTrue);
+          expect(state.isTunedIn('a3'), isTrue);
 
-        // Next artist to show should be first remaining
-        expect(state.tunedInArtists.first.artistUsername, 'artist2');
+          // Next artist to show should be first remaining
+          expect(state.tunedInArtists.first.artistUsername, 'artist2');
 
-        // Tune out artist2 → 1 remaining
-        await notifier.toggleTuneIn('a2');
-        await notifier.loadMyTuneIns();
-        state = container.read(tuneInProvider);
-        expect(state.tunedInArtists, hasLength(1));
-        expect(state.tunedInArtists.first.artistUsername, 'artist3');
+          // Tune out artist2 → 1 remaining
+          await notifier.toggleTuneIn('a2');
+          await notifier.loadMyTuneIns();
+          state = container.read(tuneInProvider);
+          expect(state.tunedInArtists, hasLength(1));
+          expect(state.tunedInArtists.first.artistUsername, 'artist3');
 
-        // Tune out artist3 → 0 remaining
-        await notifier.toggleTuneIn('a3');
-        await notifier.loadMyTuneIns();
-        state = container.read(tuneInProvider);
-        expect(state.tunedInArtists, isEmpty);
-      });
+          // Tune out artist3 → 0 remaining
+          await notifier.toggleTuneIn('a3');
+          await notifier.loadMyTuneIns();
+          state = container.read(tuneInProvider);
+          expect(state.tunedInArtists, isEmpty);
+        },
+      );
     });
   });
 }
