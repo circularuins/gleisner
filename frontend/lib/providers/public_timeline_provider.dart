@@ -44,7 +44,8 @@ class PublicTimelineNotifier extends Notifier<TimelineState>
       if (result.hasException) {
         state = state.copyWith(
           isLoading: false,
-          error: result.exception?.graphqlErrors.firstOrNull?.message ??
+          error:
+              result.exception?.graphqlErrors.firstOrNull?.message ??
               'Failed to load artist',
         );
         return;
@@ -189,5 +190,5 @@ class PublicTimelineNotifier extends Notifier<TimelineState>
 /// timeline resets state, preventing stale data on /@alice → /@bob transitions.
 final publicTimelineProvider =
     NotifierProvider.autoDispose<PublicTimelineNotifier, TimelineState>(
-  PublicTimelineNotifier.new,
-);
+      PublicTimelineNotifier.new,
+    );

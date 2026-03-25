@@ -408,42 +408,44 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => _deleteConnection(entry.conn),
-                    child: const Padding(
-                      padding: EdgeInsets.all(spaceXs),
-                      child: Icon(
-                        Icons.close,
-                        size: fontSizeMd,
-                        color: colorInteractiveMuted,
+                  if (widget.onDeleteConnection != null)
+                    GestureDetector(
+                      onTap: () => _deleteConnection(entry.conn),
+                      child: const Padding(
+                        padding: EdgeInsets.all(spaceXs),
+                        child: Icon(
+                          Icons.close,
+                          size: fontSizeMd,
+                          color: colorInteractiveMuted,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             );
           }),
-        GestureDetector(
-          onTap: _isConnecting ? null : _addConnection,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: spaceXs),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.add,
-                  size: fontSizeLg,
-                  color: _isConnecting
-                      ? colorInteractiveMuted
-                      : trackColor.withValues(alpha: 0.7),
-                ),
-                const SizedBox(width: spaceXs),
-                Text(
-                  _isConnecting ? 'Linking...' : 'Link post',
-                  style: TextStyle(
+        if (widget.onCreateConnection != null)
+          GestureDetector(
+            onTap: _isConnecting ? null : _addConnection,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: spaceXs),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.add,
+                    size: fontSizeLg,
                     color: _isConnecting
                         ? colorInteractiveMuted
                         : trackColor.withValues(alpha: 0.7),
-                    fontSize: fontSizeMd,
+                  ),
+                  const SizedBox(width: spaceXs),
+                  Text(
+                    _isConnecting ? 'Linking...' : 'Link post',
+                    style: TextStyle(
+                      color: _isConnecting
+                          ? colorInteractiveMuted
+                          : trackColor.withValues(alpha: 0.7),
+                      fontSize: fontSizeMd,
                   ),
                 ),
               ],

@@ -6,6 +6,7 @@ import '../../models/track.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/public_timeline_provider.dart';
 import '../../providers/timeline_provider.dart';
+import '../../providers/tune_in_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/node_card.dart';
@@ -46,25 +47,65 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
   @override
   Widget build(BuildContext context) {
     final timeline = ref.watch(publicTimelineProvider);
+    final tuneIn = ref.watch(tuneInProvider);
     final theme = Theme.of(context);
+    final authState = ref.watch(authProvider);
     final isAuthenticated =
-        ref.watch(authProvider).status == AuthStatus.authenticated;
+        authState.status == AuthStatus.authenticated;
+    final artistId = timeline.artist?.id;
+    final isTunedIn = artistId != null && tuneIn.isTunedIn(artistId);
+    // Hide Tune In on own public timeline
+    final isSelf = isAuthenticated &&
+        timeline.artist != null &&
+        timeline.artist!.artistUsername == widget.username;
+
     return Scaffold(
       backgroundColor: colorSurface0,
       appBar: AppBar(
         backgroundColor: colorSurface0,
-        title: Text(
-          timeline.artist?.displayName ??
-              timeline.artist?.artistUsername ??
-              '@${widget.username}',
-          style: const TextStyle(color: colorTextPrimary),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                timeline.artist?.displayName ??
+                    timeline.artist?.artistUsername ??
+                    '@${widget.username}',
+                style: const TextStyle(color: colorTextPrimary),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (timeline.artist != null) ...[
+              const SizedBox(width: spaceSm),
+              Text(
+                '${timeline.artist!.tunedInCount}',
+                style: const TextStyle(
+                  color: colorTextMuted,
+                  fontSize: fontSizeSm,
+                ),
+              ),
+              const SizedBox(width: 2),
+              const Icon(Icons.headphones, size: 12, color: colorTextMuted),
+            ],
+          ],
         ),
         actions: [
-          if (isAuthenticated)
-            IconButton(
-              icon: const Icon(Icons.arrow_forward, color: colorInteractive),
-              tooltip: 'My timeline',
-              onPressed: () => context.go('/timeline'),
+          // Tune In button (ADR 013) — not shown on own timeline
+          if (isAuthenticated && artistId != null && !isSelf)
+            Padding(
+              padding: const EdgeInsets.only(right: spaceSm),
+              child: _TuneInButton(
+                isTunedIn: isTunedIn,
+                onTap: () async {
+                  final tunedIn = await ref
+                      .read(tuneInProvider.notifier)
+                      .toggleTuneIn(artistId);
+                  if (tunedIn && context.mounted) {
+                    // ADR 013: auto-navigate to Timeline tab with this artist
+                    context.go('/timeline');
+                  }
+                },
+              ),
             ),
         ],
       ),
@@ -501,6 +542,55 @@ const _months = [
 ];
 
 String _shortMonth(int month) => _months[month - 1];
+
+class _TuneInButton extends StatelessWidget {
+  final bool isTunedIn;
+  final VoidCallback onTap;
+
+  const _TuneInButton({required this.isTunedIn, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(
+          horizontal: spaceMd,
+          vertical: spaceXs,
+        ),
+        decoration: BoxDecoration(
+          color: isTunedIn
+              ? colorAccentGold.withValues(alpha: 0.15)
+              : colorAccentGold,
+          borderRadius: BorderRadius.circular(radiusFull),
+          border: isTunedIn
+              ? Border.all(color: colorAccentGold.withValues(alpha: 0.4))
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isTunedIn ? Icons.check : Icons.headphones,
+              size: 14,
+              color: isTunedIn ? colorAccentGold : colorSurface0,
+            ),
+            const SizedBox(width: spaceXs),
+            Text(
+              isTunedIn ? 'Tuned In' : 'Tune In',
+              style: TextStyle(
+                color: isTunedIn ? colorAccentGold : colorSurface0,
+                fontSize: fontSizeSm,
+                fontWeight: weightSemibold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _TrackSelector extends StatelessWidget {
   final List<Track> tracks;

@@ -6,5 +6,7 @@ export default defineConfig({
     environment: "node",
     // Integration tests share a single DB — parallel execution causes race conditions
     fileParallelism: false,
+    // Exclude compiled output — dist/ contains stale .test.js that vitest picks up
+    exclude: ["dist/**", "node_modules/**"],
   },
 });

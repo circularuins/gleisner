@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'providers/auth_provider.dart';
+import 'screens/artist/artist_page_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
 import 'screens/create_post/create_post_screen.dart';
@@ -103,6 +104,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/create-post',
         builder: (context, state) => const CreatePostScreen(),
       ),
+      // Artist Page (from Discover, authenticated)
+      GoRoute(
+        path: '/artist/:username',
+        redirect: (context, state) {
+          final username = state.pathParameters['username'] ?? '';
+          if (!_validUsernamePattern.hasMatch(username)) return '/discover';
+          return null;
+        },
+        builder: (context, state) {
+          final username = state.pathParameters['username']!;
+          return ArtistPageScreen(username: username);
+        },
+      ),
+      // Public timeline (unauthenticated access via /@username)
       GoRoute(
         path: '/@:username',
         redirect: (context, state) {

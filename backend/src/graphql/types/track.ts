@@ -2,7 +2,7 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, tracks } from "../../db/schema/index.js";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
 
 export const TrackType = builder.objectRef<{
@@ -64,6 +64,21 @@ builder.mutationFields((t) => ({
         throw new GraphQLError(
           "Color must be a valid hex color (e.g. #FF0000)",
         );
+      }
+
+      // Check for duplicate track name (case-insensitive) within the same artist
+      const [existing] = await db
+        .select({ id: tracks.id })
+        .from(tracks)
+        .where(
+          and(
+            eq(tracks.artistId, artist.id),
+            eq(sql`lower(${tracks.name})`, args.name.toLowerCase()),
+          ),
+        )
+        .limit(1);
+      if (existing) {
+        throw new GraphQLError("A track with this name already exists");
       }
 
       const [track] = await db
@@ -129,6 +144,23 @@ builder.mutationFields((t) => ({
         throw new GraphQLError(
           "Color must be a valid hex color (e.g. #FF0000)",
         );
+      }
+
+      // Check for duplicate track name (case-insensitive) on rename
+      if (args.name !== undefined && args.name !== null) {
+        const [dup] = await db
+          .select({ id: tracks.id })
+          .from(tracks)
+          .where(
+            and(
+              eq(tracks.artistId, track.artistId),
+              eq(sql`lower(${tracks.name})`, args.name.toLowerCase()),
+            ),
+          )
+          .limit(1);
+        if (dup && dup.id !== track.id) {
+          throw new GraphQLError("A track with this name already exists");
+        }
       }
 
       const updateData: Record<string, unknown> = { updatedAt: new Date() };

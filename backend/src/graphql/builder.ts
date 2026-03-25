@@ -16,6 +16,25 @@ export interface GraphQLContext {
   >;
   /** Promise guard to prevent parallel cache initialization. */
   constellationCachePromise?: Promise<void>;
+  /** Per-request cache for tune-in artist lookups (avoids N+1 in myTuneIns). */
+  tuneInArtistCache?: Map<
+    string,
+    {
+      id: string;
+      userId: string;
+      artistUsername: string;
+      displayName: string | null;
+      bio: string | null;
+      tagline: string | null;
+      location: string | null;
+      activeSince: number | null;
+      avatarUrl: string | null;
+      coverImageUrl: string | null;
+      tunedInCount: number;
+      createdAt: Date;
+      updatedAt: Date;
+    }
+  >;
 }
 
 export const builder = new SchemaBuilder<{ Context: GraphQLContext }>({});

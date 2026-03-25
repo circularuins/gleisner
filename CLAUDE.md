@@ -111,6 +111,13 @@ dart format .          # Dart フォーマッタ
 seeduser（`seed@test.com` / `password123`）+ 6トラック + 32投稿（全メディアタイプ、2週間に分散）を投入する。
 バックエンドが起動済みであること。既にユーザーが存在する場合はログインしてデータを追加する。
 
+Discover/Tune In のテストには追加 seed も投入：
+```bash
+./scripts/seed-discover-data.sh       # 4アーティスト + 20ジャンル + Tune In/Follow関係
+```
+
+**⚠ `pnpm test` 実行後は seed データが消える。** テストの `beforeEach` で `TRUNCATE users CASCADE` が実行されるため、テスト後に実機確認する場合は seed スクリプトを再実行すること。
+
 ### ⚠ `db:push` の注意事項
 
 `db:push` はカラム追加時にテーブルを再作成する場合があり、**既存データが消失する**。

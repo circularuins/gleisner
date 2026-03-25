@@ -31,7 +31,10 @@ TuneInType.implement({
     }),
     artist: t.field({
       type: ArtistType,
-      resolve: async (tuneIn) => {
+      resolve: async (tuneIn, _args, ctx) => {
+        // Use prefetched cache from myTuneIns if available
+        const cached = ctx.tuneInArtistCache?.get(tuneIn.artistId);
+        if (cached) return cached;
         const [artist] = await db
           .select()
           .from(artists)
@@ -134,6 +137,41 @@ builder.queryFields((t) => ({
         .select()
         .from(tuneIns)
         .where(eq(tuneIns.artistId, args.artistId));
+    },
+  }),
+
+  myTuneIns: t.field({
+    type: [TuneInType],
+    resolve: async (_parent, _args, ctx) => {
+      if (!ctx.authUser) {
+        throw new GraphQLError("Authentication required");
+      }
+      // JOIN to prefetch artist data — avoids N+1 on TuneInType.artist resolver
+      const rows = await db
+        .select({
+          userId: tuneIns.userId,
+          artistId: tuneIns.artistId,
+          createdAt: tuneIns.createdAt,
+          artist: artists,
+        })
+        .from(tuneIns)
+        .innerJoin(artists, eq(tuneIns.artistId, artists.id))
+        .where(eq(tuneIns.userId, ctx.authUser.userId));
+
+      // Attach prefetched artist to context cache so TuneInType.artist resolver
+      // can use it instead of issuing another query
+      if (!ctx.tuneInArtistCache) {
+        ctx.tuneInArtistCache = new Map();
+      }
+      for (const row of rows) {
+        ctx.tuneInArtistCache.set(row.artistId, row.artist);
+      }
+
+      return rows.map((r) => ({
+        userId: r.userId,
+        artistId: r.artistId,
+        createdAt: r.createdAt,
+      }));
     },
   }),
 }));

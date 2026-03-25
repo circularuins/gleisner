@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../graphql/client.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/discover_provider.dart';
+import '../../providers/my_artist_provider.dart';
 import '../../providers/timeline_provider.dart';
+import '../../providers/tune_in_provider.dart';
 import '../../theme/gleisner_tokens.dart';
-import 'register_artist_sheet.dart';
+import 'register_artist_wizard.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -14,7 +18,9 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     final user = authState.user;
-    final artist = ref.watch(timelineProvider).artist;
+    // Use myArtistProvider (own artist) instead of timelineProvider
+    // which may hold another artist's data in fan mode
+    final artist = ref.watch(myArtistProvider);
 
     if (user == null) return const SizedBox.shrink();
 
@@ -100,6 +106,23 @@ class ProfileScreen extends ConsumerWidget {
                       style: textCaption.copyWith(color: colorTextSecondary),
                     ),
                   ],
+                  const SizedBox(height: spaceLg),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.push(
+                        '/artist/${artist.artistUsername}',
+                      ),
+                      icon: const Icon(Icons.person, size: 16),
+                      label: const Text('View Artist Page'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colorAccentGold,
+                        side: BorderSide(
+                          color: colorAccentGold.withValues(alpha: 0.3),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -164,6 +187,9 @@ class ProfileScreen extends ConsumerWidget {
               await ref.read(authProvider.notifier).logout();
               ref.invalidate(graphqlClientProvider);
               ref.invalidate(timelineProvider);
+              ref.invalidate(myArtistProvider);
+              ref.invalidate(tuneInProvider);
+              ref.invalidate(discoverProvider);
             },
             child: const Text('Logout'),
           ),
@@ -173,18 +199,15 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   void _showRegisterSheet(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: colorSurface1,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(radiusSheet)),
-      ),
-      builder: (_) => RegisterArtistSheet(
-        onRegistered: (artistUsername) {
-          // Reload artist data on timeline
-          ref.read(timelineProvider.notifier).loadArtist(artistUsername);
-        },
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => RegisterArtistWizard(
+          onRegistered: (artistUsername) {
+            // Reload artist data on timeline
+            ref.read(timelineProvider.notifier).loadArtist(artistUsername);
+          },
+        ),
       ),
     );
   }
