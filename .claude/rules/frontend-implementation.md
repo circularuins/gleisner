@@ -37,6 +37,57 @@ Widget が必要とするのはコールバック（`onToggleReaction`, `onReact
 - ❌ `setState(() { _error = e.toString(); })` で生エラーを表示
 - ❌ `_error = result.exception?.graphqlErrors.firstOrNull?.message` でサーバーメッセージを直接表示
 
+### 「自分のアーティスト情報」と「閲覧中のアーティスト」を混同しない
+
+**`timelineProvider.artist` は現在閲覧中のアーティストを返す。ファンモードでは他人のデータになる。**
+「自分がアーティストか」「自分のアーティスト名は何か」の判定には必ず `myArtistProvider` を使うこと。
+
+- ✅ `ref.watch(myArtistProvider)` — Profile 画面での表示、`isSelf` 判定、`_ownArtistUsername` の取得
+- ❌ `ref.watch(timelineProvider).artist` — ファンモードでは他人のデータが入る
+
+これを誤ると、ファンユーザーに他人のアーティスト情報が表示される、`isSelf` 判定が常に true になる等のバグが発生する。
+
+### ファンモードの UI 制御（mutation UI の出し分け）
+
+**ファンモードでは mutation UI（connections, constellation naming）を非表示、リアクションは常に有効。**
+
+制御方法: detail sheet や node card のコールバックを null で渡し、受け側で null チェックして UI を出し分ける。
+
+```dart
+// Screen 側（_openDetailSheet）
+onCreateConnection: isOwn ? (src, tgt) => notifier.createConnection(src, tgt) : null,
+onToggleReaction: (id, emoji) => notifier.toggleReaction(id, emoji), // 常に有効
+```
+
+```dart
+// Widget 側（post_detail_sheet.dart）
+if (widget.onCreateConnection != null)
+  GestureDetector(onTap: _addConnection, child: Text('Link post')),
+```
+
+新しい mutation UI を追加する場合、**必ず null チェックによる出し分けを実装すること**。
+
+### build() 内で「一度だけ消費する値」を扱わない
+
+**`ref.watch` + `addPostFrameCallback` で Provider の値を消費すると、rebuild のたびに多重発火する。**
+一度だけ消費する通知的な値（`pendingArtistProvider` 等）は `ref.listenManual` を `initState` で設定する。
+
+```dart
+// ❌ build() 内 — rebuild のたびに発火
+final pending = ref.watch(pendingProvider);
+if (pending != null) {
+  WidgetsBinding.instance.addPostFrameCallback((_) { ... });
+}
+
+// ✅ initState で一度だけ設定
+ref.listenManual(pendingProvider, (prev, next) {
+  if (next != null) {
+    ref.read(pendingProvider.notifier).clear();
+    _handlePending(next);
+  }
+});
+```
+
 ### ログアウト時のプロバイダー invalidate
 
 **ログアウト処理では `graphqlClientProvider` だけでなく、ユーザー固有の状態を持つ全プロバイダーを invalidate すること。**
@@ -45,7 +96,9 @@ Widget が必要とするのはコールバック（`onToggleReaction`, `onReact
 await ref.read(authProvider.notifier).logout();
 ref.invalidate(graphqlClientProvider);
 ref.invalidate(timelineProvider);
-// 今後追加されるユーザー固有プロバイダーも忘れずに
+ref.invalidate(myArtistProvider);
+ref.invalidate(tuneInProvider);
+ref.invalidate(discoverProvider);
 ```
 
 invalidate を忘れると、次にログインしたユーザーに前ユーザーのデータが表示される。
