@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/gleisner_tokens.dart';
 
+// TODO: Implement discover feature (see ADR 009, ADR 011)
 class DiscoverScreen extends StatelessWidget {
   const DiscoverScreen({super.key});
 

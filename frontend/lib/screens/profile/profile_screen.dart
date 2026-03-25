@@ -163,6 +163,7 @@ class ProfileScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               ref.invalidate(graphqlClientProvider);
+              ref.invalidate(timelineProvider);
             },
             child: const Text('Logout'),
           ),

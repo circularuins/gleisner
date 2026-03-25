@@ -3,6 +3,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../theme/gleisner_tokens.dart';
 
+/// Shell wrapper providing bottom navigation for the main app tabs.
+///
+/// Each branch (Timeline, Discover, Profile) has its own Scaffold with AppBar.
+/// This outer Scaffold holds only the NavigationBar — the nested Scaffold
+/// pattern is intentional and standard for StatefulShellRoute with per-tab
+/// AppBars (see go_router docs).
 class BottomNavShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 

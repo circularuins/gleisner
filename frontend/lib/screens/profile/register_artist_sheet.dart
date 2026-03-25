@@ -76,9 +76,10 @@ class _RegisterArtistSheetState extends ConsumerState<RegisterArtistSheet> {
       widget.onRegistered(artistUsername);
     } catch (e) {
       if (!mounted) return;
+      debugPrint('[RegisterArtist] Unexpected error: $e');
       setState(() {
         _isSubmitting = false;
-        _error = e.toString();
+        _error = 'Something went wrong. Please try again.';
       });
     }
   }
