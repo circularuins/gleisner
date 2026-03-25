@@ -81,6 +81,15 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Artist profile required");
       }
 
+      // Check genre limit (max 5 per artist)
+      const existingGenres = await db
+        .select({ genreId: artistGenres.genreId })
+        .from(artistGenres)
+        .where(eq(artistGenres.artistId, artist.id));
+      if (existingGenres.length >= 5) {
+        throw new GraphQLError("Maximum 5 genres per artist");
+      }
+
       // Verify genre exists
       const [genre] = await db
         .select({ id: genres.id })

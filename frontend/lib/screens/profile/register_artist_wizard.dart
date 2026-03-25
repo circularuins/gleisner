@@ -264,14 +264,22 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
 
       if (!mounted) return;
 
-      // 3. Add genres
-      for (var i = 0; i < _selectedGenres.length; i++) {
-        await client.mutate(
-          MutationOptions(
-            document: gql(addArtistGenreMutation),
-            variables: {'genreId': _selectedGenres[i].id, 'position': i},
+      // 3. Add genres (parallel)
+      final genreResults = await Future.wait([
+        for (var i = 0; i < _selectedGenres.length; i++)
+          client.mutate(
+            MutationOptions(
+              document: gql(addArtistGenreMutation),
+              variables: {'genreId': _selectedGenres[i].id, 'position': i},
+            ),
           ),
-        );
+      ]);
+      final failedGenres = <String>[];
+      for (var i = 0; i < genreResults.length; i++) {
+        if (genreResults[i].hasException) {
+          debugPrint('[RegisterArtist] genre failed: ${_selectedGenres[i].name}');
+          failedGenres.add(_selectedGenres[i].name);
+        }
       }
 
       if (!mounted) return;
@@ -281,12 +289,19 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
 
       if (!mounted) return;
 
+      final errors = <String>[];
       if (failedTracks.isNotEmpty) {
+        errors.add('Tracks: ${failedTracks.join(", ")}');
+      }
+      if (failedGenres.isNotEmpty) {
+        errors.add('Genres: ${failedGenres.join(", ")}');
+      }
+      if (errors.isNotEmpty) {
         setState(() {
           _isSubmitting = false;
           _error =
-              'Failed to create tracks: ${failedTracks.join(", ")}. '
-              'You can add them later from your timeline.';
+              'Some items failed: ${errors.join("; ")}. '
+              'You can update them later.';
           _step = 3; // Still proceed to Complete — artist is registered
         });
         return;
@@ -916,6 +931,7 @@ class _TrackChip extends StatelessWidget {
               child: GestureDetector(
                 onTap: () async {
                   final controller = TextEditingController(text: track.name);
+                  try {
                   final result = await showDialog<String>(
                     context: context,
                     builder: (ctx) => AlertDialog(
@@ -947,6 +963,9 @@ class _TrackChip extends StatelessWidget {
                   );
                   if (result != null && result.isNotEmpty) {
                     onRename(result);
+                  }
+                  } finally {
+                    controller.dispose();
                   }
                 },
                 child: Row(
