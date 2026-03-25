@@ -25,11 +25,21 @@ GenreType.implement({
   }),
 });
 
-const ArtistGenreType = builder.objectRef<{
+// Prefetched genre data to avoid N+1 (attached by ArtistType.genres resolver)
+interface ArtistGenreRow {
   artistId: string;
   genreId: string;
   position: number;
-}>("ArtistGenre");
+  _genre?: {
+    id: string;
+    name: string;
+    normalizedName: string;
+    isPromoted: boolean;
+    createdAt: Date;
+  };
+}
+
+const ArtistGenreType = builder.objectRef<ArtistGenreRow>("ArtistGenre");
 
 ArtistGenreType.implement({
   fields: (t) => ({
@@ -37,6 +47,9 @@ ArtistGenreType.implement({
     genre: t.field({
       type: GenreType,
       resolve: async (ag) => {
+        // Use prefetched data from ArtistType.genres JOIN if available
+        if (ag._genre) return ag._genre;
+        // Fallback for mutations (addArtistGenre/removeArtistGenre)
         const [genre] = await db
           .select()
           .from(genres)
@@ -175,15 +188,29 @@ builder.queryFields((t) => ({
   }),
 }));
 
-// Add genres field to ArtistType
+// Add genres field to ArtistType — JOIN to avoid N+1 on genre resolver
 builder.objectFields(ArtistType, (t) => ({
   genres: t.field({
     type: [ArtistGenreType],
     resolve: async (artist) => {
-      return db
-        .select()
+      const rows = await db
+        .select({
+          artistId: artistGenres.artistId,
+          genreId: artistGenres.genreId,
+          position: artistGenres.position,
+          genre: genres,
+        })
         .from(artistGenres)
+        .innerJoin(genres, eq(artistGenres.genreId, genres.id))
         .where(eq(artistGenres.artistId, artist.id));
+
+      // Attach prefetched genre data so ArtistGenreType.genre skips DB query
+      return rows.map((r) => ({
+        artistId: r.artistId,
+        genreId: r.genreId,
+        position: r.position,
+        _genre: r.genre,
+      }));
     },
   }),
 }));

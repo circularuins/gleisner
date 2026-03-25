@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:graphql_flutter/graphql_flutter.dart';
 
-import '../../graphql/client.dart';
-import '../../graphql/queries/artist.dart';
 import '../../models/artist.dart';
+import '../../models/post.dart';
+import '../../providers/artist_page_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/my_artist_provider.dart';
 import '../../providers/pending_artist_provider.dart';
@@ -13,9 +12,8 @@ import '../../providers/tune_in_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/deterministic_rng.dart';
 
-/// Simplified Artist Page (ADR 013).
+/// Artist Page (ADR 013).
 /// Discover → Tap artist card → This screen → [Tune In] → Timeline tab.
-/// Placeholder until the full section-based Artist Page is built.
 class ArtistPageScreen extends ConsumerStatefulWidget {
   final String username;
 
@@ -26,77 +24,46 @@ class ArtistPageScreen extends ConsumerStatefulWidget {
 }
 
 class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
-  Artist? _artist;
-  bool _isLoading = true;
-
   @override
   void initState() {
     super.initState();
-    _loadArtist();
-  }
-
-  Future<void> _loadArtist() async {
-    final client = ref.read(graphqlClientProvider);
-    final result = await client.query(
-      QueryOptions(
-        document: gql(artistQuery),
-        variables: {'username': widget.username},
-      ),
-    );
-
-    if (!mounted) return;
-
-    final data = result.data?['artist'];
-    setState(() {
-      _artist = data != null
-          ? Artist.fromJson(data as Map<String, dynamic>)
-          : null;
-      _isLoading = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(artistPageProvider.notifier).loadArtist(widget.username);
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(artistPageProvider);
     final tuneIn = ref.watch(tuneInProvider);
     final authState = ref.watch(authProvider);
     final isAuthenticated = authState.status == AuthStatus.authenticated;
-    final isTunedIn = _artist != null && tuneIn.isTunedIn(_artist!.id);
-    // Don't show Tune In for own artist page
+    final artist = state.artist;
+    final isTunedIn = artist != null && tuneIn.isTunedIn(artist.id);
     final myArtist = ref.watch(myArtistProvider);
     final isSelf =
-        _artist != null && myArtist != null && _artist!.id == myArtist.id;
+        artist != null && myArtist != null && artist.id == myArtist.id;
 
     return Scaffold(
       backgroundColor: colorSurface0,
-      body: _isLoading
+      body: state.isLoading && artist == null
           ? const Center(
               child: CircularProgressIndicator(color: colorAccentGold),
             )
-          : _artist == null
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Artist not found',
-                    style: TextStyle(
-                      color: colorTextMuted,
-                      fontSize: fontSizeLg,
-                    ),
-                  ),
-                  const SizedBox(height: spaceLg),
-                  TextButton(
-                    onPressed: () => context.pop(),
-                    child: const Text('Go back'),
-                  ),
-                ],
-              ),
+          : state.error != null && artist == null
+          ? _ErrorView(
+              error: state.error!,
+              onRetry: () => ref
+                  .read(artistPageProvider.notifier)
+                  .loadArtist(widget.username),
             )
+          : artist == null
+          ? _ErrorView(error: 'Artist not found', onRetry: null)
           : CustomScrollView(
               slivers: [
-                // Cover + back button
+                // Cover image
                 SliverAppBar(
-                  expandedHeight: 180,
+                  expandedHeight: 200,
                   pinned: true,
                   backgroundColor: colorSurface0,
                   leading: IconButton(
@@ -104,47 +71,79 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                     onPressed: () => context.pop(),
                   ),
                   flexibleSpace: FlexibleSpaceBar(
-                    background: CustomPaint(
-                      painter: _CoverPainter(seed: _artist!.artistUsername),
+                    background: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CustomPaint(
+                          painter: _CoverPainter(seed: artist.artistUsername),
+                        ),
+                        // Gradient fade at bottom
+                        const Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: 60,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Color(0x00000000), colorSurface0],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
 
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.all(spaceXl),
+                    padding: const EdgeInsets.symmetric(horizontal: spaceXl),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Avatar + name row
+                        // Avatar overlapping cover
+                        Transform.translate(
+                          offset: const Offset(0, -32),
+                          child: _GenerativeAvatar(
+                            seed: artist.artistUsername,
+                            size: 72,
+                          ),
+                        ),
+
+                        // Header: name + username + tuned in count
+                        Text(
+                          artist.displayName ?? artist.artistUsername,
+                          style: const TextStyle(
+                            color: colorTextPrimary,
+                            fontSize: fontSizeTitle,
+                            fontWeight: weightBold,
+                          ),
+                        ),
+                        const SizedBox(height: spaceXxs),
                         Row(
                           children: [
-                            _GenerativeAvatar(
-                              seed: _artist!.artistUsername,
-                              size: 64,
+                            Text(
+                              '@${artist.artistUsername}',
+                              style: const TextStyle(
+                                color: colorTextMuted,
+                                fontSize: fontSizeMd,
+                              ),
                             ),
-                            const SizedBox(width: spaceLg),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _artist!.displayName ??
-                                        _artist!.artistUsername,
-                                    style: const TextStyle(
-                                      color: colorTextPrimary,
-                                      fontSize: fontSizeTitle,
-                                      fontWeight: weightBold,
-                                    ),
-                                  ),
-                                  Text(
-                                    '@${_artist!.artistUsername}',
-                                    style: const TextStyle(
-                                      color: colorTextMuted,
-                                      fontSize: fontSizeMd,
-                                    ),
-                                  ),
-                                ],
+                            const SizedBox(width: spaceMd),
+                            const Icon(
+                              Icons.headphones,
+                              size: 13,
+                              color: colorTextMuted,
+                            ),
+                            const SizedBox(width: spaceXxs),
+                            Text(
+                              '${artist.tunedInCount}',
+                              style: const TextStyle(
+                                color: colorTextMuted,
+                                fontSize: fontSizeSm,
                               ),
                             ),
                           ],
@@ -152,110 +151,120 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
 
                         const SizedBox(height: spaceLg),
 
-                        // Tune In button + count (not shown on own page)
+                        // Tune In button (not shown on own page)
                         if (isAuthenticated && !isSelf)
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _TuneInButton(
-                                  isTunedIn: isTunedIn,
-                                  onTap: () async {
-                                    final tunedIn = await ref
-                                        .read(tuneInProvider.notifier)
-                                        .toggleTuneIn(_artist!.id);
-                                    if (!context.mounted) return;
-                                    if (tunedIn) {
-                                      // Set pending artist and navigate to Timeline
-                                      ref
-                                          .read(pendingArtistProvider.notifier)
-                                          .set(_artist!.artistUsername);
-                                      context.go('/timeline');
-                                    }
-                                  },
-                                ),
-                              ),
-                            ],
+                          _TuneInButton(
+                            isTunedIn: isTunedIn,
+                            onTap: () async {
+                              final tunedIn = await ref
+                                  .read(tuneInProvider.notifier)
+                                  .toggleTuneIn(artist.id);
+                              if (!context.mounted) return;
+                              if (tunedIn) {
+                                ref
+                                    .read(pendingArtistProvider.notifier)
+                                    .set(artist.artistUsername);
+                                context.go('/timeline');
+                              }
+                            },
                           ),
-
-                        if (!isAuthenticated)
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.headphones,
-                                size: 14,
-                                color: colorTextMuted,
-                              ),
-                              const SizedBox(width: spaceXs),
-                              Text(
-                                '${_artist!.tunedInCount} Tuned In',
-                                style: const TextStyle(
-                                  color: colorTextMuted,
-                                  fontSize: fontSizeSm,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                        // Tagline
-                        if (_artist!.tagline != null) ...[
-                          const SizedBox(height: spaceLg),
-                          Text(
-                            _artist!.tagline!,
-                            style: const TextStyle(
-                              color: colorTextSecondary,
-                              fontSize: fontSizeLg,
-                              fontStyle: FontStyle.italic,
-                              height: 1.5,
-                            ),
-                          ),
-                        ],
-
-                        // Bio
-                        if (_artist!.bio != null) ...[
-                          const SizedBox(height: spaceMd),
-                          Text(
-                            _artist!.bio!,
-                            style: const TextStyle(
-                              color: colorTextSecondary,
-                              fontSize: fontSizeMd,
-                              height: 1.6,
-                            ),
-                          ),
-                        ],
 
                         // Genres
-                        if (_artist!.genres.isNotEmpty) ...[
+                        if (artist.genres.isNotEmpty) ...[
                           const SizedBox(height: spaceXl),
                           Wrap(
                             spacing: spaceSm,
                             runSpacing: spaceSm,
-                            children: _artist!.genres.map((ag) {
-                              return Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: spaceMd,
-                                  vertical: spaceXs,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: colorSurface2,
-                                  borderRadius: BorderRadius.circular(
-                                    radiusFull,
-                                  ),
-                                  border: Border.all(color: colorBorder),
-                                ),
-                                child: Text(
-                                  ag.genre.name,
-                                  style: const TextStyle(
-                                    color: colorTextSecondary,
-                                    fontSize: fontSizeSm,
-                                  ),
-                                ),
+                            children: artist.genres.map((ag) {
+                              return _Chip(
+                                label: ag.genre.name,
+                                color: colorTextSecondary,
+                                bgColor: colorSurface2,
+                                borderColor: colorBorder,
                               );
                             }).toList(),
                           ),
                         ],
 
-                        // Tracks
-                        if (_artist!.tracks.isNotEmpty) ...[
+                        // About section
+                        if (artist.location != null ||
+                            artist.activeSince != null ||
+                            artist.tagline != null ||
+                            artist.bio != null) ...[
+                          const SizedBox(height: spaceXl),
+                          // Location + Active since
+                          if (artist.location != null ||
+                              artist.activeSince != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: spaceSm),
+                              child: Row(
+                                children: [
+                                  if (artist.location != null) ...[
+                                    const Icon(
+                                      Icons.place_outlined,
+                                      size: 14,
+                                      color: colorTextMuted,
+                                    ),
+                                    const SizedBox(width: spaceXxs),
+                                    Text(
+                                      artist.location!,
+                                      style: const TextStyle(
+                                        color: colorTextMuted,
+                                        fontSize: fontSizeSm,
+                                      ),
+                                    ),
+                                  ],
+                                  if (artist.location != null &&
+                                      artist.activeSince != null)
+                                    const Text(
+                                      ' · ',
+                                      style: TextStyle(color: colorTextMuted),
+                                    ),
+                                  if (artist.activeSince != null)
+                                    Text(
+                                      'Active since ${artist.activeSince}',
+                                      style: const TextStyle(
+                                        color: colorTextMuted,
+                                        fontSize: fontSizeSm,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          // Tagline
+                          if (artist.tagline != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: spaceSm),
+                              child: Text(
+                                artist.tagline!,
+                                style: const TextStyle(
+                                  color: colorTextSecondary,
+                                  fontSize: fontSizeMd,
+                                  fontStyle: FontStyle.italic,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          // Bio
+                          if (artist.bio != null)
+                            Text(
+                              artist.bio!,
+                              style: const TextStyle(
+                                color: colorTextSecondary,
+                                fontSize: fontSizeMd,
+                                height: 1.6,
+                              ),
+                            ),
+                        ],
+
+                        // Links section
+                        if (artist.links.isNotEmpty) ...[
+                          const SizedBox(height: spaceXl),
+                          _LinksSection(links: artist.links),
+                        ],
+
+                        // Tracks section
+                        if (artist.tracks.isNotEmpty) ...[
                           const SizedBox(height: spaceXl),
                           const Text(
                             'TRACKS',
@@ -278,70 +287,98 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                           Wrap(
                             spacing: spaceSm,
                             runSpacing: spaceSm,
-                            children: _artist!.tracks.map((track) {
-                              return Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: spaceMd,
-                                  vertical: spaceXs,
+                            children: artist.tracks.map((track) {
+                              return _Chip(
+                                label: track.name,
+                                color: track.displayColor,
+                                bgColor: track.displayColor.withValues(
+                                  alpha: 0.1,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: track.displayColor.withValues(
-                                    alpha: 0.1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(
-                                    radiusFull,
-                                  ),
-                                  border: Border.all(
-                                    color: track.displayColor.withValues(
-                                      alpha: 0.3,
-                                    ),
-                                  ),
+                                borderColor: track.displayColor.withValues(
+                                  alpha: 0.3,
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: track.displayColor,
-                                      ),
-                                    ),
-                                    const SizedBox(width: spaceXs),
-                                    Text(
-                                      track.name,
-                                      style: TextStyle(
-                                        color: track.displayColor,
-                                        fontSize: fontSizeSm,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                dot: true,
                               );
                             }).toList(),
                           ),
                         ],
 
-                        // Public timeline link
+                        // Recent Posts section
+                        if (state.recentPosts.isNotEmpty) ...[
+                          const SizedBox(height: spaceXl),
+                          const Text(
+                            'RECENT POSTS',
+                            style: TextStyle(
+                              color: colorTextMuted,
+                              fontSize: fontSizeXs,
+                              fontWeight: weightSemibold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: spaceMd),
+                          ...state.recentPosts.map(
+                            (p) => _RecentPostCard(post: p),
+                          ),
+                        ],
+
+                        // View full timeline link
                         const SizedBox(height: spaceXl),
                         const Divider(color: colorBorder),
                         const SizedBox(height: spaceMd),
                         TextButton.icon(
                           onPressed: () =>
-                              context.push('/@${_artist!.artistUsername}'),
+                              context.push('/@${artist.artistUsername}'),
                           icon: const Icon(Icons.grid_view, size: 16),
                           label: const Text('View full timeline'),
                           style: TextButton.styleFrom(
                             foregroundColor: colorInteractive,
                           ),
                         ),
+                        const SizedBox(height: spaceXl),
                       ],
                     ),
                   ),
                 ),
               ],
             ),
+    );
+  }
+}
+
+// ── Error View ──
+
+class _ErrorView extends StatelessWidget {
+  final String error;
+  final VoidCallback? onRetry;
+
+  const _ErrorView({required this.error, this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, color: colorTextMuted, size: 40),
+          const SizedBox(height: spaceMd),
+          Text(error, style: const TextStyle(color: colorTextMuted)),
+          if (onRetry != null) ...[
+            const SizedBox(height: spaceLg),
+            TextButton(
+              onPressed: onRetry,
+              child: const Text(
+                'Retry',
+                style: TextStyle(color: colorAccentGold),
+              ),
+            ),
+          ],
+          const SizedBox(height: spaceMd),
+          TextButton(
+            onPressed: () => context.pop(),
+            child: const Text('Go back'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -359,6 +396,7 @@ class _TuneInButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: spaceMd),
         decoration: BoxDecoration(
           color: isTunedIn
@@ -388,6 +426,272 @@ class _TuneInButton extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Links Section ──
+
+class _LinksSection extends StatelessWidget {
+  final List<ArtistLink> links;
+
+  const _LinksSection({required this.links});
+
+  @override
+  Widget build(BuildContext context) {
+    final musicLinks = links.where((l) => l.linkCategory == 'music').toList();
+    final snsLinks = links
+        .where((l) => l.linkCategory == 'social' || l.linkCategory == 'video')
+        .toList();
+    final otherLinks = links
+        .where(
+          (l) =>
+              l.linkCategory != 'music' &&
+              l.linkCategory != 'social' &&
+              l.linkCategory != 'video',
+        )
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (musicLinks.isNotEmpty) ...[
+          const Text(
+            'MUSIC',
+            style: TextStyle(
+              color: colorTextMuted,
+              fontSize: fontSizeXs,
+              fontWeight: weightSemibold,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: spaceSm),
+          Wrap(
+            spacing: spaceSm,
+            runSpacing: spaceSm,
+            children: musicLinks.map((l) => _LinkChip(link: l)).toList(),
+          ),
+          const SizedBox(height: spaceMd),
+        ],
+        if (snsLinks.isNotEmpty) ...[
+          const Text(
+            'SNS',
+            style: TextStyle(
+              color: colorTextMuted,
+              fontSize: fontSizeXs,
+              fontWeight: weightSemibold,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: spaceSm),
+          Wrap(
+            spacing: spaceSm,
+            runSpacing: spaceSm,
+            children: snsLinks.map((l) => _LinkChip(link: l)).toList(),
+          ),
+          const SizedBox(height: spaceMd),
+        ],
+        if (otherLinks.isNotEmpty) ...[
+          Wrap(
+            spacing: spaceSm,
+            runSpacing: spaceSm,
+            children: otherLinks.map((l) => _LinkChip(link: l)).toList(),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _LinkChip extends StatelessWidget {
+  final ArtistLink link;
+
+  const _LinkChip({required this.link});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: spaceMd,
+        vertical: spaceXs,
+      ),
+      decoration: BoxDecoration(
+        color: colorSurface2,
+        borderRadius: BorderRadius.circular(radiusFull),
+        border: Border.all(color: colorBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_platformIcon(link.platform), size: 14, color: colorInteractive),
+          const SizedBox(width: spaceXs),
+          Text(
+            link.platform,
+            style: const TextStyle(
+              color: colorTextSecondary,
+              fontSize: fontSizeSm,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static IconData _platformIcon(String platform) {
+    final p = platform.toLowerCase();
+    if (p.contains('spotify') ||
+        p.contains('apple') ||
+        p.contains('soundcloud') ||
+        p.contains('bandcamp')) {
+      return Icons.music_note;
+    }
+    if (p.contains('youtube')) return Icons.play_circle_outline;
+    if (p.contains('instagram') || p.contains('twitter') || p.contains('x')) {
+      return Icons.alternate_email;
+    }
+    return Icons.link;
+  }
+}
+
+// ── Recent Post Card ──
+
+class _RecentPostCard extends StatelessWidget {
+  final Post post;
+
+  const _RecentPostCard({required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    final trackColor = post.trackColor != null
+        ? _parseHex(post.trackColor!)
+        : colorInteractiveMuted;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: spaceSm),
+      child: Container(
+        padding: const EdgeInsets.all(spaceMd),
+        decoration: BoxDecoration(
+          color: colorSurface1,
+          borderRadius: BorderRadius.circular(radiusMd),
+          border: Border.all(color: colorBorder, width: 0.5),
+        ),
+        child: Row(
+          children: [
+            // Track color dot
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: trackColor,
+              ),
+            ),
+            const SizedBox(width: spaceMd),
+            // Title or body preview
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    post.title ?? _bodyPreview(post.body),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: colorTextPrimary,
+                      fontSize: fontSizeSm,
+                      fontWeight: weightMedium,
+                    ),
+                  ),
+                  if (post.trackName != null)
+                    Text(
+                      post.trackName!,
+                      style: TextStyle(
+                        color: trackColor.withValues(alpha: 0.7),
+                        fontSize: fontSizeXs,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            // Media type icon
+            Icon(
+              _mediaIcon(post.mediaType),
+              size: 14,
+              color: colorInteractiveMuted,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _bodyPreview(String? body) {
+    if (body == null || body.isEmpty) return 'Untitled';
+    return body.length > 50 ? '${body.substring(0, 50)}...' : body;
+  }
+
+  static IconData _mediaIcon(MediaType type) {
+    return switch (type) {
+      MediaType.text => Icons.article_outlined,
+      MediaType.image => Icons.image_outlined,
+      MediaType.video => Icons.videocam_outlined,
+      MediaType.audio => Icons.headphones_outlined,
+      MediaType.link => Icons.link,
+    };
+  }
+
+  static Color _parseHex(String hex) {
+    final h = hex.replaceFirst('#', '');
+    return Color(int.parse('FF$h', radix: 16));
+  }
+}
+
+// ── Shared Chip ──
+
+class _Chip extends StatelessWidget {
+  final String label;
+  final Color color;
+  final Color bgColor;
+  final Color borderColor;
+  final bool dot;
+
+  const _Chip({
+    required this.label,
+    required this.color,
+    required this.bgColor,
+    required this.borderColor,
+    this.dot = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: spaceMd,
+        vertical: spaceXs,
+      ),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(radiusFull),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (dot) ...[
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+            ),
+            const SizedBox(width: spaceXs),
+          ],
+          Text(
+            label,
+            style: TextStyle(color: color, fontSize: fontSizeSm),
+          ),
+        ],
       ),
     );
   }

@@ -2,7 +2,7 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, posts, tracks, users } from "../../db/schema/index.js";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 import { computeContentHash, verifySignature } from "../../auth/signing.js";
@@ -428,6 +428,40 @@ builder.queryFields((t) => ({
     },
     resolve: async (_parent, args) => {
       return db.select().from(posts).where(eq(posts.trackId, args.trackId));
+    },
+  }),
+
+  artistPosts: t.field({
+    type: [PostType],
+    args: {
+      artistId: t.arg.string({ required: true }),
+      limit: t.arg.int(),
+    },
+    resolve: async (_parent, args) => {
+      const limit = Math.min(args.limit ?? 5, 10);
+      return db
+        .select({
+          id: posts.id,
+          trackId: posts.trackId,
+          authorId: posts.authorId,
+          mediaType: posts.mediaType,
+          title: posts.title,
+          body: posts.body,
+          mediaUrl: posts.mediaUrl,
+          duration: posts.duration,
+          importance: posts.importance,
+          layoutX: posts.layoutX,
+          layoutY: posts.layoutY,
+          contentHash: posts.contentHash,
+          signature: posts.signature,
+          createdAt: posts.createdAt,
+          updatedAt: posts.updatedAt,
+        })
+        .from(posts)
+        .innerJoin(tracks, eq(posts.trackId, tracks.id))
+        .where(eq(tracks.artistId, args.artistId))
+        .orderBy(desc(posts.createdAt))
+        .limit(limit);
     },
   }),
 }));
