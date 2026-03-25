@@ -2,7 +2,7 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, artistGenres, genres } from "../../db/schema/index.js";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
 
 const GenreType = builder.objectRef<{
@@ -97,6 +97,10 @@ builder.mutationFields((t) => ({
           | { artistId: string; genreId: string; position: number }
           | undefined;
         await db.transaction(async (tx) => {
+          // Lock artist row to serialize concurrent genre additions
+          await tx.execute(
+            sql`SELECT 1 FROM artists WHERE id = ${artist.id} FOR UPDATE`,
+          );
           const existing = await tx
             .select({ genreId: artistGenres.genreId })
             .from(artistGenres)
