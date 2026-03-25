@@ -53,11 +53,10 @@ class _RegisterArtistSheetState extends ConsumerState<RegisterArtistSheet> {
       if (!mounted) return;
 
       if (result.hasException) {
+        debugPrint('[RegisterArtist] GraphQL error: ${result.exception}');
         setState(() {
           _isSubmitting = false;
-          _error =
-              result.exception?.graphqlErrors.firstOrNull?.message ??
-              'Registration failed';
+          _error = 'Registration failed. Please try again.';
         });
         return;
       }
