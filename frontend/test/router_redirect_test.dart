@@ -78,18 +78,12 @@ void main() {
     });
 
     test('unauthenticated can access public profiles', () {
-      expect(
-        redirect(path: '/@seeduser', status: 'unauthenticated'),
-        isNull,
-      );
+      expect(redirect(path: '/@seeduser', status: 'unauthenticated'), isNull);
       expect(redirect(path: '/@alice', status: 'unauthenticated'), isNull);
     });
 
     test('unauthenticated cannot access protected routes', () {
-      expect(
-        redirect(path: '/timeline', status: 'unauthenticated'),
-        '/login',
-      );
+      expect(redirect(path: '/timeline', status: 'unauthenticated'), '/login');
       expect(
         redirect(path: '/create-post', status: 'unauthenticated'),
         '/login',
@@ -104,33 +98,15 @@ void main() {
     });
 
     test('authenticated redirects auth pages to timeline', () {
-      expect(
-        redirect(path: '/login', status: 'authenticated'),
-        '/timeline',
-      );
-      expect(
-        redirect(path: '/signup', status: 'authenticated'),
-        '/timeline',
-      );
-      expect(
-        redirect(path: '/splash', status: 'authenticated'),
-        '/timeline',
-      );
+      expect(redirect(path: '/login', status: 'authenticated'), '/timeline');
+      expect(redirect(path: '/signup', status: 'authenticated'), '/timeline');
+      expect(redirect(path: '/splash', status: 'authenticated'), '/timeline');
     });
 
     test('authenticated can access all routes', () {
-      expect(
-        redirect(path: '/timeline', status: 'authenticated'),
-        isNull,
-      );
-      expect(
-        redirect(path: '/create-post', status: 'authenticated'),
-        isNull,
-      );
-      expect(
-        redirect(path: '/@seeduser', status: 'authenticated'),
-        isNull,
-      );
+      expect(redirect(path: '/timeline', status: 'authenticated'), isNull);
+      expect(redirect(path: '/create-post', status: 'authenticated'), isNull);
+      expect(redirect(path: '/@seeduser', status: 'authenticated'), isNull);
     });
   });
 }

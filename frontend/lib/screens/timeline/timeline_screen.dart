@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/track.dart';
-import '../../providers/auth_provider.dart';
+import '../../providers/my_artist_provider.dart';
+import '../../providers/pending_artist_provider.dart';
 import '../../providers/timeline_provider.dart';
+import '../../providers/tune_in_provider.dart';
 import '../../utils/constellation_layout.dart';
+import '../../widgets/timeline/avatar_rail.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/node_card.dart';
 import '../../theme/gleisner_tokens.dart';
@@ -33,37 +36,247 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   void initState() {
     super.initState();
     Future.microtask(_loadData);
+    // Listen for pending artist (set by Artist Page after Tune In)
+    // Using ref.listenManual avoids the multi-fire issue of ref.watch in build()
+    ref.listenManual(pendingArtistProvider, (prev, next) {
+      if (next != null) {
+        ref.read(pendingArtistProvider.notifier).clear();
+        ref.read(tuneInProvider.notifier).loadMyTuneIns();
+        _switchToArtist(next);
+      }
+    });
   }
 
-  void _loadData() {
-    final timeline = ref.read(timelineProvider);
-    if (timeline.artist != null) {
-      // Already loaded — just refresh posts
-      ref.read(timelineProvider.notifier).refresh();
-    } else {
-      final user = ref.read(authProvider).user;
-      if (user != null) {
-        ref.read(timelineProvider.notifier).loadArtist(user.username);
-      }
+  /// The username whose timeline is currently displayed.
+  /// null = own timeline (Artist Mode).
+  String? _viewingArtistUsername;
+
+  /// Own artist username, derived from myArtistProvider.
+  String? get _ownArtistUsername =>
+      ref.read(myArtistProvider)?.artistUsername;
+
+  /// Whether the current view is the user's own timeline (Artist Mode).
+  bool get _isOwnTimeline {
+    final own = _ownArtistUsername;
+    return _viewingArtistUsername == null ||
+        (own != null && _viewingArtistUsername == own);
+  }
+
+  Future<void> _loadData() async {
+    // Load own artist + tune-in list in parallel
+    await Future.wait([
+      ref.read(myArtistProvider.notifier).load(),
+      ref.read(tuneInProvider.notifier).loadMyTuneIns(),
+    ]);
+    if (!mounted) return;
+
+    final myArtist = ref.read(myArtistProvider);
+    final tunedIn = ref.read(tuneInProvider).tunedInArtists;
+
+    if (_viewingArtistUsername != null) {
+      // Already viewing someone — just refresh
+      return;
     }
+
+    if (myArtist != null) {
+      // Artist user — load own timeline
+      ref.read(timelineProvider.notifier).loadArtist(myArtist.artistUsername);
+    } else if (tunedIn.isNotEmpty) {
+      // Fan-only user with tuned-in artists — show the first one
+      _switchToArtist(tunedIn.first.artistUsername);
+    }
+    // else: fan with no tune-ins — empty state (handled by build)
+  }
+
+  void _switchToArtist(String artistUsername) {
+    if (_ownArtistUsername != null && artistUsername == _ownArtistUsername) {
+      // Switch to own timeline (Artist Mode)
+      _viewingArtistUsername = null;
+      ref.read(timelineProvider.notifier).loadArtist(_ownArtistUsername!);
+    } else {
+      // Switch to another artist's timeline (Fan Mode)
+      _viewingArtistUsername = artistUsername;
+      ref.read(timelineProvider.notifier).loadArtist(artistUsername);
+    }
+    // Clear constellation mode on artist switch
+    ref.read(timelineProvider.notifier).clearConstellation();
+    setState(() {
+      _focusedPostId = null;
+      _lastWidth = null; // Force layout recalculation
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final timeline = ref.watch(timelineProvider);
+    final tuneIn = ref.watch(tuneInProvider);
+
+
+
     final theme = Theme.of(context);
+    final isOwn = _isOwnTimeline;
+
+    // Header: artist name + mode badge
+    final headerTitle = timeline.artist != null
+        ? (isOwn
+              ? 'Your Timeline'
+              : timeline.artist!.displayName ?? timeline.artist!.artistUsername)
+        : 'Gleisner';
+    final modeBadge = timeline.artist != null
+        ? (isOwn ? 'ARTIST' : 'TUNED IN')
+        : null;
+
+    // Self artist username for the avatar rail (always show if user is an artist)
+    final selfArtistUsername = _ownArtistUsername;
 
     return Scaffold(
       backgroundColor: colorSurface0,
       appBar: AppBar(
         backgroundColor: colorSurface0,
-        title: const Text(
-          'Gleisner',
-          style: TextStyle(color: colorTextPrimary),
+        title: Row(
+          children: [
+            Flexible(
+              child: GestureDetector(
+                onTap: isOwn
+                    ? () => context.go('/profile')
+                    : timeline.artist != null
+                        ? () => context.push(
+                            '/artist/${timeline.artist!.artistUsername}')
+                        : null,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        headerTitle,
+                        style: const TextStyle(
+                          color: colorTextPrimary,
+                          fontSize: fontSizeXl,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (!isOwn && timeline.artist != null)
+                      const Padding(
+                        padding: EdgeInsets.only(left: spaceXxs),
+                        child: Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: colorInteractiveMuted,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            if (modeBadge != null) ...[
+              const SizedBox(width: spaceSm),
+              if (isOwn)
+                // Artist Mode — static badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: spaceXs,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorAccentGold.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(radiusSm),
+                    border: Border.all(
+                      color: colorAccentGold.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Text(
+                    modeBadge,
+                    style: const TextStyle(
+                      color: colorAccentGold,
+                      fontSize: 9,
+                      fontWeight: weightSemibold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                )
+              else
+                // Fan Mode — tappable Tune Out button
+                GestureDetector(
+                  onTap: () async {
+                    final artistId = timeline.artist?.id;
+                    if (artistId == null) return;
+                    // 1. Tune out
+                    await ref
+                        .read(tuneInProvider.notifier)
+                        .toggleTuneIn(artistId);
+                    if (!mounted) return;
+                    // 2. Sync with server
+                    await ref
+                        .read(tuneInProvider.notifier)
+                        .loadMyTuneIns();
+                    if (!mounted) return;
+                    // 3. Decide what to show next
+                    final remaining =
+                        ref.read(tuneInProvider).tunedInArtists;
+                    if (remaining.isNotEmpty) {
+                      // Switch to first remaining artist
+                      _switchToArtist(remaining.first.artistUsername);
+                    } else if (_ownArtistUsername != null) {
+                      // No more tuned-in artists, show own timeline
+                      _switchToArtist(_ownArtistUsername!);
+                    } else {
+                      // Fan-only, no artists left — empty state
+                      _viewingArtistUsername = null;
+                      ref.read(timelineProvider.notifier).loadMyArtist();
+                      setState(() {
+                        _focusedPostId = null;
+                        _lastWidth = null;
+                      });
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: spaceSm,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorAccentGold.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(radiusFull),
+                      border: Border.all(
+                        color: colorAccentGold.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.headphones,
+                          size: 10,
+                          color: colorAccentGold,
+                        ),
+                        SizedBox(width: 3),
+                        Text(
+                          'TUNED IN',
+                          style: TextStyle(
+                            color: colorAccentGold,
+                            fontSize: 9,
+                            fontWeight: weightSemibold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        SizedBox(width: 3),
+                        Icon(
+                          Icons.close,
+                          size: 10,
+                          color: colorAccentGold,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ],
         ),
         actions: const [],
       ),
-      floatingActionButton: timeline.artist != null
+      // FAB only in Artist Mode (ADR 008)
+      floatingActionButton: timeline.artist != null && isOwn
           ? _GlowingStarButton(onPressed: () => context.go('/create-post'))
           : null,
       body: Column(
@@ -89,6 +302,27 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           Expanded(
             child: timeline.isLoading && timeline.posts.isEmpty
                 ? const Center(child: CircularProgressIndicator())
+                : timeline.posts.isEmpty && !isOwn
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.headphones,
+                          size: 40,
+                          color: colorInteractiveMuted,
+                        ),
+                        const SizedBox(height: spaceMd),
+                        Text(
+                          'No posts from this artist yet',
+                          style: TextStyle(
+                            color: colorInteractive,
+                            fontSize: theme.textTheme.bodyLarge?.fontSize,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
                 : timeline.posts.isEmpty
                 ? Center(
                     child: Text(
@@ -131,7 +365,25 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                           child: SingleChildScrollView(
                             controller: _scrollController,
                             physics: const AlwaysScrollableScrollPhysics(),
-                            child: GestureDetector(
+                            child: Column(
+                              children: [
+                                // Avatar rail (ADR 013) — scrolls with content
+                                if (tuneIn.tunedInArtists.isNotEmpty ||
+                                    selfArtistUsername != null)
+                                  AvatarRail(
+                                    artists: tuneIn.tunedInArtists,
+                                    selfArtistUsername: selfArtistUsername,
+                                    selectedArtistUsername:
+                                        _viewingArtistUsername ??
+                                            (timeline.artist?.artistUsername),
+                                    onSelectArtist: _switchToArtist,
+                                    onSelectSelf: () {
+                                      if (_ownArtistUsername != null) {
+                                        _switchToArtist(_ownArtistUsername!);
+                                      }
+                                    },
+                                  ),
+                                GestureDetector(
                               onTap: () {
                                 if (timeline.constellationPostIds != null) {
                                   ref
@@ -171,6 +423,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                                   ],
                                 ),
                               ),
+                            ),
+                              ],
                             ),
                           ),
                         );
@@ -304,22 +558,32 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         .posts
         .firstWhere((p) => p.id == postId);
     final notifier = ref.read(timelineProvider.notifier);
+    final isOwn = _isOwnTimeline;
     showPostDetailSheet(
       context,
       post,
+      // Reactions are always available (engagement, not editing)
       onToggleReaction: (id, emoji) => notifier.toggleReaction(id, emoji),
       onReactionsChanged: (id, counts, myReactions) {
         notifier.updatePostReactions(id, counts, myReactions);
       },
-      onCreateConnection: (sourceId, targetId) =>
-          notifier.createConnection(sourceId, targetId),
-      onDeleteConnection: (connectionId) =>
-          notifier.deleteConnection(connectionId),
-      onConnectionAdded: (conn) => notifier.addConnectionToState(conn),
-      onConnectionRemoved: (conn) => notifier.removeConnectionFromState(conn),
+      onCreateConnection: isOwn
+          ? (sourceId, targetId) =>
+              notifier.createConnection(sourceId, targetId)
+          : null,
+      onDeleteConnection: isOwn
+          ? (connectionId) => notifier.deleteConnection(connectionId)
+          : null,
+      onConnectionAdded: isOwn
+          ? (conn) => notifier.addConnectionToState(conn)
+          : null,
+      onConnectionRemoved: isOwn
+          ? (conn) => notifier.removeConnectionFromState(conn)
+          : null,
       onViewConstellation: (ids) => notifier.showConstellation(ids),
-      onNameConstellation: (postId, name) =>
-          notifier.nameConstellation(postId, name),
+      onNameConstellation: isOwn
+          ? (postId, name) => notifier.nameConstellation(postId, name)
+          : null,
       allPosts: ref.read(timelineProvider).posts,
     );
   }

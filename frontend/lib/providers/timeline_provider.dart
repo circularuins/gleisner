@@ -74,8 +74,7 @@ class TimelineState {
   }
 }
 
-class TimelineNotifier extends Notifier<TimelineState>
-    with DisposableNotifier {
+class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   late GraphQLClient _client;
   double _lastWidth = 0;
 
@@ -131,6 +130,53 @@ class TimelineNotifier extends Notifier<TimelineState>
 
       final artist = Artist.fromJson(data as Map<String, dynamic>);
       // Default: all tracks selected
+      final allIds = artist.tracks.map((t) => t.id).toSet();
+      state = state.copyWith(
+        artist: artist,
+        selectedTrackIds: allIds,
+        isLoading: artist.tracks.isNotEmpty,
+      );
+
+      if (artist.tracks.isNotEmpty) {
+        await _loadSelectedPosts();
+      }
+    } catch (e) {
+      if (disposed) return;
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  /// Load the authenticated user's own artist profile via myArtist query.
+  /// Used for initial load to avoid username vs artistUsername mismatch.
+  Future<void> loadMyArtist() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final result = await _client.query(
+        QueryOptions(document: gql(myArtistQuery)),
+      );
+
+      if (disposed) return;
+
+      if (result.hasException) {
+        state = state.copyWith(isLoading: false, error: null);
+        return;
+      }
+
+      final data = result.data?['myArtist'];
+      if (data == null) {
+        // User is not an artist — that's fine
+        state = state.copyWith(
+          isLoading: false,
+          artist: null,
+          selectedTrackIds: {},
+          posts: [],
+          layout: null,
+        );
+        return;
+      }
+
+      final artist = Artist.fromJson(data as Map<String, dynamic>);
       final allIds = artist.tracks.map((t) => t.id).toSet();
       state = state.copyWith(
         artist: artist,

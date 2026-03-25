@@ -1,3 +1,4 @@
+import 'genre.dart';
 import 'track.dart';
 
 class Artist {
@@ -10,6 +11,7 @@ class Artist {
   final String? coverImageUrl;
   final int tunedInCount;
   final List<Track> tracks;
+  final List<ArtistGenre> genres;
 
   const Artist({
     required this.id,
@@ -21,6 +23,7 @@ class Artist {
     this.coverImageUrl,
     required this.tunedInCount,
     required this.tracks,
+    this.genres = const [],
   });
 
   Artist withTrack(Track track) => Artist(
@@ -33,6 +36,7 @@ class Artist {
     coverImageUrl: coverImageUrl,
     tunedInCount: tunedInCount,
     tracks: [...tracks, track],
+    genres: genres,
   );
 
   factory Artist.fromJson(Map<String, dynamic> json) {
@@ -48,6 +52,11 @@ class Artist {
       tracks:
           (json['tracks'] as List<dynamic>?)
               ?.map((t) => Track.fromJson(t as Map<String, dynamic>))
+              .toList() ??
+          [],
+      genres:
+          (json['genres'] as List<dynamic>?)
+              ?.map((g) => ArtistGenre.fromJson(g as Map<String, dynamic>))
               .toList() ??
           [],
     );
