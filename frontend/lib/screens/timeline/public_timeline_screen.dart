@@ -240,7 +240,7 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
                   const SizedBox(width: spaceMd),
                   Expanded(
                     child: Text(
-                      'Create your own constellation',
+                      'Discover more artists',
                       style: textHeading.copyWith(fontSize: 13),
                     ),
                   ),

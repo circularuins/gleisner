@@ -93,7 +93,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 ? Center(
                     child: Text(
                       timeline.artist == null
-                          ? 'Register as an artist to get started'
+                          ? 'Discover artists and tune in to fill your timeline'
                           : 'No posts yet',
                       style: TextStyle(
                         color: colorInteractive,
