@@ -4,6 +4,7 @@ flutter = "latest"
 [tasks]
 lint = { run = "dart fmt lib && flutter analyze", depends = "pub_get" } # dart fmt にpub_getが必要
 run_web = { run = "flutter run" }
-build = { run = "flutter build web" }
+build = { run = "flutter build web", depends = "clean" }
 pub_get = { run = "flutter pub get" }
 test = { run = "flutter test" }
+clean = { run = "flutter clean" }
