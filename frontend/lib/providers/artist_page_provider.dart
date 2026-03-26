@@ -88,10 +88,7 @@ class ArtistPageNotifier extends Notifier<ArtistPageState>
     } catch (e) {
       if (disposed) return;
       debugPrint('[ArtistPage] load error: $e');
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Failed to load artist.',
-      );
+      state = state.copyWith(isLoading: false, error: 'Failed to load artist.');
     }
   }
 
@@ -125,5 +122,5 @@ class ArtistPageNotifier extends Notifier<ArtistPageState>
 
 final artistPageProvider =
     NotifierProvider<ArtistPageNotifier, ArtistPageState>(
-  ArtistPageNotifier.new,
-);
+      ArtistPageNotifier.new,
+    );

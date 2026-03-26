@@ -20,6 +20,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _usernameController = TextEditingController();
+  final _displayNameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
 
@@ -28,6 +29,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _usernameController.dispose();
+    _displayNameController.dispose();
     super.dispose();
   }
 
@@ -35,15 +37,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSubmitting = true);
 
+    final displayName = _displayNameController.text.trim();
     await ref
         .read(authProvider.notifier)
         .signup(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           username: _usernameController.text.trim(),
+          displayName: displayName.isNotEmpty ? displayName : null,
         );
 
-    if (mounted) setState(() => _isSubmitting = false);
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    // Navigate to onboarding on success
+    final authState = ref.read(authProvider);
+    if (authState.status == AuthStatus.authenticated) {
+      context.go('/onboarding');
+    }
   }
 
   @override
@@ -69,6 +80,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   ErrorBanner(message: authState.error!),
                   const SizedBox(height: spaceLg),
                 ],
+                TextFormField(
+                  controller: _displayNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Display Name',
+                    hintText: 'How you want to be known',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: spaceLg),
                 TextFormField(
                   controller: _usernameController,
                   decoration: const InputDecoration(

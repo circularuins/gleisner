@@ -152,6 +152,30 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
           }
         });
       },
+      onCreateGenre: (name) async {
+        final client = ref.read(graphqlClientProvider);
+        final result = await client.mutate(
+          MutationOptions(
+            document: gql(createGenreMutation),
+            variables: {'name': name},
+          ),
+        );
+        if (!mounted || result.hasException) return;
+        final data = result.data?['createGenre'] as Map<String, dynamic>?;
+        if (data == null) return;
+        final genre = Genre.fromJson(data);
+        setState(() {
+          // Add to available if not already there
+          if (!_availableGenres.any((g) => g.id == genre.id)) {
+            _availableGenres.add(genre);
+          }
+          // Auto-select if under limit
+          if (_selectedGenres.length < 5 &&
+              !_selectedGenres.any((g) => g.id == genre.id)) {
+            _selectedGenres.add(genre);
+          }
+        });
+      },
       error: _error,
       onNext: () {
         if (_profileFormKey.currentState!.validate()) {
@@ -453,6 +477,7 @@ class _StepProfile extends StatelessWidget {
   final List<Genre> availableGenres;
   final List<Genre> selectedGenres;
   final ValueChanged<Genre> onGenreToggle;
+  final ValueChanged<String> onCreateGenre;
   final String? error;
   final VoidCallback onNext;
 
@@ -467,6 +492,7 @@ class _StepProfile extends StatelessWidget {
     required this.availableGenres,
     required this.selectedGenres,
     required this.onGenreToggle,
+    required this.onCreateGenre,
     this.error,
     required this.onNext,
   });
@@ -622,6 +648,64 @@ class _StepProfile extends StatelessWidget {
                     ),
                   );
                 }).toList(),
+              ),
+              const SizedBox(height: spaceSm),
+              GestureDetector(
+                onTap: () async {
+                  final controller = TextEditingController();
+                  final name = await showDialog<String>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: colorSurface1,
+                      title: const Text(
+                        'Create Genre',
+                        style: TextStyle(color: colorTextPrimary),
+                      ),
+                      content: TextField(
+                        controller: controller,
+                        autofocus: true,
+                        style: const TextStyle(color: colorTextPrimary),
+                        decoration: const InputDecoration(
+                          hintText: 'e.g. Ambient Pop',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.pop(ctx, controller.text.trim()),
+                          child: const Text('Create'),
+                        ),
+                      ],
+                    ),
+                  );
+                  controller.dispose();
+                  if (name != null && name.isNotEmpty) {
+                    onCreateGenre(name);
+                  }
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.add,
+                      size: 14,
+                      color: colorInteractiveMuted,
+                    ),
+                    const SizedBox(width: spaceXs),
+                    Text(
+                      'Create custom genre',
+                      style: TextStyle(
+                        color: colorInteractiveMuted,
+                        fontSize: fontSizeSm,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
             const SizedBox(height: spaceXl),
