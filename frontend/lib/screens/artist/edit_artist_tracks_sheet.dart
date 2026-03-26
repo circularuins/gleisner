@@ -114,7 +114,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
       setState(() {
         _tracks.removeWhere((t) => t.id == track.id);
       });
-      ref
+      await ref
           .read(artistPageProvider.notifier)
           .loadArtist(widget.artist.artistUsername);
     }

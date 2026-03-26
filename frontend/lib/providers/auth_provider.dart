@@ -155,9 +155,10 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
       final user = User.fromJson(payload['user'] as Map<String, dynamic>);
       state = AuthState(status: AuthStatus.authenticated, user: user);
     } catch (e) {
+      debugPrint('[AuthNotifier] _executeMutation error: $e');
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
-        error: e.toString(),
+        error: fallbackError,
       );
     }
   }
