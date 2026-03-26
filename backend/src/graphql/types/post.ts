@@ -2,7 +2,7 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, posts, tracks, users } from "../../db/schema/index.js";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 import { computeContentHash, verifySignature } from "../../auth/signing.js";
@@ -45,7 +45,7 @@ async function verifyPostSignature(
 
 export const PostType = builder.objectRef<{
   id: string;
-  trackId: string;
+  trackId: string | null;
   authorId: string;
   mediaType: "text" | "image" | "video" | "audio" | "link";
   title: string | null;
@@ -97,13 +97,15 @@ PostType.implement({
     }),
     track: t.field({
       type: TrackType,
+      nullable: true,
       resolve: async (post) => {
+        if (!post.trackId) return null;
         const [track] = await db
           .select()
           .from(tracks)
           .where(eq(tracks.id, post.trackId))
           .limit(1);
-        return track;
+        return track ?? null;
       },
     }),
   }),
@@ -234,6 +236,7 @@ builder.mutationFields((t) => ({
     type: PostType,
     args: {
       id: t.arg.string({ required: true }),
+      trackId: t.arg.string(),
       mediaType: t.arg({ type: MediaTypeEnum }),
       title: t.arg.string(),
       body: t.arg.string(),
@@ -293,7 +296,31 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Importance must be between 0.0 and 1.0");
       }
 
+      // Validate trackId — must belong to same artist
+      if (args.trackId != null) {
+        const [track] = await db
+          .select({ id: tracks.id, artistId: tracks.artistId })
+          .from(tracks)
+          .where(eq(tracks.id, args.trackId))
+          .limit(1);
+        if (!track) {
+          throw new GraphQLError("Track not found");
+        }
+        // Verify the track belongs to the same artist as the post's current track
+        if (post.trackId) {
+          const [currentTrack] = await db
+            .select({ artistId: tracks.artistId })
+            .from(tracks)
+            .where(eq(tracks.id, post.trackId))
+            .limit(1);
+          if (!currentTrack || track.artistId !== currentTrack.artistId) {
+            throw new GraphQLError("Not authorized to move post to this track");
+          }
+        }
+      }
+
       const updateData: Record<string, unknown> = { updatedAt: new Date() };
+      if (args.trackId !== undefined) updateData.trackId = args.trackId;
       if (args.mediaType !== undefined) updateData.mediaType = args.mediaType;
       if (args.title !== undefined) updateData.title = args.title;
       if (args.body !== undefined) updateData.body = args.body;
@@ -427,7 +454,10 @@ builder.queryFields((t) => ({
       trackId: t.arg.string({ required: true }),
     },
     resolve: async (_parent, args) => {
-      return db.select().from(posts).where(eq(posts.trackId, args.trackId));
+      return db
+        .select()
+        .from(posts)
+        .where(sql`${posts.trackId} = ${args.trackId}`);
     },
   }),
 
@@ -459,7 +489,7 @@ builder.queryFields((t) => ({
           updatedAt: posts.updatedAt,
         })
         .from(posts)
-        .innerJoin(tracks, eq(posts.trackId, tracks.id))
+        .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
         .where(eq(tracks.artistId, args.artistId))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
@@ -472,7 +502,10 @@ builder.objectFields(TrackType, (t) => ({
   posts: t.field({
     type: [PostType],
     resolve: async (track) => {
-      return db.select().from(posts).where(eq(posts.trackId, track.id));
+      return db
+        .select()
+        .from(posts)
+        .where(sql`${posts.trackId} = ${track.id}`);
     },
   }),
 }));

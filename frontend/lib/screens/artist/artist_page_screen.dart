@@ -11,6 +11,10 @@ import '../../providers/pending_artist_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/deterministic_rng.dart';
+import 'edit_artist_about_sheet.dart';
+import 'edit_artist_genres_sheet.dart';
+import 'edit_artist_links_sheet.dart';
+import 'edit_artist_tracks_sheet.dart';
 
 /// Artist Page (ADR 013).
 /// Discover → Tap artist card → This screen → [Tune In] → Timeline tab.
@@ -169,28 +173,68 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                           ),
 
                         // Genres
-                        if (artist.genres.isNotEmpty) ...[
+                        if (artist.genres.isNotEmpty || isSelf) ...[
                           const SizedBox(height: spaceXl),
-                          Wrap(
-                            spacing: spaceSm,
-                            runSpacing: spaceSm,
-                            children: artist.genres.map((ag) {
-                              return _Chip(
-                                label: ag.genre.name,
-                                color: colorTextSecondary,
-                                bgColor: colorSurface2,
-                                borderColor: colorBorder,
-                              );
-                            }).toList(),
-                          ),
+                          if (isSelf)
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'GENRES',
+                                    style: TextStyle(
+                                      color: colorTextMuted,
+                                      fontSize: fontSizeXs,
+                                      fontWeight: weightSemibold,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit_outlined,
+                                    size: 18,
+                                    color: colorTextMuted,
+                                  ),
+                                  onPressed: () =>
+                                      _showEditGenresSheet(context, artist),
+                                ),
+                              ],
+                            ),
+                          if (artist.genres.isNotEmpty)
+                            Wrap(
+                              spacing: spaceSm,
+                              runSpacing: spaceSm,
+                              children: artist.genres.map((ag) {
+                                return _Chip(
+                                  label: ag.genre.name,
+                                  color: colorTextSecondary,
+                                  bgColor: colorSurface2,
+                                  borderColor: colorBorder,
+                                );
+                              }).toList(),
+                            ),
                         ],
 
                         // About section
-                        if (artist.location != null ||
+                        if (isSelf ||
+                            artist.location != null ||
                             artist.activeSince != null ||
                             artist.tagline != null ||
                             artist.bio != null) ...[
                           const SizedBox(height: spaceXl),
+                          if (isSelf)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.edit_outlined,
+                                  size: 18,
+                                  color: colorTextMuted,
+                                ),
+                                onPressed: () =>
+                                    _showEditAboutSheet(context, artist),
+                              ),
+                            ),
                           // Location + Active since
                           if (artist.location != null ||
                               artist.activeSince != null)
@@ -257,22 +301,64 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                         ],
 
                         // Links section
-                        if (artist.links.isNotEmpty) ...[
+                        if (artist.links.isNotEmpty || isSelf) ...[
                           const SizedBox(height: spaceXl),
-                          _LinksSection(links: artist.links),
+                          if (isSelf)
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'LINKS',
+                                    style: TextStyle(
+                                      color: colorTextMuted,
+                                      fontSize: fontSizeXs,
+                                      fontWeight: weightSemibold,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit_outlined,
+                                    size: 18,
+                                    color: colorTextMuted,
+                                  ),
+                                  onPressed: () =>
+                                      _showEditLinksSheet(context, artist),
+                                ),
+                              ],
+                            ),
+                          if (artist.links.isNotEmpty)
+                            _LinksSection(links: artist.links),
                         ],
 
                         // Tracks section
-                        if (artist.tracks.isNotEmpty) ...[
+                        if (artist.tracks.isNotEmpty || isSelf) ...[
                           const SizedBox(height: spaceXl),
-                          const Text(
-                            'TRACKS',
-                            style: TextStyle(
-                              color: colorTextMuted,
-                              fontSize: fontSizeXs,
-                              fontWeight: weightSemibold,
-                              letterSpacing: 1,
-                            ),
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'TRACKS',
+                                  style: TextStyle(
+                                    color: colorTextMuted,
+                                    fontSize: fontSizeXs,
+                                    fontWeight: weightSemibold,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ),
+                              if (isSelf)
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit_outlined,
+                                    size: 18,
+                                    color: colorTextMuted,
+                                  ),
+                                  onPressed: () =>
+                                      _showEditTracksSheet(context, artist),
+                                ),
+                            ],
                           ),
                           const SizedBox(height: spaceXxs),
                           const Text(
@@ -340,6 +426,42 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  void _showEditAboutSheet(BuildContext context, Artist artist) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => EditArtistAboutSheet(artist: artist),
+    );
+  }
+
+  void _showEditLinksSheet(BuildContext context, Artist artist) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => EditArtistLinksSheet(artist: artist),
+    );
+  }
+
+  void _showEditGenresSheet(BuildContext context, Artist artist) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => EditArtistGenresSheet(artist: artist),
+    );
+  }
+
+  void _showEditTracksSheet(BuildContext context, Artist artist) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => EditArtistTracksSheet(artist: artist),
     );
   }
 }

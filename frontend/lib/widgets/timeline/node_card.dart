@@ -621,6 +621,17 @@ class _InfoBar extends StatelessWidget {
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
+            )
+          else if (post.body != null && post.body!.isNotEmpty)
+            Text(
+              post.body!,
+              style: TextStyle(
+                color: colorTextPrimary.withValues(alpha: 0.6),
+                fontSize: fontSizeXs,
+                height: 1.3,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
         ],
       ),

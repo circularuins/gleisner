@@ -22,3 +22,26 @@ const createPostMutation =
     }
   }
 ''';
+
+const updatePostMutation =
+    '''
+  mutation UpdatePost(
+    \$id: String!,
+    \$trackId: String,
+    \$title: String,
+    \$body: String,
+    \$mediaUrl: String,
+    \$importance: Float
+  ) {
+    updatePost(
+      id: \$id,
+      trackId: \$trackId,
+      title: \$title,
+      body: \$body,
+      mediaUrl: \$mediaUrl,
+      importance: \$importance
+    ) {
+      $postFields
+    }
+  }
+''';

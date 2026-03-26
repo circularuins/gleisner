@@ -564,6 +564,20 @@ class _FormStep extends ConsumerWidget {
     };
 
     return [
+      // Title (optional)
+      TextFormField(
+        controller: titleController,
+        decoration: InputDecoration(
+          labelText: 'Title (optional)',
+          border: const OutlineInputBorder(),
+          labelStyle: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withAlpha(128),
+          ),
+        ),
+        maxLength: 100,
+        style: theme.textTheme.titleMedium,
+      ),
+      const SizedBox(height: spaceMd),
       // Upload placeholder
       Container(
         padding: const EdgeInsets.symmetric(vertical: 32),

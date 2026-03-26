@@ -1,0 +1,228 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../providers/auth_provider.dart';
+import '../../theme/gleisner_tokens.dart';
+
+class EditProfileSheet extends ConsumerStatefulWidget {
+  final String? initialDisplayName;
+  final String? initialBio;
+  final String? initialAvatarUrl;
+
+  const EditProfileSheet({
+    super.key,
+    this.initialDisplayName,
+    this.initialBio,
+    this.initialAvatarUrl,
+  });
+
+  @override
+  ConsumerState<EditProfileSheet> createState() => _EditProfileSheetState();
+}
+
+class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
+  late final TextEditingController _displayNameController;
+  late final TextEditingController _bioController;
+  late final TextEditingController _avatarUrlController;
+  final _formKey = GlobalKey<FormState>();
+  bool _isSubmitting = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayNameController = TextEditingController(
+      text: widget.initialDisplayName ?? '',
+    );
+    _bioController = TextEditingController(text: widget.initialBio ?? '');
+    _avatarUrlController = TextEditingController(
+      text: widget.initialAvatarUrl ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _displayNameController.dispose();
+    _bioController.dispose();
+    _avatarUrlController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isSubmitting = true;
+      _error = null;
+    });
+
+    final displayName = _displayNameController.text.trim();
+    final bio = _bioController.text.trim();
+    final avatarUrl = _avatarUrlController.text.trim();
+
+    final ok = await ref
+        .read(authProvider.notifier)
+        .updateProfile(
+          displayName: displayName.isEmpty ? null : displayName,
+          bio: bio.isEmpty ? null : bio,
+          avatarUrl: avatarUrl.isEmpty ? null : avatarUrl,
+        );
+
+    if (!mounted) return;
+
+    if (ok) {
+      Navigator.pop(context);
+    } else {
+      setState(() {
+        _isSubmitting = false;
+        _error = 'Failed to update profile. Please try again.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.7,
+      minChildSize: 0.5,
+      maxChildSize: 0.9,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: colorSurface1,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(radiusSheet),
+            ),
+          ),
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              controller: scrollController,
+              padding: EdgeInsets.fromLTRB(
+                spaceXl,
+                spaceLg,
+                spaceXl,
+                spaceXl + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colorTextMuted.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(radiusFull),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: spaceLg),
+
+                Text('Edit Profile', style: textTitle),
+                const SizedBox(height: spaceXl),
+
+                if (_error != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(spaceMd),
+                    decoration: BoxDecoration(
+                      color: colorError.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(radiusMd),
+                    ),
+                    child: Text(
+                      _error!,
+                      style: textCaption.copyWith(color: colorError),
+                    ),
+                  ),
+                  const SizedBox(height: spaceLg),
+                ],
+
+                // Display Name
+                TextFormField(
+                  controller: _displayNameController,
+                  maxLength: 50,
+                  style: const TextStyle(color: colorTextPrimary),
+                  decoration: _inputDecoration('Display Name'),
+                ),
+                const SizedBox(height: spaceLg),
+
+                // Bio
+                TextFormField(
+                  controller: _bioController,
+                  maxLength: 1000,
+                  maxLines: 4,
+                  minLines: 2,
+                  style: const TextStyle(color: colorTextPrimary),
+                  decoration: _inputDecoration('Bio'),
+                ),
+                const SizedBox(height: spaceLg),
+
+                // Avatar URL
+                TextFormField(
+                  controller: _avatarUrlController,
+                  style: const TextStyle(color: colorTextPrimary),
+                  decoration: _inputDecoration('Avatar URL'),
+                  validator: (value) {
+                    if (value != null && value.trim().isNotEmpty) {
+                      final uri = Uri.tryParse(value.trim());
+                      if (uri == null ||
+                          !['http', 'https'].contains(uri.scheme)) {
+                        return 'Enter a valid http(s) URL';
+                      }
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: spaceXl),
+
+                // Save button
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _isSubmitting ? null : _save,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colorAccentGold,
+                      foregroundColor: colorSurface0,
+                      padding: const EdgeInsets.symmetric(vertical: spaceMd),
+                    ),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Save'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: colorTextMuted),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radiusMd),
+        borderSide: const BorderSide(color: colorBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radiusMd),
+        borderSide: const BorderSide(color: colorAccentGold),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radiusMd),
+        borderSide: const BorderSide(color: colorError),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radiusMd),
+        borderSide: const BorderSide(color: colorError),
+      ),
+      filled: true,
+      fillColor: colorSurface0,
+    );
+  }
+}
