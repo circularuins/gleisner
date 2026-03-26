@@ -55,20 +55,20 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
     if (!mounted) return;
 
     if (ok) {
+      // Reload to get the new track with server-assigned id
+      await ref
+          .read(artistPageProvider.notifier)
+          .loadArtist(widget.artist.artistUsername);
+      if (!mounted) return;
+      final updated = ref.read(artistPageProvider.select((s) => s.artist));
       setState(() {
         _showAddForm = false;
         _isSubmitting = false;
         _nameController.clear();
+        if (updated != null) {
+          _tracks = List.from(updated.tracks);
+        }
       });
-      // Reload to get the new track with server-assigned id
-      ref
-          .read(artistPageProvider.notifier)
-          .loadArtist(widget.artist.artistUsername);
-      // Also refresh local list from myArtist
-      final updated = ref.read(artistPageProvider.select((s) => s.artist));
-      if (updated != null) {
-        setState(() => _tracks = List.from(updated.tracks));
-      }
     } else {
       setState(() {
         _isSubmitting = false;

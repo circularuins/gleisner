@@ -472,6 +472,8 @@ builder.queryFields((t) => ({
     },
   }),
 
+  // INNER JOIN intentionally excludes trackId=NULL posts (unassigned after
+  // track deletion). They are managed separately via Profile screen (#67).
   // TODO(visibility): Add public/draft filter when post visibility is implemented
   artistPosts: t.field({
     type: [PostType],
