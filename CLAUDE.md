@@ -118,6 +118,41 @@ Discover/Tune In のテストには追加 seed も投入：
 
 **⚠ `pnpm test` 実行後は seed データが消える。** テストの `beforeEach` で `TRUNCATE users CASCADE` が実行されるため、テスト後に実機確認する場合は seed スクリプトを再実行すること。
 
+### mise tasks（代替コマンド）
+
+[mise](https://mise.jdx.dev/) がインストール済みであれば、上記の手動コマンドの代わりにタスクを使用できる。タスクは依存関係を自動解決する（例: `mise run test` は自動的に `build` を先行実行）。
+
+```bash
+mise run <タスク名>    # プロジェクトルートまたは backend/frontend ディレクトリから実行
+mise tasks             # 利用可能なタスク一覧を表示
+```
+
+#### バックエンドタスク（`cd backend` で実行）
+
+| タスク | 実行内容 | 自動依存 |
+|--------|----------|---------|
+| `start_dev` | 開発サーバー起動（`pnpm dev`） | `start_db` |
+| `start_db` | PostgreSQL 起動（`docker compose up -d --wait`） | — |
+| `stop_db` | PostgreSQL 停止 | — |
+| `build` | TypeScript ビルド | — |
+| `lint` | ESLint + Prettier チェック | — |
+| `test` | インテグレーションテスト | `build` |
+| `seed_dev` | スキーマを DB に反映（`db:push`） | `build` |
+| `seed_init_dev` | Discover 用データ投入（4アーティスト・20ジャンル） | — |
+| `setup_new_local` | 初回セットアップ: `.env` コピー → DB 起動 → seed | — |
+| `clean_cache_build` | `node_modules` / `dist` を削除 | — |
+| `clean_docker` | Docker コンテナ・イメージ・ボリュームを全削除 | — |
+
+#### フロントエンドタスク（`cd frontend` で実行）
+
+| タスク | 実行内容 | 自動依存 |
+|--------|----------|---------|
+| `pub_get` | `flutter pub get` | — |
+| `lint` | フォーマット + 静的解析 | `pub_get` |
+| `run_web` | `flutter run` | — |
+| `build` | `flutter build web` | — |
+| `test` | `flutter test` | — |
+
 ### ⚠ `db:push` の注意事項
 
 `db:push` はカラム追加時にテーブルを再作成する場合があり、**既存データが消失する**。
