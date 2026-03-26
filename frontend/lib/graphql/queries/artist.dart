@@ -1,11 +1,11 @@
-const artistQuery = r'''
-  query Artist($username: String!) {
-    artist(username: $username) {
+const _artistFields = '''
       id
       artistUsername
       displayName
       bio
       tagline
+      location
+      activeSince
       avatarUrl
       coverImageUrl
       tunedInCount
@@ -22,34 +22,29 @@ const artistQuery = r'''
           name
         }
       }
+      links {
+        id
+        linkCategory
+        platform
+        url
+        position
+      }
+''';
+
+const artistQuery =
+    '''
+  query Artist(\$username: String!) {
+    artist(username: \$username) {
+$_artistFields
     }
   }
 ''';
 
-const myArtistQuery = r'''
+const myArtistQuery =
+    '''
   query MyArtist {
     myArtist {
-      id
-      artistUsername
-      displayName
-      bio
-      tagline
-      avatarUrl
-      coverImageUrl
-      tunedInCount
-      tracks {
-        id
-        name
-        color
-        createdAt
-      }
-      genres {
-        position
-        genre {
-          id
-          name
-        }
-      }
+$_artistFields
     }
   }
 ''';
@@ -95,6 +90,23 @@ const myTuneInsQuery = r'''
         displayName
         avatarUrl
         tunedInCount
+      }
+    }
+  }
+''';
+
+const artistRecentPostsQuery = r'''
+  query ArtistRecentPosts($artistId: String!, $limit: Int) {
+    artistPosts(artistId: $artistId, limit: $limit) {
+      id
+      mediaType
+      title
+      body
+      createdAt
+      track {
+        id
+        name
+        color
       }
     }
   }

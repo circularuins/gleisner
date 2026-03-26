@@ -58,6 +58,49 @@ await db.transaction(async (tx) => {
 
 該当箇所: `addArtistGenre`（5件上限）、今後 `createTrack`（10件上限）にも適用すべき。
 
+### N+1 クエリの解消パターン
+
+**子リゾルバが親ごとに個別 SELECT を発行する N+1 は、JOIN + プリフェッチで解消する。**
+
+2 つのパターンがあるが、**オブジェクト埋め込み**を推奨（context を汚さない）。
+
+```typescript
+// ✅ 推奨: オブジェクト埋め込み（ArtistGenreType パターン）
+// 親リゾルバで JOIN して _genre を付与
+builder.objectFields(ArtistType, (t) => ({
+  genres: t.field({
+    resolve: async (artist) => {
+      const rows = await db.select({ ..., genre: genres })
+        .from(artistGenres)
+        .innerJoin(genres, eq(artistGenres.genreId, genres.id))
+        .where(eq(artistGenres.artistId, artist.id));
+      return rows.map((r) => ({ ...r, _genre: r.genre }));
+    },
+  }),
+}));
+// 子リゾルバでプリフェッチ済みデータを返す
+genre: t.field({
+  resolve: async (ag) => {
+    if (ag._genre) return ag._genre; // DB クエリなし
+    // フォールバック（mutation 等のプリフェッチなしパス用）
+    const [g] = await db.select().from(genres).where(eq(genres.id, ag.genreId)).limit(1);
+    return g;
+  },
+}),
+```
+
+```typescript
+// ✅ 代替: コンテキストキャッシュ（tuneInArtistCache パターン）
+// 親リゾルバで JOIN → ctx.cache に格納
+ctx.tuneInArtistCache = new Map();
+for (const row of rows) ctx.tuneInArtistCache.set(row.artistId, row.artist);
+// 子リゾルバで cache から取得
+const cached = ctx.tuneInArtistCache?.get(id);
+if (cached) return cached;
+```
+
+該当箇所: `ArtistGenreType.genre`（埋め込み）、`TuneInType.artist`（キャッシュ）。
+
 ### テスト
 
 - 共通ヘルパーは `src/graphql/__tests__/helpers.ts` に集約。新規テストファイルではこれを import

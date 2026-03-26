@@ -277,7 +277,9 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
       final failedGenres = <String>[];
       for (var i = 0; i < genreResults.length; i++) {
         if (genreResults[i].hasException) {
-          debugPrint('[RegisterArtist] genre failed: ${_selectedGenres[i].name}');
+          debugPrint(
+            '[RegisterArtist] genre failed: ${_selectedGenres[i].name}',
+          );
           failedGenres.add(_selectedGenres[i].name);
         }
       }
@@ -932,38 +934,38 @@ class _TrackChip extends StatelessWidget {
                 onTap: () async {
                   final controller = TextEditingController(text: track.name);
                   try {
-                  final result = await showDialog<String>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      backgroundColor: colorSurface1,
-                      title: const Text(
-                        'Rename Track',
-                        style: TextStyle(color: colorTextPrimary),
+                    final result = await showDialog<String>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: colorSurface1,
+                        title: const Text(
+                          'Rename Track',
+                          style: TextStyle(color: colorTextPrimary),
+                        ),
+                        content: TextField(
+                          controller: controller,
+                          autofocus: true,
+                          style: const TextStyle(color: colorTextPrimary),
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.pop(ctx, controller.text.trim()),
+                            child: const Text('Save'),
+                          ),
+                        ],
                       ),
-                      content: TextField(
-                        controller: controller,
-                        autofocus: true,
-                        style: const TextStyle(color: colorTextPrimary),
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.pop(ctx, controller.text.trim()),
-                          child: const Text('Save'),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (result != null && result.isNotEmpty) {
-                    onRename(result);
-                  }
+                    );
+                    if (result != null && result.isNotEmpty) {
+                      onRename(result);
+                    }
                   } finally {
                     controller.dispose();
                   }

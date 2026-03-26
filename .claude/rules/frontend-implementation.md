@@ -88,6 +88,25 @@ ref.listenManual(pendingProvider, (prev, next) {
 });
 ```
 
+### シングルトン Provider の状態汚染防止
+
+**複数画面で同じ `NotifierProvider` を使い回す場合、前の画面のデータが次の画面で一瞬表示される。** `load` メソッドの冒頭で state を完全リセットし、`FetchPolicy.networkOnly` でキャッシュも回避する。
+
+```dart
+// ✅ loadX の冒頭で完全リセット
+Future<void> loadX(String id) async {
+  state = const XState(isLoading: true); // 前のデータを完全クリア
+  final result = await _client.query(QueryOptions(
+    document: gql(query),
+    variables: {'id': id},
+    fetchPolicy: FetchPolicy.networkOnly, // キャッシュからの stale データ排除
+  ));
+  ...
+}
+```
+
+`FamilyNotifier` は Riverpod 3.x で使用不可のため、state リセット方式が標準パターン。
+
 ### ログアウト時のプロバイダー invalidate
 
 **ログアウト処理では `graphqlClientProvider` だけでなく、ユーザー固有の状態を持つ全プロバイダーを invalidate すること。**
