@@ -57,12 +57,11 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     final body = _bodyController.text.trim();
     final mediaUrl = _mediaUrlController.text.trim();
 
-    final trackChanged = _selectedTrackId != widget.post.trackId;
     final updated = await ref
         .read(timelineProvider.notifier)
         .updatePost(
           id: widget.post.id,
-          trackId: trackChanged ? _selectedTrackId : null,
+          trackId: _selectedTrackId,
           title: title.isNotEmpty ? title : null,
           body: body.isNotEmpty ? body : null,
           mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,

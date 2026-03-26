@@ -43,7 +43,7 @@ async function verifyPostSignature(
   }
 }
 
-export const PostType = builder.objectRef<{
+type PostShape = {
   id: string;
   trackId: string | null;
   authorId: string;
@@ -59,7 +59,17 @@ export const PostType = builder.objectRef<{
   layoutY: number;
   createdAt: Date;
   updatedAt: Date;
-}>("Post");
+  _track?: {
+    id: string;
+    name: string;
+    color: string;
+    artistId: string;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null;
+};
+
+export const PostType = builder.objectRef<PostShape>("Post");
 
 PostType.implement({
   fields: (t) => ({
@@ -99,6 +109,8 @@ PostType.implement({
       type: TrackType,
       nullable: true,
       resolve: async (post) => {
+        // Use pre-fetched track from JOIN if available (N+1 prevention)
+        if (post._track) return post._track;
         if (!post.trackId) return null;
         const [track] = await db
           .select()
@@ -296,7 +308,7 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Importance must be between 0.0 and 1.0");
       }
 
-      // Validate trackId — must belong to same artist
+      // Validate trackId — must belong to the author's artist profile
       if (args.trackId != null) {
         const [track] = await db
           .select({ id: tracks.id, artistId: tracks.artistId })
@@ -306,16 +318,13 @@ builder.mutationFields((t) => ({
         if (!track) {
           throw new GraphQLError("Track not found");
         }
-        // Verify the track belongs to the same artist as the post's current track
-        if (post.trackId) {
-          const [currentTrack] = await db
-            .select({ artistId: tracks.artistId })
-            .from(tracks)
-            .where(eq(tracks.id, post.trackId))
-            .limit(1);
-          if (!currentTrack || track.artistId !== currentTrack.artistId) {
-            throw new GraphQLError("Not authorized to move post to this track");
-          }
+        const [myArtist] = await db
+          .select({ id: artists.id })
+          .from(artists)
+          .where(eq(artists.userId, ctx.authUser.userId))
+          .limit(1);
+        if (!myArtist || track.artistId !== myArtist.id) {
+          throw new GraphQLError("Not authorized to move post to this track");
         }
       }
 
@@ -454,10 +463,12 @@ builder.queryFields((t) => ({
       trackId: t.arg.string({ required: true }),
     },
     resolve: async (_parent, args) => {
-      return db
-        .select()
+      const rows = await db
+        .select({ post: posts, track: tracks })
         .from(posts)
-        .where(sql`${posts.trackId} = ${args.trackId}`);
+        .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
+        .where(eq(tracks.id, args.trackId));
+      return rows.map((r) => ({ ...r.post, _track: r.track }));
     },
   }),
 
@@ -470,29 +481,14 @@ builder.queryFields((t) => ({
     },
     resolve: async (_parent, args) => {
       const limit = Math.max(1, Math.min(args.limit ?? 5, 10));
-      return db
-        .select({
-          id: posts.id,
-          trackId: posts.trackId,
-          authorId: posts.authorId,
-          mediaType: posts.mediaType,
-          title: posts.title,
-          body: posts.body,
-          mediaUrl: posts.mediaUrl,
-          duration: posts.duration,
-          importance: posts.importance,
-          layoutX: posts.layoutX,
-          layoutY: posts.layoutY,
-          contentHash: posts.contentHash,
-          signature: posts.signature,
-          createdAt: posts.createdAt,
-          updatedAt: posts.updatedAt,
-        })
+      const rows = await db
+        .select({ post: posts, track: tracks })
         .from(posts)
         .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
         .where(eq(tracks.artistId, args.artistId))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
+      return rows.map((r) => ({ ...r.post, _track: r.track }));
     },
   }),
 }));
@@ -502,10 +498,11 @@ builder.objectFields(TrackType, (t) => ({
   posts: t.field({
     type: [PostType],
     resolve: async (track) => {
-      return db
+      const rows = await db
         .select()
         .from(posts)
         .where(sql`${posts.trackId} = ${track.id}`);
+      return rows.map((r) => ({ ...r, _track: track }));
     },
   }),
 }));

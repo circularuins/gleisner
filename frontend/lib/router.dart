@@ -121,9 +121,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Edit post
       GoRoute(
         path: '/edit-post',
+        redirect: (context, state) {
+          if (state.extra is! Post) return '/timeline';
+          return null;
+        },
         builder: (context, state) {
-          final post = state.extra as Post;
-          return EditPostScreen(post: post);
+          return EditPostScreen(post: state.extra! as Post);
         },
       ),
       // Artist Page (from Discover, authenticated)

@@ -489,12 +489,16 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     double? importance,
   }) async {
     try {
+      // Only send trackId if it actually changed
+      final currentPost = state.posts.firstWhere((p) => p.id == id);
+      final trackChanged = trackId != null && trackId != currentPost.trackId;
+
       final result = await _client.mutate(
         MutationOptions(
           document: gql(updatePostMutation),
           variables: {
             'id': id,
-            if (trackId != null) 'trackId': trackId,
+            if (trackChanged) 'trackId': trackId,
             if (title != null) 'title': title,
             if (body != null) 'body': body,
             if (mediaUrl != null) 'mediaUrl': mediaUrl,

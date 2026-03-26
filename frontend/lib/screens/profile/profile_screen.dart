@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../graphql/client.dart';
+import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/discover_provider.dart';
 import '../../providers/my_artist_provider.dart';
@@ -251,7 +252,7 @@ class ProfileScreen extends ConsumerWidget {
     return '${months[date.month - 1]} ${date.year}';
   }
 
-  void _showEditSheet(BuildContext context, user) {
+  void _showEditSheet(BuildContext context, User user) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
