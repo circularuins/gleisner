@@ -1,0 +1,22 @@
+[tools]
+node = "latest"
+pnpm = "latest"
+
+[tasks]
+lint = { run = "pnpm lint format" }
+build = { run = "pnpm build" }
+test = { run = "pnpm test", depends = "build" }
+seed_dev = { run = "pnpm db:push", depends = "build" }
+seed_init_dev = { run = "../scripts/seed-discover-data.sh" }
+setup_new_local = { run = "cp .env.example .env", depends_post = [
+  "start_db",
+  "seed_dev",
+] }
+start_dev = { run = "pnpm dev", depends = "start_db" }
+start_db = { run = "docker compose up -d --wait" }
+stop_db = { run = "docker compose stop" }
+clean_cache_build = { run = ["rm -rf node_modules", "rm -rf dist"] }
+clean_docker = { run = "docker compose down --rmi all --volumes --remove-orphans" }
+
+[prepare]
+pnpm = { auto = true }
