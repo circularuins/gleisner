@@ -10,8 +10,10 @@ import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/avatar_rail.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/node_card.dart';
+import '../../providers/tutorial_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
+import '../../widgets/tutorial/tutorial_spotlight.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
   const TimelineScreen({super.key});
@@ -25,6 +27,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0;
   String? _focusedPostId;
+  final _fabLayerLink = LayerLink();
+  bool _showFirstPostTutorial = false;
 
   @override
   void dispose() {
@@ -36,6 +40,15 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   void initState() {
     super.initState();
     Future.microtask(_loadData);
+    // Re-load data when auth state changes (e.g. new user after logout)
+    ref.listenManual(myArtistProvider, (prev, next) {
+      if (prev == null && next != null) {
+        // New artist registered — reload timeline data
+        _viewingArtistUsername = null;
+        _showFirstPostTutorial = false; // Reset for new session
+        Future.microtask(_loadData);
+      }
+    });
     // Listen for pending artist (set by Artist Page after Tune In)
     // Using ref.listenManual avoids the multi-fire issue of ref.watch in build()
     ref.listenManual(pendingArtistProvider, (prev, next) {
@@ -109,9 +122,25 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   Widget build(BuildContext context) {
     final timeline = ref.watch(timelineProvider);
     final tuneIn = ref.watch(tuneInProvider);
+    // Watch myArtistProvider so FAB and mode badge update when artist registers
+    final myArtist = ref.watch(myArtistProvider);
+    final selfArtistUsername = myArtist?.artistUsername;
 
     final theme = Theme.of(context);
     final isOwn = _isOwnTimeline;
+
+    // Show first-post tutorial when: artist mode + no posts + not seen before
+    final tutorials = ref.watch(tutorialProvider);
+    if (isOwn &&
+        timeline.artist != null &&
+        timeline.posts.isEmpty &&
+        !timeline.isLoading &&
+        !tutorials.contains(TutorialIds.firstPost) &&
+        !_showFirstPostTutorial) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _showFirstPostTutorial = true);
+      });
+    }
 
     // Header: artist name + mode badge
     final headerTitle = timeline.artist != null
@@ -123,10 +152,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         ? (isOwn ? 'ARTIST' : 'TUNED IN')
         : null;
 
-    // Self artist username for the avatar rail (always show if user is an artist)
-    final selfArtistUsername = _ownArtistUsername;
-
-    return Scaffold(
+    return Stack(
+      children: [
+        Scaffold(
       backgroundColor: colorSurface0,
       appBar: AppBar(
         backgroundColor: colorSurface0,
@@ -268,7 +296,18 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       ),
       // FAB only in Artist Mode (ADR 008)
       floatingActionButton: timeline.artist != null && isOwn
-          ? _GlowingStarButton(onPressed: () => context.go('/create-post'))
+          ? CompositedTransformTarget(
+              link: _fabLayerLink,
+              child: _GlowingStarButton(
+              onPressed: () {
+                if (_showFirstPostTutorial) {
+                  setState(() => _showFirstPostTutorial = false);
+                  ref.read(tutorialProvider.notifier).markSeen(TutorialIds.firstPost);
+                }
+                context.go('/create-post');
+              },
+            ),
+            )
           : null,
       body: Column(
         children: [
@@ -281,6 +320,22 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   ref.read(timelineProvider.notifier).toggleTrack(trackId),
               onToggleAll: () =>
                   ref.read(timelineProvider.notifier).toggleAll(),
+            ),
+          // Avatar rail — always visible (not inside scroll)
+          if (tuneIn.tunedInArtists.isNotEmpty ||
+              selfArtistUsername != null)
+            AvatarRail(
+              artists: tuneIn.tunedInArtists,
+              selfArtistUsername: selfArtistUsername,
+              selectedArtistUsername:
+                  _viewingArtistUsername ??
+                  (timeline.artist?.artistUsername),
+              onSelectArtist: _switchToArtist,
+              onSelectSelf: () {
+                if (_ownArtistUsername != null) {
+                  _switchToArtist(_ownArtistUsername!);
+                }
+              },
             ),
           if (timeline.error != null)
             Padding(
@@ -358,22 +413,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                             physics: const AlwaysScrollableScrollPhysics(),
                             child: Column(
                               children: [
-                                // Avatar rail (ADR 013) — scrolls with content
-                                if (tuneIn.tunedInArtists.isNotEmpty ||
-                                    selfArtistUsername != null)
-                                  AvatarRail(
-                                    artists: tuneIn.tunedInArtists,
-                                    selfArtistUsername: selfArtistUsername,
-                                    selectedArtistUsername:
-                                        _viewingArtistUsername ??
-                                        (timeline.artist?.artistUsername),
-                                    onSelectArtist: _switchToArtist,
-                                    onSelectSelf: () {
-                                      if (_ownArtistUsername != null) {
-                                        _switchToArtist(_ownArtistUsername!);
-                                      }
-                                    },
-                                  ),
                                 GestureDetector(
                                   onTap: () {
                                     if (timeline.constellationPostIds != null) {
@@ -479,6 +518,25 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             ),
         ],
       ),
+    ),
+        // Tutorial overlay
+        if (_showFirstPostTutorial)
+          Positioned.fill(
+            child: TutorialSpotlight(
+              visible: true,
+              link: _fabLayerLink,
+              message: 'Add your first star to the constellation',
+              subtitle:
+                  'Every post becomes a point of light in your creative universe.',
+              onDismiss: () {
+                setState(() => _showFirstPostTutorial = false);
+                ref
+                    .read(tutorialProvider.notifier)
+                    .markSeen(TutorialIds.firstPost);
+              },
+            ),
+          ),
+      ],
     );
   }
 
