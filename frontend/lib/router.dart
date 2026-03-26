@@ -6,6 +6,7 @@ import 'providers/auth_provider.dart';
 import 'screens/artist/artist_page_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
+import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/create_post/create_post_screen.dart';
 import 'screens/discover/discover_screen.dart';
 import 'screens/profile/profile_screen.dart';
@@ -47,13 +48,18 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isAuthRoute = path == '/login' || path == '/signup';
       final isPublicProfile = _publicProfilePattern.hasMatch(path);
+      final isOnboarding = path == '/onboarding';
 
       if (status == AuthStatus.unauthenticated) {
         return (isAuthRoute || isPublicProfile) ? null : '/login';
       }
 
-      // authenticated — redirect auth/splash pages, but allow public profiles
-      if (isAuthRoute || path == '/splash') return '/timeline';
+      // authenticated — redirect auth/splash pages, but allow onboarding + public profiles
+      if (path == '/signup') {
+        return '/onboarding'; // Signup success → onboarding
+      }
+      if (path == '/login' || path == '/splash') return '/timeline';
+      if (isOnboarding) return null; // Allow onboarding for authenticated users
       return null;
     },
     routes: [
@@ -97,6 +103,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+
+      // Onboarding (after signup, before main app)
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
       ),
 
       // Full-screen routes (outside bottom nav)

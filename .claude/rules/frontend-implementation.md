@@ -107,6 +107,78 @@ Future<void> loadX(String id) async {
 
 `FamilyNotifier` は Riverpod 3.x で使用不可のため、state リセット方式が標準パターン。
 
+### ウィジェットのオーバーレイ位置合わせ
+
+**`localToGlobal` でオーバーレイの位置を計算しない。** Scaffold/AppBar/SafeArea のオフセットが累積してズレる。代わりに `CompositedTransformTarget` + `CompositedTransformFollower`（Flutter の Tooltip と同じ仕組み）を使う。
+
+```dart
+// ✅ LayerLink でターゲットとフォロワーを接続
+final _link = LayerLink();
+
+// ターゲット（位置の基準となるウィジェット）
+CompositedTransformTarget(
+  link: _link,
+  child: MyButton(...),
+)
+
+// フォロワー（ターゲットに追従するオーバーレイ）
+CompositedTransformFollower(
+  link: _link,
+  offset: Offset(-12, -170), // ターゲットからの相対オフセット
+  child: MyTooltip(...),
+)
+```
+
+```dart
+// ❌ localToGlobal は Scaffold 内のウィジェットで座標がズレる
+final pos = renderBox.localToGlobal(Offset.zero); // AppBar 分ズレる
+```
+
+### 非同期ロード Provider の isLoaded ガード
+
+**ストレージから非同期ロードする Provider は、ロード完了前のデフォルト値で UI が誤動作する。** `isLoaded` フラグで「まだ読み込み中」と「空」を区別する。
+
+```dart
+// ✅ ロード完了を区別する State
+class SettingsState {
+  final Map<String, String> values;
+  final bool isLoaded;
+  const SettingsState({this.values = const {}, this.isLoaded = false});
+}
+
+// UI 側: isLoaded が false の間は表示を抑制
+if (state.isLoaded && !state.values.containsKey('seen')) {
+  showTutorial();
+}
+```
+
+```dart
+// ❌ 空のデフォルト値とロード未完了を区別できない
+Set<String> build() {
+  _loadFromStorage(); // await していない
+  return {};          // ロード前もロード後も同じ空集合
+}
+```
+
+### チュートリアル実装ガイドライン
+
+**新しいチュートリアルを追加する際は、以下のパターンに従うこと。**
+
+1. **ID 登録**: `TutorialIds` に定数を追加（`static const firstTuneIn = 'first_tune_in';`）
+2. **表示条件**: `build()` 内で `tutorialState.isLoaded && !tutorialState.seen.contains(id)` + 画面固有の条件
+3. **ターゲット**: FAB 等のターゲットを `CompositedTransformTarget` + `LayerLink` で wrap
+4. **オーバーレイ**: `TutorialSpotlight` を `Stack` + `Positioned.fill` で画面に重ねる
+5. **dismiss**: タップで `markSeen(id)` + `setState(() => _showTutorial = false)`
+6. **ログアウト**: `tutorialProvider.reset()` + `invalidate` で次ユーザーにリセット
+
+設計原則:
+- コンテキスト型（機能を初めて使うタイミングで表示）
+- 1つずつ（同時に複数表示しない）
+- 短いコピー（メッセージ < 140文字）
+- タップで dismiss（ブロッキングしない）
+- ブランド整合（星座/宇宙メタファー）
+- 永続化（`FlutterSecureStorage` で1回だけ表示）
+
 ### ログアウト時のプロバイダー invalidate
 
 **ログアウト処理では `graphqlClientProvider` だけでなく、ユーザー固有の状態を持つ全プロバイダーを invalidate すること。**

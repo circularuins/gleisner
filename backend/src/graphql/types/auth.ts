@@ -36,6 +36,7 @@ builder.mutationType({
         email: t.arg.string({ required: true }),
         password: t.arg.string({ required: true }),
         username: t.arg.string({ required: true }),
+        displayName: t.arg.string(),
       },
       resolve: async (_parent, args) => {
         // Validate
@@ -62,6 +63,9 @@ builder.mutationType({
           throw new GraphQLError(
             "Username can only contain letters, numbers, and underscores",
           );
+        }
+        if (args.displayName != null && args.displayName.length > 50) {
+          throw new GraphQLError("Display name must be 50 characters or less");
         }
 
         // Check uniqueness
@@ -100,6 +104,7 @@ builder.mutationType({
           .values({
             email: args.email,
             username: args.username,
+            displayName: args.displayName ?? null,
             passwordHash: passwordHashValue,
             passwordSalt,
             publicKey,

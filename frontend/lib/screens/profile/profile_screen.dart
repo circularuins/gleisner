@@ -8,6 +8,7 @@ import '../../providers/discover_provider.dart';
 import '../../providers/my_artist_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
+import '../../providers/tutorial_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import 'register_artist_wizard.dart';
 
@@ -189,6 +190,8 @@ class ProfileScreen extends ConsumerWidget {
               ref.invalidate(myArtistProvider);
               ref.invalidate(tuneInProvider);
               ref.invalidate(discoverProvider);
+              await ref.read(tutorialProvider.notifier).reset();
+              ref.invalidate(tutorialProvider);
             },
             child: const Text('Logout'),
           ),
@@ -203,8 +206,10 @@ class ProfileScreen extends ConsumerWidget {
         fullscreenDialog: true,
         builder: (_) => RegisterArtistWizard(
           onRegistered: (artistUsername) {
-            // Reload artist data on timeline
+            // Reload artist data + navigate to timeline
             ref.read(timelineProvider.notifier).loadArtist(artistUsername);
+            ref.read(myArtistProvider.notifier).load();
+            context.go('/timeline');
           },
         ),
       ),

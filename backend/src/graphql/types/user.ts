@@ -1,5 +1,9 @@
+import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
+import { db } from "../../db/index.js";
 import { users } from "../../db/schema/index.js";
+import { eq } from "drizzle-orm";
+import { validateUrl } from "../validators.js";
 
 export interface UserShape {
   id: string;
@@ -79,3 +83,43 @@ PublicUserType.implement({
     createdAt: t.string({ resolve: (user) => user.createdAt.toISOString() }),
   }),
 });
+
+builder.mutationFields((t) => ({
+  updateMe: t.field({
+    type: UserType,
+    args: {
+      displayName: t.arg.string(),
+      bio: t.arg.string(),
+      avatarUrl: t.arg.string(),
+    },
+    resolve: async (_parent, args, ctx) => {
+      if (!ctx.authUser) {
+        throw new GraphQLError("Authentication required");
+      }
+
+      if (args.displayName != null && args.displayName.length > 50) {
+        throw new GraphQLError("Display name must be 50 characters or less");
+      }
+      if (args.bio != null && args.bio.length > 1000) {
+        throw new GraphQLError("Bio must be 1000 characters or less");
+      }
+      if (args.avatarUrl != null) validateUrl(args.avatarUrl);
+
+      // undefined = not provided (skip), null = clear field, value = update
+      // Validation above uses != null so null (clear) skips validation intentionally
+      const updateData: Record<string, unknown> = { updatedAt: new Date() };
+      if (args.displayName !== undefined)
+        updateData.displayName = args.displayName;
+      if (args.bio !== undefined) updateData.bio = args.bio;
+      if (args.avatarUrl !== undefined) updateData.avatarUrl = args.avatarUrl;
+
+      const [updated] = await db
+        .update(users)
+        .set(updateData)
+        .where(eq(users.id, ctx.authUser.userId))
+        .returning(userColumns);
+
+      return updated;
+    },
+  }),
+}));

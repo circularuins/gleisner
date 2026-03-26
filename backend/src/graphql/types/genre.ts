@@ -179,6 +179,47 @@ builder.mutationFields((t) => ({
   }),
 }));
 
+builder.mutationFields((t) => ({
+  createGenre: t.field({
+    type: GenreType,
+    args: {
+      name: t.arg.string({ required: true }),
+    },
+    resolve: async (_parent, args, ctx) => {
+      if (!ctx.authUser) {
+        throw new GraphQLError("Authentication required");
+      }
+
+      const name = args.name.trim();
+      if (name.length < 1 || name.length > 50) {
+        throw new GraphQLError(
+          "Genre name must be between 1 and 50 characters",
+        );
+      }
+
+      const normalizedName = name.toLowerCase();
+
+      // Idempotent: return existing genre if name already exists
+      const [existing] = await db
+        .select()
+        .from(genres)
+        .where(eq(genres.normalizedName, normalizedName))
+        .limit(1);
+      if (existing) return existing;
+
+      const [genre] = await db
+        .insert(genres)
+        .values({
+          name,
+          normalizedName,
+          isPromoted: false, // User-created genres are not promoted
+        })
+        .returning();
+      return genre;
+    },
+  }),
+}));
+
 builder.queryFields((t) => ({
   genres: t.field({
     type: [GenreType],

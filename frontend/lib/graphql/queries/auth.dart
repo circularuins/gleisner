@@ -13,8 +13,8 @@ const _userFields = '''
 
 const signupMutation =
     '''
-  mutation Signup(\$email: String!, \$password: String!, \$username: String!) {
-    signup(email: \$email, password: \$password, username: \$username) {
+  mutation Signup(\$email: String!, \$password: String!, \$username: String!, \$displayName: String) {
+    signup(email: \$email, password: \$password, username: \$username, displayName: \$displayName) {
       token
       user {
         $_userFields
