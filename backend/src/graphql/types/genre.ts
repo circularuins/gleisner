@@ -199,21 +199,13 @@ builder.mutationFields((t) => ({
 
       const normalizedName = name.toLowerCase();
 
-      // Check if already exists
+      // Idempotent: return existing genre if name already exists
       const [existing] = await db
-        .select({ id: genres.id })
+        .select()
         .from(genres)
         .where(eq(genres.normalizedName, normalizedName))
         .limit(1);
-      if (existing) {
-        // Return existing genre instead of error (idempotent)
-        const [genre] = await db
-          .select()
-          .from(genres)
-          .where(eq(genres.normalizedName, normalizedName))
-          .limit(1);
-        return genre;
-      }
+      if (existing) return existing;
 
       const [genre] = await db
         .insert(genres)

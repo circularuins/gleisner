@@ -105,6 +105,8 @@ builder.mutationFields((t) => ({
       }
       if (args.avatarUrl != null) validateUrl(args.avatarUrl);
 
+      // undefined = not provided (skip), null = clear field, value = update
+      // Validation above uses != null so null (clear) skips validation intentionally
       const updateData: Record<string, unknown> = { updatedAt: new Date() };
       if (args.displayName !== undefined)
         updateData.displayName = args.displayName;

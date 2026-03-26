@@ -47,14 +47,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           displayName: displayName.isNotEmpty ? displayName : null,
         );
 
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    // Navigate to onboarding on success
-    final authState = ref.read(authProvider);
-    if (authState.status == AuthStatus.authenticated) {
-      context.go('/onboarding');
-    }
+    if (mounted) setState(() => _isSubmitting = false);
+    // Navigation handled by router redirect: /signup → /onboarding
   }
 
   @override

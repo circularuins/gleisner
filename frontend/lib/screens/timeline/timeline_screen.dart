@@ -129,13 +129,14 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final theme = Theme.of(context);
     final isOwn = _isOwnTimeline;
 
-    // Show first-post tutorial when: artist mode + no posts + not seen before
-    final tutorials = ref.watch(tutorialProvider);
+    // Show first-post tutorial when: artist mode + no posts + not seen + loaded
+    final tutorialState = ref.watch(tutorialProvider);
     if (isOwn &&
         timeline.artist != null &&
         timeline.posts.isEmpty &&
         !timeline.isLoading &&
-        !tutorials.contains(TutorialIds.firstPost) &&
+        tutorialState.isLoaded &&
+        !tutorialState.seen.contains(TutorialIds.firstPost) &&
         !_showFirstPostTutorial) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _showFirstPostTutorial = true);
