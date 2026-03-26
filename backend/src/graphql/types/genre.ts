@@ -192,7 +192,9 @@ builder.mutationFields((t) => ({
 
       const name = args.name.trim();
       if (name.length < 1 || name.length > 50) {
-        throw new GraphQLError("Genre name must be between 1 and 50 characters");
+        throw new GraphQLError(
+          "Genre name must be between 1 and 50 characters",
+        );
       }
 
       const normalizedName = name.toLowerCase();
