@@ -52,9 +52,8 @@ class TutorialNotifier extends Notifier<TutorialState> {
   }
 }
 
-final tutorialProvider = NotifierProvider<TutorialNotifier, TutorialState>(
-  TutorialNotifier.new,
-);
+final tutorialProvider =
+    NotifierProvider<TutorialNotifier, TutorialState>(TutorialNotifier.new);
 
 /// Tutorial IDs — centralized to avoid typos.
 class TutorialIds {

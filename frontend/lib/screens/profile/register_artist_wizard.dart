@@ -691,7 +691,11 @@ class _StepProfile extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.add, size: 14, color: colorInteractiveMuted),
+                    Icon(
+                      Icons.add,
+                      size: 14,
+                      color: colorInteractiveMuted,
+                    ),
                     const SizedBox(width: spaceXs),
                     Text(
                       'Create custom genre',
