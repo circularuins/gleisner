@@ -439,7 +439,7 @@ builder.queryFields((t) => ({
       limit: t.arg.int(),
     },
     resolve: async (_parent, args) => {
-      const limit = Math.min(args.limit ?? 5, 10);
+      const limit = Math.max(1, Math.min(args.limit ?? 5, 10));
       return db
         .select({
           id: posts.id,
