@@ -97,21 +97,34 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
 
   /// Returns allPosts with the current post's connections replaced by local state.
   /// Returns allPosts with connections synced to local state.
-  /// Updates both the current post's connections AND the counterpart
-  /// (target/source) posts' connections to keep the graph consistent.
+  ///
+  /// Why this is needed: this sheet maintains optimistic local state for
+  /// connections (_outgoingConnections / _incomingConnections) to enable
+  /// instant UI feedback. However, widget.allPosts is immutable (passed
+  /// once at sheet creation via showModalBottomSheet — never updated).
+  /// This getter creates a view where:
+  /// 1. The current post's connections are replaced with local state
+  /// 2. Counterpart posts (targets of outgoing, sources of incoming) have
+  ///    their connections synced to match, so findConstellation graph
+  ///    traversal sees a consistent bidirectional graph.
   List<Post> get _allPostsWithLocalConnections {
-    // Build sets of current outgoing target IDs and incoming source IDs
-    final outTargetIds = _outgoingConnections.map((c) => c.targetId).toSet();
-    final inSourceIds = _incomingConnections.map((c) => c.sourceId).toSet();
-    // Connection IDs that exist in local state
+    final postId = widget.post.id;
+    // Index local connections by counterpart ID for O(1) lookup
+    final outByTarget = <String, List<PostConnection>>{};
+    for (final c in _outgoingConnections) {
+      outByTarget.putIfAbsent(c.targetId, () => []).add(c);
+    }
+    final inBySource = <String, List<PostConnection>>{};
+    for (final c in _incomingConnections) {
+      inBySource.putIfAbsent(c.sourceId, () => []).add(c);
+    }
     final localConnIds = {
       ..._outgoingConnections.map((c) => c.id),
       ..._incomingConnections.map((c) => c.id),
     };
 
     return widget.allPosts.map((p) {
-      if (p.id == widget.post.id) {
-        // Replace current post's connections with local state
+      if (p.id == postId) {
         return Post(
           id: p.id,
           mediaType: p.mediaType,
@@ -137,45 +150,42 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
           constellation: p.constellation,
         );
       }
-      // Sync counterpart posts: add/remove incoming/outgoing to match local state
-      var outgoing = p.outgoingConnections;
+
+      // Sync counterpart: add missing connections, remove stale ones
+      final incomingIds = {for (final c in p.incomingConnections) c.id};
+      final outgoingIds = {for (final c in p.outgoingConnections) c.id};
       var incoming = p.incomingConnections;
+      var outgoing = p.outgoingConnections;
       bool changed = false;
 
-      if (outTargetIds.contains(p.id) || inSourceIds.contains(p.id)) {
-        // This post is a target of our outgoing or source of our incoming
-        // Add connections from local state that aren't in the original
-        final newIncoming = _outgoingConnections
-            .where((c) => c.targetId == p.id)
-            .where((c) => !incoming.any((ic) => ic.id == c.id))
-            .toList();
-        if (newIncoming.isNotEmpty) {
-          incoming = [...incoming, ...newIncoming];
-          changed = true;
-        }
-        final newOutgoing = _incomingConnections
-            .where((c) => c.sourceId == p.id)
-            .where((c) => !outgoing.any((oc) => oc.id == c.id))
-            .toList();
-        if (newOutgoing.isNotEmpty) {
-          outgoing = [...outgoing, ...newOutgoing];
-          changed = true;
-        }
+      // Add connections from local outgoing that target this post
+      final toAddIncoming = outByTarget[p.id]
+          ?.where((c) => !incomingIds.contains(c.id))
+          .toList();
+      if (toAddIncoming != null && toAddIncoming.isNotEmpty) {
+        incoming = [...incoming, ...toAddIncoming];
+        changed = true;
+      }
+      // Add connections from local incoming that source from this post
+      final toAddOutgoing = inBySource[p.id]
+          ?.where((c) => !outgoingIds.contains(c.id))
+          .toList();
+      if (toAddOutgoing != null && toAddOutgoing.isNotEmpty) {
+        outgoing = [...outgoing, ...toAddOutgoing];
+        changed = true;
       }
 
-      // Remove connections that no longer exist in local state
-      final filteredIncoming = incoming
-          .where((c) =>
-              c.sourceId != widget.post.id || localConnIds.contains(c.id))
+      // Remove connections to/from current post that no longer exist locally
+      final filteredIn = incoming
+          .where((c) => c.sourceId != postId || localConnIds.contains(c.id))
           .toList();
-      final filteredOutgoing = outgoing
-          .where((c) =>
-              c.targetId != widget.post.id || localConnIds.contains(c.id))
+      final filteredOut = outgoing
+          .where((c) => c.targetId != postId || localConnIds.contains(c.id))
           .toList();
-      if (filteredIncoming.length != incoming.length ||
-          filteredOutgoing.length != outgoing.length) {
-        incoming = filteredIncoming;
-        outgoing = filteredOutgoing;
+      if (filteredIn.length != incoming.length ||
+          filteredOut.length != outgoing.length) {
+        incoming = filteredIn;
+        outgoing = filteredOut;
         changed = true;
       }
 
@@ -642,8 +652,8 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       isScrollControlled: true,
       builder: (_) => RelatedPostPicker(
         posts: widget.allPosts,
-        excludePostId: widget.post.id,
         excludePostIds: {
+          widget.post.id,
           ..._outgoingConnections.map((c) => c.targetId),
           ..._incomingConnections.map((c) => c.sourceId),
         },

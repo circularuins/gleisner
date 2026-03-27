@@ -6,14 +6,13 @@ import '../../models/track.dart' show parseHexColor;
 /// Bottom sheet picker for selecting a related post.
 class RelatedPostPicker extends StatefulWidget {
   final List<Post> posts;
-  final String? excludePostId;
+  /// Post IDs to exclude from the picker (current post + already connected).
   final Set<String> excludePostIds;
   final ValueChanged<Post> onSelected;
 
   const RelatedPostPicker({
     super.key,
     required this.posts,
-    this.excludePostId,
     this.excludePostIds = const {},
     required this.onSelected,
   });
@@ -27,9 +26,8 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
   String? _filterTrackId;
 
   List<Post> get _filteredPosts {
-    var posts = widget.posts.where((p) =>
-        p.id != widget.excludePostId &&
-        !widget.excludePostIds.contains(p.id));
+    var posts = widget.posts
+        .where((p) => !widget.excludePostIds.contains(p.id));
 
     if (_filterTrackId != null) {
       posts = posts.where((p) => p.trackId == _filterTrackId);
