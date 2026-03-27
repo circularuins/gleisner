@@ -501,7 +501,7 @@ builder.objectFields(ArtistType, (t) => ({
   recentPosts: t.field({
     type: [PostType],
     args: {
-      limit: t.arg.int(),
+      limit: t.arg.int({ defaultValue: 5 }),
     },
     // INNER JOIN intentionally excludes trackId=NULL posts (#67)
     // TODO(visibility): Add public/draft filter when post visibility is implemented
