@@ -95,6 +95,128 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   bool _isToggling = false;
   bool _isConnecting = false;
 
+  /// Returns allPosts with the current post's connections replaced by local state.
+  /// Returns allPosts with connections synced to local state.
+  ///
+  /// Why this is needed: this sheet maintains optimistic local state for
+  /// connections (_outgoingConnections / _incomingConnections) to enable
+  /// instant UI feedback. However, widget.allPosts is immutable (passed
+  /// once at sheet creation via showModalBottomSheet — never updated).
+  /// This getter creates a view where:
+  /// 1. The current post's connections are replaced with local state
+  /// 2. Counterpart posts (targets of outgoing, sources of incoming) have
+  ///    their connections synced to match, so findConstellation graph
+  ///    traversal sees a consistent bidirectional graph.
+  List<Post> get _allPostsWithLocalConnections {
+    final postId = widget.post.id;
+    // Index local connections by counterpart ID for O(1) lookup
+    final outByTarget = <String, List<PostConnection>>{};
+    for (final c in _outgoingConnections) {
+      outByTarget.putIfAbsent(c.targetId, () => []).add(c);
+    }
+    final inBySource = <String, List<PostConnection>>{};
+    for (final c in _incomingConnections) {
+      inBySource.putIfAbsent(c.sourceId, () => []).add(c);
+    }
+    final localConnIds = {
+      ..._outgoingConnections.map((c) => c.id),
+      ..._incomingConnections.map((c) => c.id),
+    };
+
+    return widget.allPosts.map((p) {
+      if (p.id == postId) {
+        return Post(
+          id: p.id,
+          mediaType: p.mediaType,
+          title: p.title,
+          body: p.body,
+          mediaUrl: p.mediaUrl,
+          duration: p.duration,
+          importance: p.importance,
+          visibility: p.visibility,
+          layoutX: p.layoutX,
+          layoutY: p.layoutY,
+          contentHash: p.contentHash,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+          author: p.author,
+          trackId: p.trackId,
+          trackName: p.trackName,
+          trackColor: p.trackColor,
+          reactionCounts: p.reactionCounts,
+          myReactions: p.myReactions,
+          outgoingConnections: _outgoingConnections,
+          incomingConnections: _incomingConnections,
+          constellation: p.constellation,
+        );
+      }
+
+      // Sync counterpart: add missing connections, remove stale ones
+      final incomingIds = {for (final c in p.incomingConnections) c.id};
+      final outgoingIds = {for (final c in p.outgoingConnections) c.id};
+      var incoming = p.incomingConnections;
+      var outgoing = p.outgoingConnections;
+      bool changed = false;
+
+      // Add connections from local outgoing that target this post
+      final toAddIncoming = outByTarget[p.id]
+          ?.where((c) => !incomingIds.contains(c.id))
+          .toList();
+      if (toAddIncoming != null && toAddIncoming.isNotEmpty) {
+        incoming = [...incoming, ...toAddIncoming];
+        changed = true;
+      }
+      // Add connections from local incoming that source from this post
+      final toAddOutgoing = inBySource[p.id]
+          ?.where((c) => !outgoingIds.contains(c.id))
+          .toList();
+      if (toAddOutgoing != null && toAddOutgoing.isNotEmpty) {
+        outgoing = [...outgoing, ...toAddOutgoing];
+        changed = true;
+      }
+
+      // Remove connections to/from current post that no longer exist locally
+      final filteredIn = incoming
+          .where((c) => c.sourceId != postId || localConnIds.contains(c.id))
+          .toList();
+      final filteredOut = outgoing
+          .where((c) => c.targetId != postId || localConnIds.contains(c.id))
+          .toList();
+      if (filteredIn.length != incoming.length ||
+          filteredOut.length != outgoing.length) {
+        incoming = filteredIn;
+        outgoing = filteredOut;
+        changed = true;
+      }
+
+      if (!changed) return p;
+      return Post(
+        id: p.id,
+        mediaType: p.mediaType,
+        title: p.title,
+        body: p.body,
+        mediaUrl: p.mediaUrl,
+        duration: p.duration,
+        importance: p.importance,
+        visibility: p.visibility,
+        layoutX: p.layoutX,
+        layoutY: p.layoutY,
+        contentHash: p.contentHash,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        author: p.author,
+        trackId: p.trackId,
+        trackName: p.trackName,
+        trackColor: p.trackColor,
+        reactionCounts: p.reactionCounts,
+        myReactions: p.myReactions,
+        outgoingConnections: outgoing,
+        incomingConnections: incoming,
+        constellation: p.constellation,
+      );
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -275,6 +397,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
               // Constellation
               if (widget.allPosts.isNotEmpty)
                 Padding(
+                  key: ValueKey('constellation-${_outgoingConnections.map((c) => c.id).join(',')}-${_incomingConnections.map((c) => c.id).join(',')}'),
                   padding: const EdgeInsets.fromLTRB(20, spaceMd, 20, 0),
                   child: _buildConstellationSection(trackColor),
                 ),
@@ -424,58 +547,72 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         Text('Connections', style: textLabel),
         const SizedBox(height: spaceSm),
         if (connectedPosts.isNotEmpty)
-          ...connectedPosts.map((entry) {
-            final p = entry.post;
-            final pColor = p.trackColor != null
-                ? parseHexColor(p.trackColor)
-                : null;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: spaceXs),
-              child: Row(
-                children: [
-                  Icon(
-                    entry.isOutgoing ? Icons.arrow_forward : Icons.arrow_back,
-                    size: fontSizeMd,
-                    color: colorInteractiveMuted,
-                  ),
-                  const SizedBox(width: spaceXs),
-                  if (pColor != null)
+          Wrap(
+            spacing: spaceSm,
+            runSpacing: spaceSm,
+            children: connectedPosts.map((entry) {
+              final p = entry.post;
+              final pColor = p.trackColor != null
+                  ? parseHexColor(p.trackColor)
+                  : colorInteractiveMuted;
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: spaceSm,
+                  vertical: spaceXs,
+                ),
+                decoration: BoxDecoration(
+                  color: colorSurface2,
+                  borderRadius: BorderRadius.circular(radiusFull),
+                  border: Border.all(color: colorBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      entry.isOutgoing
+                          ? Icons.arrow_forward
+                          : Icons.arrow_back,
+                      size: 12,
+                      color: pColor,
+                    ),
+                    const SizedBox(width: spaceXxs),
                     Container(
-                      width: 3,
-                      height: 20,
-                      margin: const EdgeInsets.only(right: spaceSm),
+                      width: 4,
+                      height: 4,
                       decoration: BoxDecoration(
+                        shape: BoxShape.circle,
                         color: pColor,
-                        borderRadius: BorderRadius.circular(spaceXxs),
                       ),
                     ),
-                  Expanded(
-                    child: Text(
-                      _connectionLabel(p),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: colorTextSecondary,
-                        fontSize: fontSizeMd,
-                      ),
-                    ),
-                  ),
-                  if (widget.onDeleteConnection != null)
-                    GestureDetector(
-                      onTap: () => _deleteConnection(entry.conn),
-                      child: const Padding(
-                        padding: EdgeInsets.all(spaceXs),
-                        child: Icon(
-                          Icons.close,
-                          size: fontSizeMd,
-                          color: colorInteractiveMuted,
+                    const SizedBox(width: spaceXxs),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 120),
+                      child: Text(
+                        _connectionLabel(p),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: colorTextSecondary,
+                          fontSize: fontSizeSm,
                         ),
                       ),
                     ),
-                ],
-              ),
-            );
-          }),
+                    if (widget.onDeleteConnection != null) ...[
+                      const SizedBox(width: spaceXxs),
+                      GestureDetector(
+                        onTap: () => _deleteConnection(entry.conn),
+                        child: const Icon(
+                          Icons.close,
+                          size: 12,
+                          color: colorInteractiveMuted,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
         if (widget.onCreateConnection != null)
           GestureDetector(
             onTap: _isConnecting ? null : _addConnection,
@@ -515,7 +652,11 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       isScrollControlled: true,
       builder: (_) => RelatedPostPicker(
         posts: widget.allPosts,
-        excludePostId: widget.post.id,
+        excludePostIds: {
+          widget.post.id,
+          ..._outgoingConnections.map((c) => c.targetId),
+          ..._incomingConnections.map((c) => c.sourceId),
+        },
         onSelected: (post) {
           selectedPost = post;
         },
@@ -531,7 +672,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       );
       if (conn != null && mounted) {
         setState(() {
-          _outgoingConnections.add(conn);
+          _outgoingConnections = [..._outgoingConnections, conn];
         });
         widget.onConnectionAdded?.call(conn);
       }
@@ -544,8 +685,10 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     final success = await widget.onDeleteConnection?.call(conn.id) ?? false;
     if (success && mounted) {
       setState(() {
-        _outgoingConnections.removeWhere((c) => c.id == conn.id);
-        _incomingConnections.removeWhere((c) => c.id == conn.id);
+        _outgoingConnections =
+            _outgoingConnections.where((c) => c.id != conn.id).toList();
+        _incomingConnections =
+            _incomingConnections.where((c) => c.id != conn.id).toList();
       });
       widget.onConnectionRemoved?.call(conn);
     }
@@ -616,10 +759,11 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   }
 
   Widget _buildConstellationSection(Color trackColor) {
-    final constellationIds = findConstellation(widget.post.id, widget.allPosts);
+    final currentAllPosts = _allPostsWithLocalConnections;
+    final constellationIds = findConstellation(widget.post.id, currentAllPosts);
     if (constellationIds.length <= 1) return const SizedBox.shrink();
 
-    final postMap = {for (final p in widget.allPosts) p.id: p};
+    final postMap = {for (final p in currentAllPosts) p.id: p};
     final members =
         constellationIds
             .where((id) => id != widget.post.id && postMap.containsKey(id))
@@ -743,39 +887,52 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
           ],
         ),
         const SizedBox(height: spaceSm),
-        ...members.map((p) {
-          final pColor = p.trackColor != null
-              ? parseHexColor(p.trackColor)
-              : null;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: spaceXs),
-            child: Row(
-              children: [
-                if (pColor != null)
+        Wrap(
+          spacing: spaceSm,
+          runSpacing: spaceSm,
+          children: members.map((p) {
+            final pColor = p.trackColor != null
+                ? parseHexColor(p.trackColor)
+                : colorInteractiveMuted;
+            return Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: spaceSm,
+                vertical: spaceXs,
+              ),
+              decoration: BoxDecoration(
+                color: colorSurface2,
+                borderRadius: BorderRadius.circular(radiusFull),
+                border: Border.all(color: colorBorder),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Container(
-                    width: 3,
-                    height: spaceLg,
-                    margin: const EdgeInsets.only(right: spaceSm),
+                    width: 4,
+                    height: 4,
                     decoration: BoxDecoration(
+                      shape: BoxShape.circle,
                       color: pColor,
-                      borderRadius: BorderRadius.circular(spaceXxs),
                     ),
                   ),
-                Expanded(
-                  child: Text(
-                    _connectionLabel(p),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: colorTextMuted,
-                      fontSize: fontSizeSm,
+                  const SizedBox(width: spaceXxs),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 120),
+                    child: Text(
+                      _connectionLabel(p),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: colorTextMuted,
+                        fontSize: fontSizeSm,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          );
-        }),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
       ],
     );
   }
