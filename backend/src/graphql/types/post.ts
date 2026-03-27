@@ -653,15 +653,18 @@ builder.objectFields(ArtistType, (t) => ({
       limit: t.arg.int({ defaultValue: 5 }),
     },
     // INNER JOIN intentionally excludes trackId=NULL posts (#67)
-    resolve: async (artist, args) => {
+    resolve: async (artist, args, ctx) => {
+      const isSelf = !!(ctx.authUser && artist.userId === ctx.authUser.userId);
+      const visibilityFilter = isSelf
+        ? undefined
+        : eq(posts.visibility, "public");
+
       const limit = Math.max(1, Math.min(args.limit ?? 5, 10));
       const rows = await db
         .select({ post: posts, track: tracks })
         .from(posts)
         .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
-        .where(
-          and(eq(tracks.artistId, artist.id), eq(posts.visibility, "public")),
-        )
+        .where(and(eq(tracks.artistId, artist.id), visibilityFilter))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
       return rows.map((r) => ({ ...r.post, _track: r.track }));
