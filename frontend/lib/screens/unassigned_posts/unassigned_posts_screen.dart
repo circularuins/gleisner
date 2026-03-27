@@ -5,6 +5,7 @@ import '../../models/post.dart';
 import '../../models/track.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../widgets/timeline/post_detail_sheet.dart';
 import '../edit_post/edit_post_screen.dart';
 
 class UnassignedPostsScreen extends ConsumerWidget {
@@ -44,26 +45,37 @@ class UnassignedPostsScreen extends ConsumerWidget {
                 final post = state.posts[index];
                 return _PostTile(
                   post: post,
-                  onTap: () => _openEdit(context, ref, post),
+                  onTap: () => _openDetail(context, ref, post),
                 );
               },
             ),
     );
   }
 
-  void _openEdit(BuildContext context, WidgetRef ref, Post post) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => EditPostScreen(
-          post: post,
-          tracks: tracks,
-          onSaved: (updated) {
-            if (updated.trackId != null) {
-              ref.read(unassignedPostsProvider.notifier).removePost(updated.id);
-            }
-          },
-        ),
-      ),
+  void _openDetail(BuildContext context, WidgetRef ref, Post post) {
+    showPostDetailSheet(
+      context,
+      post,
+      allPosts: ref.read(unassignedPostsProvider).posts,
+      onEdit: () {
+        // Close the detail sheet first, then open edit screen
+        Navigator.of(context).pop();
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => EditPostScreen(
+              post: post,
+              tracks: tracks,
+              onSaved: (updated) {
+                if (updated.trackId != null) {
+                  ref
+                      .read(unassignedPostsProvider.notifier)
+                      .removePost(updated.id);
+                }
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }
