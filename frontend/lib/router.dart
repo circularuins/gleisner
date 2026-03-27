@@ -8,6 +8,8 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/create_post/create_post_screen.dart';
+import 'screens/edit_post/edit_post_screen.dart';
+import 'models/post.dart';
 import 'screens/discover/discover_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/splash_screen.dart';
@@ -115,6 +117,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/create-post',
         builder: (context, state) => const CreatePostScreen(),
+      ),
+      // Edit post
+      GoRoute(
+        path: '/edit-post',
+        redirect: (context, state) {
+          if (state.extra is! Post) return '/timeline';
+          return null;
+        },
+        builder: (context, state) {
+          return EditPostScreen(post: state.extra! as Post);
+        },
       ),
       // Artist Page (from Discover, authenticated)
       GoRoute(

@@ -18,3 +18,15 @@ const addArtistGenreMutation = r'''
     }
   }
 ''';
+
+const removeArtistGenreMutation = r'''
+  mutation RemoveArtistGenre($genreId: String!) {
+    removeArtistGenre(genreId: $genreId) {
+      position
+      genre {
+        id
+        name
+      }
+    }
+  }
+''';

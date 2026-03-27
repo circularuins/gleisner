@@ -36,13 +36,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final state = ref.read(createPostProvider);
-    final isText = state.selectedMediaType == MediaType.text;
     final result = await ref
         .read(createPostProvider.notifier)
         .submit(
-          // title only for text type; others use caption in body
-          title: isText && _titleController.text.isNotEmpty
+          title: _titleController.text.isNotEmpty
               ? _titleController.text
               : null,
           body: _bodyController.text.isEmpty ? null : _bodyController.text,
@@ -564,6 +561,20 @@ class _FormStep extends ConsumerWidget {
     };
 
     return [
+      // Title (optional)
+      TextFormField(
+        controller: titleController,
+        decoration: InputDecoration(
+          labelText: 'Title (optional)',
+          border: const OutlineInputBorder(),
+          labelStyle: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withAlpha(128),
+          ),
+        ),
+        maxLength: 100,
+        style: theme.textTheme.titleMedium,
+      ),
+      const SizedBox(height: spaceMd),
       // Upload placeholder
       Container(
         padding: const EdgeInsets.symmetric(vertical: 32),

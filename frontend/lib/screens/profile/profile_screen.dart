@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../graphql/client.dart';
+import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/discover_provider.dart';
 import '../../providers/my_artist_provider.dart';
@@ -10,6 +10,7 @@ import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../providers/tutorial_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import 'edit_profile_sheet.dart';
 import 'register_artist_wizard.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -22,6 +23,7 @@ class ProfileScreen extends ConsumerWidget {
     // Use myArtistProvider (own artist) instead of timelineProvider
     // which may hold another artist's data in fan mode
     final artist = ref.watch(myArtistProvider);
+    final tuneInState = ref.watch(tuneInProvider);
 
     if (user == null) return const SizedBox.shrink();
 
@@ -30,6 +32,12 @@ class ProfileScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: colorSurface0,
         title: const Text('Profile', style: TextStyle(color: colorTextPrimary)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, color: colorTextSecondary),
+            onPressed: () => _showEditSheet(context, user),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(spaceXl),
@@ -53,12 +61,38 @@ class ProfileScreen extends ConsumerWidget {
                     Text(user.displayName ?? user.username, style: textHeading),
                     const SizedBox(height: spaceXxs),
                     Text(
-                      user.email,
+                      '@${user.username}',
                       style: textCaption.copyWith(color: colorTextMuted),
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
+
+          // Bio
+          if (user.bio != null && user.bio!.isNotEmpty) ...[
+            const SizedBox(height: spaceLg),
+            Text(
+              user.bio!,
+              style: textBody.copyWith(color: colorTextSecondary),
+            ),
+          ],
+
+          // Meta: Joined + Tuned In
+          const SizedBox(height: spaceMd),
+          Wrap(
+            spacing: spaceLg,
+            children: [
+              Text(
+                'Joined ${_formatJoinDate(user.createdAt)}',
+                style: textCaption.copyWith(color: colorTextMuted),
+              ),
+              if (tuneInState.tunedInArtists.isNotEmpty)
+                Text(
+                  '${tuneInState.tunedInArtists.length} Tuned In',
+                  style: textCaption.copyWith(color: colorTextMuted),
+                ),
             ],
           ),
           const SizedBox(height: spaceXxl),
@@ -196,6 +230,37 @@ class ProfileScreen extends ConsumerWidget {
             child: const Text('Logout'),
           ),
         ],
+      ),
+    );
+  }
+
+  static String _formatJoinDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.year}';
+  }
+
+  void _showEditSheet(BuildContext context, User user) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => EditProfileSheet(
+        initialDisplayName: user.displayName,
+        initialBio: user.bio,
+        initialAvatarUrl: user.avatarUrl,
       ),
     );
   }

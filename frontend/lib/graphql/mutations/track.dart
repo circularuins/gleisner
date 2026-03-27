@@ -8,3 +8,12 @@ const createTrackMutation = '''
     }
   }
 ''';
+
+const deleteTrackMutation = r'''
+  mutation DeleteTrack($id: String!) {
+    deleteTrack(id: $id) {
+      id
+      name
+    }
+  }
+''';

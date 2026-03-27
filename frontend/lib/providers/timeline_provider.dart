@@ -10,6 +10,7 @@ import 'disposable_notifier.dart';
 import '../graphql/queries/artist.dart';
 import '../graphql/mutations/connection.dart';
 import '../graphql/mutations/constellation.dart';
+import '../graphql/mutations/post.dart';
 import '../graphql/mutations/reaction.dart';
 import '../graphql/mutations/track.dart';
 import '../graphql/queries/post.dart';
@@ -476,6 +477,54 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
       );
     } else {
       state = state.copyWith(posts: posts);
+    }
+  }
+
+  Future<Post?> updatePost({
+    required String id,
+    String? trackId,
+    String? title,
+    String? body,
+    String? mediaUrl,
+    double? importance,
+  }) async {
+    try {
+      // Only send trackId if it actually changed
+      final currentPost = state.posts.firstWhere((p) => p.id == id);
+      final trackChanged = trackId != null && trackId != currentPost.trackId;
+
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(updatePostMutation),
+          variables: {
+            'id': id,
+            if (trackChanged) 'trackId': trackId,
+            if (title != null) 'title': title,
+            if (body != null) 'body': body,
+            if (mediaUrl != null) 'mediaUrl': mediaUrl,
+            if (importance != null) 'importance': importance,
+          },
+        ),
+      );
+
+      if (result.hasException) return null;
+
+      final data = result.data?['updatePost'] as Map<String, dynamic>?;
+      if (data == null) return null;
+
+      final updated = Post.fromJson(data);
+
+      // Replace post in local state
+      final posts = state.posts.map((p) {
+        if (p.id == id) return updated;
+        return p;
+      }).toList();
+      state = state.copyWith(posts: posts);
+      _recomputeLayout();
+      return updated;
+    } catch (e) {
+      debugPrint('[TimelineNotifier] updatePost error: $e');
+      return null;
     }
   }
 

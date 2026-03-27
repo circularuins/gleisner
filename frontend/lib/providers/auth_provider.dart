@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -5,6 +6,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import '../graphql/client.dart';
 import 'disposable_notifier.dart';
 import '../graphql/queries/auth.dart';
+import '../graphql/mutations/user.dart';
 import '../models/user.dart';
 
 import '../utils/sentinel.dart';
@@ -153,10 +155,51 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
       final user = User.fromJson(payload['user'] as Map<String, dynamic>);
       state = AuthState(status: AuthStatus.authenticated, user: user);
     } catch (e) {
+      debugPrint('[AuthNotifier] _executeMutation error: $e');
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
-        error: e.toString(),
+        error: fallbackError,
       );
+    }
+  }
+
+  Future<bool> updateProfile({
+    Object? displayName = sentinel,
+    Object? bio = sentinel,
+    Object? avatarUrl = sentinel,
+  }) async {
+    final variables = <String, dynamic>{};
+    if (displayName != sentinel) variables['displayName'] = displayName;
+    if (bio != sentinel) variables['bio'] = bio;
+    if (avatarUrl != sentinel) variables['avatarUrl'] = avatarUrl;
+
+    try {
+      final result = await _client.mutate(
+        MutationOptions(document: gql(updateMeMutation), variables: variables),
+      );
+
+      if (result.hasException) {
+        return false;
+      }
+
+      final data = result.data?['updateMe'] as Map<String, dynamic>?;
+      if (data == null) return false;
+
+      final currentUser = state.user;
+      if (currentUser == null) return false;
+
+      state = state.copyWith(
+        user: currentUser.copyWith(
+          displayName: data['displayName'] as String?,
+          bio: data['bio'] as String?,
+          avatarUrl: data['avatarUrl'] as String?,
+          updatedAt: DateTime.parse(data['updatedAt'] as String),
+        ),
+      );
+      return true;
+    } catch (e) {
+      debugPrint('[AuthNotifier] updateProfile error: $e');
+      return false;
     }
   }
 

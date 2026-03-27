@@ -21,9 +21,9 @@ export const mediaTypeEnum = pgEnum("media_type", [
 
 export const posts = pgTable("posts", {
   id: uuid("id").defaultRandom().primaryKey(),
-  trackId: uuid("track_id")
-    .references(() => tracks.id, { onDelete: "cascade" })
-    .notNull(),
+  trackId: uuid("track_id").references(() => tracks.id, {
+    onDelete: "set null",
+  }),
   authorId: uuid("author_id")
     .references(() => users.id, { onDelete: "cascade" })
     .notNull(),

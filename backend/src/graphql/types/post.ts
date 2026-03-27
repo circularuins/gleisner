@@ -2,7 +2,7 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, posts, tracks, users } from "../../db/schema/index.js";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 import { computeContentHash, verifySignature } from "../../auth/signing.js";
@@ -43,9 +43,9 @@ async function verifyPostSignature(
   }
 }
 
-export const PostType = builder.objectRef<{
+type PostShape = {
   id: string;
-  trackId: string;
+  trackId: string | null;
   authorId: string;
   mediaType: "text" | "image" | "video" | "audio" | "link";
   title: string | null;
@@ -59,7 +59,17 @@ export const PostType = builder.objectRef<{
   layoutY: number;
   createdAt: Date;
   updatedAt: Date;
-}>("Post");
+  _track?: {
+    id: string;
+    name: string;
+    color: string;
+    artistId: string;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null;
+};
+
+export const PostType = builder.objectRef<PostShape>("Post");
 
 PostType.implement({
   fields: (t) => ({
@@ -97,13 +107,17 @@ PostType.implement({
     }),
     track: t.field({
       type: TrackType,
+      nullable: true,
       resolve: async (post) => {
+        // Use pre-fetched track from JOIN if available (N+1 prevention)
+        if (post._track) return post._track;
+        if (!post.trackId) return null;
         const [track] = await db
           .select()
           .from(tracks)
           .where(eq(tracks.id, post.trackId))
           .limit(1);
-        return track;
+        return track ?? null;
       },
     }),
   }),
@@ -234,6 +248,7 @@ builder.mutationFields((t) => ({
     type: PostType,
     args: {
       id: t.arg.string({ required: true }),
+      trackId: t.arg.string(),
       mediaType: t.arg({ type: MediaTypeEnum }),
       title: t.arg.string(),
       body: t.arg.string(),
@@ -293,7 +308,28 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Importance must be between 0.0 and 1.0");
       }
 
+      // Validate trackId — must belong to the author's artist profile
+      if (args.trackId != null) {
+        const [track] = await db
+          .select({ id: tracks.id, artistId: tracks.artistId })
+          .from(tracks)
+          .where(eq(tracks.id, args.trackId))
+          .limit(1);
+        if (!track) {
+          throw new GraphQLError("Track not found");
+        }
+        const [myArtist] = await db
+          .select({ id: artists.id })
+          .from(artists)
+          .where(eq(artists.userId, ctx.authUser.userId))
+          .limit(1);
+        if (!myArtist || track.artistId !== myArtist.id) {
+          throw new GraphQLError("Not authorized to move post to this track");
+        }
+      }
+
       const updateData: Record<string, unknown> = { updatedAt: new Date() };
+      if (args.trackId !== undefined) updateData.trackId = args.trackId;
       if (args.mediaType !== undefined) updateData.mediaType = args.mediaType;
       if (args.title !== undefined) updateData.title = args.title;
       if (args.body !== undefined) updateData.body = args.body;
@@ -427,10 +463,17 @@ builder.queryFields((t) => ({
       trackId: t.arg.string({ required: true }),
     },
     resolve: async (_parent, args) => {
-      return db.select().from(posts).where(eq(posts.trackId, args.trackId));
+      const rows = await db
+        .select({ post: posts, track: tracks })
+        .from(posts)
+        .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
+        .where(eq(tracks.id, args.trackId));
+      return rows.map((r) => ({ ...r.post, _track: r.track }));
     },
   }),
 
+  // INNER JOIN intentionally excludes trackId=NULL posts (unassigned after
+  // track deletion). They are managed separately via Profile screen (#67).
   // TODO(visibility): Add public/draft filter when post visibility is implemented
   artistPosts: t.field({
     type: [PostType],
@@ -440,29 +483,14 @@ builder.queryFields((t) => ({
     },
     resolve: async (_parent, args) => {
       const limit = Math.max(1, Math.min(args.limit ?? 5, 10));
-      return db
-        .select({
-          id: posts.id,
-          trackId: posts.trackId,
-          authorId: posts.authorId,
-          mediaType: posts.mediaType,
-          title: posts.title,
-          body: posts.body,
-          mediaUrl: posts.mediaUrl,
-          duration: posts.duration,
-          importance: posts.importance,
-          layoutX: posts.layoutX,
-          layoutY: posts.layoutY,
-          contentHash: posts.contentHash,
-          signature: posts.signature,
-          createdAt: posts.createdAt,
-          updatedAt: posts.updatedAt,
-        })
+      const rows = await db
+        .select({ post: posts, track: tracks })
         .from(posts)
-        .innerJoin(tracks, eq(posts.trackId, tracks.id))
+        .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
         .where(eq(tracks.artistId, args.artistId))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
+      return rows.map((r) => ({ ...r.post, _track: r.track }));
     },
   }),
 }));
@@ -472,7 +500,11 @@ builder.objectFields(TrackType, (t) => ({
   posts: t.field({
     type: [PostType],
     resolve: async (track) => {
-      return db.select().from(posts).where(eq(posts.trackId, track.id));
+      const rows = await db
+        .select()
+        .from(posts)
+        .where(sql`${posts.trackId} = ${track.id}`);
+      return rows.map((r) => ({ ...r, _track: track }));
     },
   }),
 }));

@@ -27,6 +27,7 @@ void showPostDetailSheet(
   void Function(Set<String> postIds)? onViewConstellation,
   Future<PostConstellation?> Function(String postId, String name)?
   onNameConstellation,
+  VoidCallback? onEdit,
   List<Post> allPosts = const [],
 }) {
   showModalBottomSheet<void>(
@@ -43,6 +44,7 @@ void showPostDetailSheet(
       onConnectionRemoved: onConnectionRemoved,
       onViewConstellation: onViewConstellation,
       onNameConstellation: onNameConstellation,
+      onEdit: onEdit,
       allPosts: allPosts,
     ),
   );
@@ -65,6 +67,7 @@ class _PostDetailSheet extends StatefulWidget {
   final void Function(Set<String> postIds)? onViewConstellation;
   final Future<PostConstellation?> Function(String postId, String name)?
   onNameConstellation;
+  final VoidCallback? onEdit;
   final List<Post> allPosts;
   const _PostDetailSheet({
     required this.post,
@@ -76,6 +79,7 @@ class _PostDetailSheet extends StatefulWidget {
     this.onConnectionRemoved,
     this.onViewConstellation,
     this.onNameConstellation,
+    this.onEdit,
     this.allPosts = const [],
   });
 
@@ -189,13 +193,29 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Date
-                    Text(
-                      _formatDateTime(),
-                      style: const TextStyle(
-                        color: colorTextMuted,
-                        fontSize: fontSizeMd,
-                      ),
+                    // Date + Edit button
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _formatDateTime(),
+                            style: const TextStyle(
+                              color: colorTextMuted,
+                              fontSize: fontSizeMd,
+                            ),
+                          ),
+                        ),
+                        if (widget.onEdit != null)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              size: 18,
+                              color: colorTextMuted,
+                            ),
+                            onPressed: widget.onEdit,
+                            tooltip: 'Edit post',
+                          ),
+                      ],
                     ),
                     const SizedBox(height: spaceMd),
                     // Title

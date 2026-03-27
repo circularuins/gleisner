@@ -101,6 +101,31 @@ if (cached) return cached;
 
 該当箇所: `ArtistGenreType.genre`（埋め込み）、`TuneInType.artist`（キャッシュ）。
 
+### Drizzle ORM: nullable カラムでの eq() 型エラー
+
+**nullable カラム（`NOT NULL` なし）に対して `eq()` を使うと TypeScript の型エラーになる。** `sql` テンプレートを使うこと。
+
+```typescript
+// ❌ nullable カラムでは型エラー
+.where(eq(posts.trackId, trackId))
+
+// ✅ sql テンプレートで回避
+.where(sql`${posts.trackId} = ${trackId}`)
+```
+
+`innerJoin` の ON 句でも同様。Drizzle の `eq()` は non-null カラム前提の型定義。
+
+### スキーマ変更チェックリスト
+
+**⚠ DB カラムの nullable 化・onDelete 変更・カラム削除を行う場合、以下を同時に修正すること:**
+
+1. **Drizzle スキーマ** — `src/db/schema/*.ts` のカラム定義
+2. **GraphQL 型定義** — `objectRef<{ ... }>` の TypeScript 型を nullable に変更（例: `trackId: string` → `string | null`）
+3. **GraphQL resolver** — 該当カラムを参照する全 resolver で null チェック追加
+4. **クエリの `eq()` 呼び出し** — nullable カラムでは `sql` テンプレートに切り替え
+5. **認可ロジック** — nullable になった FK を経由する認可チェックが null 時にバイパスされないか確認
+6. **マイグレーション** — `pnpm db:generate` + `pnpm db:migrate`（または `db:push`）
+
 ### テスト
 
 - 共通ヘルパーは `src/graphql/__tests__/helpers.ts` に集約。新規テストファイルではこれを import

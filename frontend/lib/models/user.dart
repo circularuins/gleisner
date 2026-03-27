@@ -1,3 +1,5 @@
+import '../utils/sentinel.dart';
+
 class User {
   final String id;
   final String did;
@@ -35,6 +37,28 @@ class User {
       publicKey: json['publicKey'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
+    );
+  }
+
+  User copyWith({
+    Object? displayName = sentinel,
+    Object? bio = sentinel,
+    Object? avatarUrl = sentinel,
+    DateTime? updatedAt,
+  }) {
+    return User(
+      id: id,
+      did: did,
+      email: email,
+      username: username,
+      displayName: displayName == sentinel
+          ? this.displayName
+          : displayName as String?,
+      bio: bio == sentinel ? this.bio : bio as String?,
+      avatarUrl: avatarUrl == sentinel ? this.avatarUrl : avatarUrl as String?,
+      publicKey: publicKey,
+      createdAt: createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

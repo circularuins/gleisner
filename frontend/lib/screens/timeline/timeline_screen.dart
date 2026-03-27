@@ -634,6 +634,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       onNameConstellation: isOwn
           ? (postId, name) => notifier.nameConstellation(postId, name)
           : null,
+      onEdit: isOwn
+          ? () {
+              Navigator.pop(context); // Close detail sheet
+              context.push('/edit-post', extra: post);
+            }
+          : null,
       allPosts: ref.read(timelineProvider).posts,
     );
   }
