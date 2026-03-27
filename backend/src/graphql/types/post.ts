@@ -589,10 +589,10 @@ builder.objectFields(TrackType, (t) => ({
     type: [PostType],
     resolve: async (track, _args, ctx) => {
       const access = await checkArtistAccess(track.artistId, ctx.authUser);
-      const visibilityFilter =
-        access.accessible && access.isSelf
-          ? undefined
-          : eq(posts.visibility, "public");
+      if (!access.accessible) return [];
+      const visibilityFilter = access.isSelf
+        ? undefined
+        : eq(posts.visibility, "public");
 
       const rows = await db
         .select()
