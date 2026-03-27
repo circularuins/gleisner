@@ -95,6 +95,118 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   bool _isToggling = false;
   bool _isConnecting = false;
 
+  /// Returns allPosts with the current post's connections replaced by local state.
+  /// Returns allPosts with connections synced to local state.
+  /// Updates both the current post's connections AND the counterpart
+  /// (target/source) posts' connections to keep the graph consistent.
+  List<Post> get _allPostsWithLocalConnections {
+    // Build sets of current outgoing target IDs and incoming source IDs
+    final outTargetIds = _outgoingConnections.map((c) => c.targetId).toSet();
+    final inSourceIds = _incomingConnections.map((c) => c.sourceId).toSet();
+    // Connection IDs that exist in local state
+    final localConnIds = {
+      ..._outgoingConnections.map((c) => c.id),
+      ..._incomingConnections.map((c) => c.id),
+    };
+
+    return widget.allPosts.map((p) {
+      if (p.id == widget.post.id) {
+        // Replace current post's connections with local state
+        return Post(
+          id: p.id,
+          mediaType: p.mediaType,
+          title: p.title,
+          body: p.body,
+          mediaUrl: p.mediaUrl,
+          duration: p.duration,
+          importance: p.importance,
+          visibility: p.visibility,
+          layoutX: p.layoutX,
+          layoutY: p.layoutY,
+          contentHash: p.contentHash,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+          author: p.author,
+          trackId: p.trackId,
+          trackName: p.trackName,
+          trackColor: p.trackColor,
+          reactionCounts: p.reactionCounts,
+          myReactions: p.myReactions,
+          outgoingConnections: _outgoingConnections,
+          incomingConnections: _incomingConnections,
+          constellation: p.constellation,
+        );
+      }
+      // Sync counterpart posts: add/remove incoming/outgoing to match local state
+      var outgoing = p.outgoingConnections;
+      var incoming = p.incomingConnections;
+      bool changed = false;
+
+      if (outTargetIds.contains(p.id) || inSourceIds.contains(p.id)) {
+        // This post is a target of our outgoing or source of our incoming
+        // Add connections from local state that aren't in the original
+        final newIncoming = _outgoingConnections
+            .where((c) => c.targetId == p.id)
+            .where((c) => !incoming.any((ic) => ic.id == c.id))
+            .toList();
+        if (newIncoming.isNotEmpty) {
+          incoming = [...incoming, ...newIncoming];
+          changed = true;
+        }
+        final newOutgoing = _incomingConnections
+            .where((c) => c.sourceId == p.id)
+            .where((c) => !outgoing.any((oc) => oc.id == c.id))
+            .toList();
+        if (newOutgoing.isNotEmpty) {
+          outgoing = [...outgoing, ...newOutgoing];
+          changed = true;
+        }
+      }
+
+      // Remove connections that no longer exist in local state
+      final filteredIncoming = incoming
+          .where((c) =>
+              c.sourceId != widget.post.id || localConnIds.contains(c.id))
+          .toList();
+      final filteredOutgoing = outgoing
+          .where((c) =>
+              c.targetId != widget.post.id || localConnIds.contains(c.id))
+          .toList();
+      if (filteredIncoming.length != incoming.length ||
+          filteredOutgoing.length != outgoing.length) {
+        incoming = filteredIncoming;
+        outgoing = filteredOutgoing;
+        changed = true;
+      }
+
+      if (!changed) return p;
+      return Post(
+        id: p.id,
+        mediaType: p.mediaType,
+        title: p.title,
+        body: p.body,
+        mediaUrl: p.mediaUrl,
+        duration: p.duration,
+        importance: p.importance,
+        visibility: p.visibility,
+        layoutX: p.layoutX,
+        layoutY: p.layoutY,
+        contentHash: p.contentHash,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        author: p.author,
+        trackId: p.trackId,
+        trackName: p.trackName,
+        trackColor: p.trackColor,
+        reactionCounts: p.reactionCounts,
+        myReactions: p.myReactions,
+        outgoingConnections: outgoing,
+        incomingConnections: incoming,
+        constellation: p.constellation,
+      );
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -275,6 +387,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
               // Constellation
               if (widget.allPosts.isNotEmpty)
                 Padding(
+                  key: ValueKey('constellation-${_outgoingConnections.map((c) => c.id).join(',')}-${_incomingConnections.map((c) => c.id).join(',')}'),
                   padding: const EdgeInsets.fromLTRB(20, spaceMd, 20, 0),
                   child: _buildConstellationSection(trackColor),
                 ),
@@ -531,7 +644,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       );
       if (conn != null && mounted) {
         setState(() {
-          _outgoingConnections.add(conn);
+          _outgoingConnections = [..._outgoingConnections, conn];
         });
         widget.onConnectionAdded?.call(conn);
       }
@@ -544,8 +657,10 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     final success = await widget.onDeleteConnection?.call(conn.id) ?? false;
     if (success && mounted) {
       setState(() {
-        _outgoingConnections.removeWhere((c) => c.id == conn.id);
-        _incomingConnections.removeWhere((c) => c.id == conn.id);
+        _outgoingConnections =
+            _outgoingConnections.where((c) => c.id != conn.id).toList();
+        _incomingConnections =
+            _incomingConnections.where((c) => c.id != conn.id).toList();
       });
       widget.onConnectionRemoved?.call(conn);
     }
@@ -616,10 +731,11 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   }
 
   Widget _buildConstellationSection(Color trackColor) {
-    final constellationIds = findConstellation(widget.post.id, widget.allPosts);
+    final currentAllPosts = _allPostsWithLocalConnections;
+    final constellationIds = findConstellation(widget.post.id, currentAllPosts);
     if (constellationIds.length <= 1) return const SizedBox.shrink();
 
-    final postMap = {for (final p in widget.allPosts) p.id: p};
+    final postMap = {for (final p in currentAllPosts) p.id: p};
     final members =
         constellationIds
             .where((id) => id != widget.post.id && postMap.containsKey(id))
