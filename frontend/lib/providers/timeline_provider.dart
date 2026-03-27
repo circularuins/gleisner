@@ -369,29 +369,9 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     List<PostConnection>? outgoingConnections,
     List<PostConnection>? incomingConnections,
   }) {
-    return Post(
-      id: p.id,
-      mediaType: p.mediaType,
-      title: p.title,
-      body: p.body,
-      mediaUrl: p.mediaUrl,
-      duration: p.duration,
-      importance: p.importance,
-      visibility: p.visibility,
-      layoutX: p.layoutX,
-      layoutY: p.layoutY,
-      contentHash: p.contentHash,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-      author: p.author,
-      trackId: p.trackId,
-      trackName: p.trackName,
-      trackColor: p.trackColor,
-      reactionCounts: p.reactionCounts,
-      myReactions: p.myReactions,
-      outgoingConnections: outgoingConnections ?? p.outgoingConnections,
-      incomingConnections: incomingConnections ?? p.incomingConnections,
-      constellation: p.constellation,
+    return p.copyWith(
+      outgoingConnections: outgoingConnections,
+      incomingConnections: incomingConnections,
     );
   }
 
@@ -403,29 +383,9 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   ) {
     final posts = state.posts.map((p) {
       if (p.id == postId) {
-        return Post(
-          id: p.id,
-          mediaType: p.mediaType,
-          title: p.title,
-          body: p.body,
-          mediaUrl: p.mediaUrl,
-          duration: p.duration,
-          importance: p.importance,
-          visibility: p.visibility,
-          layoutX: p.layoutX,
-          layoutY: p.layoutY,
-          contentHash: p.contentHash,
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt,
-          author: p.author,
-          trackId: p.trackId,
-          trackName: p.trackName,
-          trackColor: p.trackColor,
+        return p.copyWith(
           reactionCounts: counts,
           myReactions: myReactions,
-          outgoingConnections: p.outgoingConnections,
-          incomingConnections: p.incomingConnections,
-          constellation: p.constellation,
         );
       }
       return p;

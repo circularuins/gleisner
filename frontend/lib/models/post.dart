@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import '../utils/sentinel.dart';
 import 'track.dart';
 
 class PostAuthor {
@@ -132,6 +133,55 @@ class Post {
     this.incomingConnections = const [],
     this.constellation,
   });
+
+  Post copyWith({
+    Object? title = sentinel,
+    Object? body = sentinel,
+    Object? mediaUrl = sentinel,
+    Object? duration = sentinel,
+    double? importance,
+    String? visibility,
+    Object? layoutX = sentinel,
+    Object? layoutY = sentinel,
+    Object? contentHash = sentinel,
+    Object? trackId = sentinel,
+    Object? trackName = sentinel,
+    Object? trackColor = sentinel,
+    List<ReactionCount>? reactionCounts,
+    List<String>? myReactions,
+    List<PostConnection>? outgoingConnections,
+    List<PostConnection>? incomingConnections,
+    Object? constellation = sentinel,
+  }) {
+    return Post(
+      id: id,
+      mediaType: mediaType,
+      title: title == sentinel ? this.title : title as String?,
+      body: body == sentinel ? this.body : body as String?,
+      mediaUrl: mediaUrl == sentinel ? this.mediaUrl : mediaUrl as String?,
+      duration: duration == sentinel ? this.duration : duration as int?,
+      importance: importance ?? this.importance,
+      visibility: visibility ?? this.visibility,
+      layoutX: layoutX == sentinel ? this.layoutX : layoutX as double?,
+      layoutY: layoutY == sentinel ? this.layoutY : layoutY as double?,
+      contentHash:
+          contentHash == sentinel ? this.contentHash : contentHash as String?,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      author: author,
+      trackId: trackId == sentinel ? this.trackId : trackId as String?,
+      trackName: trackName == sentinel ? this.trackName : trackName as String?,
+      trackColor:
+          trackColor == sentinel ? this.trackColor : trackColor as String?,
+      reactionCounts: reactionCounts ?? this.reactionCounts,
+      myReactions: myReactions ?? this.myReactions,
+      outgoingConnections: outgoingConnections ?? this.outgoingConnections,
+      incomingConnections: incomingConnections ?? this.incomingConnections,
+      constellation: constellation == sentinel
+          ? this.constellation
+          : constellation as PostConstellation?,
+    );
+  }
 
   Color get trackDisplayColor => parseHexColor(trackColor);
 
