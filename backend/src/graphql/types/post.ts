@@ -597,7 +597,40 @@ builder.queryFields((t) => ({
       artistId: t.arg.string({ required: true }),
       limit: t.arg.int(),
     },
-    resolve: async (_parent, args) => {
+    resolve: async (_parent, args, ctx) => {
+      // Check artist visibility
+      const [artist] = await db
+        .select({
+          profileVisibility: artists.profileVisibility,
+          userId: artists.userId,
+        })
+        .from(artists)
+        .where(eq(artists.id, args.artistId))
+        .limit(1);
+      if (!artist) return [];
+      if (artist.profileVisibility === "private") {
+        const isSelf = !!(
+          ctx.authUser && artist.userId === ctx.authUser.userId
+        );
+        if (!isSelf) {
+          const hasTuneIn =
+            ctx.authUser &&
+            (
+              await db
+                .select()
+                .from(tuneIns)
+                .where(
+                  and(
+                    eq(tuneIns.userId, ctx.authUser.userId),
+                    eq(tuneIns.artistId, args.artistId),
+                  ),
+                )
+                .limit(1)
+            ).length > 0;
+          if (!hasTuneIn) return [];
+        }
+      }
+
       const limit = Math.max(1, Math.min(args.limit ?? 5, 10));
       const rows = await db
         .select({ post: posts, track: tracks })
