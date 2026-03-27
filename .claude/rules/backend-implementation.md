@@ -50,6 +50,21 @@
 
 **owner の `isSelf` 分岐も統一する。** `posts` で owner が draft を見れるなら `artistPosts` でも同様にすること。非対称な認可条件はセキュリティホールになる。
 
+### 共通ヘルパー抽出時の分岐網羅性
+
+**認可チェックを共通ヘルパーに抽出する場合、返り値の「拒否」ケースで必ず early return すること。** 三項演算子で分岐すると拒否ケースが else に落ちて漏洩する。
+
+```typescript
+// ❌ 三項演算子 — accessible: false が public フィルタに落ちる
+const filter = access.accessible && access.isSelf
+  ? undefined
+  : eq(posts.visibility, "public"); // ← false でもここに来る
+
+// ✅ early return で拒否を明示
+if (!access.accessible) return [];
+const filter = access.isSelf ? undefined : eq(posts.visibility, "public");
+```
+
 ### 件数上限付き INSERT は SELECT FOR UPDATE + トランザクション
 
 **「COUNT で件数チェック → INSERT」パターンには必ず行ロックを使うこと。** READ COMMITTED では並列トランザクションが同時に COUNT を通過し、上限を超えて INSERT される（TOCTOU）。
