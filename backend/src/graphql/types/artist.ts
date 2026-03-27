@@ -3,8 +3,8 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, artistGenres } from "../../db/schema/index.js";
 import { and, eq, desc, sql } from "drizzle-orm";
-import { tuneIns } from "../../db/schema/index.js";
-import { validateUrl } from "../validators.js";
+import { validateProfileVisibility, validateUrl } from "../validators.js";
+import { checkArtistAccess } from "../access.js";
 
 export const ArtistType = builder.objectRef<{
   id: string;
@@ -209,11 +209,7 @@ builder.mutationFields((t) => ({
       if (args.coverImageUrl !== undefined)
         updateData.coverImageUrl = args.coverImageUrl;
       if (args.profileVisibility !== undefined) {
-        if (!["public", "private"].includes(args.profileVisibility as string)) {
-          throw new GraphQLError(
-            "profileVisibility must be 'public' or 'private'",
-          );
-        }
+        validateProfileVisibility(args.profileVisibility as string);
         updateData.profileVisibility = args.profileVisibility;
       }
 
@@ -243,24 +239,8 @@ builder.queryFields((t) => ({
         .limit(1);
       if (!artist) return null;
 
-      // Public artists are visible to everyone
-      if (artist.profileVisibility === "public") return artist;
-
-      // Private artists: visible to self or tuned-in users
-      if (!ctx.authUser) return null;
-      if (artist.userId === ctx.authUser.userId) return artist;
-
-      const [tunedIn] = await db
-        .select()
-        .from(tuneIns)
-        .where(
-          and(
-            eq(tuneIns.userId, ctx.authUser.userId),
-            eq(tuneIns.artistId, artist.id),
-          ),
-        )
-        .limit(1);
-      return tunedIn ? artist : null;
+      const access = await checkArtistAccess(artist.id, ctx.authUser);
+      return access.accessible ? artist : null;
     },
   }),
 

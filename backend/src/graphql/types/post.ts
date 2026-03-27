@@ -1,19 +1,14 @@
 import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
-import {
-  artists,
-  posts,
-  tracks,
-  tuneIns,
-  users,
-} from "../../db/schema/index.js";
+import { artists, posts, tracks, users } from "../../db/schema/index.js";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 import { computeContentHash, verifySignature } from "../../auth/signing.js";
-import { validateUrl } from "../validators.js";
+import { validatePostVisibility, validateUrl } from "../validators.js";
+import { checkArtistAccess } from "../access.js";
 
 const MediaTypeEnum = builder.enumType("MediaType", {
   values: ["text", "image", "video", "audio", "link"] as const,
@@ -208,12 +203,7 @@ builder.mutationFields((t) => ({
       }
 
       // Validate visibility
-      if (
-        args.visibility != null &&
-        !["public", "draft"].includes(args.visibility)
-      ) {
-        throw new GraphQLError("visibility must be 'public' or 'draft'");
-      }
+      if (args.visibility != null) validatePostVisibility(args.visibility);
 
       // contentHash is always computed, even without a signature, to enable:
       // 1. Content integrity checks (detect DB-level corruption or bugs)
@@ -329,12 +319,7 @@ builder.mutationFields((t) => ({
       }
 
       // Validate visibility
-      if (
-        args.visibility != null &&
-        !["public", "draft"].includes(args.visibility)
-      ) {
-        throw new GraphQLError("visibility must be 'public' or 'draft'");
-      }
+      if (args.visibility != null) validatePostVisibility(args.visibility);
 
       // Validate trackId — must belong to the author's artist profile
       if (args.trackId != null) {
@@ -499,33 +484,8 @@ builder.queryFields((t) => ({
           .where(eq(tracks.id, post.trackId))
           .limit(1);
         if (track) {
-          const [artist] = await db
-            .select({
-              profileVisibility: artists.profileVisibility,
-              userId: artists.userId,
-            })
-            .from(artists)
-            .where(eq(artists.id, track.artistId))
-            .limit(1);
-          if (artist && artist.profileVisibility === "private") {
-            const isSelf =
-              ctx.authUser && artist.userId === ctx.authUser.userId;
-            const isTunedIn =
-              ctx.authUser &&
-              (
-                await db
-                  .select()
-                  .from(tuneIns)
-                  .where(
-                    and(
-                      eq(tuneIns.userId, ctx.authUser.userId),
-                      eq(tuneIns.artistId, track.artistId),
-                    ),
-                  )
-                  .limit(1)
-              ).length > 0;
-            if (!isSelf && !isTunedIn) return null;
-          }
+          const access = await checkArtistAccess(track.artistId, ctx.authUser);
+          if (!access.accessible) return null;
         }
       }
       return post;
@@ -538,7 +498,7 @@ builder.queryFields((t) => ({
       trackId: t.arg.string({ required: true }),
     },
     resolve: async (_parent, args, ctx) => {
-      // Verify track's artist is accessible (public, or self, or tuned-in)
+      // Verify track's artist is accessible
       const [track] = await db
         .select({ artistId: tracks.artistId })
         .from(tracks)
@@ -547,32 +507,9 @@ builder.queryFields((t) => ({
 
       let isSelf = false;
       if (track) {
-        const [artist] = await db
-          .select({
-            profileVisibility: artists.profileVisibility,
-            userId: artists.userId,
-          })
-          .from(artists)
-          .where(eq(artists.id, track.artistId))
-          .limit(1);
-        if (artist) {
-          isSelf = !!(ctx.authUser && artist.userId === ctx.authUser.userId);
-          if (artist.profileVisibility === "private" && !isSelf) {
-            const hasTuneIn =
-              ctx.authUser &&
-              (await db
-                .select()
-                .from(tuneIns)
-                .where(
-                  and(
-                    eq(tuneIns.userId, ctx.authUser.userId),
-                    eq(tuneIns.artistId, track.artistId),
-                  ),
-                )
-                .limit(1));
-            if (!hasTuneIn || hasTuneIn.length === 0) return [];
-          }
-        }
+        const access = await checkArtistAccess(track.artistId, ctx.authUser);
+        if (!access.accessible) return [];
+        isSelf = access.isSelf;
       }
 
       // Self sees all posts (including drafts); others see only public
@@ -598,37 +535,11 @@ builder.queryFields((t) => ({
       limit: t.arg.int(),
     },
     resolve: async (_parent, args, ctx) => {
-      // Check artist visibility
-      const [artist] = await db
-        .select({
-          profileVisibility: artists.profileVisibility,
-          userId: artists.userId,
-        })
-        .from(artists)
-        .where(eq(artists.id, args.artistId))
-        .limit(1);
-      if (!artist) return [];
-      const isSelf = !!(ctx.authUser && artist.userId === ctx.authUser.userId);
-      if (artist.profileVisibility === "private" && !isSelf) {
-        const hasTuneIn =
-          ctx.authUser &&
-          (
-            await db
-              .select()
-              .from(tuneIns)
-              .where(
-                and(
-                  eq(tuneIns.userId, ctx.authUser.userId),
-                  eq(tuneIns.artistId, args.artistId),
-                ),
-              )
-              .limit(1)
-          ).length > 0;
-        if (!hasTuneIn) return [];
-      }
+      const access = await checkArtistAccess(args.artistId, ctx.authUser);
+      if (!access.accessible) return [];
 
       // Self sees all posts (including drafts); others see only public
-      const visibilityFilter = isSelf
+      const visibilityFilter = access.isSelf
         ? undefined
         : eq(posts.visibility, "public");
 
@@ -676,16 +587,17 @@ builder.objectFields(ArtistType, (t) => ({
 builder.objectFields(TrackType, (t) => ({
   posts: t.field({
     type: [PostType],
-    resolve: async (track) => {
+    resolve: async (track, _args, ctx) => {
+      const access = await checkArtistAccess(track.artistId, ctx.authUser);
+      const visibilityFilter =
+        access.accessible && access.isSelf
+          ? undefined
+          : eq(posts.visibility, "public");
+
       const rows = await db
         .select()
         .from(posts)
-        .where(
-          and(
-            sql`${posts.trackId} = ${track.id}`,
-            eq(posts.visibility, "public"),
-          ),
-        );
+        .where(and(sql`${posts.trackId} = ${track.id}`, visibilityFilter));
       return rows.map((r) => ({ ...r, _track: track }));
     },
   }),

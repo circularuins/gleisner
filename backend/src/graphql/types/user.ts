@@ -3,7 +3,7 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema/index.js";
 import { eq } from "drizzle-orm";
-import { validateUrl } from "../validators.js";
+import { validateProfileVisibility, validateUrl } from "../validators.js";
 
 export interface UserShape {
   id: string;
@@ -117,11 +117,7 @@ builder.mutationFields((t) => ({
       if (args.bio !== undefined) updateData.bio = args.bio;
       if (args.avatarUrl !== undefined) updateData.avatarUrl = args.avatarUrl;
       if (args.profileVisibility !== undefined) {
-        if (!["public", "private"].includes(args.profileVisibility as string)) {
-          throw new GraphQLError(
-            "profileVisibility must be 'public' or 'private'",
-          );
-        }
+        validateProfileVisibility(args.profileVisibility as string);
         updateData.profileVisibility = args.profileVisibility;
       }
 
