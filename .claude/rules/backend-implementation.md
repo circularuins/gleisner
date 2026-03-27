@@ -37,6 +37,19 @@
 2. **トップレベルクエリ** — `builder.queryFields()` 内の同名クエリにも同じチェック（別経路でアクセス可能）
 3. **テストファイル** — 該当クエリを呼ぶ全テストに認証トークンを渡す（`reaction.test.ts`, `public-user.test.ts` 等、複数ファイルに散在しうる）
 
+### 認可フィルタの全経路統一
+
+**同じデータに到達する全クエリ/リゾルバに同一の認可条件を適用すること。** 1つのクエリにフィルタを追加したら、同じデータを返す他の経路も漏れなく更新する。
+
+例: 投稿一覧に `visibility` フィルタを追加する場合、以下の全経路を確認:
+- `posts`（trackId 指定）
+- `artistPosts`（artistId 指定）
+- `ArtistType.recentPosts`（フィールドリゾルバ）
+- `TrackType.posts`（フィールドリゾルバ）
+- `post`（単体取得）
+
+**owner の `isSelf` 分岐も統一する。** `posts` で owner が draft を見れるなら `artistPosts` でも同様にすること。非対称な認可条件はセキュリティホールになる。
+
 ### 件数上限付き INSERT は SELECT FOR UPDATE + トランザクション
 
 **「COUNT で件数チェック → INSERT」パターンには必ず行ロックを使うこと。** READ COMMITTED では並列トランザクションが同時に COUNT を通過し、上限を超えて INSERT される（TOCTOU）。
