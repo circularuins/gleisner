@@ -2,7 +2,7 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, posts, tracks, users } from "../../db/schema/index.js";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
@@ -523,6 +523,26 @@ builder.queryFields((t) => ({
         .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
         .where(and(eq(tracks.id, args.trackId), visibilityFilter));
       return rows.map((r) => ({ ...r.post, _track: r.track }));
+    },
+  }),
+
+  // Posts where trackId IS NULL (unassigned after track deletion).
+  // Only returns the authenticated user's own unassigned posts.
+  myUnassignedPosts: t.field({
+    type: [PostType],
+    resolve: async (_parent, _args, ctx) => {
+      if (!ctx.authUser) {
+        throw new GraphQLError("Authentication required");
+      }
+
+      const rows = await db
+        .select()
+        .from(posts)
+        .where(
+          and(eq(posts.authorId, ctx.authUser.userId), isNull(posts.trackId)),
+        )
+        .orderBy(desc(posts.createdAt));
+      return rows;
     },
   }),
 

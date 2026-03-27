@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../graphql/client.dart';
+import '../../models/artist.dart';
+import '../../models/post.dart';
+import '../../models/track.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/discover_provider.dart';
@@ -10,21 +13,36 @@ import '../../providers/my_artist_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../providers/tutorial_provider.dart';
+import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../edit_post/edit_post_screen.dart';
 import 'edit_profile_sheet.dart';
 import 'register_artist_wizard.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Load unassigned posts when profile is opened
+    ref.read(unassignedPostsProvider.notifier).load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final user = authState.user;
     // Use myArtistProvider (own artist) instead of timelineProvider
     // which may hold another artist's data in fan mode
     final artist = ref.watch(myArtistProvider);
     final tuneInState = ref.watch(tuneInProvider);
+    final unassignedState = ref.watch(unassignedPostsProvider);
 
     if (user == null) return const SizedBox.shrink();
 
@@ -208,7 +226,7 @@ class ProfileScreen extends ConsumerWidget {
           ] else ...[
             // Become an artist CTA
             GestureDetector(
-              onTap: () => _showRegisterSheet(context, ref),
+              onTap: () => _showRegisterSheet(context),
               child: Container(
                 padding: const EdgeInsets.all(spaceLg),
                 decoration: BoxDecoration(
@@ -258,6 +276,12 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ],
 
+          // Unassigned posts section (only if artist exists and has unassigned posts)
+          if (artist != null && unassignedState.posts.isNotEmpty) ...[
+            const SizedBox(height: spaceXxl),
+            _buildUnassignedPostsSection(unassignedState.posts, artist.tracks),
+          ],
+
           const SizedBox(height: spaceXxl),
 
           // Logout
@@ -269,6 +293,7 @@ class ProfileScreen extends ConsumerWidget {
               ref.invalidate(myArtistProvider);
               ref.invalidate(tuneInProvider);
               ref.invalidate(discoverProvider);
+              ref.invalidate(unassignedPostsProvider);
               await ref.read(tutorialProvider.notifier).reset();
               ref.invalidate(tutorialProvider);
             },
@@ -277,6 +302,164 @@ class ProfileScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildUnassignedPostsSection(List<Post> posts, List<Track> tracks) {
+    return Container(
+      padding: const EdgeInsets.all(spaceLg),
+      decoration: BoxDecoration(
+        color: colorSurface1,
+        borderRadius: BorderRadius.circular(radiusLg),
+        border: Border.all(color: colorBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.inventory_2_outlined,
+                size: 16,
+                color: colorTextMuted,
+              ),
+              const SizedBox(width: spaceSm),
+              Text(
+                'Unassigned Posts',
+                style: textLabel.copyWith(color: colorTextSecondary),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: spaceSm,
+                  vertical: spaceXxs,
+                ),
+                decoration: BoxDecoration(
+                  color: colorAccentGold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(radiusSm),
+                ),
+                child: Text(
+                  '${posts.length}',
+                  style: textCaption.copyWith(color: colorAccentGold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: spaceSm),
+          Text(
+            'These posts lost their track. Tap to reassign.',
+            style: textCaption.copyWith(
+              color: colorTextMuted,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          const SizedBox(height: spaceMd),
+          ...posts.map((post) => _buildUnassignedPostTile(post)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUnassignedPostTile(Post post) {
+    final artist = ref.read(myArtistProvider);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: spaceSm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(radiusMd),
+        onTap: () => _openEditForUnassigned(post, artist),
+        child: Container(
+          padding: const EdgeInsets.all(spaceMd),
+          decoration: BoxDecoration(
+            color: colorSurface0,
+            borderRadius: BorderRadius.circular(radiusMd),
+            border: Border.all(color: colorBorder),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _mediaTypeIcon(post.mediaType),
+                size: 20,
+                color: colorTextMuted,
+              ),
+              const SizedBox(width: spaceMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      post.title ?? post.body ?? '(Untitled)',
+                      style: textBody.copyWith(color: colorTextPrimary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: spaceXxs),
+                    Text(
+                      _formatDate(post.createdAt),
+                      style: textMicro.copyWith(color: colorTextMuted),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: colorInteractiveMuted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openEditForUnassigned(Post post, Artist? artist) {
+    if (artist == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => EditPostScreen(
+          post: post,
+          tracks: artist.tracks,
+          onSaved: (updated) {
+            // If the post was reassigned to a track, remove it from the list
+            if (updated.trackId != null) {
+              ref.read(unassignedPostsProvider.notifier).removePost(updated.id);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  static IconData _mediaTypeIcon(MediaType type) {
+    switch (type) {
+      case MediaType.text:
+        return Icons.article_outlined;
+      case MediaType.image:
+        return Icons.image_outlined;
+      case MediaType.video:
+        return Icons.videocam_outlined;
+      case MediaType.audio:
+        return Icons.headphones_outlined;
+      case MediaType.link:
+        return Icons.link;
+    }
+  }
+
+  static String _formatDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   static String _formatJoinDate(DateTime date) {
@@ -311,7 +494,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showRegisterSheet(BuildContext context, WidgetRef ref) {
+  void _showRegisterSheet(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,

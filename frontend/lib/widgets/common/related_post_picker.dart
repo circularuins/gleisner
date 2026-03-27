@@ -6,6 +6,7 @@ import '../../models/track.dart' show parseHexColor;
 /// Bottom sheet picker for selecting a related post.
 class RelatedPostPicker extends StatefulWidget {
   final List<Post> posts;
+
   /// Post IDs to exclude from the picker (current post + already connected).
   final Set<String> excludePostIds;
   final ValueChanged<Post> onSelected;
@@ -26,8 +27,9 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
   String? _filterTrackId;
 
   List<Post> get _filteredPosts {
-    var posts = widget.posts
-        .where((p) => !widget.excludePostIds.contains(p.id));
+    var posts = widget.posts.where(
+      (p) => !widget.excludePostIds.contains(p.id),
+    );
 
     if (_filterTrackId != null) {
       posts = posts.where((p) => p.trackId == _filterTrackId);
@@ -173,8 +175,9 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
                                     .withAlpha(80),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: theme.colorScheme.outline
-                                      .withAlpha(60),
+                                  color: theme.colorScheme.outline.withAlpha(
+                                    60,
+                                  ),
                                 ),
                               ),
                               child: Row(
@@ -190,8 +193,9 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
                                   ),
                                   const SizedBox(width: 4),
                                   ConstrainedBox(
-                                    constraints:
-                                        const BoxConstraints(maxWidth: 120),
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 120,
+                                    ),
                                     child: Text(
                                       _postLabel(post),
                                       maxLines: 1,

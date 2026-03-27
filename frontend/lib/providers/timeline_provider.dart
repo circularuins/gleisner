@@ -383,10 +383,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   ) {
     final posts = state.posts.map((p) {
       if (p.id == postId) {
-        return p.copyWith(
-          reactionCounts: counts,
-          myReactions: myReactions,
-        );
+        return p.copyWith(reactionCounts: counts, myReactions: myReactions);
       }
       return p;
     }).toList();

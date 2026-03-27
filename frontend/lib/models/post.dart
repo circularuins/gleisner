@@ -164,15 +164,17 @@ class Post {
       visibility: visibility ?? this.visibility,
       layoutX: layoutX == sentinel ? this.layoutX : layoutX as double?,
       layoutY: layoutY == sentinel ? this.layoutY : layoutY as double?,
-      contentHash:
-          contentHash == sentinel ? this.contentHash : contentHash as String?,
+      contentHash: contentHash == sentinel
+          ? this.contentHash
+          : contentHash as String?,
       createdAt: createdAt,
       updatedAt: updatedAt,
       author: author,
       trackId: trackId == sentinel ? this.trackId : trackId as String?,
       trackName: trackName == sentinel ? this.trackName : trackName as String?,
-      trackColor:
-          trackColor == sentinel ? this.trackColor : trackColor as String?,
+      trackColor: trackColor == sentinel
+          ? this.trackColor
+          : trackColor as String?,
       reactionCounts: reactionCounts ?? this.reactionCounts,
       myReactions: myReactions ?? this.myReactions,
       outgoingConnections: outgoingConnections ?? this.outgoingConnections,

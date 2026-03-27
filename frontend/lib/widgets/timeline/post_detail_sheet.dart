@@ -360,7 +360,9 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
               // Constellation
               if (widget.allPosts.isNotEmpty)
                 Padding(
-                  key: ValueKey('constellation-${_outgoingConnections.map((c) => c.id).join(',')}-${_incomingConnections.map((c) => c.id).join(',')}'),
+                  key: ValueKey(
+                    'constellation-${_outgoingConnections.map((c) => c.id).join(',')}-${_incomingConnections.map((c) => c.id).join(',')}',
+                  ),
                   padding: const EdgeInsets.fromLTRB(20, spaceMd, 20, 0),
                   child: _buildConstellationSection(trackColor),
                 ),
@@ -532,9 +534,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      entry.isOutgoing
-                          ? Icons.arrow_forward
-                          : Icons.arrow_back,
+                      entry.isOutgoing ? Icons.arrow_forward : Icons.arrow_back,
                       size: 12,
                       color: pColor,
                     ),
@@ -649,10 +649,12 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     final success = await widget.onDeleteConnection?.call(conn.id) ?? false;
     if (success && mounted) {
       setState(() {
-        _outgoingConnections =
-            _outgoingConnections.where((c) => c.id != conn.id).toList();
-        _incomingConnections =
-            _incomingConnections.where((c) => c.id != conn.id).toList();
+        _outgoingConnections = _outgoingConnections
+            .where((c) => c.id != conn.id)
+            .toList();
+        _incomingConnections = _incomingConnections
+            .where((c) => c.id != conn.id)
+            .toList();
         _cachedSyncedPosts = null;
       });
       widget.onConnectionRemoved?.call(conn);

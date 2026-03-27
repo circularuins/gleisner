@@ -144,14 +144,17 @@ void main() {
       expect(cleared.constellation, isNull);
     });
 
-    test('immutable fields (id, mediaType, createdAt, author) are preserved', () {
-      final post = _makeTestPost();
-      final copy = post.copyWith(title: 'Changed');
+    test(
+      'immutable fields (id, mediaType, createdAt, author) are preserved',
+      () {
+        final post = _makeTestPost();
+        final copy = post.copyWith(title: 'Changed');
 
-      expect(copy.id, post.id);
-      expect(copy.mediaType, post.mediaType);
-      expect(copy.createdAt, post.createdAt);
-      expect(copy.author.id, post.author.id);
-    });
+        expect(copy.id, post.id);
+        expect(copy.mediaType, post.mediaType);
+        expect(copy.createdAt, post.createdAt);
+        expect(copy.author.id, post.author.id);
+      },
+    );
   });
 }

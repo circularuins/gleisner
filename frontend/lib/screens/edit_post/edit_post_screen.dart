@@ -10,7 +10,21 @@ import '../../theme/gleisner_tokens.dart';
 class EditPostScreen extends ConsumerStatefulWidget {
   final Post post;
 
-  const EditPostScreen({super.key, required this.post});
+  /// Optional tracks override. When provided, these are used instead of
+  /// the timeline provider's tracks (e.g., when editing unassigned posts
+  /// from the Profile screen where timeline may hold another artist's data).
+  final List<Track>? tracks;
+
+  /// Called after a successful save. Use to update external state
+  /// (e.g., removing the post from the unassigned posts list).
+  final void Function(Post updatedPost)? onSaved;
+
+  const EditPostScreen({
+    super.key,
+    required this.post,
+    this.tracks,
+    this.onSaved,
+  });
 
   @override
   ConsumerState<EditPostScreen> createState() => _EditPostScreenState();
@@ -74,6 +88,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     if (!mounted) return;
 
     if (updated != null) {
+      widget.onSaved?.call(updated);
       context.pop();
     } else {
       setState(() {
@@ -86,9 +101,11 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
-    final allTracks = ref.watch(
-      timelineProvider.select((s) => s.artist?.tracks ?? <Track>[]),
-    );
+    final List<Track> allTracks =
+        widget.tracks ??
+        ref.watch(
+          timelineProvider.select((s) => s.artist?.tracks ?? <Track>[]),
+        );
     return Scaffold(
       backgroundColor: colorSurface0,
       appBar: AppBar(

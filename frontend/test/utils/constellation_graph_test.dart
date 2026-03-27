@@ -128,49 +128,55 @@ void main() {
       expect(findConstellation('p1', updatedPosts), {'p1', 'p2'});
     });
 
-    test('counterpart sync: source outgoing updated but target incoming stale', () {
-      // This simulates the bug where local state updates source outgoing
-      // but widget.allPosts has stale target incoming
-      final c1 = _conn('c1', 'p1', 'p2');
-      final posts = [
-        // Source has the new connection
-        _makePost(id: 'p1', outgoingConnections: [c1]),
-        // Target does NOT have the incoming (stale data)
-        _makePost(id: 'p2'),
-      ];
+    test(
+      'counterpart sync: source outgoing updated but target incoming stale',
+      () {
+        // This simulates the bug where local state updates source outgoing
+        // but widget.allPosts has stale target incoming
+        final c1 = _conn('c1', 'p1', 'p2');
+        final posts = [
+          // Source has the new connection
+          _makePost(id: 'p1', outgoingConnections: [c1]),
+          // Target does NOT have the incoming (stale data)
+          _makePost(id: 'p2'),
+        ];
 
-      // Even with stale target, findConstellation should find both
-      // because it reads connections from ALL posts' outgoing AND incoming
-      final result = findConstellation('p1', posts);
-      expect(result, {'p1', 'p2'});
-    });
+        // Even with stale target, findConstellation should find both
+        // because it reads connections from ALL posts' outgoing AND incoming
+        final result = findConstellation('p1', posts);
+        expect(result, {'p1', 'p2'});
+      },
+    );
 
-    test('counterpart sync: connection removed from source but target still has incoming', () {
-      // This simulates the deletion bug: source outgoing removed
-      // but target still has stale incoming
-      final c1 = _conn('c1', 'p1', 'p2');
-      final posts = [
-        // Source: connection removed
-        _makePost(id: 'p1'),
-        // Target: still has stale incoming
-        _makePost(id: 'p2', incomingConnections: [c1]),
-      ];
+    test(
+      'counterpart sync: connection removed from source but target still has incoming',
+      () {
+        // This simulates the deletion bug: source outgoing removed
+        // but target still has stale incoming
+        final c1 = _conn('c1', 'p1', 'p2');
+        final posts = [
+          // Source: connection removed
+          _makePost(id: 'p1'),
+          // Target: still has stale incoming
+          _makePost(id: 'p2', incomingConnections: [c1]),
+        ];
 
-      // findConstellation will STILL find both because target's incoming
-      // references p1. This is the bug that _allPostsWithLocalConnections fixes.
-      final result = findConstellation('p1', posts);
-      // This shows why we need to sync counterpart: stale data causes
-      // deleted connections to still appear
-      expect(result, {'p1', 'p2'}); // BUG without counterpart sync
+        // findConstellation will STILL find both because target's incoming
+        // references p1. This is the bug that _allPostsWithLocalConnections fixes.
+        final result = findConstellation('p1', posts);
+        // This shows why we need to sync counterpart: stale data causes
+        // deleted connections to still appear
+        expect(result, {'p1', 'p2'}); // BUG without counterpart sync
 
-      // With proper sync (both sides cleaned up):
-      final syncedPosts = [
-        _makePost(id: 'p1'),
-        _makePost(id: 'p2'), // incoming also removed
-      ];
-      final syncedResult = findConstellation('p1', syncedPosts);
-      expect(syncedResult, {'p1'}); // Correct after sync
-    });
+        // With proper sync (both sides cleaned up):
+        final syncedPosts = [
+          _makePost(id: 'p1'),
+          _makePost(id: 'p2'), // incoming also removed
+        ];
+        final syncedResult = findConstellation('p1', syncedPosts);
+        expect(syncedResult, {'p1'}); // Correct after sync
+      },
+    );
 
     test('multiple outgoing connections from same post', () {
       final c1 = _conn('c1', 'p1', 'p2');
