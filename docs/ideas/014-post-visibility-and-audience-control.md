@@ -1,6 +1,6 @@
 # Idea 014: Post visibility and audience control
 
-**Status:** Raw idea
+**Status:** Promoted — Superseded by [Idea 021](021-visibility-and-audience-control.md) which adds artist-level visibility and guardian integration
 **Date:** 2026-03-22
 
 ## Summary
