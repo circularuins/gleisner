@@ -94,9 +94,9 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   late List<PostConnection> _incomingConnections;
   bool _isToggling = false;
   bool _isConnecting = false;
+  List<Post>? _cachedSyncedPosts;
 
-  /// Returns allPosts with the current post's connections replaced by local state.
-  /// Returns allPosts with connections synced to local state.
+  /// Returns allPosts with connections synced to local state (cached).
   ///
   /// Why this is needed: this sheet maintains optimistic local state for
   /// connections (_outgoingConnections / _incomingConnections) to enable
@@ -108,6 +108,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   ///    their connections synced to match, so findConstellation graph
   ///    traversal sees a consistent bidirectional graph.
   List<Post> get _allPostsWithLocalConnections {
+    if (_cachedSyncedPosts != null) return _cachedSyncedPosts!;
     final postId = widget.post.id;
     // Index local connections by counterpart ID for O(1) lookup
     final outByTarget = <String, List<PostConnection>>{};
@@ -123,31 +124,11 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       ..._incomingConnections.map((c) => c.id),
     };
 
-    return widget.allPosts.map((p) {
+    final result = widget.allPosts.map((p) {
       if (p.id == postId) {
-        return Post(
-          id: p.id,
-          mediaType: p.mediaType,
-          title: p.title,
-          body: p.body,
-          mediaUrl: p.mediaUrl,
-          duration: p.duration,
-          importance: p.importance,
-          visibility: p.visibility,
-          layoutX: p.layoutX,
-          layoutY: p.layoutY,
-          contentHash: p.contentHash,
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt,
-          author: p.author,
-          trackId: p.trackId,
-          trackName: p.trackName,
-          trackColor: p.trackColor,
-          reactionCounts: p.reactionCounts,
-          myReactions: p.myReactions,
+        return p.copyWith(
           outgoingConnections: _outgoingConnections,
           incomingConnections: _incomingConnections,
-          constellation: p.constellation,
         );
       }
 
@@ -190,31 +171,13 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       }
 
       if (!changed) return p;
-      return Post(
-        id: p.id,
-        mediaType: p.mediaType,
-        title: p.title,
-        body: p.body,
-        mediaUrl: p.mediaUrl,
-        duration: p.duration,
-        importance: p.importance,
-        visibility: p.visibility,
-        layoutX: p.layoutX,
-        layoutY: p.layoutY,
-        contentHash: p.contentHash,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt,
-        author: p.author,
-        trackId: p.trackId,
-        trackName: p.trackName,
-        trackColor: p.trackColor,
-        reactionCounts: p.reactionCounts,
-        myReactions: p.myReactions,
+      return p.copyWith(
         outgoingConnections: outgoing,
         incomingConnections: incoming,
-        constellation: p.constellation,
       );
     }).toList();
+    _cachedSyncedPosts = result;
+    return result;
   }
 
   @override
@@ -673,6 +636,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       if (conn != null && mounted) {
         setState(() {
           _outgoingConnections = [..._outgoingConnections, conn];
+          _cachedSyncedPosts = null;
         });
         widget.onConnectionAdded?.call(conn);
       }
@@ -689,6 +653,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
             _outgoingConnections.where((c) => c.id != conn.id).toList();
         _incomingConnections =
             _incomingConnections.where((c) => c.id != conn.id).toList();
+        _cachedSyncedPosts = null;
       });
       widget.onConnectionRemoved?.call(conn);
     }
