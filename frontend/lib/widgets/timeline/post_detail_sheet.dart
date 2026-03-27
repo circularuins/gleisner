@@ -537,58 +537,72 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         Text('Connections', style: textLabel),
         const SizedBox(height: spaceSm),
         if (connectedPosts.isNotEmpty)
-          ...connectedPosts.map((entry) {
-            final p = entry.post;
-            final pColor = p.trackColor != null
-                ? parseHexColor(p.trackColor)
-                : null;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: spaceXs),
-              child: Row(
-                children: [
-                  Icon(
-                    entry.isOutgoing ? Icons.arrow_forward : Icons.arrow_back,
-                    size: fontSizeMd,
-                    color: colorInteractiveMuted,
-                  ),
-                  const SizedBox(width: spaceXs),
-                  if (pColor != null)
+          Wrap(
+            spacing: spaceSm,
+            runSpacing: spaceSm,
+            children: connectedPosts.map((entry) {
+              final p = entry.post;
+              final pColor = p.trackColor != null
+                  ? parseHexColor(p.trackColor)
+                  : colorInteractiveMuted;
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: spaceSm,
+                  vertical: spaceXs,
+                ),
+                decoration: BoxDecoration(
+                  color: colorSurface2,
+                  borderRadius: BorderRadius.circular(radiusFull),
+                  border: Border.all(color: colorBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      entry.isOutgoing
+                          ? Icons.arrow_forward
+                          : Icons.arrow_back,
+                      size: 12,
+                      color: pColor,
+                    ),
+                    const SizedBox(width: spaceXxs),
                     Container(
-                      width: 3,
-                      height: 20,
-                      margin: const EdgeInsets.only(right: spaceSm),
+                      width: 4,
+                      height: 4,
                       decoration: BoxDecoration(
+                        shape: BoxShape.circle,
                         color: pColor,
-                        borderRadius: BorderRadius.circular(spaceXxs),
                       ),
                     ),
-                  Expanded(
-                    child: Text(
-                      _connectionLabel(p),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: colorTextSecondary,
-                        fontSize: fontSizeMd,
-                      ),
-                    ),
-                  ),
-                  if (widget.onDeleteConnection != null)
-                    GestureDetector(
-                      onTap: () => _deleteConnection(entry.conn),
-                      child: const Padding(
-                        padding: EdgeInsets.all(spaceXs),
-                        child: Icon(
-                          Icons.close,
-                          size: fontSizeMd,
-                          color: colorInteractiveMuted,
+                    const SizedBox(width: spaceXxs),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 120),
+                      child: Text(
+                        _connectionLabel(p),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: colorTextSecondary,
+                          fontSize: fontSizeSm,
                         ),
                       ),
                     ),
-                ],
-              ),
-            );
-          }),
+                    if (widget.onDeleteConnection != null) ...[
+                      const SizedBox(width: spaceXxs),
+                      GestureDetector(
+                        onTap: () => _deleteConnection(entry.conn),
+                        child: const Icon(
+                          Icons.close,
+                          size: 12,
+                          color: colorInteractiveMuted,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
         if (widget.onCreateConnection != null)
           GestureDetector(
             onTap: _isConnecting ? null : _addConnection,
@@ -629,6 +643,10 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       builder: (_) => RelatedPostPicker(
         posts: widget.allPosts,
         excludePostId: widget.post.id,
+        excludePostIds: {
+          ..._outgoingConnections.map((c) => c.targetId),
+          ..._incomingConnections.map((c) => c.sourceId),
+        },
         onSelected: (post) {
           selectedPost = post;
         },
@@ -859,39 +877,52 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
           ],
         ),
         const SizedBox(height: spaceSm),
-        ...members.map((p) {
-          final pColor = p.trackColor != null
-              ? parseHexColor(p.trackColor)
-              : null;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: spaceXs),
-            child: Row(
-              children: [
-                if (pColor != null)
+        Wrap(
+          spacing: spaceSm,
+          runSpacing: spaceSm,
+          children: members.map((p) {
+            final pColor = p.trackColor != null
+                ? parseHexColor(p.trackColor)
+                : colorInteractiveMuted;
+            return Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: spaceSm,
+                vertical: spaceXs,
+              ),
+              decoration: BoxDecoration(
+                color: colorSurface2,
+                borderRadius: BorderRadius.circular(radiusFull),
+                border: Border.all(color: colorBorder),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Container(
-                    width: 3,
-                    height: spaceLg,
-                    margin: const EdgeInsets.only(right: spaceSm),
+                    width: 4,
+                    height: 4,
                     decoration: BoxDecoration(
+                      shape: BoxShape.circle,
                       color: pColor,
-                      borderRadius: BorderRadius.circular(spaceXxs),
                     ),
                   ),
-                Expanded(
-                  child: Text(
-                    _connectionLabel(p),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: colorTextMuted,
-                      fontSize: fontSizeSm,
+                  const SizedBox(width: spaceXxs),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 120),
+                    child: Text(
+                      _connectionLabel(p),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: colorTextMuted,
+                        fontSize: fontSizeSm,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          );
-        }),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
       ],
     );
   }

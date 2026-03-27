@@ -7,12 +7,14 @@ import '../../models/track.dart' show parseHexColor;
 class RelatedPostPicker extends StatefulWidget {
   final List<Post> posts;
   final String? excludePostId;
+  final Set<String> excludePostIds;
   final ValueChanged<Post> onSelected;
 
   const RelatedPostPicker({
     super.key,
     required this.posts,
     this.excludePostId,
+    this.excludePostIds = const {},
     required this.onSelected,
   });
 
@@ -25,7 +27,9 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
   String? _filterTrackId;
 
   List<Post> get _filteredPosts {
-    var posts = widget.posts.where((p) => p.id != widget.excludePostId);
+    var posts = widget.posts.where((p) =>
+        p.id != widget.excludePostId &&
+        !widget.excludePostIds.contains(p.id));
 
     if (_filterTrackId != null) {
       posts = posts.where((p) => p.trackId == _filterTrackId);
@@ -146,20 +150,78 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
                         ),
                       ),
                     )
-                  : ListView.builder(
+                  : SingleChildScrollView(
                       controller: scrollController,
-                      itemCount: filtered.length,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemBuilder: (context, index) {
-                        final post = filtered[index];
-                        return _PostListTile(
-                          post: post,
-                          onTap: () {
-                            widget.onSelected(post);
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: filtered.map((post) {
+                          final trackColor = post.trackColor != null
+                              ? parseHexColor(post.trackColor)
+                              : theme.colorScheme.primary;
+                          return GestureDetector(
+                            onTap: () {
+                              widget.onSelected(post);
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceContainerHighest
+                                    .withAlpha(80),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: theme.colorScheme.outline
+                                      .withAlpha(60),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 4,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: trackColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  ConstrainedBox(
+                                    constraints:
+                                        const BoxConstraints(maxWidth: 120),
+                                    child: Text(
+                                      _postLabel(post),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${post.createdAt.toLocal().month}/${post.createdAt.toLocal().day}',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: theme.colorScheme.onSurface
+                                          .withAlpha(100),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    _mediaTypeIcon(post.mediaType),
+                                    size: 12,
+                                    color: theme.colorScheme.onSurface
+                                        .withAlpha(100),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
             ),
           ],
@@ -207,83 +269,22 @@ class _TrackFilterChip extends StatelessWidget {
   }
 }
 
-class _PostListTile extends StatelessWidget {
-  final Post post;
-  final VoidCallback onTap;
+IconData _mediaTypeIcon(MediaType type) {
+  return switch (type) {
+    MediaType.text => Icons.article,
+    MediaType.image => Icons.image,
+    MediaType.video => Icons.videocam,
+    MediaType.audio => Icons.audiotrack,
+    MediaType.link => Icons.link,
+  };
+}
 
-  const _PostListTile({required this.post, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final trackColor = post.trackColor != null
-        ? parseHexColor(post.trackColor)
-        : null;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        onTap: onTap,
-        leading: trackColor != null
-            ? Container(
-                width: 4,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: trackColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              )
-            : null,
-        title: Text(
-          _postLabel(post),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodyMedium,
-        ),
-        subtitle: Text(
-          '${post.trackName ?? ''} · ${_formatDate(post.createdAt)}',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurface.withAlpha(128),
-          ),
-        ),
-        trailing: Icon(
-          _mediaTypeIcon(post.mediaType),
-          size: 16,
-          color: theme.colorScheme.onSurface.withAlpha(100),
-        ),
-      ),
-    );
+String _postLabel(Post p) {
+  if (p.title != null && p.title!.isNotEmpty) return p.title!;
+  if (p.body != null && p.body!.isNotEmpty) {
+    return p.body!.substring(0, p.body!.length.clamp(0, 50));
   }
-
-  static String _formatDate(DateTime dt) {
-    return '${dt.month}/${dt.day}';
-  }
-
-  static IconData _mediaTypeIcon(MediaType type) {
-    return switch (type) {
-      MediaType.text => Icons.article,
-      MediaType.image => Icons.image,
-      MediaType.video => Icons.videocam,
-      MediaType.audio => Icons.audiotrack,
-      MediaType.link => Icons.link,
-    };
-  }
-
-  static String _postLabel(Post p) {
-    if (p.title != null && p.title!.isNotEmpty) return p.title!;
-    if (p.body != null && p.body!.isNotEmpty) {
-      return p.body!.substring(0, p.body!.length.clamp(0, 50));
-    }
-    final icon = switch (p.mediaType) {
-      MediaType.image => '📷',
-      MediaType.video => '🎬',
-      MediaType.audio => '🎵',
-      MediaType.link => '🔗',
-      MediaType.text => '📝',
-    };
-    final date = p.createdAt.toLocal();
-    final dateStr = '${date.month}/${date.day}';
-    final track = p.trackName ?? '';
-    return '$icon ${p.mediaType.name[0].toUpperCase()}${p.mediaType.name.substring(1)} · $track · $dateStr';
-  }
+  final track = p.trackName ?? '';
+  final date = p.createdAt.toLocal();
+  return '${p.mediaType.name} · $track · ${date.month}/${date.day}';
 }
