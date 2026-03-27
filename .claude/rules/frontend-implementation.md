@@ -203,6 +203,38 @@ QueryOptions(
 
 該当パターン: visibility 変更後の Discover リロード、投稿編集後のタイムライン更新、プロフィール編集後の再取得。
 
+### リスト state の更新は新しいインスタンスで
+
+**`setState` でリストを更新する場合、`.add()` / `.removeWhere()` ではなく新しいリストインスタンスを作ること。** 同じ参照のまま中身だけ変えると、Flutter がリストの変更を検知できず再描画をスキップする。
+
+```dart
+// ❌ ミュータブル操作 — setState しても再描画されない場合がある
+setState(() {
+  _items.add(newItem);
+});
+
+// ✅ 新しいリストを作る
+setState(() {
+  _items = [..._items, newItem];
+});
+
+// ✅ 削除も同様
+setState(() {
+  _items = _items.where((i) => i.id != targetId).toList();
+});
+```
+
+### Bottom sheet 内の楽観的更新（グラフ双方向同期）
+
+**`showModalBottomSheet` で渡したデータ（`widget.allPosts` 等）はシートが閉じるまで不変。** シート内で楽観的にローカル state を更新する場合、以下に注意:
+
+1. ローカル state の変更は現在の Widget の `setState` で反映できる
+2. ただし `widget.allPosts` 内の**他のオブジェクト**は古いまま
+3. グラフ構造（connection 等）は双方向なので、ソース側を更新したらターゲット側も同期が必要
+4. 「ローカル state で差し替えた allPosts ビュー」を計算するヘルパー getter が必要
+
+例: connection 追加時、`_outgoingConnections` に追加するだけでは `findConstellation` がターゲット投稿の `incomingConnections` を見て不整合になる。`_allPostsWithLocalConnections` のようなヘルパーで双方向の整合性を保つ。
+
 ### ログアウト時のプロバイダー invalidate
 
 **ログアウト処理では `graphqlClientProvider` だけでなく、ユーザー固有の状態を持つ全プロバイダーを invalidate すること。**
