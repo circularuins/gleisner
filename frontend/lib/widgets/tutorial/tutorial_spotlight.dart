@@ -42,9 +42,10 @@ class _TutorialSpotlightState extends State<TutorialSpotlight>
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     )..repeat(reverse: true);
-    _pulse = Tween(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _pulse = Tween(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -67,9 +68,7 @@ class _TutorialSpotlightState extends State<TutorialSpotlight>
             child: AnimatedBuilder(
               animation: _pulse,
               builder: (context, _) {
-                return ColoredBox(
-                  color: const Color(0xCC000000),
-                );
+                return ColoredBox(color: const Color(0xCC000000));
               },
             ),
           ),
@@ -97,7 +96,9 @@ class _TutorialSpotlightState extends State<TutorialSpotlight>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: colorAccentGold.withValues(alpha: 0.2 + v * 0.15),
+                        color: colorAccentGold.withValues(
+                          alpha: 0.2 + v * 0.15,
+                        ),
                         blurRadius: 16 + v * 8,
                         spreadRadius: 2,
                       ),
@@ -112,13 +113,11 @@ class _TutorialSpotlightState extends State<TutorialSpotlight>
           CompositedTransformFollower(
             link: widget.link,
             offset: Offset(
-              -(280 - widget.targetSize.width), // right-align tooltip with target
+              -(280 -
+                  widget.targetSize.width), // right-align tooltip with target
               -170, // above the target
             ),
-            child: _Tooltip(
-              message: widget.message,
-              subtitle: widget.subtitle,
-            ),
+            child: _Tooltip(message: widget.message, subtitle: widget.subtitle),
           ),
         ],
       ),
@@ -140,9 +139,7 @@ class _Tooltip extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorSurface1,
         borderRadius: BorderRadius.circular(radiusLg),
-        border: Border.all(
-          color: colorAccentGold.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: colorAccentGold.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
             color: colorAccentGold.withValues(alpha: 0.15),

@@ -197,12 +197,42 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            _formatDateTime(),
-                            style: const TextStyle(
-                              color: colorTextMuted,
-                              fontSize: fontSizeMd,
-                            ),
+                          child: Row(
+                            children: [
+                              Text(
+                                _formatDateTime(),
+                                style: const TextStyle(
+                                  color: colorTextMuted,
+                                  fontSize: fontSizeMd,
+                                ),
+                              ),
+                              if (post.visibility == 'draft') ...[
+                                const SizedBox(width: spaceSm),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: spaceXs,
+                                    vertical: 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colorTextMuted.withValues(
+                                      alpha: 0.8,
+                                    ),
+                                    borderRadius: BorderRadius.circular(
+                                      radiusSm,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'DRAFT',
+                                    style: TextStyle(
+                                      color: colorSurface0,
+                                      fontSize: fontSizeXs,
+                                      fontWeight: weightSemibold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         if (widget.onEdit != null)
@@ -288,9 +318,10 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
             spacing: spaceXs,
             runSpacing: spaceXs,
             children: _reactionCounts.map((r) {
-              final isActive = _myReactions.contains(r.emoji);
+              final canInteract = widget.onToggleReaction != null;
+              final isActive = canInteract && _myReactions.contains(r.emoji);
               return GestureDetector(
-                onTap: () => _toggleReaction(r.emoji),
+                onTap: canInteract ? () => _toggleReaction(r.emoji) : null,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: spaceSm,
@@ -331,35 +362,36 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
           ),
           const SizedBox(height: spaceSm),
         ],
-        // Emoji picker (smaller, more subtle)
-        Wrap(
-          spacing: spaceXxs,
-          runSpacing: spaceXxs,
-          children: _reactionPresets.map((emoji) {
-            final isActive = _myReactions.contains(emoji);
-            return GestureDetector(
-              onTap: () => _toggleReaction(emoji),
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? trackColor.withValues(alpha: opacitySubtle)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(radiusMd),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  emoji,
-                  style: TextStyle(
-                    fontSize: fontSizeLg,
-                    color: isActive ? null : colorInteractiveMuted,
+        // Emoji picker — only shown when reactions are interactive
+        if (widget.onToggleReaction != null)
+          Wrap(
+            spacing: spaceXxs,
+            runSpacing: spaceXxs,
+            children: _reactionPresets.map((emoji) {
+              final isActive = _myReactions.contains(emoji);
+              return GestureDetector(
+                onTap: () => _toggleReaction(emoji),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? trackColor.withValues(alpha: opacitySubtle)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(radiusMd),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    emoji,
+                    style: TextStyle(
+                      fontSize: fontSizeLg,
+                      color: isActive ? null : colorInteractiveMuted,
+                    ),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
-        ),
+              );
+            }).toList(),
+          ),
       ],
     );
   }

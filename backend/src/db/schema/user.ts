@@ -8,6 +8,9 @@ export const users = pgTable("users", {
   displayName: varchar("display_name", { length: 50 }),
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
+  profileVisibility: varchar("profile_visibility", { length: 20 })
+    .default("public")
+    .notNull(),
   passwordHash: text("password_hash").notNull(),
   passwordSalt: text("password_salt").notNull(),
   publicKey: text("public_key").notNull(),

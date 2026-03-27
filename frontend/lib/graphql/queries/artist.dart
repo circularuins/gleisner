@@ -8,6 +8,7 @@ const _artistFields = '''
       activeSince
       avatarUrl
       coverImageUrl
+      profileVisibility
       tunedInCount
       tracks {
         id
@@ -32,12 +33,13 @@ const _artistFields = '''
 ''';
 
 const _recentPostFields = '''
-      recentPosts(limit: 5) {
+      recentPosts(limit: 6) {
         id
         mediaType
         title
         body
         importance
+        visibility
         createdAt
         updatedAt
         author {
@@ -51,6 +53,11 @@ const _recentPostFields = '''
           name
           color
         }
+        reactionCounts {
+          emoji
+          count
+        }
+        myReactions
       }
 ''';
 

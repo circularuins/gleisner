@@ -128,6 +128,38 @@ class _NodeCardState extends State<NodeCard>
       ),
     );
 
+    // Draft badge overlay
+    if (post.visibility == 'draft') {
+      card = Stack(
+        children: [
+          Opacity(opacity: 0.6, child: card),
+          Positioned(
+            top: spaceXs,
+            right: spaceXs,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: spaceXs,
+                vertical: 1,
+              ),
+              decoration: BoxDecoration(
+                color: colorTextMuted.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(radiusSm),
+              ),
+              child: const Text(
+                'DRAFT',
+                style: TextStyle(
+                  color: colorSurface0,
+                  fontSize: fontSizeXs,
+                  fontWeight: weightSemibold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     // Wrap with reaction pills if present
     final reactions = post.reactionCounts;
     final myReactions = post.myReactions.toSet();

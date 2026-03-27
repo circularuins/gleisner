@@ -6,6 +6,7 @@ const postFields = '''
   mediaUrl
   duration
   importance
+  visibility
   layoutX
   layoutY
   contentHash

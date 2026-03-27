@@ -1,8 +1,14 @@
 import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
-import { artists, posts, tracks, users } from "../../db/schema/index.js";
-import { desc, eq, sql } from "drizzle-orm";
+import {
+  artists,
+  posts,
+  tracks,
+  tuneIns,
+  users,
+} from "../../db/schema/index.js";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
@@ -54,6 +60,7 @@ type PostShape = {
   mediaUrl: string | null;
   duration: number | null;
   importance: number;
+  visibility: string;
   contentHash: string | null;
   signature: string | null;
   layoutX: number;
@@ -84,6 +91,7 @@ PostType.implement({
     mediaUrl: t.exposeString("mediaUrl", { nullable: true }),
     duration: t.exposeInt("duration", { nullable: true }),
     importance: t.exposeFloat("importance"),
+    visibility: t.exposeString("visibility"),
     contentHash: t.exposeString("contentHash", { nullable: true }),
     signature: t.exposeString("signature", { nullable: true }),
     layoutX: t.exposeInt("layoutX"),
@@ -135,6 +143,7 @@ builder.mutationFields((t) => ({
       mediaUrl: t.arg.string(),
       duration: t.arg.int(),
       importance: t.arg.float(),
+      visibility: t.arg.string(),
       layoutX: t.arg.int(),
       layoutY: t.arg.int(),
       signature: t.arg.string(),
@@ -198,6 +207,14 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Importance must be between 0.0 and 1.0");
       }
 
+      // Validate visibility
+      if (
+        args.visibility != null &&
+        !["public", "draft"].includes(args.visibility)
+      ) {
+        throw new GraphQLError("visibility must be 'public' or 'draft'");
+      }
+
       // contentHash is always computed, even without a signature, to enable:
       // 1. Content integrity checks (detect DB-level corruption or bugs)
       // 2. Future signature addition without re-processing existing posts
@@ -235,6 +252,7 @@ builder.mutationFields((t) => ({
           duration: args.duration ?? null,
           contentHash,
           signature: signatureValue,
+          ...(args.visibility != null ? { visibility: args.visibility } : {}),
           ...(args.importance != null ? { importance: args.importance } : {}),
           ...(args.layoutX != null ? { layoutX: args.layoutX } : {}),
           ...(args.layoutY != null ? { layoutY: args.layoutY } : {}),
@@ -256,6 +274,7 @@ builder.mutationFields((t) => ({
       mediaUrl: t.arg.string(),
       duration: t.arg.int(),
       importance: t.arg.float(),
+      visibility: t.arg.string(),
       layoutX: t.arg.int(),
       layoutY: t.arg.int(),
       signature: t.arg.string(),
@@ -309,6 +328,14 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Importance must be between 0.0 and 1.0");
       }
 
+      // Validate visibility
+      if (
+        args.visibility != null &&
+        !["public", "draft"].includes(args.visibility)
+      ) {
+        throw new GraphQLError("visibility must be 'public' or 'draft'");
+      }
+
       // Validate trackId — must belong to the author's artist profile
       if (args.trackId != null) {
         const [track] = await db
@@ -338,6 +365,8 @@ builder.mutationFields((t) => ({
       if (args.duration !== undefined) updateData.duration = args.duration;
       if (args.importance !== undefined)
         updateData.importance = args.importance;
+      if (args.visibility !== undefined)
+        updateData.visibility = args.visibility;
       if (args.layoutX !== undefined) updateData.layoutX = args.layoutX;
       if (args.layoutY !== undefined) updateData.layoutY = args.layoutY;
 
@@ -448,13 +477,58 @@ builder.queryFields((t) => ({
     args: {
       id: t.arg.string({ required: true }),
     },
-    resolve: async (_parent, args) => {
+    resolve: async (_parent, args, ctx) => {
       const [post] = await db
         .select()
         .from(posts)
         .where(eq(posts.id, args.id))
         .limit(1);
-      return post ?? null;
+      if (!post) return null;
+      // Draft posts are only visible to the author
+      if (
+        post.visibility === "draft" &&
+        (!ctx.authUser || post.authorId !== ctx.authUser.userId)
+      ) {
+        return null;
+      }
+      // Check artist visibility for posts belonging to a track
+      if (post.trackId) {
+        const [track] = await db
+          .select({ artistId: tracks.artistId })
+          .from(tracks)
+          .where(eq(tracks.id, post.trackId))
+          .limit(1);
+        if (track) {
+          const [artist] = await db
+            .select({
+              profileVisibility: artists.profileVisibility,
+              userId: artists.userId,
+            })
+            .from(artists)
+            .where(eq(artists.id, track.artistId))
+            .limit(1);
+          if (artist && artist.profileVisibility === "private") {
+            const isSelf =
+              ctx.authUser && artist.userId === ctx.authUser.userId;
+            const isTunedIn =
+              ctx.authUser &&
+              (
+                await db
+                  .select()
+                  .from(tuneIns)
+                  .where(
+                    and(
+                      eq(tuneIns.userId, ctx.authUser.userId),
+                      eq(tuneIns.artistId, track.artistId),
+                    ),
+                  )
+                  .limit(1)
+              ).length > 0;
+            if (!isSelf && !isTunedIn) return null;
+          }
+        }
+      }
+      return post;
     },
   }),
 
@@ -463,19 +537,60 @@ builder.queryFields((t) => ({
     args: {
       trackId: t.arg.string({ required: true }),
     },
-    resolve: async (_parent, args) => {
+    resolve: async (_parent, args, ctx) => {
+      // Verify track's artist is accessible (public, or self, or tuned-in)
+      const [track] = await db
+        .select({ artistId: tracks.artistId })
+        .from(tracks)
+        .where(eq(tracks.id, args.trackId))
+        .limit(1);
+
+      let isSelf = false;
+      if (track) {
+        const [artist] = await db
+          .select({
+            profileVisibility: artists.profileVisibility,
+            userId: artists.userId,
+          })
+          .from(artists)
+          .where(eq(artists.id, track.artistId))
+          .limit(1);
+        if (artist) {
+          isSelf = !!(ctx.authUser && artist.userId === ctx.authUser.userId);
+          if (artist.profileVisibility === "private" && !isSelf) {
+            const hasTuneIn =
+              ctx.authUser &&
+              (await db
+                .select()
+                .from(tuneIns)
+                .where(
+                  and(
+                    eq(tuneIns.userId, ctx.authUser.userId),
+                    eq(tuneIns.artistId, track.artistId),
+                  ),
+                )
+                .limit(1));
+            if (!hasTuneIn || hasTuneIn.length === 0) return [];
+          }
+        }
+      }
+
+      // Self sees all posts (including drafts); others see only public
+      const visibilityFilter = isSelf
+        ? undefined
+        : eq(posts.visibility, "public");
+
       const rows = await db
         .select({ post: posts, track: tracks })
         .from(posts)
         .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
-        .where(eq(tracks.id, args.trackId));
+        .where(and(eq(tracks.id, args.trackId), visibilityFilter));
       return rows.map((r) => ({ ...r.post, _track: r.track }));
     },
   }),
 
   // INNER JOIN intentionally excludes trackId=NULL posts (unassigned after
   // track deletion). They are managed separately via Profile screen (#67).
-  // TODO(visibility): Add public/draft filter when post visibility is implemented
   artistPosts: t.field({
     type: [PostType],
     args: {
@@ -488,7 +603,12 @@ builder.queryFields((t) => ({
         .select({ post: posts, track: tracks })
         .from(posts)
         .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
-        .where(eq(tracks.artistId, args.artistId))
+        .where(
+          and(
+            eq(tracks.artistId, args.artistId),
+            eq(posts.visibility, "public"),
+          ),
+        )
         .orderBy(desc(posts.createdAt))
         .limit(limit);
       return rows.map((r) => ({ ...r.post, _track: r.track }));
@@ -504,14 +624,15 @@ builder.objectFields(ArtistType, (t) => ({
       limit: t.arg.int({ defaultValue: 5 }),
     },
     // INNER JOIN intentionally excludes trackId=NULL posts (#67)
-    // TODO(visibility): Add public/draft filter when post visibility is implemented
     resolve: async (artist, args) => {
       const limit = Math.max(1, Math.min(args.limit ?? 5, 10));
       const rows = await db
         .select({ post: posts, track: tracks })
         .from(posts)
         .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
-        .where(eq(tracks.artistId, artist.id))
+        .where(
+          and(eq(tracks.artistId, artist.id), eq(posts.visibility, "public")),
+        )
         .orderBy(desc(posts.createdAt))
         .limit(limit);
       return rows.map((r) => ({ ...r.post, _track: r.track }));
@@ -527,7 +648,12 @@ builder.objectFields(TrackType, (t) => ({
       const rows = await db
         .select()
         .from(posts)
-        .where(sql`${posts.trackId} = ${track.id}`);
+        .where(
+          and(
+            sql`${posts.trackId} = ${track.id}`,
+            eq(posts.visibility, "public"),
+          ),
+        );
       return rows.map((r) => ({ ...r, _track: track }));
     },
   }),

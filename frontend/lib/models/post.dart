@@ -92,6 +92,7 @@ class Post {
   final String? mediaUrl;
   final int? duration;
   final double importance;
+  final String visibility;
   final double? layoutX;
   final double? layoutY;
   final String? contentHash;
@@ -115,6 +116,7 @@ class Post {
     this.mediaUrl,
     this.duration,
     required this.importance,
+    this.visibility = 'public',
     this.layoutX,
     this.layoutY,
     this.contentHash,
@@ -159,6 +161,7 @@ class Post {
       mediaUrl: json['mediaUrl'] as String?,
       duration: (json['duration'] as num?)?.toInt(),
       importance: (json['importance'] as num).toDouble(),
+      visibility: json['visibility'] as String? ?? 'public',
       layoutX: (json['layoutX'] as num?)?.toDouble(),
       layoutY: (json['layoutY'] as num?)?.toDouble(),
       contentHash: json['contentHash'] as String?,

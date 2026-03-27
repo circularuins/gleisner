@@ -6,6 +6,7 @@ const _userFields = '''
   displayName
   bio
   avatarUrl
+  profileVisibility
   publicKey
   createdAt
   updatedAt

@@ -8,12 +8,14 @@ class EditProfileSheet extends ConsumerStatefulWidget {
   final String? initialDisplayName;
   final String? initialBio;
   final String? initialAvatarUrl;
+  final String initialProfileVisibility;
 
   const EditProfileSheet({
     super.key,
     this.initialDisplayName,
     this.initialBio,
     this.initialAvatarUrl,
+    this.initialProfileVisibility = 'public',
   });
 
   @override
@@ -24,6 +26,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   late final TextEditingController _displayNameController;
   late final TextEditingController _bioController;
   late final TextEditingController _avatarUrlController;
+  late String _profileVisibility;
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
   String? _error;
@@ -38,6 +41,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
     _avatarUrlController = TextEditingController(
       text: widget.initialAvatarUrl ?? '',
     );
+    _profileVisibility = widget.initialProfileVisibility;
   }
 
   @override
@@ -65,6 +69,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
           displayName: displayName.isEmpty ? null : displayName,
           bio: bio.isEmpty ? null : bio,
           avatarUrl: avatarUrl.isEmpty ? null : avatarUrl,
+          profileVisibility: _profileVisibility,
         );
 
     if (!mounted) return;
@@ -171,6 +176,33 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: spaceLg),
+
+                // Profile visibility
+                Row(
+                  children: [
+                    Text(
+                      'Profile Visibility',
+                      style: textLabel.copyWith(color: colorTextSecondary),
+                    ),
+                    const SizedBox(width: spaceLg),
+                    ChoiceChip(
+                      label: const Text('Public'),
+                      selected: _profileVisibility == 'public',
+                      onSelected: (_) =>
+                          setState(() => _profileVisibility = 'public'),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    const SizedBox(width: spaceSm),
+                    ChoiceChip(
+                      label: const Text('Private'),
+                      selected: _profileVisibility == 'private',
+                      onSelected: (_) =>
+                          setState(() => _profileVisibility = 'private'),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: spaceXl),
 

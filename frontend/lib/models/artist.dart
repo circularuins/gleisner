@@ -37,6 +37,7 @@ class Artist {
   final int? activeSince;
   final String? avatarUrl;
   final String? coverImageUrl;
+  final String profileVisibility;
   final int tunedInCount;
   final List<Track> tracks;
   final List<ArtistGenre> genres;
@@ -52,6 +53,7 @@ class Artist {
     this.activeSince,
     this.avatarUrl,
     this.coverImageUrl,
+    this.profileVisibility = 'public',
     required this.tunedInCount,
     required this.tracks,
     this.genres = const [],
@@ -68,6 +70,7 @@ class Artist {
     activeSince: activeSince,
     avatarUrl: avatarUrl,
     coverImageUrl: coverImageUrl,
+    profileVisibility: profileVisibility,
     tunedInCount: tunedInCount,
     tracks: [...tracks, track],
     genres: genres,
@@ -85,6 +88,7 @@ class Artist {
       activeSince: json['activeSince'] as int?,
       avatarUrl: json['avatarUrl'] as String?,
       coverImageUrl: json['coverImageUrl'] as String?,
+      profileVisibility: json['profileVisibility'] as String? ?? 'public',
       tunedInCount: json['tunedInCount'] as int,
       tracks:
           (json['tracks'] as List<dynamic>?)

@@ -22,6 +22,9 @@ export const artists = pgTable("artists", {
   activeSince: integer("active_since"),
   avatarUrl: text("avatar_url"),
   coverImageUrl: text("cover_image_url"),
+  profileVisibility: varchar("profile_visibility", { length: 20 })
+    .default("public")
+    .notNull(),
   tunedInCount: integer("tuned_in_count").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()

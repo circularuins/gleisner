@@ -84,7 +84,8 @@ class ArtistPageNotifier extends Notifier<ArtistPageState>
       final artist = Artist.fromJson(jsonData);
 
       // Parse recentPosts from the same query response (single RTT, #63)
-      final recentPosts = (jsonData['recentPosts'] as List<dynamic>?)
+      final recentPosts =
+          (jsonData['recentPosts'] as List<dynamic>?)
               ?.map((p) => Post.fromJson(p as Map<String, dynamic>))
               .toList() ??
           [];

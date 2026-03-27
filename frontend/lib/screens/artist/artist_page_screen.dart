@@ -11,6 +11,7 @@ import '../../providers/pending_artist_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/deterministic_rng.dart';
+import '../../widgets/timeline/post_detail_sheet.dart';
 import 'edit_artist_about_sheet.dart';
 import 'edit_artist_genres_sheet.dart';
 import 'edit_artist_links_sheet.dart';
@@ -117,13 +118,27 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                         const SizedBox(height: spaceMd),
 
                         // Header: name + username + tuned in count
-                        Text(
-                          artist.displayName ?? artist.artistUsername,
-                          style: const TextStyle(
-                            color: colorTextPrimary,
-                            fontSize: fontSizeTitle,
-                            fontWeight: weightBold,
-                          ),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                artist.displayName ?? artist.artistUsername,
+                                style: const TextStyle(
+                                  color: colorTextPrimary,
+                                  fontSize: fontSizeTitle,
+                                  fontWeight: weightBold,
+                                ),
+                              ),
+                            ),
+                            if (artist.profileVisibility == 'private') ...[
+                              const SizedBox(width: spaceSm),
+                              const Icon(
+                                Icons.lock_outline,
+                                size: 18,
+                                color: colorTextMuted,
+                              ),
+                            ],
+                          ],
                         ),
                         const SizedBox(height: spaceXxs),
                         Row(
@@ -401,8 +416,26 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                             ),
                           ),
                           const SizedBox(height: spaceMd),
-                          ...state.recentPosts.map(
-                            (p) => _RecentPostCard(post: p),
+                          const SizedBox(height: spaceSm),
+                          Wrap(
+                            spacing: spaceSm,
+                            runSpacing: spaceSm,
+                            children: state.recentPosts
+                                .map(
+                                  (p) => SizedBox(
+                                    width:
+                                        (MediaQuery.of(context).size.width -
+                                            spaceXl * 2 -
+                                            spaceSm) /
+                                        2,
+                                    child: _RecentPostCard(
+                                      post: p,
+                                      onTap: () =>
+                                          showPostDetailSheet(context, p),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
                           ),
                         ],
 
@@ -679,68 +712,82 @@ class _LinkChip extends StatelessWidget {
 
 class _RecentPostCard extends StatelessWidget {
   final Post post;
+  final VoidCallback? onTap;
 
-  const _RecentPostCard({required this.post});
+  const _RecentPostCard({required this.post, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final trackColor = post.trackColor != null
         ? _parseHex(post.trackColor!)
         : colorInteractiveMuted;
+    final date = post.createdAt.toLocal();
+    final dateStr = '${date.month}/${date.day}';
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: spaceSm),
+    return GestureDetector(
+      onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(spaceMd),
+        padding: const EdgeInsets.all(spaceSm),
         decoration: BoxDecoration(
           color: colorSurface1,
           borderRadius: BorderRadius.circular(radiusMd),
           border: Border.all(color: colorBorder, width: 0.5),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Track color dot
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: trackColor,
-              ),
-            ),
-            const SizedBox(width: spaceMd),
-            // Title or body preview
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    post.title ?? _bodyPreview(post.body),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: colorTextPrimary,
-                      fontSize: fontSizeSm,
-                      fontWeight: weightMedium,
-                    ),
-                  ),
-                  if (post.trackName != null)
-                    Text(
+            // Header: media icon + track name + date
+            Row(
+              children: [
+                Icon(_mediaIcon(post.mediaType), size: 16, color: trackColor),
+                const SizedBox(width: spaceXs),
+                if (post.trackName != null)
+                  Expanded(
+                    child: Text(
                       post.trackName!,
                       style: TextStyle(
                         color: trackColor.withValues(alpha: 0.7),
                         fontSize: fontSizeXs,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                ],
+                  ),
+                Text(
+                  dateStr,
+                  style: const TextStyle(
+                    color: colorTextMuted,
+                    fontSize: fontSizeXs,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: spaceXs),
+            // Title or body preview
+            Text(
+              post.title ?? _bodyPreview(post.body),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: colorTextPrimary,
+                fontSize: fontSizeSm,
+                fontWeight: weightMedium,
+                height: 1.3,
               ),
             ),
-            // Media type icon
-            Icon(
-              _mediaIcon(post.mediaType),
-              size: 14,
-              color: colorInteractiveMuted,
-            ),
+            // Reactions
+            if (post.reactionCounts.isNotEmpty) ...[
+              const SizedBox(height: spaceXs),
+              Text(
+                post.reactionCounts
+                    .map((r) => '${r.emoji}${r.count > 1 ? ' ${r.count}' : ''}')
+                    .join('  '),
+                style: const TextStyle(fontSize: fontSizeXs),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ],
         ),
       ),
