@@ -11,7 +11,9 @@ import '../../providers/pending_artist_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/deterministic_rng.dart';
+import '../../providers/unassigned_posts_provider.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
+import '../unassigned_posts/unassigned_posts_screen.dart';
 import 'edit_artist_about_sheet.dart';
 import 'edit_artist_genres_sheet.dart';
 import 'edit_artist_links_sheet.dart';
@@ -34,6 +36,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(artistPageProvider.notifier).loadArtist(widget.username);
+      ref.read(unassignedPostsProvider.notifier).load();
     });
   }
 
@@ -48,6 +51,9 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
     final myArtist = ref.watch(myArtistProvider);
     final isSelf =
         artist != null && myArtist != null && artist.id == myArtist.id;
+    final unassignedCount = isSelf
+        ? ref.watch(unassignedPostsProvider).posts.length
+        : 0;
 
     return Scaffold(
       backgroundColor: colorSurface0,
@@ -436,6 +442,78 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                   ),
                                 )
                                 .toList(),
+                          ),
+                        ],
+
+                        // Unassigned posts link (own view only)
+                        if (isSelf && unassignedCount > 0) ...[
+                          const SizedBox(height: spaceLg),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(radiusMd),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => UnassignedPostsScreen(
+                                  tracks: artist.tracks,
+                                ),
+                              ),
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: spaceMd,
+                                vertical: spaceSm,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorSurface1,
+                                borderRadius: BorderRadius.circular(radiusMd),
+                                border: Border.all(color: colorBorder),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.inventory_2_outlined,
+                                    size: 16,
+                                    color: colorTextMuted,
+                                  ),
+                                  const SizedBox(width: spaceSm),
+                                  Text(
+                                    'Unassigned posts',
+                                    style: const TextStyle(
+                                      color: colorTextSecondary,
+                                      fontSize: fontSizeSm,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: spaceSm,
+                                      vertical: spaceXxs,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: colorAccentGold.withValues(
+                                        alpha: 0.15,
+                                      ),
+                                      borderRadius: BorderRadius.circular(
+                                        radiusSm,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '$unassignedCount',
+                                      style: const TextStyle(
+                                        color: colorAccentGold,
+                                        fontSize: fontSizeXs,
+                                        fontWeight: weightSemibold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: spaceXs),
+                                  const Icon(
+                                    Icons.chevron_right,
+                                    size: 18,
+                                    color: colorInteractiveMuted,
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ],
 
