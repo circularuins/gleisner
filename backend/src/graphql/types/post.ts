@@ -608,40 +608,36 @@ builder.queryFields((t) => ({
         .where(eq(artists.id, args.artistId))
         .limit(1);
       if (!artist) return [];
-      if (artist.profileVisibility === "private") {
-        const isSelf = !!(
-          ctx.authUser && artist.userId === ctx.authUser.userId
-        );
-        if (!isSelf) {
-          const hasTuneIn =
-            ctx.authUser &&
-            (
-              await db
-                .select()
-                .from(tuneIns)
-                .where(
-                  and(
-                    eq(tuneIns.userId, ctx.authUser.userId),
-                    eq(tuneIns.artistId, args.artistId),
-                  ),
-                )
-                .limit(1)
-            ).length > 0;
-          if (!hasTuneIn) return [];
-        }
+      const isSelf = !!(ctx.authUser && artist.userId === ctx.authUser.userId);
+      if (artist.profileVisibility === "private" && !isSelf) {
+        const hasTuneIn =
+          ctx.authUser &&
+          (
+            await db
+              .select()
+              .from(tuneIns)
+              .where(
+                and(
+                  eq(tuneIns.userId, ctx.authUser.userId),
+                  eq(tuneIns.artistId, args.artistId),
+                ),
+              )
+              .limit(1)
+          ).length > 0;
+        if (!hasTuneIn) return [];
       }
+
+      // Self sees all posts (including drafts); others see only public
+      const visibilityFilter = isSelf
+        ? undefined
+        : eq(posts.visibility, "public");
 
       const limit = Math.max(1, Math.min(args.limit ?? 5, 10));
       const rows = await db
         .select({ post: posts, track: tracks })
         .from(posts)
         .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
-        .where(
-          and(
-            eq(tracks.artistId, args.artistId),
-            eq(posts.visibility, "public"),
-          ),
-        )
+        .where(and(eq(tracks.artistId, args.artistId), visibilityFilter))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
       return rows.map((r) => ({ ...r.post, _track: r.track }));
