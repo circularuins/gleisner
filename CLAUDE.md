@@ -97,8 +97,8 @@ pnpm db:studio        # Drizzle Studio（DB GUI）
 
 ```bash
 cd frontend
-dart analyze           # 静的解析（flutter_lints）
-dart format .          # Dart フォーマッタ
+flutter analyze       # 静的解析（flutter_lints）
+dart format lib test  # Dart フォーマッタ
 ```
 
 ### テストデータ投入
@@ -127,6 +127,8 @@ mise run <タスク名>    # プロジェクトルートまたは backend/fronte
 mise tasks             # 利用可能なタスク一覧を表示
 ```
 
+[mise monorepo](https://mise.jdx.dev/tasks/monorepo.html#monorepo-tasks) を有効化しているため、下記のコマンドは [monorepo task syntax](https://mise.jdx.dev/tasks/monorepo.html#task-path-syntax) 指定も可能
+
 #### バックエンドタスク（`cd backend` で実行）
 
 | タスク | 実行内容 | 自動依存 |
@@ -135,7 +137,7 @@ mise tasks             # 利用可能なタスク一覧を表示
 | `start_db` | PostgreSQL 起動（`docker compose up -d --wait`） | — |
 | `stop_db` | PostgreSQL 停止 | — |
 | `build` | TypeScript ビルド | — |
-| `lint` | ESLint + Prettier チェック | — |
+| `lint` | ESLint + Prettier 自動修正（`pnpm format` + `pnpm lint:fix`） | — |
 | `test` | インテグレーションテスト | `build` |
 | `seed_dev` | スキーマを DB に反映（`db:push`） | `build` |
 | `seed_init_dev` | Discover 用データ投入（4アーティスト・20ジャンル） | — |
@@ -150,8 +152,9 @@ mise tasks             # 利用可能なタスク一覧を表示
 | `pub_get` | `flutter pub get` | — |
 | `lint` | フォーマット + 静的解析 | `pub_get` |
 | `run_web` | `flutter run` | — |
-| `build` | `flutter build web` | — |
+| `build` | `flutter build web` | `clean` |
 | `test` | `flutter test` | — |
+| `clean` | `flutter clean` | — |
 
 ### ⚠ `db:push` の注意事項
 
