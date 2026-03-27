@@ -167,11 +167,15 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
     Object? displayName = sentinel,
     Object? bio = sentinel,
     Object? avatarUrl = sentinel,
+    String? profileVisibility,
   }) async {
     final variables = <String, dynamic>{};
     if (displayName != sentinel) variables['displayName'] = displayName;
     if (bio != sentinel) variables['bio'] = bio;
     if (avatarUrl != sentinel) variables['avatarUrl'] = avatarUrl;
+    if (profileVisibility != null) {
+      variables['profileVisibility'] = profileVisibility;
+    }
 
     try {
       final result = await _client.mutate(
@@ -193,6 +197,7 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
           displayName: data['displayName'] as String?,
           bio: data['bio'] as String?,
           avatarUrl: data['avatarUrl'] as String?,
+          profileVisibility: data['profileVisibility'] as String?,
           updatedAt: DateTime.parse(data['updatedAt'] as String),
         ),
       );

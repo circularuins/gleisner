@@ -30,6 +30,7 @@ export interface GraphQLContext {
       activeSince: number | null;
       avatarUrl: string | null;
       coverImageUrl: string | null;
+      profileVisibility: string;
       tunedInCount: number;
       createdAt: Date;
       updatedAt: Date;

@@ -14,6 +14,7 @@ class CreatePostState {
   final Track? selectedTrack;
   final MediaType? selectedMediaType;
   final double importance;
+  final String visibility;
   final bool isSubmitting;
   final String? error;
   final Post? selectedRelatedPost;
@@ -23,6 +24,7 @@ class CreatePostState {
     this.selectedTrack,
     this.selectedMediaType,
     this.importance = 0.5,
+    this.visibility = 'public',
     this.isSubmitting = false,
     this.error,
     this.selectedRelatedPost,
@@ -33,6 +35,7 @@ class CreatePostState {
     Object? selectedTrack = sentinel,
     Object? selectedMediaType = sentinel,
     double? importance,
+    String? visibility,
     bool? isSubmitting,
     Object? error = sentinel,
     Object? selectedRelatedPost = sentinel,
@@ -46,6 +49,7 @@ class CreatePostState {
           ? this.selectedMediaType
           : selectedMediaType as MediaType?,
       importance: importance ?? this.importance,
+      visibility: visibility ?? this.visibility,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       error: error == sentinel ? this.error : error as String?,
       selectedRelatedPost: selectedRelatedPost == sentinel
@@ -76,6 +80,10 @@ class CreatePostNotifier extends Notifier<CreatePostState>
 
   void setImportance(double value) {
     state = state.copyWith(importance: value);
+  }
+
+  void setVisibility(String value) {
+    state = state.copyWith(visibility: value);
   }
 
   void selectRelatedPost(Post post) {
@@ -119,6 +127,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
             'body': body,
             'mediaUrl': mediaUrl,
             'importance': state.importance,
+            'visibility': state.visibility,
           },
         ),
       );

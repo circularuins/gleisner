@@ -179,6 +179,30 @@ Set<String> build() {
 - ブランド整合（星座/宇宙メタファー）
 - 永続化（`FlutterSecureStorage` で1回だけ表示）
 
+### Mutation 後の一覧データ反映（GraphQL キャッシュ問題）
+
+**mutation でデータを変更した後、影響を受ける一覧クエリが最新データを返すようにすること。** GraphQL クライアントのデフォルト `FetchPolicy` はキャッシュ優先のため、mutation 後もキャッシュから stale データが返される。
+
+```dart
+// ❌ invalidate だけでは Notifier が再取得しない場合がある
+ref.invalidate(discoverProvider);
+
+// ✅ 明示的に再取得を呼ぶ
+ref.read(discoverProvider.notifier).loadInitial();
+```
+
+一覧クエリ側でも `FetchPolicy.networkOnly` を設定して、キャッシュをバイパスする:
+
+```dart
+// ✅ mutation の影響を受ける一覧クエリには networkOnly
+QueryOptions(
+  document: gql(discoverArtistsQuery),
+  fetchPolicy: FetchPolicy.networkOnly,
+)
+```
+
+該当パターン: visibility 変更後の Discover リロード、投稿編集後のタイムライン更新、プロフィール編集後の再取得。
+
 ### ログアウト時のプロバイダー invalidate
 
 **ログアウト処理では `graphqlClientProvider` だけでなく、ユーザー固有の状態を持つ全プロバイダーを invalidate すること。**

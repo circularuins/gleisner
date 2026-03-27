@@ -377,6 +377,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
       mediaUrl: p.mediaUrl,
       duration: p.duration,
       importance: p.importance,
+      visibility: p.visibility,
       layoutX: p.layoutX,
       layoutY: p.layoutY,
       contentHash: p.contentHash,
@@ -410,6 +411,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
           mediaUrl: p.mediaUrl,
           duration: p.duration,
           importance: p.importance,
+          visibility: p.visibility,
           layoutX: p.layoutX,
           layoutY: p.layoutY,
           contentHash: p.contentHash,
@@ -487,11 +489,14 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     String? body,
     String? mediaUrl,
     double? importance,
+    String? visibility,
   }) async {
     try {
       // Only send trackId if it actually changed
       final currentPost = state.posts.firstWhere((p) => p.id == id);
       final trackChanged = trackId != null && trackId != currentPost.trackId;
+      final visibilityChanged =
+          visibility != null && visibility != currentPost.visibility;
 
       final result = await _client.mutate(
         MutationOptions(
@@ -499,6 +504,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
           variables: {
             'id': id,
             if (trackChanged) 'trackId': trackId,
+            if (visibilityChanged) 'visibility': visibility,
             if (title != null) 'title': title,
             if (body != null) 'body': body,
             if (mediaUrl != null) 'mediaUrl': mediaUrl,

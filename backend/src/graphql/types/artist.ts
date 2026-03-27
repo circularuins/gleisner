@@ -2,7 +2,8 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, artistGenres } from "../../db/schema/index.js";
-import { eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
+import { tuneIns } from "../../db/schema/index.js";
 import { validateUrl } from "../validators.js";
 
 export const ArtistType = builder.objectRef<{
@@ -16,6 +17,7 @@ export const ArtistType = builder.objectRef<{
   activeSince: number | null;
   avatarUrl: string | null;
   coverImageUrl: string | null;
+  profileVisibility: string;
   tunedInCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -32,6 +34,7 @@ ArtistType.implement({
     activeSince: t.exposeInt("activeSince", { nullable: true }),
     avatarUrl: t.exposeString("avatarUrl", { nullable: true }),
     coverImageUrl: t.exposeString("coverImageUrl", { nullable: true }),
+    profileVisibility: t.exposeString("profileVisibility"),
     tunedInCount: t.exposeInt("tunedInCount"),
     createdAt: t.string({
       resolve: (artist) => artist.createdAt.toISOString(),
@@ -146,6 +149,7 @@ builder.mutationFields((t) => ({
       activeSince: t.arg.int(),
       avatarUrl: t.arg.string(),
       coverImageUrl: t.arg.string(),
+      profileVisibility: t.arg.string(),
     },
     resolve: async (_parent, args, ctx) => {
       if (!ctx.authUser) {
@@ -204,6 +208,14 @@ builder.mutationFields((t) => ({
       if (args.avatarUrl !== undefined) updateData.avatarUrl = args.avatarUrl;
       if (args.coverImageUrl !== undefined)
         updateData.coverImageUrl = args.coverImageUrl;
+      if (args.profileVisibility !== undefined) {
+        if (!["public", "private"].includes(args.profileVisibility as string)) {
+          throw new GraphQLError(
+            "profileVisibility must be 'public' or 'private'",
+          );
+        }
+        updateData.profileVisibility = args.profileVisibility;
+      }
 
       const [updated] = await db
         .update(artists)
@@ -223,13 +235,32 @@ builder.queryFields((t) => ({
     args: {
       username: t.arg.string({ required: true }),
     },
-    resolve: async (_parent, args) => {
+    resolve: async (_parent, args, ctx) => {
       const [artist] = await db
         .select()
         .from(artists)
         .where(eq(artists.artistUsername, args.username))
         .limit(1);
-      return artist ?? null;
+      if (!artist) return null;
+
+      // Public artists are visible to everyone
+      if (artist.profileVisibility === "public") return artist;
+
+      // Private artists: visible to self or tuned-in users
+      if (!ctx.authUser) return null;
+      if (artist.userId === ctx.authUser.userId) return artist;
+
+      const [tunedIn] = await db
+        .select()
+        .from(tuneIns)
+        .where(
+          and(
+            eq(tuneIns.userId, ctx.authUser.userId),
+            eq(tuneIns.artistId, artist.id),
+          ),
+        )
+        .limit(1);
+      return tunedIn ? artist : null;
     },
   }),
 
@@ -260,6 +291,8 @@ builder.queryFields((t) => ({
       const offset = args.offset ?? 0;
       const pattern = args.query?.trim() ? `%${args.query.trim()}%` : null;
 
+      const publicOnly = eq(artists.profileVisibility, "public");
+
       // Genre filter: single JOIN query instead of 2-query split
       if (args.genreId) {
         const textFilter = pattern
@@ -278,6 +311,7 @@ builder.queryFields((t) => ({
             activeSince: artists.activeSince,
             avatarUrl: artists.avatarUrl,
             coverImageUrl: artists.coverImageUrl,
+            profileVisibility: artists.profileVisibility,
             tunedInCount: artists.tunedInCount,
             createdAt: artists.createdAt,
             updatedAt: artists.updatedAt,
@@ -287,7 +321,7 @@ builder.queryFields((t) => ({
             artistGenres,
             sql`${artistGenres.artistId} = ${artists.id} AND ${artistGenres.genreId} = ${args.genreId}`,
           )
-          .where(sql`1=1${textFilter}`)
+          .where(sql`${artists.profileVisibility} = 'public'${textFilter}`)
           .orderBy(desc(artists.tunedInCount))
           .limit(limit)
           .offset(offset);
@@ -299,17 +333,21 @@ builder.queryFields((t) => ({
           .select()
           .from(artists)
           .where(
-            sql`${artists.displayName} ILIKE ${pattern} OR ${artists.artistUsername} ILIKE ${pattern} OR ${artists.tagline} ILIKE ${pattern}`,
+            and(
+              publicOnly,
+              sql`(${artists.displayName} ILIKE ${pattern} OR ${artists.artistUsername} ILIKE ${pattern} OR ${artists.tagline} ILIKE ${pattern})`,
+            ),
           )
           .orderBy(desc(artists.tunedInCount))
           .limit(limit)
           .offset(offset);
       }
 
-      // No filters — all artists by popularity
+      // No filters — all public artists by popularity
       return db
         .select()
         .from(artists)
+        .where(publicOnly)
         .orderBy(desc(artists.tunedInCount))
         .limit(limit)
         .offset(offset);

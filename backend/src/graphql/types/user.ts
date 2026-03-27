@@ -13,6 +13,7 @@ export interface UserShape {
   displayName: string | null;
   bio: string | null;
   avatarUrl: string | null;
+  profileVisibility: string;
   publicKey: string;
   createdAt: Date;
   updatedAt: Date;
@@ -37,6 +38,7 @@ export const userColumns = {
   displayName: users.displayName,
   bio: users.bio,
   avatarUrl: users.avatarUrl,
+  profileVisibility: users.profileVisibility,
   publicKey: users.publicKey,
   createdAt: users.createdAt,
   updatedAt: users.updatedAt,
@@ -64,6 +66,7 @@ UserType.implement({
     displayName: t.exposeString("displayName", { nullable: true }),
     bio: t.exposeString("bio", { nullable: true }),
     avatarUrl: t.exposeString("avatarUrl", { nullable: true }),
+    profileVisibility: t.exposeString("profileVisibility"),
     publicKey: t.exposeString("publicKey"),
     createdAt: t.string({ resolve: (user) => user.createdAt.toISOString() }),
     updatedAt: t.string({ resolve: (user) => user.updatedAt.toISOString() }),
@@ -91,6 +94,7 @@ builder.mutationFields((t) => ({
       displayName: t.arg.string(),
       bio: t.arg.string(),
       avatarUrl: t.arg.string(),
+      profileVisibility: t.arg.string(),
     },
     resolve: async (_parent, args, ctx) => {
       if (!ctx.authUser) {
@@ -112,6 +116,14 @@ builder.mutationFields((t) => ({
         updateData.displayName = args.displayName;
       if (args.bio !== undefined) updateData.bio = args.bio;
       if (args.avatarUrl !== undefined) updateData.avatarUrl = args.avatarUrl;
+      if (args.profileVisibility !== undefined) {
+        if (!["public", "private"].includes(args.profileVisibility as string)) {
+          throw new GraphQLError(
+            "profileVisibility must be 'public' or 'private'",
+          );
+        }
+        updateData.profileVisibility = args.profileVisibility;
+      }
 
       const [updated] = await db
         .update(users)

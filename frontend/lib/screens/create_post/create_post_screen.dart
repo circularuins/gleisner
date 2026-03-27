@@ -463,6 +463,32 @@ class _FormStep extends ConsumerWidget {
             ),
             const SizedBox(height: spaceXl),
 
+            // Visibility toggle
+            Row(
+              children: [
+                Text('Visibility', style: theme.textTheme.titleSmall),
+                const SizedBox(width: spaceLg),
+                ChoiceChip(
+                  label: const Text('Public'),
+                  selected: state.visibility == 'public',
+                  onSelected: (_) => ref
+                      .read(createPostProvider.notifier)
+                      .setVisibility('public'),
+                  visualDensity: VisualDensity.compact,
+                ),
+                const SizedBox(width: spaceSm),
+                ChoiceChip(
+                  label: const Text('Draft'),
+                  selected: state.visibility == 'draft',
+                  onSelected: (_) => ref
+                      .read(createPostProvider.notifier)
+                      .setVisibility('draft'),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const SizedBox(height: spaceXl),
+
             // Error
             if (state.error != null) ...[
               ErrorBanner(message: state.error!),

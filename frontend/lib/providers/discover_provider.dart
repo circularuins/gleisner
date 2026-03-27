@@ -66,6 +66,7 @@ class DiscoverNotifier extends Notifier<DiscoverState> with DisposableNotifier {
           QueryOptions(
             document: gql(discoverArtistsQuery),
             variables: const {'limit': 20},
+            fetchPolicy: FetchPolicy.networkOnly,
           ),
         ),
       ]);

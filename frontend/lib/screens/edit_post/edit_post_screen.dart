@@ -21,6 +21,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   late final TextEditingController _bodyController;
   late final TextEditingController _mediaUrlController;
   late double _importance;
+  late String _visibility;
   late String? _selectedTrackId;
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
@@ -35,6 +36,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
       text: widget.post.mediaUrl ?? '',
     );
     _importance = widget.post.importance;
+    _visibility = widget.post.visibility;
     _selectedTrackId = widget.post.trackId;
   }
 
@@ -66,6 +68,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
           body: body.isNotEmpty ? body : null,
           mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
           importance: _importance,
+          visibility: _visibility,
         );
 
     if (!mounted) return;
@@ -161,6 +164,31 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
 
               // Content fields based on media type
               ..._buildContentFields(),
+
+              // Visibility toggle
+              const SizedBox(height: spaceLg),
+              Row(
+                children: [
+                  Text(
+                    'Visibility',
+                    style: textLabel.copyWith(color: colorTextSecondary),
+                  ),
+                  const SizedBox(width: spaceLg),
+                  ChoiceChip(
+                    label: const Text('Public'),
+                    selected: _visibility == 'public',
+                    onSelected: (_) => setState(() => _visibility = 'public'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  const SizedBox(width: spaceSm),
+                  ChoiceChip(
+                    label: const Text('Draft'),
+                    selected: _visibility == 'draft',
+                    onSelected: (_) => setState(() => _visibility = 'draft'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
 
               // Importance slider
               const SizedBox(height: spaceLg),

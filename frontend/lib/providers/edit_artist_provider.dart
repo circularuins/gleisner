@@ -26,6 +26,7 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
     int? activeSince,
     String? avatarUrl,
     String? coverImageUrl,
+    String? profileVisibility,
   }) async {
     state = const AsyncLoading();
     try {
@@ -40,6 +41,8 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
             if (activeSince != null) 'activeSince': activeSince,
             if (avatarUrl != null) 'avatarUrl': avatarUrl,
             if (coverImageUrl != null) 'coverImageUrl': coverImageUrl,
+            if (profileVisibility != null)
+              'profileVisibility': profileVisibility,
           },
         ),
       );

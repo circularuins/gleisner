@@ -31,7 +31,8 @@ const updateArtistMutation = r'''
     $location: String,
     $activeSince: Int,
     $avatarUrl: String,
-    $coverImageUrl: String
+    $coverImageUrl: String,
+    $profileVisibility: String
   ) {
     updateArtist(
       displayName: $displayName,
@@ -40,7 +41,8 @@ const updateArtistMutation = r'''
       location: $location,
       activeSince: $activeSince,
       avatarUrl: $avatarUrl,
-      coverImageUrl: $coverImageUrl
+      coverImageUrl: $coverImageUrl,
+      profileVisibility: $profileVisibility
     ) {
       id
       artistUsername
@@ -51,6 +53,7 @@ const updateArtistMutation = r'''
       activeSince
       avatarUrl
       coverImageUrl
+      profileVisibility
       tunedInCount
     }
   }

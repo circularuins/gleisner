@@ -156,370 +156,377 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     return Stack(
       children: [
         Scaffold(
-      backgroundColor: colorSurface0,
-      appBar: AppBar(
-        backgroundColor: colorSurface0,
-        title: Row(
-          children: [
-            Flexible(
-              child: GestureDetector(
-                onTap: isOwn
-                    ? () => context.go('/profile')
-                    : timeline.artist != null
-                    ? () => context.push(
-                        '/artist/${timeline.artist!.artistUsername}',
-                      )
-                    : null,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        headerTitle,
-                        style: const TextStyle(
-                          color: colorTextPrimary,
-                          fontSize: fontSizeXl,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (!isOwn && timeline.artist != null)
-                      const Padding(
-                        padding: EdgeInsets.only(left: spaceXxs),
-                        child: Icon(
-                          Icons.chevron_right,
-                          size: 18,
-                          color: colorInteractiveMuted,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            if (modeBadge != null) ...[
-              const SizedBox(width: spaceSm),
-              if (isOwn)
-                // Artist Mode — static badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: spaceXs,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorAccentGold.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(radiusSm),
-                    border: Border.all(
-                      color: colorAccentGold.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Text(
-                    modeBadge,
-                    style: const TextStyle(
-                      color: colorAccentGold,
-                      fontSize: 9,
-                      fontWeight: weightSemibold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                )
-              else
-                // Fan Mode — tappable Tune Out button
-                GestureDetector(
-                  onTap: () async {
-                    final artistId = timeline.artist?.id;
-                    if (artistId == null) return;
-                    // 1. Tune out
-                    await ref
-                        .read(tuneInProvider.notifier)
-                        .toggleTuneIn(artistId);
-                    if (!mounted) return;
-                    // 2. Sync with server
-                    await ref.read(tuneInProvider.notifier).loadMyTuneIns();
-                    if (!mounted) return;
-                    // 3. Decide what to show next
-                    final remaining = ref.read(tuneInProvider).tunedInArtists;
-                    if (remaining.isNotEmpty) {
-                      // Switch to first remaining artist
-                      _switchToArtist(remaining.first.artistUsername);
-                    } else if (_ownArtistUsername != null) {
-                      // No more tuned-in artists, show own timeline
-                      _switchToArtist(_ownArtistUsername!);
-                    } else {
-                      // Fan-only, no artists left — empty state
-                      _viewingArtistUsername = null;
-                      ref.read(timelineProvider.notifier).loadMyArtist();
-                      setState(() {
-                        _focusedPostId = null;
-                        _lastWidth = null;
-                      });
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: spaceSm,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorAccentGold.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(radiusFull),
-                      border: Border.all(
-                        color: colorAccentGold.withValues(alpha: 0.4),
-                      ),
-                    ),
-                    child: const Row(
+          backgroundColor: colorSurface0,
+          appBar: AppBar(
+            backgroundColor: colorSurface0,
+            title: Row(
+              children: [
+                Flexible(
+                  child: GestureDetector(
+                    onTap: isOwn
+                        ? () => context.go('/profile')
+                        : timeline.artist != null
+                        ? () => context.push(
+                            '/artist/${timeline.artist!.artistUsername}',
+                          )
+                        : null,
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.headphones,
-                          size: 10,
-                          color: colorAccentGold,
-                        ),
-                        SizedBox(width: 3),
-                        Text(
-                          'TUNED IN',
-                          style: TextStyle(
-                            color: colorAccentGold,
-                            fontSize: 9,
-                            fontWeight: weightSemibold,
-                            letterSpacing: 0.5,
+                        Flexible(
+                          child: Text(
+                            headerTitle,
+                            style: const TextStyle(
+                              color: colorTextPrimary,
+                              fontSize: fontSizeXl,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        SizedBox(width: 3),
-                        Icon(Icons.close, size: 10, color: colorAccentGold),
+                        if (!isOwn && timeline.artist != null)
+                          const Padding(
+                            padding: EdgeInsets.only(left: spaceXxs),
+                            child: Icon(
+                              Icons.chevron_right,
+                              size: 18,
+                              color: colorInteractiveMuted,
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ),
-            ],
-          ],
-        ),
-        actions: const [],
-      ),
-      // FAB only in Artist Mode (ADR 008)
-      floatingActionButton: timeline.artist != null && isOwn
-          ? CompositedTransformTarget(
-              link: _fabLayerLink,
-              child: _GlowingStarButton(
-              onPressed: () {
-                if (_showFirstPostTutorial) {
-                  setState(() => _showFirstPostTutorial = false);
-                  ref.read(tutorialProvider.notifier).markSeen(TutorialIds.firstPost);
-                }
-                context.go('/create-post');
-              },
-            ),
-            )
-          : null,
-      body: Column(
-        children: [
-          if (timeline.artist != null && timeline.artist!.tracks.isNotEmpty)
-            _TrackSelector(
-              tracks: timeline.artist!.tracks,
-              selectedTrackIds: timeline.selectedTrackIds,
-              allSelected: timeline.allSelected,
-              onToggleTrack: (trackId) =>
-                  ref.read(timelineProvider.notifier).toggleTrack(trackId),
-              onToggleAll: () =>
-                  ref.read(timelineProvider.notifier).toggleAll(),
-            ),
-          // Avatar rail — always visible (not inside scroll)
-          if (tuneIn.tunedInArtists.isNotEmpty ||
-              selfArtistUsername != null)
-            AvatarRail(
-              artists: tuneIn.tunedInArtists,
-              selfArtistUsername: selfArtistUsername,
-              selectedArtistUsername:
-                  _viewingArtistUsername ??
-                  (timeline.artist?.artistUsername),
-              onSelectArtist: _switchToArtist,
-              onSelectSelf: () {
-                if (_ownArtistUsername != null) {
-                  _switchToArtist(_ownArtistUsername!);
-                }
-              },
-            ),
-          if (timeline.error != null)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                timeline.error!,
-                style: TextStyle(color: theme.colorScheme.error),
-              ),
-            ),
-          Expanded(
-            child: timeline.isLoading && timeline.posts.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : timeline.posts.isEmpty && !isOwn
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.headphones,
-                          size: 40,
-                          color: colorInteractiveMuted,
+                if (modeBadge != null) ...[
+                  const SizedBox(width: spaceSm),
+                  if (isOwn)
+                    // Artist Mode — static badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: spaceXs,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorAccentGold.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(radiusSm),
+                        border: Border.all(
+                          color: colorAccentGold.withValues(alpha: 0.3),
                         ),
-                        const SizedBox(height: spaceMd),
-                        Text(
-                          'No posts from this artist yet',
+                      ),
+                      child: Text(
+                        modeBadge,
+                        style: const TextStyle(
+                          color: colorAccentGold,
+                          fontSize: 9,
+                          fontWeight: weightSemibold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    )
+                  else
+                    // Fan Mode — tappable Tune Out button
+                    GestureDetector(
+                      onTap: () async {
+                        final artistId = timeline.artist?.id;
+                        if (artistId == null) return;
+                        // 1. Tune out
+                        await ref
+                            .read(tuneInProvider.notifier)
+                            .toggleTuneIn(artistId);
+                        if (!mounted) return;
+                        // 2. Sync with server
+                        await ref.read(tuneInProvider.notifier).loadMyTuneIns();
+                        if (!mounted) return;
+                        // 3. Decide what to show next
+                        final remaining = ref
+                            .read(tuneInProvider)
+                            .tunedInArtists;
+                        if (remaining.isNotEmpty) {
+                          // Switch to first remaining artist
+                          _switchToArtist(remaining.first.artistUsername);
+                        } else if (_ownArtistUsername != null) {
+                          // No more tuned-in artists, show own timeline
+                          _switchToArtist(_ownArtistUsername!);
+                        } else {
+                          // Fan-only, no artists left — empty state
+                          _viewingArtistUsername = null;
+                          ref.read(timelineProvider.notifier).loadMyArtist();
+                          setState(() {
+                            _focusedPostId = null;
+                            _lastWidth = null;
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: spaceSm,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorAccentGold.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(radiusFull),
+                          border: Border.all(
+                            color: colorAccentGold.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.headphones,
+                              size: 10,
+                              color: colorAccentGold,
+                            ),
+                            SizedBox(width: 3),
+                            Text(
+                              'TUNED IN',
+                              style: TextStyle(
+                                color: colorAccentGold,
+                                fontSize: 9,
+                                fontWeight: weightSemibold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            SizedBox(width: 3),
+                            Icon(Icons.close, size: 10, color: colorAccentGold),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ],
+            ),
+            actions: const [],
+          ),
+          // FAB only in Artist Mode (ADR 008)
+          floatingActionButton: timeline.artist != null && isOwn
+              ? CompositedTransformTarget(
+                  link: _fabLayerLink,
+                  child: _GlowingStarButton(
+                    onPressed: () {
+                      if (_showFirstPostTutorial) {
+                        setState(() => _showFirstPostTutorial = false);
+                        ref
+                            .read(tutorialProvider.notifier)
+                            .markSeen(TutorialIds.firstPost);
+                      }
+                      context.go('/create-post');
+                    },
+                  ),
+                )
+              : null,
+          body: Column(
+            children: [
+              if (timeline.artist != null && timeline.artist!.tracks.isNotEmpty)
+                _TrackSelector(
+                  tracks: timeline.artist!.tracks,
+                  selectedTrackIds: timeline.selectedTrackIds,
+                  allSelected: timeline.allSelected,
+                  onToggleTrack: (trackId) =>
+                      ref.read(timelineProvider.notifier).toggleTrack(trackId),
+                  onToggleAll: () =>
+                      ref.read(timelineProvider.notifier).toggleAll(),
+                ),
+              // Avatar rail — always visible (not inside scroll)
+              if (tuneIn.tunedInArtists.isNotEmpty ||
+                  selfArtistUsername != null)
+                AvatarRail(
+                  artists: tuneIn.tunedInArtists,
+                  selfArtistUsername: selfArtistUsername,
+                  selectedArtistUsername:
+                      _viewingArtistUsername ??
+                      (timeline.artist?.artistUsername),
+                  onSelectArtist: _switchToArtist,
+                  onSelectSelf: () {
+                    if (_ownArtistUsername != null) {
+                      _switchToArtist(_ownArtistUsername!);
+                    }
+                  },
+                ),
+              if (timeline.error != null)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    timeline.error!,
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                ),
+              Expanded(
+                child: timeline.isLoading && timeline.posts.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : timeline.posts.isEmpty && !isOwn
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.headphones,
+                              size: 40,
+                              color: colorInteractiveMuted,
+                            ),
+                            const SizedBox(height: spaceMd),
+                            Text(
+                              'No posts from this artist yet',
+                              style: TextStyle(
+                                color: colorInteractive,
+                                fontSize: theme.textTheme.bodyLarge?.fontSize,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : timeline.posts.isEmpty
+                    ? Center(
+                        child: Text(
+                          timeline.artist == null
+                              ? 'Discover artists and tune in to fill your timeline'
+                              : 'No posts yet',
                           style: TextStyle(
                             color: colorInteractive,
                             fontSize: theme.textTheme.bodyLarge?.fontSize,
                           ),
                         ),
-                      ],
-                    ),
-                  )
-                : timeline.posts.isEmpty
-                ? Center(
-                    child: Text(
-                      timeline.artist == null
-                          ? 'Discover artists and tune in to fill your timeline'
-                          : 'No posts yet',
-                      style: TextStyle(
-                        color: colorInteractive,
-                        fontSize: theme.textTheme.bodyLarge?.fontSize,
-                      ),
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: () =>
-                        ref.read(timelineProvider.notifier).refresh(),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final width = constraints.maxWidth;
-                        if (_lastWidth != width) {
-                          _lastWidth = width;
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            ref
-                                .read(timelineProvider.notifier)
-                                .computeLayout(width);
-                          });
-                        }
+                      )
+                    : RefreshIndicator(
+                        onRefresh: () =>
+                            ref.read(timelineProvider.notifier).refresh(),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final width = constraints.maxWidth;
+                            if (_lastWidth != width) {
+                              _lastWidth = width;
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                ref
+                                    .read(timelineProvider.notifier)
+                                    .computeLayout(width);
+                              });
+                            }
 
-                        final layout = timeline.layout;
-                        if (layout == null) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
+                            final layout = timeline.layout;
+                            if (layout == null) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
 
-                        return NotificationListener<ScrollNotification>(
-                          onNotification: (n) {
-                            setState(() => _scrollOffset = n.metrics.pixels);
-                            return false;
-                          },
-                          child: SingleChildScrollView(
-                            controller: _scrollController,
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            child: Column(
-                              children: [
-                                GestureDetector(
-                                  onTap: () {
-                                    if (timeline.constellationPostIds != null) {
-                                      ref
-                                          .read(timelineProvider.notifier)
-                                          .clearConstellation();
-                                    } else if (_focusedPostId != null) {
-                                      setState(() => _focusedPostId = null);
-                                    }
-                                  },
-                                  child: SizedBox(
-                                    height: layout.totalHeight,
-                                    child: Stack(
-                                      children: [
-                                        // Background: spine + synapses
-                                        Positioned.fill(
-                                          child: CustomPaint(
-                                            painter: ConstellationPainter(
-                                              layout: layout,
-                                              constellationPostIds:
-                                                  timeline.constellationPostIds,
+                            return NotificationListener<ScrollNotification>(
+                              onNotification: (n) {
+                                setState(
+                                  () => _scrollOffset = n.metrics.pixels,
+                                );
+                                return false;
+                              },
+                              child: SingleChildScrollView(
+                                controller: _scrollController,
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                child: Column(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        if (timeline.constellationPostIds !=
+                                            null) {
+                                          ref
+                                              .read(timelineProvider.notifier)
+                                              .clearConstellation();
+                                        } else if (_focusedPostId != null) {
+                                          setState(() => _focusedPostId = null);
+                                        }
+                                      },
+                                      child: SizedBox(
+                                        height: layout.totalHeight,
+                                        child: Stack(
+                                          children: [
+                                            // Background: spine + synapses
+                                            Positioned.fill(
+                                              child: CustomPaint(
+                                                painter: ConstellationPainter(
+                                                  layout: layout,
+                                                  constellationPostIds: timeline
+                                                      .constellationPostIds,
+                                                ),
+                                              ),
                                             ),
-                                          ),
+                                            // Day labels on the spine
+                                            // Find the one day closest above the midpoint
+                                            ..._buildDateLabels(
+                                              layout.days,
+                                              _scrollOffset,
+                                              constraints.maxHeight,
+                                            ),
+                                            // Nodes (focused node rendered last for z-order)
+                                            ..._buildNodes(
+                                              layout,
+                                              timeline.highlightPostId,
+                                              timeline.constellationPostIds,
+                                            ),
+                                          ],
                                         ),
-                                        // Day labels on the spine
-                                        // Find the one day closest above the midpoint
-                                        ..._buildDateLabels(
-                                          layout.days,
-                                          _scrollOffset,
-                                          constraints.maxHeight,
-                                        ),
-                                        // Nodes (focused node rendered last for z-order)
-                                        ..._buildNodes(
-                                          layout,
-                                          timeline.highlightPostId,
-                                          timeline.constellationPostIds,
-                                        ),
-                                      ],
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ),
-                              ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+              ),
+              // Constellation highlight banner
+              if (timeline.constellationPostIds != null)
+                Builder(
+                  builder: (context) {
+                    final constellationName = timeline.posts
+                        .where(
+                          (p) =>
+                              timeline.constellationPostIds!.contains(p.id) &&
+                              p.constellation != null,
+                        )
+                        .map((p) => p.constellation!.name)
+                        .firstOrNull;
+                    return Container(
+                      color: colorSurface1,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.auto_awesome,
+                            size: 16,
+                            color: colorInteractive,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              constellationName != null
+                                  ? '$constellationName · ${timeline.constellationPostIds!.length} posts'
+                                  : 'Constellation · ${timeline.constellationPostIds!.length} posts',
+                              style: const TextStyle(
+                                color: colorTextSecondary,
+                                fontSize: 13,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-          ),
-          // Constellation highlight banner
-          if (timeline.constellationPostIds != null)
-            Builder(
-              builder: (context) {
-                final constellationName = timeline.posts
-                    .where(
-                      (p) =>
-                          timeline.constellationPostIds!.contains(p.id) &&
-                          p.constellation != null,
-                    )
-                    .map((p) => p.constellation!.name)
-                    .firstOrNull;
-                return Container(
-                  color: colorSurface1,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.auto_awesome,
-                        size: 16,
-                        color: colorInteractive,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          constellationName != null
-                              ? '$constellationName · ${timeline.constellationPostIds!.length} posts'
-                              : 'Constellation · ${timeline.constellationPostIds!.length} posts',
-                          style: const TextStyle(
-                            color: colorTextSecondary,
-                            fontSize: 13,
+                          GestureDetector(
+                            onTap: () => ref
+                                .read(timelineProvider.notifier)
+                                .clearConstellation(),
+                            child: const Icon(
+                              Icons.close,
+                              size: 18,
+                              color: colorInteractive,
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        ],
                       ),
-                      GestureDetector(
-                        onTap: () => ref
-                            .read(timelineProvider.notifier)
-                            .clearConstellation(),
-                        child: const Icon(
-                          Icons.close,
-                          size: 18,
-                          color: colorInteractive,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
-    ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
         // Tutorial overlay
         if (_showFirstPostTutorial)
           Positioned.fill(

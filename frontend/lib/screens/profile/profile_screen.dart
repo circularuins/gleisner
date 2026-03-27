@@ -5,6 +5,7 @@ import '../../graphql/client.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/discover_provider.dart';
+import '../../providers/edit_artist_provider.dart';
 import '../../providers/my_artist_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
@@ -141,7 +142,51 @@ class ProfileScreen extends ConsumerWidget {
                       style: textCaption.copyWith(color: colorTextSecondary),
                     ),
                   ],
-                  const SizedBox(height: spaceLg),
+                  // Artist visibility toggle
+                  const SizedBox(height: spaceMd),
+                  Row(
+                    children: [
+                      Icon(
+                        artist.profileVisibility == 'private'
+                            ? Icons.lock_outline
+                            : Icons.public,
+                        size: 14,
+                        color: colorTextMuted,
+                      ),
+                      const SizedBox(width: spaceXs),
+                      Text(
+                        artist.profileVisibility == 'private'
+                            ? 'Private'
+                            : 'Public',
+                        style: textCaption.copyWith(color: colorTextMuted),
+                      ),
+                      const Spacer(),
+                      Switch(
+                        value: artist.profileVisibility == 'public',
+                        activeColor: colorAccentGold,
+                        onChanged: (isPublic) async {
+                          final v = isPublic ? 'public' : 'private';
+                          await ref
+                              .read(editArtistProvider.notifier)
+                              .updateArtist(profileVisibility: v);
+                          ref.read(discoverProvider.notifier).loadInitial();
+                        },
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: spaceSm),
+                    child: Text(
+                      artist.profileVisibility == 'private'
+                          ? 'Your artist page is hidden from Discover and search. Only existing fans and direct links can access it.'
+                          : 'Your artist page is visible in Discover and search. Anyone can view your profile and Tune In.',
+                      style: textCaption.copyWith(
+                        color: colorTextMuted,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: spaceSm),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
@@ -261,6 +306,7 @@ class ProfileScreen extends ConsumerWidget {
         initialDisplayName: user.displayName,
         initialBio: user.bio,
         initialAvatarUrl: user.avatarUrl,
+        initialProfileVisibility: user.profileVisibility,
       ),
     );
   }

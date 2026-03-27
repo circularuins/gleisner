@@ -8,6 +8,7 @@ class User {
   final String? displayName;
   final String? bio;
   final String? avatarUrl;
+  final String profileVisibility;
   final String publicKey;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -20,6 +21,7 @@ class User {
     this.displayName,
     this.bio,
     this.avatarUrl,
+    this.profileVisibility = 'public',
     required this.publicKey,
     required this.createdAt,
     required this.updatedAt,
@@ -34,6 +36,7 @@ class User {
       displayName: json['displayName'] as String?,
       bio: json['bio'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
+      profileVisibility: json['profileVisibility'] as String? ?? 'public',
       publicKey: json['publicKey'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
@@ -44,6 +47,7 @@ class User {
     Object? displayName = sentinel,
     Object? bio = sentinel,
     Object? avatarUrl = sentinel,
+    String? profileVisibility,
     DateTime? updatedAt,
   }) {
     return User(
@@ -56,6 +60,7 @@ class User {
           : displayName as String?,
       bio: bio == sentinel ? this.bio : bio as String?,
       avatarUrl: avatarUrl == sentinel ? this.avatarUrl : avatarUrl as String?,
+      profileVisibility: profileVisibility ?? this.profileVisibility,
       publicKey: publicKey,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
