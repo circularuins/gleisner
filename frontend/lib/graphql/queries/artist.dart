@@ -31,11 +31,35 @@ const _artistFields = '''
       }
 ''';
 
+const _recentPostFields = '''
+      recentPosts(limit: 5) {
+        id
+        mediaType
+        title
+        body
+        importance
+        createdAt
+        updatedAt
+        author {
+          id
+          username
+          displayName
+          avatarUrl
+        }
+        track {
+          id
+          name
+          color
+        }
+      }
+''';
+
 const artistQuery =
     '''
   query Artist(\$username: String!) {
     artist(username: \$username) {
 $_artistFields
+$_recentPostFields
     }
   }
 ''';
@@ -95,19 +119,4 @@ const myTuneInsQuery = r'''
   }
 ''';
 
-const artistRecentPostsQuery = r'''
-  query ArtistRecentPosts($artistId: String!, $limit: Int) {
-    artistPosts(artistId: $artistId, limit: $limit) {
-      id
-      mediaType
-      title
-      body
-      createdAt
-      track {
-        id
-        name
-        color
-      }
-    }
-  }
-''';
+// artistRecentPostsQuery removed — recentPosts is now a field on ArtistType (#63)

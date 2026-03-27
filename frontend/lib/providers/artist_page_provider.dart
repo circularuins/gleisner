@@ -80,42 +80,24 @@ class ArtistPageNotifier extends Notifier<ArtistPageState>
         return;
       }
 
-      final artist = Artist.fromJson(data as Map<String, dynamic>);
-      state = state.copyWith(artist: artist, isLoading: false);
+      final jsonData = data as Map<String, dynamic>;
+      final artist = Artist.fromJson(jsonData);
 
-      // Load recent posts after artist is loaded
-      await _loadRecentPosts(artist.id);
+      // Parse recentPosts from the same query response (single RTT, #63)
+      final recentPosts = (jsonData['recentPosts'] as List<dynamic>?)
+              ?.map((p) => Post.fromJson(p as Map<String, dynamic>))
+              .toList() ??
+          [];
+
+      state = state.copyWith(
+        artist: artist,
+        recentPosts: recentPosts,
+        isLoading: false,
+      );
     } catch (e) {
       if (disposed) return;
       debugPrint('[ArtistPage] load error: $e');
       state = state.copyWith(isLoading: false, error: 'Failed to load artist.');
-    }
-  }
-
-  Future<void> _loadRecentPosts(String artistId) async {
-    try {
-      final result = await _client.query(
-        QueryOptions(
-          document: gql(artistRecentPostsQuery),
-          variables: {'artistId': artistId, 'limit': 5},
-          fetchPolicy: FetchPolicy.networkOnly,
-        ),
-      );
-
-      if (disposed) return;
-
-      if (result.hasException || result.data?['artistPosts'] == null) {
-        return; // Silently fail — recent posts are optional
-      }
-
-      final posts = (result.data!['artistPosts'] as List)
-          .map((p) => Post.fromJson(p as Map<String, dynamic>))
-          .toList();
-
-      state = state.copyWith(recentPosts: posts);
-    } catch (e) {
-      if (disposed) return;
-      debugPrint('[ArtistPage] loadRecentPosts error: $e');
     }
   }
 }

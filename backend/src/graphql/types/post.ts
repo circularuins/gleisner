@@ -3,6 +3,7 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, posts, tracks, users } from "../../db/schema/index.js";
 import { desc, eq, sql } from "drizzle-orm";
+import { ArtistType } from "./artist.js";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 import { computeContentHash, verifySignature } from "../../auth/signing.js";
@@ -488,6 +489,29 @@ builder.queryFields((t) => ({
         .from(posts)
         .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
         .where(eq(tracks.artistId, args.artistId))
+        .orderBy(desc(posts.createdAt))
+        .limit(limit);
+      return rows.map((r) => ({ ...r.post, _track: r.track }));
+    },
+  }),
+}));
+
+// Add recentPosts field to ArtistType (eliminates 2nd RTT on Artist Page, #63)
+builder.objectFields(ArtistType, (t) => ({
+  recentPosts: t.field({
+    type: [PostType],
+    args: {
+      limit: t.arg.int(),
+    },
+    // INNER JOIN intentionally excludes trackId=NULL posts (#67)
+    // TODO(visibility): Add public/draft filter when post visibility is implemented
+    resolve: async (artist, args) => {
+      const limit = Math.max(1, Math.min(args.limit ?? 5, 10));
+      const rows = await db
+        .select({ post: posts, track: tracks })
+        .from(posts)
+        .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
+        .where(eq(tracks.artistId, artist.id))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
       return rows.map((r) => ({ ...r.post, _track: r.track }));
