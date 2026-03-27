@@ -49,24 +49,15 @@ jobs:
     defaults:
       run:
         working-directory: backend
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: gleisner
-          POSTGRES_PASSWORD: gleisner
-          POSTGRES_DB: gleisner
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U gleisner"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     env:
       DATABASE_URL: postgresql://gleisner:gleisner@localhost:5432/gleisner
     steps:
       - uses: actions/checkout@v4
+      - name: Start PostgreSQL
+        run: |
+          sudo systemctl start postgresql
+          sudo -u postgres psql -c "CREATE USER gleisner WITH PASSWORD 'gleisner' CREATEDB;"
+          sudo -u postgres psql -c "CREATE DATABASE gleisner OWNER gleisner;"
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: backend/package.json
