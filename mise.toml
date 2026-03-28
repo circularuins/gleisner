@@ -1,0 +1,15 @@
+experimental_monorepo_root = true
+
+[tools]
+flutter = "latest"
+node = "latest"
+"npm:pnpm" = "latest"
+
+[monorepo]
+config_roots = [
+  "backend",
+  "frontend",
+]
+
+[settings]
+experimental = true

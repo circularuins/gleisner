@@ -60,3 +60,6 @@ build/
 *.iml
 .flutter-plugins
 .flutter-plugins-dependencies
+
+# mise
+.mise/
