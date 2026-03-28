@@ -130,8 +130,8 @@ class ConstellationPainter extends CustomPainter {
     final dy = end.dy - start.dy;
     final len = (dx * dx + dy * dy);
     final dist = len > 0 ? sqrt(len) : 1.0;
-    final nx = -dy / dist * 2.0; // 2px perpendicular offset
-    final ny = dx / dist * 2.0;
+    final nx = -dy / dist * 5.0; // 5px perpendicular offset
+    final ny = dx / dist * 5.0;
 
     for (final sign in [1.0, -1.0]) {
       final ox = nx * sign;
@@ -147,10 +147,10 @@ class ConstellationPainter extends CustomPainter {
           end.dy + oy,
         );
       final paint = Paint()
-        ..strokeWidth = conn.strokeWidth * 0.8
+        ..strokeWidth = conn.strokeWidth * 0.6
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5)
         ..shader = ui.Gradient.linear(
           Offset(start.dx + ox, start.dy + oy),
           Offset(end.dx + ox, end.dy + oy),
