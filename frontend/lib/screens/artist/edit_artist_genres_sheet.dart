@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../../graphql/client.dart';
+import '../../graphql/mutations/genre.dart';
 import '../../graphql/queries/artist.dart';
 import '../../models/artist.dart';
 import '../../models/genre.dart';
@@ -24,12 +25,20 @@ class _EditArtistGenresSheetState extends ConsumerState<EditArtistGenresSheet> {
   late List<ArtistGenre> _currentGenres;
   List<Genre> _availableGenres = [];
   bool _isLoading = true;
+  bool _isCreating = false;
+  final _customNameController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _currentGenres = List.from(widget.artist.genres);
     _loadGenres();
+  }
+
+  @override
+  void dispose() {
+    _customNameController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadGenres() async {
@@ -47,6 +56,45 @@ class _EditArtistGenresSheetState extends ConsumerState<EditArtistGenresSheet> {
       });
     } else {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _createAndAddGenre() async {
+    final name = _customNameController.text.trim();
+    if (name.isEmpty || _currentGenres.length >= 5) return;
+
+    // Check if a genre with this name already exists (case-insensitive)
+    final existing = _availableGenres.firstWhere(
+      (g) => g.name.toLowerCase() == name.toLowerCase(),
+      orElse: () => const Genre(id: '', name: ''),
+    );
+    if (existing.id.isNotEmpty) {
+      // Already exists — just add it
+      await _addGenre(existing);
+      _customNameController.clear();
+      return;
+    }
+
+    setState(() => _isCreating = true);
+
+    final client = ref.read(graphqlClientProvider);
+    final result = await client.mutate(
+      MutationOptions(
+        document: gql(createGenreMutation),
+        variables: {'name': name},
+      ),
+    );
+    if (!mounted) return;
+
+    if (!result.hasException && result.data != null) {
+      final data = result.data!['createGenre'] as Map<String, dynamic>;
+      final genre = Genre.fromJson(data);
+      _availableGenres.add(genre);
+      _customNameController.clear();
+      setState(() => _isCreating = false);
+      await _addGenre(genre);
+    } else {
+      setState(() => _isCreating = false);
     }
   }
 
@@ -209,6 +257,64 @@ class _EditArtistGenresSheetState extends ConsumerState<EditArtistGenresSheet> {
                       })
                       .toList(),
                 ),
+                // Custom genre input
+                if (_currentGenres.length < 5) ...[
+                  const SizedBox(height: spaceLg),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _customNameController,
+                          maxLength: 30,
+                          style: const TextStyle(
+                            color: colorTextPrimary,
+                            fontSize: fontSizeSm,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Create your own genre...',
+                            hintStyle: const TextStyle(color: colorTextMuted),
+                            counterText: '',
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: spaceMd,
+                              vertical: spaceSm,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(radiusMd),
+                              borderSide: const BorderSide(color: colorBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(radiusMd),
+                              borderSide: const BorderSide(
+                                color: colorAccentGold,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: colorSurface0,
+                          ),
+                          onSubmitted: (_) => _createAndAddGenre(),
+                        ),
+                      ),
+                      const SizedBox(width: spaceSm),
+                      IconButton(
+                        icon: _isCreating
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: colorAccentGold,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.add_circle_outline,
+                                color: colorAccentGold,
+                              ),
+                        onPressed: _isCreating ? null : _createAndAddGenre,
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ],
           ),
