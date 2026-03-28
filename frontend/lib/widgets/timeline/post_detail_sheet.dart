@@ -3,6 +3,7 @@ import '../../models/post.dart';
 import '../../models/track.dart' show parseHexColor;
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/constellation_graph.dart';
+import '../common/connection_type_picker.dart';
 import '../common/related_post_picker.dart';
 import 'seed_art_painter.dart';
 
@@ -19,7 +20,11 @@ void showPostDetailSheet(
     List<String> myReactions,
   )?
   onReactionsChanged,
-  Future<PostConnection?> Function(String sourceId, String targetId)?
+  Future<PostConnection?> Function(
+    String sourceId,
+    String targetId,
+    String connectionType,
+  )?
   onCreateConnection,
   Future<bool> Function(String connectionId)? onDeleteConnection,
   void Function(PostConnection conn)? onConnectionAdded,
@@ -59,7 +64,11 @@ class _PostDetailSheet extends StatefulWidget {
     List<String> myReactions,
   )?
   onReactionsChanged;
-  final Future<PostConnection?> Function(String sourceId, String targetId)?
+  final Future<PostConnection?> Function(
+    String sourceId,
+    String targetId,
+    String connectionType,
+  )?
   onCreateConnection;
   final Future<bool> Function(String connectionId)? onDeleteConnection;
   final void Function(PostConnection conn)? onConnectionAdded;
@@ -534,6 +543,12 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
+                      connectionTypeIcon(entry.conn.connectionType),
+                      size: 12,
+                      color: colorTextMuted,
+                    ),
+                    const SizedBox(width: spaceXxs),
+                    Icon(
                       entry.isOutgoing ? Icons.arrow_forward : Icons.arrow_back,
                       size: 12,
                       color: pColor,
@@ -609,6 +624,11 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   }
 
   Future<void> _addConnection() async {
+    // Step 1: Pick connection type
+    final type = await showConnectionTypePicker(context);
+    if (type == null || !mounted) return;
+
+    // Step 2: Pick target post
     Post? selectedPost;
     await showModalBottomSheet<void>(
       context: context,
@@ -632,6 +652,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       final conn = await widget.onCreateConnection?.call(
         widget.post.id,
         selectedPost!.id,
+        type,
       );
       if (conn != null && mounted) {
         setState(() {

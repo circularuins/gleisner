@@ -9,6 +9,9 @@ import '../models/post.dart';
 import '../models/track.dart';
 import '../utils/sentinel.dart';
 
+/// A pending connection: target post + connection type.
+typedef PendingConnection = ({Post post, String connectionType});
+
 class CreatePostState {
   final int step; // 0: track, 1: mediaType, 2: form
   final Track? selectedTrack;
@@ -17,7 +20,7 @@ class CreatePostState {
   final String visibility;
   final bool isSubmitting;
   final String? error;
-  final Post? selectedRelatedPost;
+  final List<PendingConnection> selectedConnections;
 
   const CreatePostState({
     this.step = 0,
@@ -27,7 +30,7 @@ class CreatePostState {
     this.visibility = 'public',
     this.isSubmitting = false,
     this.error,
-    this.selectedRelatedPost,
+    this.selectedConnections = const [],
   });
 
   CreatePostState copyWith({
@@ -38,7 +41,7 @@ class CreatePostState {
     String? visibility,
     bool? isSubmitting,
     Object? error = sentinel,
-    Object? selectedRelatedPost = sentinel,
+    List<PendingConnection>? selectedConnections,
   }) {
     return CreatePostState(
       step: step ?? this.step,
@@ -52,9 +55,7 @@ class CreatePostState {
       visibility: visibility ?? this.visibility,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       error: error == sentinel ? this.error : error as String?,
-      selectedRelatedPost: selectedRelatedPost == sentinel
-          ? this.selectedRelatedPost
-          : selectedRelatedPost as Post?,
+      selectedConnections: selectedConnections ?? this.selectedConnections,
     );
   }
 }
@@ -86,12 +87,25 @@ class CreatePostNotifier extends Notifier<CreatePostState>
     state = state.copyWith(visibility: value);
   }
 
-  void selectRelatedPost(Post post) {
-    state = state.copyWith(selectedRelatedPost: post, error: null);
+  void addConnection(Post post, String connectionType) {
+    if (state.selectedConnections.length >= 5) return;
+    // Prevent duplicate target
+    if (state.selectedConnections.any((c) => c.post.id == post.id)) return;
+    state = state.copyWith(
+      selectedConnections: [
+        ...state.selectedConnections,
+        (post: post, connectionType: connectionType),
+      ],
+      error: null,
+    );
   }
 
-  void clearRelatedPost() {
-    state = state.copyWith(selectedRelatedPost: null);
+  void removeConnection(String postId) {
+    state = state.copyWith(
+      selectedConnections: state.selectedConnections
+          .where((c) => c.post.id != postId)
+          .toList(),
+    );
   }
 
   void goBack() {
@@ -152,35 +166,19 @@ class CreatePostNotifier extends Notifier<CreatePostState>
         return null;
       }
 
-      // Create connection to related post if selected (best-effort)
+      // Create connections to related posts (best-effort)
       var enrichedPost = post;
-      final relatedPost = state.selectedRelatedPost;
-      if (relatedPost != null) {
-        final conn = await _createConnection(post.id, relatedPost.id);
-        if (conn != null) {
-          enrichedPost = Post(
-            id: post.id,
-            mediaType: post.mediaType,
-            title: post.title,
-            body: post.body,
-            mediaUrl: post.mediaUrl,
-            duration: post.duration,
-            importance: post.importance,
-            layoutX: post.layoutX,
-            layoutY: post.layoutY,
-            contentHash: post.contentHash,
-            createdAt: post.createdAt,
-            updatedAt: post.updatedAt,
-            author: post.author,
-            trackId: post.trackId,
-            trackName: post.trackName,
-            trackColor: post.trackColor,
-            reactionCounts: post.reactionCounts,
-            myReactions: post.myReactions,
-            outgoingConnections: [conn],
-            incomingConnections: post.incomingConnections,
-          );
-        }
+      final connections = <PostConnection>[];
+      for (final pending in state.selectedConnections) {
+        final conn = await _createConnection(
+          post.id,
+          pending.post.id,
+          connectionType: pending.connectionType,
+        );
+        if (conn != null) connections.add(conn);
+      }
+      if (connections.isNotEmpty) {
+        enrichedPost = post.copyWith(outgoingConnections: connections);
       }
 
       state = state.copyWith(isSubmitting: false);
@@ -194,8 +192,9 @@ class CreatePostNotifier extends Notifier<CreatePostState>
 
   Future<PostConnection?> _createConnection(
     String sourceId,
-    String targetId,
-  ) async {
+    String targetId, {
+    String connectionType = 'reference',
+  }) async {
     try {
       final result = await _client.mutate(
         MutationOptions(
@@ -203,7 +202,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
           variables: {
             'sourceId': sourceId,
             'targetId': targetId,
-            'connectionType': 'reference',
+            'connectionType': connectionType,
           },
         ),
       );

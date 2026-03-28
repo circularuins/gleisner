@@ -290,8 +290,9 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   /// Create a connection between two posts. Returns the connection on success.
   Future<PostConnection?> createConnection(
     String sourceId,
-    String targetId,
-  ) async {
+    String targetId, {
+    String connectionType = 'reference',
+  }) async {
     try {
       final result = await _client.mutate(
         MutationOptions(
@@ -299,7 +300,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
           variables: {
             'sourceId': sourceId,
             'targetId': targetId,
-            'connectionType': 'reference',
+            'connectionType': connectionType,
           },
         ),
       );
