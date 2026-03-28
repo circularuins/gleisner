@@ -215,9 +215,9 @@ get_post_id() {
 }
 
 create_connection() {
-  local SRC="$1" TGT="$2"
+  local SRC="$1" TGT="$2" TYPE="${3:-reference}"
   curl -s "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
-    -d "{\"query\":\"mutation { createConnection(sourceId:\\\"$SRC\\\", targetId:\\\"$TGT\\\", connectionType:reference) { id } }\"}" > /dev/null 2>&1
+    -d "{\"query\":\"mutation { createConnection(sourceId:\\\"$SRC\\\", targetId:\\\"$TGT\\\", connectionType:$TYPE) { id } }\"}" > /dev/null 2>&1
 }
 
 PID_FLAMENCO=$(get_post_id "Flamenco-session")
@@ -230,21 +230,25 @@ PID_FINAL_MIX=$(get_post_id "Final-mix-Sunrise")
 PID_NEON_GARDEN=$(get_post_id "Sketch-Neon-Garden")
 PID_COLLAB=$(get_post_id "Collab-sketch")
 PID_GLASS_OCEAN=$(get_post_id "Demo-Glass-Ocean")
+PID_BEAT_TAPE=$(get_post_id "Beat-tape-vol3")
+PID_EP_STRUCT=$(get_post_id "EP-structure")
 
-# Constellation "Flamenco Journey" — Play + Live cross-track, long distances
-create_connection "$PID_FLAMENCO" "$PID_RASGUEADO"
-create_connection "$PID_FLAMENCO" "$PID_FLAMENCO_BB"
-create_connection "$PID_RASGUEADO" "$PID_OPEN_MIC"
+# Constellation "Flamenco Journey" — mixed types for visual variety
+create_connection "$PID_FLAMENCO" "$PID_RASGUEADO" evolution   # ━ ━ ━ dashed: technique evolved
+create_connection "$PID_FLAMENCO" "$PID_FLAMENCO_BB" remix      # ▬▬▬ thick: beatbox remix
+create_connection "$PID_RASGUEADO" "$PID_OPEN_MIC" evolution    # ━ ━ ━ dashed: took it to the stage
 
-# Constellation "Sunrise Protocol" — Compose + Studio cross-track
-create_connection "$PID_WIP_SUNRISE" "$PID_SIDECHAIN"
-create_connection "$PID_WIP_SUNRISE" "$PID_FINAL_MIX"
-create_connection "$PID_WIP_SUNRISE" "$PID_NEON_GARDEN"
+# Constellation "Sunrise Protocol" — production chain
+create_connection "$PID_WIP_SUNRISE" "$PID_SIDECHAIN" reference # ─── solid: related reference
+create_connection "$PID_WIP_SUNRISE" "$PID_FINAL_MIX" evolution # ━ ━ ━ dashed: WIP → final
+create_connection "$PID_WIP_SUNRISE" "$PID_NEON_GARDEN" remix   # ▬▬▬ thick: spawned new sketch
+create_connection "$PID_SIDECHAIN" "$PID_BEAT_TAPE" reference   # ─── solid: related technique
 
-# Unnamed small constellation — Studio only
-create_connection "$PID_COLLAB" "$PID_GLASS_OCEAN"
+# Unnamed constellation — studio replies + references
+create_connection "$PID_COLLAB" "$PID_GLASS_OCEAN" reply        # · · · dotted: response
+create_connection "$PID_GLASS_OCEAN" "$PID_EP_STRUCT" reference # ─── solid: feeds into EP plan
 
-echo "==> 7 connections created (3 constellations)"
+echo "==> 9 connections created (3 constellations, 4 types: reference/evolution/remix/reply)"
 
 # 11. Name two constellations
 name_constellation() {
