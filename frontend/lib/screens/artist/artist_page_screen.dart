@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:web/web.dart' as web;
 
 import '../../models/artist.dart';
 import '../../models/post.dart';
@@ -913,10 +913,10 @@ class _LinkChip extends StatelessWidget {
     );
   }
 
-  static Future<void> _openUrl(String url) async {
+  static void _openUrl(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    web.window.open(uri.toString(), '_blank');
   }
 
   static IconData _platformIcon(String platform) {
