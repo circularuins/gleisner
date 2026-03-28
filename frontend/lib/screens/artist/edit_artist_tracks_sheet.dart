@@ -5,6 +5,7 @@ import '../../models/artist.dart';
 import '../../models/track.dart';
 import '../../providers/artist_page_provider.dart';
 import '../../providers/edit_artist_provider.dart';
+import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 
 class EditArtistTracksSheet extends ConsumerStatefulWidget {
@@ -118,6 +119,8 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
       await ref
           .read(artistPageProvider.notifier)
           .loadArtist(widget.artist.artistUsername);
+      // Deleted track's posts become unassigned — refresh the count
+      ref.read(unassignedPostsProvider.notifier).load();
     }
   }
 
