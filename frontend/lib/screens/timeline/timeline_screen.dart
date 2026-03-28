@@ -625,8 +625,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         notifier.updatePostReactions(id, counts, myReactions);
       },
       onCreateConnection: isOwn
-          ? (sourceId, targetId) =>
-                notifier.createConnection(sourceId, targetId)
+          ? (sourceId, targetId, connectionType) => notifier.createConnection(
+              sourceId,
+              targetId,
+              connectionType: connectionType,
+            )
           : null,
       onDeleteConnection: isOwn
           ? (connectionId) => notifier.deleteConnection(connectionId)

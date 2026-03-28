@@ -7,6 +7,7 @@ import '../../models/track.dart' show Track, parseHexColor;
 import '../../providers/create_post_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
+import '../../widgets/common/connection_type_picker.dart';
 import '../../widgets/common/error_banner.dart';
 import '../../widgets/common/related_post_picker.dart';
 import '../../theme/gleisner_tokens.dart';
@@ -453,13 +454,14 @@ class _FormStep extends ConsumerWidget {
             ),
             const SizedBox(height: spaceXl),
 
-            // Related post
-            _RelatedPostSection(
-              selectedPost: state.selectedRelatedPost,
+            // Related posts (connections)
+            _ConnectionsSection(
+              connections: state.selectedConnections,
               allPosts: ref.watch(timelineProvider).posts,
-              onClear: () =>
-                  ref.read(createPostProvider.notifier).clearRelatedPost(),
-              onPickRequested: () => _showRelatedPostPicker(context, ref),
+              onRemove: (postId) => ref
+                  .read(createPostProvider.notifier)
+                  .removeConnection(postId),
+              onAddRequested: () => _showAddConnection(context, ref),
             ),
             const SizedBox(height: spaceXl),
 
@@ -512,17 +514,29 @@ class _FormStep extends ConsumerWidget {
     );
   }
 
-  void _showRelatedPostPicker(BuildContext context, WidgetRef ref) {
+  Future<void> _showAddConnection(BuildContext context, WidgetRef ref) async {
+    // Step 1: Pick type
+    final type = await showConnectionTypePicker(context);
+    if (type == null || !context.mounted) return;
+
+    // Step 2: Pick target post
     final posts = ref.read(timelineProvider).posts;
-    showModalBottomSheet<void>(
+    final existing = ref.read(createPostProvider).selectedConnections;
+    Post? selected;
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (_) => RelatedPostPicker(
         posts: posts,
-        onSelected: (post) =>
-            ref.read(createPostProvider.notifier).selectRelatedPost(post),
+        excludePostIds: existing.map((c) => c.post.id).toSet(),
+        onSelected: (post) {
+          selected = post;
+        },
       ),
     );
+    if (selected != null) {
+      ref.read(createPostProvider.notifier).addConnection(selected!, type);
+    }
   }
 
   List<Widget> _buildContentFields(MediaType mediaType, ThemeData theme) {
@@ -778,18 +792,18 @@ class _ImportancePreview extends StatelessWidget {
   }
 }
 
-/// Displays the selected related post or a button to pick one.
-class _RelatedPostSection extends StatelessWidget {
-  final Post? selectedPost;
+/// Displays selected connections and a button to add more (max 5).
+class _ConnectionsSection extends StatelessWidget {
+  final List<PendingConnection> connections;
   final List<Post> allPosts;
-  final VoidCallback onClear;
-  final VoidCallback onPickRequested;
+  final void Function(String postId) onRemove;
+  final VoidCallback onAddRequested;
 
-  const _RelatedPostSection({
-    required this.selectedPost,
+  const _ConnectionsSection({
+    required this.connections,
     required this.allPosts,
-    required this.onClear,
-    required this.onPickRequested,
+    required this.onRemove,
+    required this.onAddRequested,
   });
 
   @override
@@ -801,47 +815,61 @@ class _RelatedPostSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Related post', style: theme.textTheme.titleSmall),
+        Text('Connections', style: theme.textTheme.titleSmall),
         const SizedBox(height: spaceSm),
-        if (selectedPost != null)
-          Card(
+        ...connections.map((c) {
+          final post = c.post;
+          return Card(
             child: ListTile(
-              leading: selectedPost!.trackColor != null
-                  ? Container(
+              leading: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    connectionTypeIcon(c.connectionType),
+                    size: 16,
+                    color: theme.colorScheme.onSurface.withAlpha(150),
+                  ),
+                  if (post.trackColor != null) ...[
+                    const SizedBox(width: spaceSm),
+                    Container(
                       width: 4,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: parseHexColor(selectedPost!.trackColor),
+                        color: parseHexColor(post.trackColor),
                         borderRadius: BorderRadius.circular(2),
                       ),
-                    )
-                  : null,
+                    ),
+                  ],
+                ],
+              ),
               title: Text(
-                selectedPost!.title ??
-                    selectedPost!.body?.substring(
-                      0,
-                      selectedPost!.body!.length.clamp(0, 40),
-                    ) ??
-                    selectedPost!.mediaType.name,
+                post.title ??
+                    post.body?.substring(0, post.body!.length.clamp(0, 40)) ??
+                    post.mediaType.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
-                selectedPost!.trackName ?? '',
+                '${connectionTypeLabel(c.connectionType)} · ${post.trackName ?? ''}',
                 style: theme.textTheme.labelSmall,
               ),
               trailing: IconButton(
                 icon: const Icon(Icons.close, size: 18),
-                onPressed: onClear,
+                onPressed: () => onRemove(post.id),
               ),
               dense: true,
             ),
-          )
-        else
+          );
+        }),
+        if (connections.length < 5)
           OutlinedButton.icon(
-            onPressed: onPickRequested,
+            onPressed: onAddRequested,
             icon: const Icon(Icons.link, size: 18),
-            label: const Text('Link to existing post'),
+            label: Text(
+              connections.isEmpty
+                  ? 'Link to existing post'
+                  : 'Add another connection',
+            ),
             style: OutlinedButton.styleFrom(
               foregroundColor: theme.colorScheme.onSurface.withAlpha(180),
               side: BorderSide(color: theme.colorScheme.outline.withAlpha(80)),
