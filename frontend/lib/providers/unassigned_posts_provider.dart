@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
+import '../graphql/mutations/post.dart';
 import '../graphql/queries/post.dart';
 import '../models/post.dart';
 import 'disposable_notifier.dart';
@@ -45,6 +46,47 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
       debugPrint('[UnassignedPosts] load error: $e');
       if (disposed) return;
       state = const UnassignedPostsState();
+    }
+  }
+
+  /// Update an unassigned post (e.g., reassign to a track).
+  /// Returns the updated post on success, null on failure.
+  Future<Post?> updatePost({
+    required String id,
+    String? trackId,
+    String? title,
+    String? body,
+    String? mediaUrl,
+    double? importance,
+    String? visibility,
+  }) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(updatePostMutation),
+          variables: {
+            'id': id,
+            if (trackId != null) 'trackId': trackId,
+            if (title != null) 'title': title,
+            if (body != null) 'body': body,
+            if (mediaUrl != null) 'mediaUrl': mediaUrl,
+            if (importance != null) 'importance': importance,
+            if (visibility != null) 'visibility': visibility,
+          },
+        ),
+      );
+      if (result.hasException) return null;
+      final data = result.data?['updatePost'] as Map<String, dynamic>?;
+      if (data == null) return null;
+      final updated = Post.fromJson(data);
+      // If reassigned to a track, remove from list
+      if (updated.trackId != null) {
+        removePost(updated.id);
+      }
+      return updated;
+    } catch (e) {
+      debugPrint('[UnassignedPosts] updatePost error: $e');
+      return null;
     }
   }
 

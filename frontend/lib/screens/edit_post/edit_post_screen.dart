@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:graphql_flutter/graphql_flutter.dart';
 
-import '../../graphql/client.dart';
-import '../../graphql/mutations/post.dart';
 import '../../models/post.dart';
 import '../../models/track.dart';
 import '../../providers/timeline_provider.dart';
+import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 
 class EditPostScreen extends ConsumerStatefulWidget {
@@ -76,9 +74,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     final body = _bodyController.text.trim();
     final mediaUrl = _mediaUrlController.text.trim();
 
-    // Check if this post exists in the timeline state.
-    // Unassigned posts (trackId=null) won't be in the timeline, so we
-    // fall back to a direct GraphQL mutation.
+    // Timeline posts use the timeline notifier (with optimistic updates).
+    // Unassigned posts use the dedicated notifier.
     final inTimeline = ref
         .read(timelineProvider)
         .posts
@@ -98,15 +95,17 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             visibility: _visibility,
           );
     } else {
-      updated = await _updatePostDirect(
-        id: widget.post.id,
-        trackId: _selectedTrackId,
-        title: title.isNotEmpty ? title : null,
-        body: body.isNotEmpty ? body : null,
-        mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
-        importance: _importance,
-        visibility: _visibility,
-      );
+      updated = await ref
+          .read(unassignedPostsProvider.notifier)
+          .updatePost(
+            id: widget.post.id,
+            trackId: _selectedTrackId,
+            title: title.isNotEmpty ? title : null,
+            body: body.isNotEmpty ? body : null,
+            mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
+            importance: _importance,
+            visibility: _visibility,
+          );
     }
 
     if (!mounted) return;
@@ -119,43 +118,6 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         _isSubmitting = false;
         _error = 'Failed to update post. Please try again.';
       });
-    }
-  }
-
-  /// Direct GraphQL mutation for posts not in the timeline state
-  /// (e.g., unassigned posts from the Profile/Artist Page flow).
-  Future<Post?> _updatePostDirect({
-    required String id,
-    String? trackId,
-    String? title,
-    String? body,
-    String? mediaUrl,
-    double? importance,
-    String? visibility,
-  }) async {
-    try {
-      final client = ref.read(graphqlClientProvider);
-      final result = await client.mutate(
-        MutationOptions(
-          document: gql(updatePostMutation),
-          variables: {
-            'id': id,
-            if (trackId != null) 'trackId': trackId,
-            if (title != null) 'title': title,
-            if (body != null) 'body': body,
-            if (mediaUrl != null) 'mediaUrl': mediaUrl,
-            if (importance != null) 'importance': importance,
-            if (visibility != null) 'visibility': visibility,
-          },
-        ),
-      );
-      if (result.hasException) return null;
-      final data = result.data?['updatePost'] as Map<String, dynamic>?;
-      if (data == null) return null;
-      return Post.fromJson(data);
-    } catch (e) {
-      debugPrint('[EditPostScreen] updatePost error: $e');
-      return null;
     }
   }
 

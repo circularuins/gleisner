@@ -530,18 +530,23 @@ builder.queryFields((t) => ({
   // Only returns the authenticated user's own unassigned posts.
   myUnassignedPosts: t.field({
     type: [PostType],
-    resolve: async (_parent, _args, ctx) => {
+    args: {
+      limit: t.arg.int({ defaultValue: 50 }),
+    },
+    resolve: async (_parent, args, ctx) => {
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
 
+      const limit = Math.max(1, Math.min(args.limit ?? 50, 100));
       const rows = await db
         .select()
         .from(posts)
         .where(
           and(eq(posts.authorId, ctx.authUser.userId), isNull(posts.trackId)),
         )
-        .orderBy(desc(posts.createdAt));
+        .orderBy(desc(posts.createdAt))
+        .limit(limit);
       return rows;
     },
   }),

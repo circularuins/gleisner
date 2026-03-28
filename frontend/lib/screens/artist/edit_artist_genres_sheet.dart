@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../../graphql/client.dart';
-import '../../graphql/mutations/genre.dart';
 import '../../graphql/queries/artist.dart';
 import '../../models/artist.dart';
 import '../../models/genre.dart';
@@ -77,18 +76,10 @@ class _EditArtistGenresSheetState extends ConsumerState<EditArtistGenresSheet> {
 
     setState(() => _isCreating = true);
 
-    final client = ref.read(graphqlClientProvider);
-    final result = await client.mutate(
-      MutationOptions(
-        document: gql(createGenreMutation),
-        variables: {'name': name},
-      ),
-    );
+    final genre = await ref.read(editArtistProvider.notifier).createGenre(name);
     if (!mounted) return;
 
-    if (!result.hasException && result.data != null) {
-      final data = result.data!['createGenre'] as Map<String, dynamic>;
-      final genre = Genre.fromJson(data);
+    if (genre != null) {
       _availableGenres.add(genre);
       _customNameController.clear();
       setState(() => _isCreating = false);

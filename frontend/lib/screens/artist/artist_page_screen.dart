@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:web/web.dart' as web;
+
+import '../../utils/open_url.dart';
 
 import '../../models/artist.dart';
 import '../../models/post.dart';
@@ -38,7 +39,11 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(artistPageProvider.notifier).loadArtist(widget.username);
-      ref.read(unassignedPostsProvider.notifier).load();
+      // Only load unassigned posts when viewing own artist page
+      final myArtist = ref.read(myArtistProvider);
+      if (myArtist != null && myArtist.artistUsername == widget.username) {
+        ref.read(unassignedPostsProvider.notifier).load();
+      }
     });
   }
 
@@ -584,6 +589,28 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
       context: context,
       builder: (dialogContext) {
         var isSaving = false;
+
+        Future<void> doSave(
+          BuildContext ctx,
+          void Function(void Function()) setState,
+        ) async {
+          final name = controller.text.trim();
+          if (name.isEmpty) return;
+          setState(() => isSaving = true);
+          final ok = await ref
+              .read(editArtistProvider.notifier)
+              .updateArtist(displayName: name);
+          if (!ctx.mounted) return;
+          if (ok) {
+            ref
+                .read(artistPageProvider.notifier)
+                .loadArtist(artist.artistUsername);
+            ref.read(myArtistProvider.notifier).load();
+            Navigator.pop(dialogContext);
+          }
+          setState(() => isSaving = false);
+        }
+
         return StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
             backgroundColor: colorSurface1,
@@ -612,23 +639,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
               ),
               onSubmitted: isSaving
                   ? null
-                  : (_) async {
-                      final name = controller.text.trim();
-                      if (name.isEmpty) return;
-                      setDialogState(() => isSaving = true);
-                      final ok = await ref
-                          .read(editArtistProvider.notifier)
-                          .updateArtist(displayName: name);
-                      if (!context.mounted) return;
-                      if (ok) {
-                        ref
-                            .read(artistPageProvider.notifier)
-                            .loadArtist(artist.artistUsername);
-                        ref.read(myArtistProvider.notifier).load();
-                        Navigator.pop(dialogContext);
-                      }
-                      setDialogState(() => isSaving = false);
-                    },
+                  : (_) => doSave(context, setDialogState),
             ),
             actions: [
               TextButton(
@@ -638,23 +649,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
               TextButton(
                 onPressed: isSaving
                     ? null
-                    : () async {
-                        final name = controller.text.trim();
-                        if (name.isEmpty) return;
-                        setDialogState(() => isSaving = true);
-                        final ok = await ref
-                            .read(editArtistProvider.notifier)
-                            .updateArtist(displayName: name);
-                        if (!context.mounted) return;
-                        if (ok) {
-                          ref
-                              .read(artistPageProvider.notifier)
-                              .loadArtist(artist.artistUsername);
-                          ref.read(myArtistProvider.notifier).load();
-                          Navigator.pop(dialogContext);
-                        }
-                        setDialogState(() => isSaving = false);
-                      },
+                    : () => doSave(context, setDialogState),
                 child: isSaving
                     ? const SizedBox(
                         width: 16,
@@ -916,7 +911,8 @@ class _LinkChip extends StatelessWidget {
   static void _openUrl(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
-    web.window.open(uri.toString(), '_blank');
+    if (uri.scheme != 'https' && uri.scheme != 'http') return;
+    openUrlImpl(uri.toString());
   }
 
   static IconData _platformIcon(String platform) {
