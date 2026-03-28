@@ -61,8 +61,43 @@ class ConstellationPainter extends CustomPainter {
           conn.end.dx + sw,
           conn.end.dy,
         );
-      canvas.drawPath(path, paint);
+
+      // Connection type visual styles:
+      //   reference — solid (default)
+      //   evolution — dashed (long dash)
+      //   remix     — thicker + higher opacity
+      //   reply     — dotted (short dash)
+      switch (conn.connectionType) {
+        case 'evolution':
+          canvas.drawPath(_dashPath(path, dashLength: 8, gapLength: 6), paint);
+        case 'reply':
+          canvas.drawPath(_dashPath(path, dashLength: 3, gapLength: 4), paint);
+        case 'remix':
+          paint.strokeWidth = conn.strokeWidth * 1.6;
+          canvas.drawPath(path, paint);
+        default: // reference
+          canvas.drawPath(path, paint);
+      }
     }
+  }
+
+  /// Create a dashed version of a path by sampling along it.
+  static Path _dashPath(
+    Path source, {
+    required double dashLength,
+    required double gapLength,
+  }) {
+    final result = Path();
+    for (final metric in source.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final end = (distance + dashLength).clamp(0.0, metric.length);
+        final segment = metric.extractPath(distance, end);
+        result.addPath(segment, Offset.zero);
+        distance += dashLength + gapLength;
+      }
+    }
+    return result;
   }
 
   @override
