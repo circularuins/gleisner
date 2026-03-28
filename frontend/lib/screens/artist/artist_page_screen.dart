@@ -6,6 +6,7 @@ import '../../models/artist.dart';
 import '../../models/post.dart';
 import '../../providers/artist_page_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/edit_artist_provider.dart';
 import '../../providers/my_artist_provider.dart';
 import '../../providers/pending_artist_provider.dart';
 import '../../providers/tune_in_provider.dart';
@@ -127,12 +128,34 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                         Row(
                           children: [
                             Flexible(
-                              child: Text(
-                                artist.displayName ?? artist.artistUsername,
-                                style: const TextStyle(
-                                  color: colorTextPrimary,
-                                  fontSize: fontSizeTitle,
-                                  fontWeight: weightBold,
+                              child: GestureDetector(
+                                onTap: isSelf
+                                    ? () =>
+                                          _showEditDisplayName(context, artist)
+                                    : null,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        artist.displayName ??
+                                            artist.artistUsername,
+                                        style: const TextStyle(
+                                          color: colorTextPrimary,
+                                          fontSize: fontSizeTitle,
+                                          fontWeight: weightBold,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isSelf) ...[
+                                      const SizedBox(width: spaceXs),
+                                      const Icon(
+                                        Icons.edit_outlined,
+                                        size: 14,
+                                        color: colorTextMuted,
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                             ),
@@ -549,6 +572,106 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  void _showEditDisplayName(BuildContext context, Artist artist) {
+    final controller = TextEditingController(
+      text: artist.displayName ?? artist.artistUsername,
+    );
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        var isSaving = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            backgroundColor: colorSurface1,
+            title: const Text(
+              'Display Name',
+              style: TextStyle(color: colorTextPrimary),
+            ),
+            content: TextField(
+              controller: controller,
+              maxLength: 50,
+              autofocus: true,
+              style: const TextStyle(color: colorTextPrimary),
+              decoration: InputDecoration(
+                hintText: 'Enter display name',
+                hintStyle: const TextStyle(color: colorTextMuted),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(radiusMd),
+                  borderSide: const BorderSide(color: colorBorder),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(radiusMd),
+                  borderSide: const BorderSide(color: colorAccentGold),
+                ),
+                filled: true,
+                fillColor: colorSurface0,
+              ),
+              onSubmitted: isSaving
+                  ? null
+                  : (_) async {
+                      final name = controller.text.trim();
+                      if (name.isEmpty) return;
+                      setDialogState(() => isSaving = true);
+                      final ok = await ref
+                          .read(editArtistProvider.notifier)
+                          .updateArtist(displayName: name);
+                      if (!context.mounted) return;
+                      if (ok) {
+                        ref
+                            .read(artistPageProvider.notifier)
+                            .loadArtist(artist.artistUsername);
+                        ref.read(myArtistProvider.notifier).load();
+                        Navigator.pop(dialogContext);
+                      }
+                      setDialogState(() => isSaving = false);
+                    },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final name = controller.text.trim();
+                        if (name.isEmpty) return;
+                        setDialogState(() => isSaving = true);
+                        final ok = await ref
+                            .read(editArtistProvider.notifier)
+                            .updateArtist(displayName: name);
+                        if (!context.mounted) return;
+                        if (ok) {
+                          ref
+                              .read(artistPageProvider.notifier)
+                              .loadArtist(artist.artistUsername);
+                          ref.read(myArtistProvider.notifier).load();
+                          Navigator.pop(dialogContext);
+                        }
+                        setDialogState(() => isSaving = false);
+                      },
+                child: isSaving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colorAccentGold,
+                        ),
+                      )
+                    : const Text(
+                        'Save',
+                        style: TextStyle(color: colorAccentGold),
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

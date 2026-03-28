@@ -17,7 +17,6 @@ class EditArtistAboutSheet extends ConsumerStatefulWidget {
 }
 
 class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
-  late final TextEditingController _displayNameController;
   late final TextEditingController _taglineController;
   late final TextEditingController _bioController;
   late final TextEditingController _locationController;
@@ -29,9 +28,6 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
   @override
   void initState() {
     super.initState();
-    _displayNameController = TextEditingController(
-      text: widget.artist.displayName ?? '',
-    );
     _taglineController = TextEditingController(
       text: widget.artist.tagline ?? '',
     );
@@ -46,7 +42,6 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
 
   @override
   void dispose() {
-    _displayNameController.dispose();
     _taglineController.dispose();
     _bioController.dispose();
     _locationController.dispose();
@@ -61,7 +56,6 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
       _error = null;
     });
 
-    final displayName = _displayNameController.text.trim();
     final tagline = _taglineController.text.trim();
     final bio = _bioController.text.trim();
     final location = _locationController.text.trim();
@@ -73,7 +67,6 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
     final ok = await ref
         .read(editArtistProvider.notifier)
         .updateArtist(
-          displayName: displayName.isNotEmpty ? displayName : null,
           tagline: tagline.isNotEmpty ? tagline : null,
           bio: bio.isNotEmpty ? bio : null,
           location: location.isNotEmpty ? location : null,
@@ -152,21 +145,6 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
                   ),
                   const SizedBox(height: spaceLg),
                 ],
-
-                // Display Name
-                TextFormField(
-                  controller: _displayNameController,
-                  maxLength: 50,
-                  style: const TextStyle(color: colorTextPrimary),
-                  decoration: _inputDecoration('Display Name'),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Display name is required';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: spaceLg),
 
                 // Tagline
                 TextFormField(
