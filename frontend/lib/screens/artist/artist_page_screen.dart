@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/artist.dart';
 import '../../models/post.dart';
@@ -878,31 +879,45 @@ class _LinkChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: spaceMd,
-        vertical: spaceXs,
-      ),
-      decoration: BoxDecoration(
-        color: colorSurface2,
-        borderRadius: BorderRadius.circular(radiusFull),
-        border: Border.all(color: colorBorder),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(_platformIcon(link.platform), size: 14, color: colorInteractive),
-          const SizedBox(width: spaceXs),
-          Text(
-            link.platform,
-            style: const TextStyle(
-              color: colorTextSecondary,
-              fontSize: fontSizeSm,
+    return GestureDetector(
+      onTap: () => _openUrl(link.url),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: spaceMd,
+          vertical: spaceXs,
+        ),
+        decoration: BoxDecoration(
+          color: colorSurface2,
+          borderRadius: BorderRadius.circular(radiusFull),
+          border: Border.all(color: colorBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _platformIcon(link.platform),
+              size: 14,
+              color: colorInteractive,
             ),
-          ),
-        ],
+            const SizedBox(width: spaceXs),
+            Text(
+              link.platform,
+              style: const TextStyle(
+                color: colorTextSecondary,
+                fontSize: fontSizeSm,
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  static Future<void> _openUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   static IconData _platformIcon(String platform) {
