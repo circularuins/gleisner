@@ -83,14 +83,14 @@ class ConstellationPainter extends CustomPainter {
     Offset start,
     Offset end,
   ) {
-    final points = _samplePath(basePath, segments: 24);
+    // Sample few points for straight-line zigzag (lightning bolt)
+    final points = _samplePath(basePath, segments: 10);
     if (points.length < 3) {
       canvas.drawPath(basePath, _gradientPaint(conn, start, end));
       return;
     }
 
-    const amplitude = 7.0;
-    const zigPeriod = 2; // sharp zigzag every N points — lightning bolt feel
+    const amplitude = 8.0;
 
     final zigzagPath = Path()..moveTo(points[0].dx, points[0].dy);
 
@@ -105,12 +105,12 @@ class ConstellationPainter extends CustomPainter {
       final nx = -ty / tLen;
       final ny = tx / tLen;
 
-      // Sharp alternating bolt pattern
-      final sign = (i ~/ zigPeriod).isEven ? 1.0 : -1.0;
+      final sign = i.isEven ? 1.0 : -1.0;
       final t = i / (points.length - 1);
       final fade = sin(t * pi);
       final offset = amplitude * sign * fade;
 
+      // Straight line to each zigzag vertex — no curves
       zigzagPath.lineTo(p.dx + nx * offset, p.dy + ny * offset);
     }
 
