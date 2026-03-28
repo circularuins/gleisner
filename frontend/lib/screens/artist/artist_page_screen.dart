@@ -244,17 +244,29 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                             artist.bio != null) ...[
                           const SizedBox(height: spaceXl),
                           if (isSelf)
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: IconButton(
-                                icon: const Icon(
-                                  Icons.edit_outlined,
-                                  size: 18,
-                                  color: colorTextMuted,
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'ABOUT',
+                                    style: TextStyle(
+                                      color: colorTextMuted,
+                                      fontSize: fontSizeXs,
+                                      fontWeight: weightSemibold,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
                                 ),
-                                onPressed: () =>
-                                    _showEditAboutSheet(context, artist),
-                              ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit_outlined,
+                                    size: 18,
+                                    color: colorTextMuted,
+                                  ),
+                                  onPressed: () =>
+                                      _showEditAboutSheet(context, artist),
+                                ),
+                              ],
                             ),
                           // Location + Active since
                           if (artist.location != null ||
