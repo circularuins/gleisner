@@ -42,24 +42,25 @@ class ConstellationPainter extends CustomPainter {
       final cp1 = Offset(conn.cp1.dx + sw, conn.cp1.dy);
       final cp2 = Offset(conn.cp2.dx + sw, conn.cp2.dy);
 
-      final path = Path()
+      final basePath = Path()
         ..moveTo(start.dx, start.dy)
         ..cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, end.dx, end.dy);
 
       switch (conn.connectionType) {
         case 'evolution':
-          _drawEvolution(canvas, conn, path, start, end);
+          _drawEvolution(canvas, conn, basePath, start, end);
         case 'remix':
-          _drawRemix(canvas, conn, path, start, end, cp1, cp2);
+          _drawRemix(canvas, conn, basePath, start, end);
         case 'reply':
-          _drawReply(canvas, conn, path, start, end);
+          _drawReply(canvas, conn, basePath, start, end);
         default: // reference
-          _drawReference(canvas, conn, path, start, end);
+          _drawReference(canvas, conn, basePath, start, end);
       }
     }
   }
 
-  /// reference — the baseline: soft glow, symmetric gradient.
+  // ── reference — soft glow, symmetric gradient (baseline) ──
+
   void _drawReference(
     Canvas canvas,
     SynapseConnection conn,
@@ -67,122 +68,207 @@ class ConstellationPainter extends CustomPainter {
     Offset start,
     Offset end,
   ) {
-    final paint = Paint()
-      ..strokeWidth = conn.strokeWidth
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3)
-      ..shader = ui.Gradient.linear(
-        start,
-        end,
-        [
-          conn.color.withValues(alpha: conn.opacity),
-          conn.endColor.withValues(alpha: conn.opacity),
-        ],
-      );
-    canvas.drawPath(path, paint);
+    canvas.drawPath(
+      path,
+      _gradientPaint(conn, start, end, blur: 3),
+    );
   }
 
-  /// evolution — directional flow: source dim → target bright.
-  /// Conveys growth and progression.
+  // ── evolution — zigzag line (growth / trending up) ──
+
   void _drawEvolution(
     Canvas canvas,
     SynapseConnection conn,
-    Path path,
+    Path basePath,
     Offset start,
     Offset end,
   ) {
-    final baseOpacity = conn.opacity * 1.5;
-    // Dim at source, bright at target — forward momentum
-    final paint = Paint()
-      ..strokeWidth = conn.strokeWidth * 1.3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4)
-      ..shader = ui.Gradient.linear(
-        start,
-        end,
-        [
-          conn.color.withValues(alpha: baseOpacity * 0.2),
-          conn.endColor.withValues(alpha: (baseOpacity * 1.0).clamp(0, 1)),
-        ],
-      );
-    canvas.drawPath(path, paint);
+    final points = _samplePath(basePath, segments: 40);
+    if (points.length < 3) {
+      canvas.drawPath(basePath, _gradientPaint(conn, start, end));
+      return;
+    }
+
+    const amplitude = 4.0;
+    const zigPeriod = 4; // zigzag every N sample points
+
+    final zigzagPath = Path()..moveTo(points[0].dx, points[0].dy);
+
+    for (var i = 1; i < points.length; i++) {
+      final p = points[i];
+      // Compute perpendicular offset
+      final prev = points[max(0, i - 1)];
+      final next = points[min(points.length - 1, i + 1)];
+      final tx = next.dx - prev.dx;
+      final ty = next.dy - prev.dy;
+      final tLen = sqrt(tx * tx + ty * ty);
+      if (tLen == 0) continue;
+      final nx = -ty / tLen;
+      final ny = tx / tLen;
+
+      // Alternating zigzag
+      final sign = (i ~/ zigPeriod).isEven ? 1.0 : -1.0;
+      // Fade amplitude at ends for smooth entry/exit
+      final t = i / (points.length - 1);
+      final fade = sin(t * pi); // 0 at ends, 1 in middle
+      final offset = amplitude * sign * fade;
+
+      zigzagPath.lineTo(p.dx + nx * offset, p.dy + ny * offset);
+    }
+
+    canvas.drawPath(
+      zigzagPath,
+      _gradientPaint(conn, start, end, widthMul: 1.1, blur: 2,
+          opacityMul: 1.5),
+    );
   }
 
-  /// remix — double helix: two parallel lines with slight offset.
-  /// Conveys interference, two waves merging.
+  // ── remix — two spiraling/crossing strands (shuffle) ──
+
   void _drawRemix(
     Canvas canvas,
     SynapseConnection conn,
-    Path path,
+    Path basePath,
     Offset start,
     Offset end,
-    Offset cp1,
-    Offset cp2,
   ) {
-    final opacity = (conn.opacity * 1.3).clamp(0.0, 1.0);
-    final startColor = conn.color.withValues(alpha: opacity);
-    final endColor = conn.endColor.withValues(alpha: opacity);
-
-    // Perpendicular offset for the two strands
-    final dx = end.dx - start.dx;
-    final dy = end.dy - start.dy;
-    final len = (dx * dx + dy * dy);
-    final dist = len > 0 ? sqrt(len) : 1.0;
-    final nx = -dy / dist * 5.0; // 5px perpendicular offset
-    final ny = dx / dist * 5.0;
-
-    for (final sign in [1.0, -1.0]) {
-      final ox = nx * sign;
-      final oy = ny * sign;
-      final strand = Path()
-        ..moveTo(start.dx + ox, start.dy + oy)
-        ..cubicTo(
-          cp1.dx + ox,
-          cp1.dy + oy,
-          cp2.dx + ox,
-          cp2.dy + oy,
-          end.dx + ox,
-          end.dy + oy,
-        );
-      final paint = Paint()
-        ..strokeWidth = conn.strokeWidth * 0.6
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5)
-        ..shader = ui.Gradient.linear(
-          Offset(start.dx + ox, start.dy + oy),
-          Offset(end.dx + ox, end.dy + oy),
-          [startColor, endColor],
-        );
-      canvas.drawPath(strand, paint);
+    final points = _samplePath(basePath, segments: 60);
+    if (points.length < 3) {
+      canvas.drawPath(basePath, _gradientPaint(conn, start, end));
+      return;
     }
+
+    const amplitude = 5.0;
+    const crossingFrequency = 0.06; // controls how often strands cross
+
+    final strandA = Path()..moveTo(points[0].dx, points[0].dy);
+    final strandB = Path()..moveTo(points[0].dx, points[0].dy);
+
+    for (var i = 1; i < points.length; i++) {
+      final p = points[i];
+      final prev = points[max(0, i - 1)];
+      final next = points[min(points.length - 1, i + 1)];
+      final tx = next.dx - prev.dx;
+      final ty = next.dy - prev.dy;
+      final tLen = sqrt(tx * tx + ty * ty);
+      if (tLen == 0) continue;
+      final nx = -ty / tLen;
+      final ny = tx / tLen;
+
+      final t = i / (points.length - 1);
+      final fade = sin(t * pi);
+      final wave = sin(i * crossingFrequency * 2 * pi) * amplitude * fade;
+
+      strandA.lineTo(p.dx + nx * wave, p.dy + ny * wave);
+      strandB.lineTo(p.dx - nx * wave, p.dy - ny * wave);
+    }
+
+    final paint = _gradientPaint(
+      conn, start, end, widthMul: 0.7, blur: 1.5, opacityMul: 1.3,
+    );
+    canvas.drawPath(strandA, paint);
+    canvas.drawPath(strandB, paint);
   }
 
-  /// reply — faint echo: thinner and more transparent than reference.
-  /// Conveys a light, conversational connection.
+  // ── reply — line with arrowhead (response) ──
+
   void _drawReply(
     Canvas canvas,
     SynapseConnection conn,
-    Path path,
+    Path basePath,
     Offset start,
     Offset end,
   ) {
-    final paint = Paint()
-      ..strokeWidth = conn.strokeWidth * 0.6
+    // Draw the main line (thinner, softer)
+    canvas.drawPath(
+      basePath,
+      _gradientPaint(conn, start, end, widthMul: 0.7, blur: 2,
+          opacityMul: 0.7),
+    );
+
+    // Draw arrowhead near the target end
+    final points = _samplePath(basePath, segments: 20);
+    if (points.length < 3) return;
+
+    final tip = points.last;
+    final before = points[points.length - 3];
+    final dx = tip.dx - before.dx;
+    final dy = tip.dy - before.dy;
+    final len = sqrt(dx * dx + dy * dy);
+    if (len == 0) return;
+
+    final ux = dx / len; // unit vector along the line
+    final uy = dy / len;
+    final px = -uy; // perpendicular
+    final py = ux;
+
+    const arrowLen = 8.0;
+    const arrowWidth = 4.0;
+
+    final arrowPath = Path()
+      ..moveTo(tip.dx, tip.dy)
+      ..lineTo(
+        tip.dx - ux * arrowLen + px * arrowWidth,
+        tip.dy - uy * arrowLen + py * arrowWidth,
+      )
+      ..lineTo(
+        tip.dx - ux * arrowLen - px * arrowWidth,
+        tip.dy - uy * arrowLen - py * arrowWidth,
+      )
+      ..close();
+
+    final opacity = (conn.opacity * 1.5).clamp(0.0, 1.0);
+    canvas.drawPath(
+      arrowPath,
+      Paint()
+        ..style = PaintingStyle.fill
+        ..color = conn.endColor.withValues(alpha: opacity),
+    );
+  }
+
+  // ── Helpers ──
+
+  /// Build a gradient stroke Paint.
+  Paint _gradientPaint(
+    SynapseConnection conn,
+    Offset start,
+    Offset end, {
+    double widthMul = 1.0,
+    double opacityMul = 1.0,
+    double blur = 3,
+  }) {
+    final o = (conn.opacity * opacityMul).clamp(0.0, 1.0);
+    return Paint()
+      ..strokeWidth = conn.strokeWidth * widthMul
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2)
+      ..strokeJoin = StrokeJoin.round
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur)
       ..shader = ui.Gradient.linear(
         start,
         end,
         [
-          conn.color.withValues(alpha: conn.opacity * 0.5),
-          conn.endColor.withValues(alpha: conn.opacity * 0.5),
+          conn.color.withValues(alpha: o),
+          conn.endColor.withValues(alpha: o),
         ],
       );
-    canvas.drawPath(path, paint);
+  }
+
+  /// Sample evenly-spaced points along a path.
+  static List<Offset> _samplePath(Path path, {int segments = 30}) {
+    final metrics = path.computeMetrics().toList();
+    if (metrics.isEmpty) return [];
+    final metric = metrics.first;
+    final length = metric.length;
+    if (length == 0) return [];
+
+    final points = <Offset>[];
+    for (var i = 0; i <= segments; i++) {
+      final d = (i / segments) * length;
+      final tangent = metric.getTangentForOffset(d);
+      if (tangent != null) points.add(tangent.position);
+    }
+    return points;
   }
 
   @override
