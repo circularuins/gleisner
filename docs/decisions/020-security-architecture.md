@@ -159,6 +159,133 @@ User data protection and basic API defense. Should be implemented before public 
 
 **Rationale**: GDPR applies to any service accessible from the EU, regardless of operator location. Non-compliance fines start at €10M. These are also good engineering practices regardless of legal obligation.
 
+#### 2.6 Token lifecycle and transport security
+
+**Problem**: The current authentication implementation has several gaps that create security risks and UX problems:
+
+1. **Single JWT with 24-hour expiry, no refresh mechanism**: Users are forced to re-login daily. This is poor UX and encourages insecure workarounds (e.g., extending token expiry to weeks)
+2. **No HTTPS enforcement at application level**: The backend relies entirely on Railway/Cloudflare reverse proxy for TLS termination but does not verify or enforce HTTPS. If misconfigured, JWTs travel in plaintext
+3. **No session invalidation**: Password change or account compromise cannot revoke existing tokens. A stolen JWT remains valid until natural expiry
+4. **No token rotation**: If a long-lived token is compromised, the attacker has persistent access with no detection mechanism
+
+##### 2.6.1 Dual-token authentication (access + refresh)
+
+**Decision**:
+
+Replace the single 24-hour JWT with a dual-token system:
+
+| Token | Type | Lifetime | Storage (Frontend) | Storage (Backend) |
+|-------|------|----------|--------------------|--------------------|
+| Access token | JWT (EdDSA, stateless) | **15 minutes** | In-memory (Dart variable) | Not stored (stateless verification) |
+| Refresh token | Opaque (random 256-bit) | **7 days** | FlutterSecureStorage | `refresh_tokens` table (hashed) |
+
+**Refresh flow**:
+
+```
+Client                          Server
+  │                                │
+  ├─ Request with expired AT ────→│
+  │←── 401 Unauthorized ──────────┤
+  │                                │
+  ├─ POST /auth/refresh ─────────→│  Verify RT hash in DB
+  │  { refreshToken }              │  Generate new AT + new RT
+  │                                │  Delete old RT (rotation)
+  │←── { accessToken, refreshToken }
+  │                                │
+  ├─ Retry original request ─────→│
+  │  with new AT                   │
+```
+
+**Token rotation**: Every refresh request issues a **new refresh token** and invalidates the old one. This limits the window of exploitation if a refresh token is stolen — the legitimate user's next refresh will fail (detecting the compromise) and the stolen token is already invalidated.
+
+**Refresh token storage (backend)**:
+
+```sql
+CREATE TABLE refresh_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL,          -- SHA-256 hash (never store plaintext)
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  revoked_at TIMESTAMPTZ,           -- NULL = active, non-NULL = revoked
+  ip_address TEXT,                   -- IP at token creation (audit trail)
+  user_agent TEXT                    -- Device info (audit trail)
+);
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
+CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);
+```
+
+**Rationale**: Short-lived access tokens minimize the damage window of token theft. Refresh tokens provide session continuity without forcing daily re-login. Token rotation provides stolen-token detection. This is the industry-standard pattern (RFC 6749, OAuth 2.0).
+
+##### 2.6.2 Session invalidation
+
+**Decision**:
+
+| Event | Action |
+|-------|--------|
+| Logout (single device) | Delete the specific refresh token from DB |
+| Password change | Delete **all** refresh tokens for the user |
+| Account compromise (admin action) | Delete all refresh tokens + flag account |
+| Refresh token reuse (rotation violation) | Delete **all** refresh tokens for the user (assume compromise) |
+
+When a refresh token that has already been rotated (revoked) is presented again, this indicates either token theft or a replay attack. In this case, **all sessions for the user are terminated** as a precaution (refresh token family invalidation).
+
+**Rationale**: Without session invalidation, a password change is meaningless — the attacker's existing token continues to work. Refresh token family invalidation is the standard defense against token theft in rotation schemes.
+
+##### 2.6.3 HTTPS enforcement and transport security
+
+**Decision**:
+
+| Measure | Implementation |
+|---------|---------------|
+| **HTTPS redirect** | Hono middleware: check `X-Forwarded-Proto` header; if `http`, return 301 redirect to `https://` equivalent. Only in production. |
+| **HSTS header** | `Strict-Transport-Security: max-age=31536000; includeSubDomains` on all responses. Tells browsers to never attempt HTTP. |
+| **Secure cookies** | If cookies are used in the future, set `Secure; HttpOnly; SameSite=Strict` flags. |
+| **Token transport** | Access tokens: `Authorization: Bearer` header only (current approach — keep). Refresh tokens: HTTP-only cookie is preferable but `Authorization` header is acceptable for Flutter Web + mobile. |
+
+**HTTPS middleware (Hono)**:
+
+```typescript
+app.use("*", async (c, next) => {
+  if (env.NODE_ENV === "production") {
+    const proto = c.req.header("x-forwarded-proto");
+    if (proto === "http") {
+      const url = new URL(c.req.url);
+      url.protocol = "https:";
+      return c.redirect(url.toString(), 301);
+    }
+    c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  await next();
+});
+```
+
+**Rationale**: JWT in a `Bearer` header over HTTP is equivalent to sending the password in plaintext. Railway and Cloudflare provide TLS termination, but the application must verify this is in effect and enforce HSTS to prevent downgrade attacks. Defense in depth — do not rely solely on infrastructure configuration.
+
+##### 2.6.4 Frontend token management
+
+**Decision**:
+
+| Aspect | Design |
+|--------|--------|
+| Access token storage | **In-memory only** (Dart variable in `AuthNotifier`). Never persisted to disk. Lost on app restart — triggers silent refresh. |
+| Refresh token storage | `FlutterSecureStorage` (encrypted platform storage). Persists across app restarts. |
+| Auto-refresh | `AuthLink` intercepts 401 responses, calls `/auth/refresh`, retries the original request transparently. |
+| Concurrent requests during refresh | Queue concurrent requests while a refresh is in progress; replay all after new access token is obtained. Prevent multiple simultaneous refresh calls. |
+| App startup | Read refresh token from storage → call `/auth/refresh` → obtain access token → proceed. If refresh fails → clear storage → show login screen. |
+
+**Migration from current implementation**:
+
+The current `AuthProvider` stores a single JWT in `FlutterSecureStorage`. Migration:
+
+1. Add `/auth/refresh` endpoint to backend
+2. Modify `login` / `signup` to return both access + refresh tokens
+3. Update `AuthNotifier` to store refresh token in `FlutterSecureStorage`, keep access token in memory
+4. Add retry logic to `GraphQLClient` `AuthLink`
+5. Remove single-JWT storage key (`'jwt'`) after migration
+
+**Rationale**: Storing access tokens only in memory eliminates the risk of token theft from device storage. The refresh token in `FlutterSecureStorage` is the only persisted credential, and it is rotated on every use.
+
 ### 3. Medium-term (growth phase)
 
 Security enhancements needed as the user base expands.
@@ -280,6 +407,9 @@ The following risks are accepted at this time and will be addressed in the desig
 | OQ-S03 | scrypt → Argon2id migration impact | Design migration strategy (re-hash on next login, etc.) |
 | OQ-S04 | Rate limiting state management | Compare Redis vs in-memory vs Cloudflare WAF |
 | OQ-S05 | AT Protocol rotationKeys applicability | Verify did:plc specification details (industry survey confidence 70) |
+| OQ-S06 | Refresh token: HTTP-only cookie vs Authorization header | Cookie is more secure (immune to XSS) but adds CSRF complexity. Flutter Web + mobile compatibility needs verification. |
+| OQ-S07 | Concurrent refresh handling in Flutter | Verify that queuing + retry works reliably with `graphql_flutter` AuthLink. May need custom link implementation. |
+| OQ-S08 | Refresh token cleanup strategy | Expired/revoked tokens accumulate in DB. Periodic cleanup job or TTL-based auto-delete? |
 
 ## Related
 
