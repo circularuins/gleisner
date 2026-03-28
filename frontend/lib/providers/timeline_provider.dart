@@ -95,13 +95,21 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   void debugAddTrack(Track track) => _addTrackToState(track);
 
   Future<void> loadArtist(String username) async {
-    state = state.copyWith(isLoading: true, error: null);
+    // Clear previous artist's posts immediately to prevent stale data
+    state = state.copyWith(
+      isLoading: true,
+      error: null,
+      posts: [],
+      layout: null,
+      constellationPostIds: null,
+    );
 
     try {
       final result = await _client.query(
         QueryOptions(
           document: gql(artistQuery),
           variables: {'username': username},
+          fetchPolicy: FetchPolicy.networkOnly,
         ),
       );
 
@@ -383,10 +391,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   ) {
     final posts = state.posts.map((p) {
       if (p.id == postId) {
-        return p.copyWith(
-          reactionCounts: counts,
-          myReactions: myReactions,
-        );
+        return p.copyWith(reactionCounts: counts, myReactions: myReactions);
       }
       return p;
     }).toList();

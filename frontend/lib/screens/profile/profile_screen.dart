@@ -10,15 +10,21 @@ import '../../providers/my_artist_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../providers/tutorial_provider.dart';
+import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import 'edit_profile_sheet.dart';
 import 'register_artist_wizard.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final user = authState.user;
     // Use myArtistProvider (own artist) instead of timelineProvider
@@ -208,7 +214,7 @@ class ProfileScreen extends ConsumerWidget {
           ] else ...[
             // Become an artist CTA
             GestureDetector(
-              onTap: () => _showRegisterSheet(context, ref),
+              onTap: () => _showRegisterSheet(context),
               child: Container(
                 padding: const EdgeInsets.all(spaceLg),
                 decoration: BoxDecoration(
@@ -269,6 +275,7 @@ class ProfileScreen extends ConsumerWidget {
               ref.invalidate(myArtistProvider);
               ref.invalidate(tuneInProvider);
               ref.invalidate(discoverProvider);
+              ref.invalidate(unassignedPostsProvider);
               await ref.read(tutorialProvider.notifier).reset();
               ref.invalidate(tutorialProvider);
             },
@@ -311,7 +318,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showRegisterSheet(BuildContext context, WidgetRef ref) {
+  void _showRegisterSheet(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,

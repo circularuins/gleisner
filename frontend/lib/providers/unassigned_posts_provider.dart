@@ -1,0 +1,104 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
+
+import '../graphql/client.dart';
+import '../graphql/mutations/post.dart';
+import '../graphql/queries/post.dart';
+import '../models/post.dart';
+import 'disposable_notifier.dart';
+
+class UnassignedPostsState {
+  final List<Post> posts;
+  final bool isLoading;
+
+  const UnassignedPostsState({this.posts = const [], this.isLoading = false});
+}
+
+class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
+    with DisposableNotifier {
+  late GraphQLClient _client;
+
+  @override
+  UnassignedPostsState build() {
+    _client = ref.watch(graphqlClientProvider);
+    initDisposable();
+    return const UnassignedPostsState();
+  }
+
+  Future<void> load() async {
+    state = const UnassignedPostsState(isLoading: true);
+    try {
+      final result = await _client.query(
+        QueryOptions(
+          document: gql(myUnassignedPostsQuery),
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (disposed) return;
+      final data = result.data?['myUnassignedPosts'] as List<dynamic>? ?? [];
+      state = UnassignedPostsState(
+        posts: data
+            .map((p) => Post.fromJson(p as Map<String, dynamic>))
+            .toList(),
+      );
+    } catch (e) {
+      debugPrint('[UnassignedPosts] load error: $e');
+      if (disposed) return;
+      state = const UnassignedPostsState();
+    }
+  }
+
+  /// Update an unassigned post (e.g., reassign to a track).
+  /// Returns the updated post on success, null on failure.
+  Future<Post?> updatePost({
+    required String id,
+    String? trackId,
+    String? title,
+    String? body,
+    String? mediaUrl,
+    double? importance,
+    String? visibility,
+  }) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(updatePostMutation),
+          variables: {
+            'id': id,
+            if (trackId != null) 'trackId': trackId,
+            if (title != null) 'title': title,
+            if (body != null) 'body': body,
+            if (mediaUrl != null) 'mediaUrl': mediaUrl,
+            if (importance != null) 'importance': importance,
+            if (visibility != null) 'visibility': visibility,
+          },
+        ),
+      );
+      if (result.hasException) return null;
+      final data = result.data?['updatePost'] as Map<String, dynamic>?;
+      if (data == null) return null;
+      final updated = Post.fromJson(data);
+      // If reassigned to a track, remove from list
+      if (updated.trackId != null) {
+        removePost(updated.id);
+      }
+      return updated;
+    } catch (e) {
+      debugPrint('[UnassignedPosts] updatePost error: $e');
+      return null;
+    }
+  }
+
+  /// Remove a post from the local list (e.g., after reassignment).
+  void removePost(String postId) {
+    state = UnassignedPostsState(
+      posts: state.posts.where((p) => p.id != postId).toList(),
+    );
+  }
+}
+
+final unassignedPostsProvider =
+    NotifierProvider<UnassignedPostsNotifier, UnassignedPostsState>(
+      UnassignedPostsNotifier.new,
+    );

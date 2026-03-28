@@ -108,13 +108,10 @@ dart format .          # Dart フォーマッタ
 ./scripts/seed-test-data.sh <api_url> # カスタム URL
 ```
 
-seeduser（`seed@test.com` / `password123`）+ 6トラック + 32投稿（全メディアタイプ、2週間に分散）を投入する。
+seeduser（`seed@test.com` / `password123`）+ 6トラック + 32投稿（全メディアタイプ、2週間に分散）+ 20ジャンル + 4追加アーティスト + Tune In/Follow 関係を投入する。
 バックエンドが起動済みであること。既にユーザーが存在する場合はログインしてデータを追加する。
 
-Discover/Tune In のテストには追加 seed も投入：
-```bash
-./scripts/seed-discover-data.sh       # 4アーティスト + 20ジャンル + Tune In/Follow関係
-```
+> `seed-test-data.sh` は内部で `seed-discover-data.sh` を自動実行する。個別実行は不要。
 
 **⚠ `pnpm test` 実行後は seed データが消える。** テストの `beforeEach` で `TRUNCATE users CASCADE` が実行されるため、テスト後に実機確認する場合は seed スクリプトを再実行すること。
 

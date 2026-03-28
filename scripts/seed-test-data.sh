@@ -258,4 +258,9 @@ name_constellation "$PID_WIP_SUNRISE" "Sunrise Protocol"
 
 echo "==> 2 constellations named (1 unnamed)"
 
+# 12. Seed discover data (genres, additional artists, tune-in/follow relations)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+echo "==> Running discover seed..."
+"$SCRIPT_DIR/seed-discover-data.sh" "${1:-http://localhost:4000/graphql}"
+
 echo "==> Done! Login: $EMAIL / $PASSWORD"

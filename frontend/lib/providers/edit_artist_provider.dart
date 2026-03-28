@@ -7,6 +7,7 @@ import '../graphql/mutations/artist.dart';
 import '../graphql/mutations/genre.dart';
 import '../graphql/mutations/track.dart';
 import '../models/artist.dart';
+import '../models/genre.dart';
 import 'my_artist_provider.dart';
 
 class EditArtistNotifier extends Notifier<AsyncValue<void>> {
@@ -142,6 +143,25 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
     } catch (e) {
       debugPrint('[EditArtistNotifier] deleteLink error: $e');
       return false;
+    }
+  }
+
+  /// Create a new genre and return it, or null on failure.
+  Future<Genre?> createGenre(String name) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(createGenreMutation),
+          variables: {'name': name},
+        ),
+      );
+      if (result.hasException) return null;
+      final data = result.data?['createGenre'] as Map<String, dynamic>?;
+      if (data == null) return null;
+      return Genre.fromJson(data);
+    } catch (e) {
+      debugPrint('[EditArtist] createGenre error: $e');
+      return null;
     }
   }
 

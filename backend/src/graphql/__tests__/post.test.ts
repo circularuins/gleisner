@@ -762,6 +762,156 @@ describe("Post GraphQL integration", () => {
     });
   });
 
+  describe("myUnassignedPosts", () => {
+    const MY_UNASSIGNED_POSTS_QUERY = `
+      query {
+        myUnassignedPosts {
+          id title mediaType
+          track { id }
+        }
+      }
+    `;
+
+    const DELETE_TRACK_MUTATION_LOCAL = `
+      mutation DeleteTrack($id: String!) {
+        deleteTrack(id: $id) {
+          id
+        }
+      }
+    `;
+
+    it("returns empty when no unassigned posts exist", async () => {
+      const { token } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "ua1@example.com",
+        "uauser1",
+        "uaartist1",
+      );
+
+      const result = await gql(app, MY_UNASSIGNED_POSTS_QUERY, {}, token);
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data!.myUnassignedPosts).toEqual([]);
+    });
+
+    it("returns posts after track deletion (trackId becomes null)", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "ua2@example.com",
+        "uauser2",
+        "uaartist2",
+      );
+
+      // Create posts on the track
+      await gql(
+        app,
+        CREATE_POST_MUTATION,
+        { trackId, mediaType: "text", title: "Orphan A" },
+        token,
+      );
+      await gql(
+        app,
+        CREATE_POST_MUTATION,
+        { trackId, mediaType: "image", title: "Orphan B" },
+        token,
+      );
+
+      // Delete the track — posts become unassigned (trackId = null)
+      await gql(app, DELETE_TRACK_MUTATION_LOCAL, { id: trackId }, token);
+
+      const result = await gql(app, MY_UNASSIGNED_POSTS_QUERY, {}, token);
+
+      expect(result.errors).toBeUndefined();
+      const posts = result.data!.myUnassignedPosts as Array<
+        Record<string, unknown>
+      >;
+      expect(posts).toHaveLength(2);
+      const titles = posts.map((p) => p.title).sort();
+      expect(titles).toEqual(["Orphan A", "Orphan B"]);
+      // Track should be null
+      expect(posts[0].track).toBeNull();
+      expect(posts[1].track).toBeNull();
+    });
+
+    it("does not return other user's unassigned posts", async () => {
+      const { token: token1, trackId } =
+        await signupRegisterArtistAndCreateTrack(
+          app,
+          "ua3a@example.com",
+          "uauser3a",
+          "uaartist3a",
+        );
+      const token2 = await signupAndRegisterArtist(
+        app,
+        "ua3b@example.com",
+        "uauser3b",
+        "uaartist3b",
+      );
+
+      // User1 creates a post, then deletes the track
+      await gql(
+        app,
+        CREATE_POST_MUTATION,
+        { trackId, mediaType: "text", title: "User1 Post" },
+        token1,
+      );
+      await gql(app, DELETE_TRACK_MUTATION_LOCAL, { id: trackId }, token1);
+
+      // User2 should see no unassigned posts
+      const result = await gql(app, MY_UNASSIGNED_POSTS_QUERY, {}, token2);
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data!.myUnassignedPosts).toEqual([]);
+    });
+
+    it("unassigned posts are excluded from timeline queries", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "ua4@example.com",
+        "uauser4",
+        "uaartist4",
+      );
+
+      // Create 2 posts, then delete track
+      await gql(
+        app,
+        CREATE_POST_MUTATION,
+        { trackId, mediaType: "text", title: "Will Vanish" },
+        token,
+      );
+      await gql(app, DELETE_TRACK_MUTATION_LOCAL, { id: trackId }, token);
+
+      // Create a new track with a post (so we have something in timeline)
+      const newTrackResult = await gql(
+        app,
+        CREATE_TRACK_MUTATION,
+        { name: "NewTrack", color: "#00FF00" },
+        token,
+      );
+      const newTrackId = (newTrackResult.data!.createTrack as { id: string })
+        .id;
+      await gql(
+        app,
+        CREATE_POST_MUTATION,
+        { trackId: newTrackId, mediaType: "text", title: "Visible Post" },
+        token,
+      );
+
+      // posts query for newTrack should only return "Visible Post"
+      const result = await gql(app, POSTS_QUERY, { trackId: newTrackId });
+      const posts = result.data!.posts as Array<Record<string, unknown>>;
+      expect(posts).toHaveLength(1);
+      expect(posts[0].title).toBe("Visible Post");
+    });
+
+    it("rejects unauthenticated request", async () => {
+      const result = await gql(app, MY_UNASSIGNED_POSTS_QUERY);
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe("Authentication required");
+    });
+  });
+
   describe("contentHash and signature", () => {
     const CREATE_POST_WITH_HASH = `
       mutation CreatePost(

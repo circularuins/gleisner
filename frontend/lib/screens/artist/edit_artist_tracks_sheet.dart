@@ -5,6 +5,7 @@ import '../../models/artist.dart';
 import '../../models/track.dart';
 import '../../providers/artist_page_provider.dart';
 import '../../providers/edit_artist_provider.dart';
+import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 
 class EditArtistTracksSheet extends ConsumerStatefulWidget {
@@ -24,6 +25,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
   String? _error;
   final _nameController = TextEditingController();
   final _addFormKey = GlobalKey<FormState>();
+  ScrollController? _scrollController;
 
   @override
   void initState() {
@@ -117,6 +119,8 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
       await ref
           .read(artistPageProvider.notifier)
           .loadArtist(widget.artist.artistUsername);
+      // Deleted track's posts become unassigned — refresh the count
+      ref.read(unassignedPostsProvider.notifier).load();
     }
   }
 
@@ -128,6 +132,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
       minChildSize: 0.4,
       maxChildSize: 0.9,
       builder: (context, scrollController) {
+        _scrollController = scrollController;
         return Container(
           decoration: const BoxDecoration(
             color: colorSurface1,
@@ -162,7 +167,17 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
                   if (!_showAddForm && _tracks.length < 10)
                     IconButton(
                       icon: const Icon(Icons.add, color: colorAccentGold),
-                      onPressed: () => setState(() => _showAddForm = true),
+                      onPressed: () {
+                        setState(() => _showAddForm = true);
+                        // Scroll to bottom after the form is rendered
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _scrollController?.animateTo(
+                            _scrollController!.position.maxScrollExtent,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOut,
+                          );
+                        });
+                      },
                     ),
                   IconButton(
                     icon: const Icon(Icons.close, color: colorTextMuted),

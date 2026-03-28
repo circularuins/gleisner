@@ -56,6 +56,28 @@ const postsQuery =
   }
 ''';
 
+const myUnassignedPostsQuery = '''
+  query {
+    myUnassignedPosts {
+      id
+      mediaType
+      title
+      body
+      mediaUrl
+      importance
+      visibility
+      createdAt
+      updatedAt
+      author {
+        id
+        username
+        displayName
+        avatarUrl
+      }
+    }
+  }
+''';
+
 const postQuery =
     '''
   query Post(\$id: String!) {
