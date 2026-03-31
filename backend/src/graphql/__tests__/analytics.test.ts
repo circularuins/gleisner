@@ -7,7 +7,11 @@ import {
   signupAndGetToken,
   closeTestDb,
 } from "./helpers.js";
-import { parseLiteralJSON, ALLOWED_EVENT_TYPES } from "../types/analytics.js";
+import {
+  parseLiteralJSON,
+  ALLOWED_EVENT_TYPES,
+  MAX_JSON_DEPTH,
+} from "../types/analytics.js";
 import { Kind, type ValueNode } from "graphql";
 
 const TRACK_EVENT_MUTATION = `
@@ -201,7 +205,7 @@ describe("Analytics", () => {
     it("throws on nesting exceeding max depth", () => {
       // Build a deeply nested object: { a: { a: { a: ... } } }
       let ast = { kind: Kind.STRING, value: "leaf" } as ValueNode;
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < MAX_JSON_DEPTH + 2; i++) {
         ast = {
           kind: Kind.OBJECT,
           fields: [

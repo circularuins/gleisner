@@ -1,10 +1,10 @@
-import { GraphQLError, GraphQLScalarType, Kind } from "graphql";
+import { GraphQLError, Kind } from "graphql";
 import type { ValueNode } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { analyticsEvents } from "../../db/schema/index.js";
 
-const MAX_JSON_DEPTH = 10;
+export const MAX_JSON_DEPTH = 10;
 
 // JSON scalar for metadata — accepts any JSON value (depth-limited)
 export function parseLiteralJSON(ast: ValueNode, depth = 0): unknown {
@@ -31,13 +31,19 @@ export function parseLiteralJSON(ast: ValueNode, depth = 0): unknown {
   return null;
 }
 
-const GraphQLJSON = new GraphQLScalarType({
-  name: "JSON",
-  description: "Arbitrary JSON value",
-  serialize: (value) => value,
-  parseValue: (value) => value,
-  parseLiteral: (ast) => parseLiteralJSON(ast),
-});
+/** Validate JSON depth recursively (works on parseValue input — plain JS objects). */
+function validateJsonDepth(value: unknown, depth = 0): void {
+  if (depth > MAX_JSON_DEPTH) {
+    throw new GraphQLError(
+      `JSON nesting exceeds maximum depth of ${MAX_JSON_DEPTH}`,
+    );
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) validateJsonDepth(item, depth + 1);
+  } else if (value !== null && typeof value === "object") {
+    for (const v of Object.values(value)) validateJsonDepth(v, depth + 1);
+  }
+}
 
 /**
  * Allowed analytics event types. Each corresponds to a user interaction
@@ -57,12 +63,13 @@ export const ALLOWED_EVENT_TYPES = [
   "signup_complete", // Signup succeeded
 ] as const;
 
-// Register as inputType since Pothos doesn't have addScalarType for arbitrary names.
-// We use builder.scalarType to register it properly.
 builder.scalarType("JSON", {
-  serialize: GraphQLJSON.serialize,
-  parseValue: GraphQLJSON.parseValue,
-  parseLiteral: GraphQLJSON.parseLiteral,
+  serialize: (value) => value,
+  parseValue: (value) => {
+    validateJsonDepth(value);
+    return value;
+  },
+  parseLiteral: (ast) => parseLiteralJSON(ast),
 });
 
 builder.mutationFields((t) => ({
@@ -98,12 +105,16 @@ builder.mutationFields((t) => ({
         }
       }
 
-      await db.insert(analyticsEvents).values({
-        eventType: args.eventType,
-        userId: ctx.authUser?.userId ?? null,
-        sessionId: args.sessionId,
-        metadata: args.metadata ?? null,
-      });
+      try {
+        await db.insert(analyticsEvents).values({
+          eventType: args.eventType,
+          userId: ctx.authUser?.userId ?? null,
+          sessionId: args.sessionId,
+          metadata: args.metadata ?? null,
+        });
+      } catch {
+        throw new GraphQLError("Failed to record analytics event");
+      }
 
       return true;
     },

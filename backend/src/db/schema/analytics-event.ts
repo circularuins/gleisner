@@ -28,5 +28,6 @@ export const analyticsEvents = pgTable(
       table.createdAt,
     ),
     index("analytics_event_user_id_idx").on(table.userId),
+    index("analytics_event_session_id_idx").on(table.sessionId),
   ],
 );
