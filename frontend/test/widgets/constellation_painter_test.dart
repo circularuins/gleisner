@@ -327,6 +327,12 @@ void main() {
       expect(a.shouldRepaint(b), isTrue);
     });
 
+    test('returns true when simultaneousDots changes', () {
+      final a = ConstellationPainter(layout: layout1, simultaneousDots: 3);
+      final b = ConstellationPainter(layout: layout1, simultaneousDots: 5);
+      expect(a.shouldRepaint(b), isTrue);
+    });
+
     test('returns true when constellationPostIds changes', () {
       final a = ConstellationPainter(layout: layout1);
       final b = ConstellationPainter(layout: layout1, constellationPostIds: {'p1'});

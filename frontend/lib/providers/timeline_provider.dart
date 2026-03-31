@@ -291,7 +291,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   Future<PostConnection?> createConnection(
     String sourceId,
     String targetId, {
-    String connectionType = 'reference',
+    ConnectionType connectionType = ConnectionType.reference,
   }) async {
     try {
       final result = await _client.mutate(
@@ -300,7 +300,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
           variables: {
             'sourceId': sourceId,
             'targetId': targetId,
-            'connectionType': connectionType,
+            'connectionType': connectionType.name,
           },
         ),
       );

@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
+
 import '../utils/sentinel.dart';
 import 'track.dart';
 
@@ -73,13 +75,19 @@ enum ConnectionType {
   reply;
 
   /// Parse from a backend string. Falls back to [reference] for unknown values.
-  static ConnectionType fromString(String value) => switch (value) {
-        'reference' => ConnectionType.reference,
-        'evolution' => ConnectionType.evolution,
-        'remix' => ConnectionType.remix,
-        'reply' => ConnectionType.reply,
-        _ => ConnectionType.reference,
-      };
+  static ConnectionType fromString(String value) {
+    return switch (value) {
+      'reference' => ConnectionType.reference,
+      'evolution' => ConnectionType.evolution,
+      'remix' => ConnectionType.remix,
+      'reply' => ConnectionType.reply,
+      _ => () {
+          debugPrint('[ConnectionType] Unknown value "$value", '
+              'falling back to reference');
+          return ConnectionType.reference;
+        }(),
+    };
+  }
 }
 
 class PostConnection {

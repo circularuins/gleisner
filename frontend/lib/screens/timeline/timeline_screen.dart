@@ -646,10 +646,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
         notifier.updatePostReactions(id, counts, myReactions);
       },
       onCreateConnection: isOwn
-          ? (sourceId, targetId, connectionType) => notifier.createConnection(
+          ? (sourceId, targetId, type) => notifier.createConnection(
               sourceId,
               targetId,
-              connectionType: connectionType,
+              connectionType: type,
             )
           : null,
       onDeleteConnection: isOwn

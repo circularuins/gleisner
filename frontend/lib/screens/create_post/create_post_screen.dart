@@ -534,7 +534,7 @@ class _FormStep extends ConsumerWidget {
         },
       ),
     );
-    if (selected != null) {
+    if (selected != null && context.mounted) {
       ref.read(createPostProvider.notifier).addConnection(selected!, type);
     }
   }

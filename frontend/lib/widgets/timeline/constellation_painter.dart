@@ -269,6 +269,7 @@ class ConstellationPainter extends CustomPainter {
       layout != oldDelegate.layout ||
       constellationPostIds != oldDelegate.constellationPostIds ||
       animationValue != oldDelegate.animationValue ||
+      simultaneousDots != oldDelegate.simultaneousDots ||
       scrollOffset != oldDelegate.scrollOffset ||
       viewportHeight != oldDelegate.viewportHeight;
 }

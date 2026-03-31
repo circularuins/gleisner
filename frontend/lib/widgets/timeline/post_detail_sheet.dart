@@ -23,7 +23,7 @@ void showPostDetailSheet(
   Future<PostConnection?> Function(
     String sourceId,
     String targetId,
-    String connectionType,
+    ConnectionType connectionType,
   )?
   onCreateConnection,
   Future<bool> Function(String connectionId)? onDeleteConnection,
@@ -67,7 +67,7 @@ class _PostDetailSheet extends StatefulWidget {
   final Future<PostConnection?> Function(
     String sourceId,
     String targetId,
-    String connectionType,
+    ConnectionType connectionType,
   )?
   onCreateConnection;
   final Future<bool> Function(String connectionId)? onDeleteConnection;
@@ -652,7 +652,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       final conn = await widget.onCreateConnection?.call(
         widget.post.id,
         selectedPost!.id,
-        type.name,
+        type,
       );
       if (conn != null && mounted) {
         setState(() {
