@@ -3,7 +3,9 @@ import crypto from "node:crypto";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { invites } from "../../db/schema/index.js";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
+
+const MAX_INVITES_PER_USER = 10;
 
 const InviteType = builder.objectRef<{
   id: string;
@@ -55,6 +57,17 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Email must be 255 characters or less");
       }
 
+      // Enforce per-user invite limit
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(invites)
+        .where(eq(invites.createdBy, ctx.authUser.userId));
+      if (count >= MAX_INVITES_PER_USER) {
+        throw new GraphQLError(
+          `You can create up to ${MAX_INVITES_PER_USER} invite codes`,
+        );
+      }
+
       const code = crypto.randomBytes(10).toString("hex");
       const expiresAt =
         args.expiresInDays != null
@@ -77,6 +90,8 @@ builder.mutationFields((t) => ({
 }));
 
 builder.queryFields((t) => ({
+  // email is shown in plaintext — acceptable because users only see
+  // their own invites (filtered by createdBy = authUser.userId)
   myInvites: t.field({
     type: [InviteType],
     resolve: async (_parent, _args, ctx) => {

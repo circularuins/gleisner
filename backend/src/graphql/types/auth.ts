@@ -3,7 +3,7 @@ import { builder } from "../builder.js";
 import { UserType, type UserShape, userColumns } from "./user.js";
 import { db } from "../../db/index.js";
 import { users, invites } from "../../db/schema/index.js";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import { env } from "../../env.js";
 import {
   generateEdKeyPair,
@@ -90,24 +90,21 @@ builder.mutationType({
         }
 
         // Validate invite code (when required)
+        // Uses atomic UPDATE ... WHERE ... RETURNING to prevent TOCTOU race
         if (env.REQUIRE_INVITE) {
           if (!args.inviteCode) {
             throw new GraphQLError("Invite code is required");
           }
-          const [invite] = await db
-            .select()
+          // Pre-check email restriction (before atomic claim)
+          const [inviteCheck] = await db
+            .select({ email: invites.email })
             .from(invites)
-            .where(
-              and(eq(invites.code, args.inviteCode), isNull(invites.usedBy)),
-            )
+            .where(eq(invites.code, args.inviteCode))
             .limit(1);
-          if (!invite) {
+          if (!inviteCheck) {
             throw new GraphQLError("Invalid or already used invite code");
           }
-          if (invite.expiresAt && invite.expiresAt < new Date()) {
-            throw new GraphQLError("Invite code has expired");
-          }
-          if (invite.email && invite.email !== args.email) {
+          if (inviteCheck.email && inviteCheck.email !== args.email) {
             throw new GraphQLError("This invite code is for a different email");
           }
         }
@@ -147,12 +144,26 @@ builder.mutationType({
           .where(eq(users.id, userId))
           .returning(userColumns);
 
-        // Mark invite as used
+        // Atomically claim invite (prevents TOCTOU: concurrent signups
+        // with the same code will fail here since only one UPDATE can
+        // match used_by IS NULL)
         if (env.REQUIRE_INVITE && args.inviteCode) {
-          await db
+          const [claimed] = await db
             .update(invites)
             .set({ usedBy: userId, usedAt: new Date() })
-            .where(eq(invites.code, args.inviteCode));
+            .where(
+              and(
+                eq(invites.code, args.inviteCode),
+                isNull(invites.usedBy),
+                sql`(${invites.expiresAt} IS NULL OR ${invites.expiresAt} > NOW())`,
+              ),
+            )
+            .returning({ id: invites.id });
+          if (!claimed) {
+            // Rollback: delete the user we just created
+            await db.delete(users).where(eq(users.id, userId));
+            throw new GraphQLError("Invalid or already used invite code");
+          }
         }
 
         const token = await signToken(safeUser.id);

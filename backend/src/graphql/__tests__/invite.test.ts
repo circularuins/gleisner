@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterAll,
+  afterEach,
+} from "vitest";
 import { sql, eq } from "drizzle-orm";
 import {
   getTestApp,
@@ -40,7 +48,10 @@ describe("Invite system", () => {
 
   beforeAll(async () => {
     app = await getTestApp();
-    return closeTestDb;
+  });
+
+  afterAll(async () => {
+    await closeTestDb();
   });
 
   beforeEach(async () => {
@@ -97,6 +108,21 @@ describe("Invite system", () => {
       const result = await gql(app, CREATE_INVITE_MUTATION, {});
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toBe("Authentication required");
+    });
+
+    it("enforces per-user invite limit", async () => {
+      const token = await signupAndGetToken(app, "inv4@test.com", "invuser4");
+
+      // Create 10 invites (the limit)
+      for (let i = 0; i < 10; i++) {
+        const result = await gql(app, CREATE_INVITE_MUTATION, {}, token);
+        expect(result.errors).toBeUndefined();
+      }
+
+      // 11th should fail
+      const result = await gql(app, CREATE_INVITE_MUTATION, {}, token);
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("up to 10");
     });
   });
 
@@ -261,6 +287,43 @@ describe("Invite system", () => {
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toBe(
         "This invite code is for a different email",
+      );
+    });
+
+    it("rejects expired invite code", async () => {
+      (env as Record<string, unknown>).REQUIRE_INVITE = false;
+      const adminToken = await signupAndGetToken(
+        app,
+        "admin4@test.com",
+        "adminuser4",
+      );
+      (env as Record<string, unknown>).REQUIRE_INVITE = true;
+
+      // Create invite, then manually set expiresAt to the past
+      const inviteResult = await gql(
+        app,
+        CREATE_INVITE_MUTATION,
+        { expiresInDays: 1 },
+        adminToken,
+      );
+      const code = (inviteResult.data!.createInvite as { code: string }).code;
+
+      // Expire it manually
+      await db
+        .update(invites)
+        .set({ expiresAt: new Date("2020-01-01") })
+        .where(eq(invites.code, code));
+
+      const result = await gql(app, SIGNUP_WITH_INVITE, {
+        email: "expired@test.com",
+        password: "password123",
+        username: "expireduser",
+        inviteCode: code,
+      });
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain(
+        "Invalid or already used invite code",
       );
     });
   });
