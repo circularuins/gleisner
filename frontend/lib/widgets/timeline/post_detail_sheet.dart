@@ -543,7 +543,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      connectionTypeIcon(entry.conn.connectionType),
+                      entry.conn.connectionType.icon,
                       size: 12,
                       color: colorTextMuted,
                     ),
@@ -652,7 +652,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       final conn = await widget.onCreateConnection?.call(
         widget.post.id,
         selectedPost!.id,
-        type,
+        type.name,
       );
       if (conn != null && mounted) {
         setState(() {

@@ -310,7 +310,7 @@ void main() {
               id: 'conn-1',
               sourceId: '1',
               targetId: '2',
-              connectionType: 'synapse',
+              connectionType: ConnectionType.reference,
             ),
           ],
         ),

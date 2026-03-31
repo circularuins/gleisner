@@ -28,7 +28,7 @@ Post _makeTestPost() {
         id: 'c1',
         sourceId: 'p1',
         targetId: 'p2',
-        connectionType: 'reference',
+        connectionType: ConnectionType.reference,
       ),
     ],
     incomingConnections: const [],
@@ -104,7 +104,7 @@ void main() {
         id: 'c2',
         sourceId: 'p1',
         targetId: 'p3',
-        connectionType: 'reference',
+        connectionType: ConnectionType.reference,
       );
       final copy = post.copyWith(
         outgoingConnections: [...post.outgoingConnections, newConn],

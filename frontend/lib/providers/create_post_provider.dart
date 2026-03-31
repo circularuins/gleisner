@@ -10,7 +10,7 @@ import '../models/track.dart';
 import '../utils/sentinel.dart';
 
 /// A pending connection: target post + connection type.
-typedef PendingConnection = ({Post post, String connectionType});
+typedef PendingConnection = ({Post post, ConnectionType connectionType});
 
 class CreatePostState {
   final int step; // 0: track, 1: mediaType, 2: form
@@ -87,7 +87,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
     state = state.copyWith(visibility: value);
   }
 
-  void addConnection(Post post, String connectionType) {
+  void addConnection(Post post, ConnectionType connectionType) {
     if (state.selectedConnections.length >= 5) return;
     // Prevent duplicate target
     if (state.selectedConnections.any((c) => c.post.id == post.id)) return;
@@ -166,17 +166,18 @@ class CreatePostNotifier extends Notifier<CreatePostState>
         return null;
       }
 
-      // Create connections to related posts (best-effort)
+      // Create connections to related posts (best-effort, parallel)
       var enrichedPost = post;
-      final connections = <PostConnection>[];
-      for (final pending in state.selectedConnections) {
-        final conn = await _createConnection(
-          post.id,
-          pending.post.id,
-          connectionType: pending.connectionType,
-        );
-        if (conn != null) connections.add(conn);
-      }
+      final results = await Future.wait(
+        state.selectedConnections.map(
+          (pending) => _createConnection(
+            post.id,
+            pending.post.id,
+            connectionType: pending.connectionType.name,
+          ),
+        ),
+      );
+      final connections = results.whereType<PostConnection>().toList();
       if (connections.isNotEmpty) {
         enrichedPost = post.copyWith(outgoingConnections: connections);
       }

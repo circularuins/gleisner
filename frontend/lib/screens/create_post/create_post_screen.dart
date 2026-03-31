@@ -825,7 +825,7 @@ class _ConnectionsSection extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    connectionTypeIcon(c.connectionType),
+                    c.connectionType.icon,
                     size: 16,
                     color: theme.colorScheme.onSurface.withAlpha(150),
                   ),
@@ -850,7 +850,7 @@ class _ConnectionsSection extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
-                '${connectionTypeLabel(c.connectionType)} · ${post.trackName ?? ''}',
+                '${c.connectionType.label} · ${post.trackName ?? ''}',
                 style: theme.textTheme.labelSmall,
               ),
               trailing: IconButton(

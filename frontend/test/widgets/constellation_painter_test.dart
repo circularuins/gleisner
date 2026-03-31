@@ -1,7 +1,6 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gleisner_web/models/post.dart';
 import 'package:gleisner_web/utils/constellation_layout.dart';
 import 'package:gleisner_web/widgets/timeline/constellation_painter.dart';
 
@@ -10,7 +9,7 @@ SynapseConnection _makeConn({
   Offset end = const Offset(100, 500),
   Offset? cp1,
   Offset? cp2,
-  String connectionType = 'reference',
+  ConnectionType connectionType = ConnectionType.reference,
   String sourcePostId = 's1',
   String targetPostId = 't1',
 }) {
@@ -93,51 +92,55 @@ void main() {
 
   group('dotCount', () {
     test('reference has 1 dot', () {
-      expect(ConstellationPainter.dotCount('reference'), 1);
+      expect(ConstellationPainter.dotCount(ConnectionType.reference), 1);
     });
 
     test('evolution has 2 dots', () {
-      expect(ConstellationPainter.dotCount('evolution'), 2);
+      expect(ConstellationPainter.dotCount(ConnectionType.evolution), 2);
     });
 
     test('remix has 4 dots', () {
-      expect(ConstellationPainter.dotCount('remix'), 4);
+      expect(ConstellationPainter.dotCount(ConnectionType.remix), 4);
     });
 
     test('reply has 3 dots', () {
-      expect(ConstellationPainter.dotCount('reply'), 3);
+      expect(ConstellationPainter.dotCount(ConnectionType.reply), 3);
     });
 
-    test('unknown type defaults to 1', () {
-      expect(ConstellationPainter.dotCount('unknown'), 1);
+    test('all types covered (exhaustive switch)', () {
+      // With enum, all types are guaranteed at compile time.
+      // Verify every value returns a positive count.
+      for (final type in ConnectionType.values) {
+        expect(ConstellationPainter.dotCount(type), greaterThan(0));
+      }
     });
   });
 
   group('applyEasing', () {
     test('evolution applies ease-in (t²)', () {
-      expect(ConstellationPainter.applyEasing('evolution', 0.0), 0.0);
-      expect(ConstellationPainter.applyEasing('evolution', 0.5), 0.25);
-      expect(ConstellationPainter.applyEasing('evolution', 1.0), 1.0);
+      expect(ConstellationPainter.applyEasing(ConnectionType.evolution, 0.0), 0.0);
+      expect(ConstellationPainter.applyEasing(ConnectionType.evolution, 0.5), 0.25);
+      expect(ConstellationPainter.applyEasing(ConnectionType.evolution, 1.0), 1.0);
     });
 
     test('reference returns linear (unchanged)', () {
-      expect(ConstellationPainter.applyEasing('reference', 0.5), 0.5);
-      expect(ConstellationPainter.applyEasing('reference', 0.3), 0.3);
+      expect(ConstellationPainter.applyEasing(ConnectionType.reference, 0.5), 0.5);
+      expect(ConstellationPainter.applyEasing(ConnectionType.reference, 0.3), 0.3);
     });
 
     test('reply returns linear', () {
-      expect(ConstellationPainter.applyEasing('reply', 0.7), 0.7);
+      expect(ConstellationPainter.applyEasing(ConnectionType.reply, 0.7), 0.7);
     });
 
     test('remix returns linear', () {
-      expect(ConstellationPainter.applyEasing('remix', 0.4), 0.4);
+      expect(ConstellationPainter.applyEasing(ConnectionType.remix, 0.4), 0.4);
     });
 
     test('evolution is always ≤ linear (ease-in curve)', () {
       for (var i = 0; i <= 10; i++) {
         final t = i / 10.0;
         expect(
-          ConstellationPainter.applyEasing('evolution', t),
+          ConstellationPainter.applyEasing(ConnectionType.evolution, t),
           lessThanOrEqualTo(t + 0.001), // float tolerance
         );
       }
@@ -146,7 +149,7 @@ void main() {
 
   group('pulseAlpha', () {
     test('non-reply types always return 1.0', () {
-      for (final type in ['reference', 'evolution', 'remix', 'unknown']) {
+      for (final type in [ConnectionType.reference, ConnectionType.evolution, ConnectionType.remix]) {
         expect(ConstellationPainter.pulseAlpha(type, 0.0), 1.0);
         expect(ConstellationPainter.pulseAlpha(type, 0.5), 1.0);
         expect(ConstellationPainter.pulseAlpha(type, 1.0), 1.0);
@@ -157,7 +160,7 @@ void main() {
       // Formula: 0.5 + 0.5 * sin(t * pi * 4), range = [0.0, 1.0]
       for (var i = 0; i <= 100; i++) {
         final t = i / 100.0;
-        final alpha = ConstellationPainter.pulseAlpha('reply', t);
+        final alpha = ConstellationPainter.pulseAlpha(ConnectionType.reply, t);
         expect(alpha, greaterThanOrEqualTo(-0.001));
         expect(alpha, lessThanOrEqualTo(1.0 + 0.001));
       }
@@ -165,13 +168,13 @@ void main() {
 
     test('reply reaches 1.0 at peak', () {
       // sin(t * pi * 4) = 1 when t * pi * 4 = pi/2 → t = 0.125
-      final peak = ConstellationPainter.pulseAlpha('reply', 0.125);
+      final peak = ConstellationPainter.pulseAlpha(ConnectionType.reply, 0.125);
       expect(peak, closeTo(1.0, 0.001));
     });
 
     test('reply reaches 0.0 at trough', () {
       // sin(t * pi * 4) = -1 when t * pi * 4 = 3*pi/2 → t = 0.375
-      final trough = ConstellationPainter.pulseAlpha('reply', 0.375);
+      final trough = ConstellationPainter.pulseAlpha(ConnectionType.reply, 0.375);
       expect(trough, closeTo(0.0, 0.001));
     });
 
@@ -181,7 +184,7 @@ void main() {
       // (the midline crossings / start points of each half-cycle)
       for (final t in [0.0, 0.25, 0.5, 0.75, 1.0]) {
         expect(
-          ConstellationPainter.pulseAlpha('reply', t),
+          ConstellationPainter.pulseAlpha(ConnectionType.reply, t),
           closeTo(0.5, 0.01),
           reason: 'alpha should be ~0.5 at t=$t',
         );
@@ -191,11 +194,11 @@ void main() {
 
   group('isBidirectional', () {
     test('remix is bidirectional', () {
-      expect(ConstellationPainter.isBidirectional('remix'), isTrue);
+      expect(ConstellationPainter.isBidirectional(ConnectionType.remix), isTrue);
     });
 
     test('other types are not bidirectional', () {
-      for (final type in ['reference', 'evolution', 'reply', 'unknown']) {
+      for (final type in [ConnectionType.reference, ConnectionType.evolution, ConnectionType.reply]) {
         expect(ConstellationPainter.isBidirectional(type), isFalse);
       }
     });
@@ -335,7 +338,7 @@ void main() {
 
   group('connection type dot distribution', () {
     test('remix splits dots into forward and reverse', () {
-      final total = ConstellationPainter.dotCount('remix'); // 4
+      final total = ConstellationPainter.dotCount(ConnectionType.remix); // 4
       final forward = (total / 2).ceil(); // 2
       final reverse = total - forward; // 2
       expect(forward, 2);
@@ -343,7 +346,7 @@ void main() {
     });
 
     test('non-bidirectional types have all dots forward', () {
-      for (final type in ['reference', 'evolution', 'reply']) {
+      for (final type in [ConnectionType.reference, ConnectionType.evolution, ConnectionType.reply]) {
         final total = ConstellationPainter.dotCount(type);
         final bidir = ConstellationPainter.isBidirectional(type);
         expect(bidir, isFalse);

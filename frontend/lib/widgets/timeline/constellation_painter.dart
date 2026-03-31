@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../models/post.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/constellation_layout.dart';
 
@@ -86,33 +87,31 @@ class ConstellationPainter extends CustomPainter {
 
   /// Number of dots travelling along a connection.
   @visibleForTesting
-  static int dotCount(String type) => switch (type) {
-        'reference' => 1,
-        'evolution' => 2,
-        'remix' => 4,
-        'reply' => 3,
-        _ => 1,
+  static int dotCount(ConnectionType type) => switch (type) {
+        ConnectionType.reference => 1,
+        ConnectionType.evolution => 2,
+        ConnectionType.remix => 4,
+        ConnectionType.reply => 3,
       };
 
   /// Apply easing per type. Returns adjusted progress (0–1).
   @visibleForTesting
-  static double applyEasing(String type, double t) => switch (type) {
-        // evolution: ease-in — slow start, accelerating finish
-        'evolution' => t * t,
+  static double applyEasing(ConnectionType type, double t) => switch (type) {
+        ConnectionType.evolution => t * t,
         _ => t,
       };
 
   /// Alpha multiplier for pulsing (reply type).
   @visibleForTesting
-  static double pulseAlpha(String type, double t) => switch (type) {
-        // reply: sinusoidal pulse — 0.5–1.0 oscillation
-        'reply' => 0.5 + 0.5 * sin(t * pi * 4),
+  static double pulseAlpha(ConnectionType type, double t) => switch (type) {
+        ConnectionType.reply => 0.5 + 0.5 * sin(t * pi * 4),
         _ => 1.0,
       };
 
   /// Whether this type has dots flowing in both directions.
   @visibleForTesting
-  static bool isBidirectional(String type) => type == 'remix';
+  static bool isBidirectional(ConnectionType type) =>
+      type == ConnectionType.remix;
 
   // ────────────────────────────────────────────────────────────────
 

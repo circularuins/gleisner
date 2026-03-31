@@ -1,24 +1,36 @@
 import 'package:flutter/material.dart';
 
+import '../../models/post.dart';
 import '../../theme/gleisner_tokens.dart';
 
-/// The four connection types supported by the backend.
-const connectionTypes = [
-  (
-    'reference',
-    'Reference',
-    Icons.bookmark_outline,
-    'Inspired by or related to',
-  ),
-  ('evolution', 'Evolution', Icons.trending_up, 'Next version of this piece'),
-  ('remix', 'Remix', Icons.shuffle, 'A remix or reinterpretation'),
-  ('reply', 'Reply', Icons.reply, 'A response to this post'),
-];
+/// Metadata for each [ConnectionType].
+extension ConnectionTypeMeta on ConnectionType {
+  String get label => switch (this) {
+        ConnectionType.reference => 'Reference',
+        ConnectionType.evolution => 'Evolution',
+        ConnectionType.remix => 'Remix',
+        ConnectionType.reply => 'Reply',
+      };
+
+  IconData get icon => switch (this) {
+        ConnectionType.reference => Icons.bookmark_outline,
+        ConnectionType.evolution => Icons.trending_up,
+        ConnectionType.remix => Icons.shuffle,
+        ConnectionType.reply => Icons.reply,
+      };
+
+  String get description => switch (this) {
+        ConnectionType.reference => 'Inspired by or related to',
+        ConnectionType.evolution => 'Next version of this piece',
+        ConnectionType.remix => 'A remix or reinterpretation',
+        ConnectionType.reply => 'A response to this post',
+      };
+}
 
 /// Shows a bottom sheet to pick a connection type.
-/// Returns the selected type string, or null if dismissed.
-Future<String?> showConnectionTypePicker(BuildContext context) {
-  return showModalBottomSheet<String>(
+/// Returns the selected type, or null if dismissed.
+Future<ConnectionType?> showConnectionTypePicker(BuildContext context) {
+  return showModalBottomSheet<ConnectionType>(
     context: context,
     backgroundColor: Colors.transparent,
     builder: (_) => const _ConnectionTypePicker(),
@@ -60,8 +72,7 @@ class _ConnectionTypePicker extends StatelessWidget {
             ),
           ),
           const SizedBox(height: spaceMd),
-          ...connectionTypes.map((t) {
-            final (type, label, icon, description) = t;
+          ...ConnectionType.values.map((type) {
             return Padding(
               padding: const EdgeInsets.only(bottom: spaceSm),
               child: InkWell(
@@ -76,14 +87,14 @@ class _ConnectionTypePicker extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(icon, size: 20, color: colorInteractive),
+                      Icon(type.icon, size: 20, color: colorInteractive),
                       const SizedBox(width: spaceMd),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              label,
+                              type.label,
                               style: const TextStyle(
                                 color: colorTextPrimary,
                                 fontSize: fontSizeMd,
@@ -91,7 +102,7 @@ class _ConnectionTypePicker extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              description,
+                              type.description,
                               style: const TextStyle(
                                 color: colorTextMuted,
                                 fontSize: fontSizeXs,
@@ -111,20 +122,4 @@ class _ConnectionTypePicker extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Returns a human-readable label for a connection type.
-String connectionTypeLabel(String type) {
-  for (final (t, label, _, _) in connectionTypes) {
-    if (t == type) return label;
-  }
-  return type;
-}
-
-/// Returns an icon for a connection type.
-IconData connectionTypeIcon(String type) {
-  for (final (t, _, icon, _) in connectionTypes) {
-    if (t == type) return icon;
-  }
-  return Icons.link;
 }

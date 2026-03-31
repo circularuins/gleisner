@@ -90,6 +90,14 @@ const CREATE_POST_MUTATION = `
   }
 `;
 
+const UPDATE_POST_MUTATION = `
+  mutation UpdatePost($id: String!, $visibility: String) {
+    updatePost(id: $id, visibility: $visibility) {
+      id visibility
+    }
+  }
+`;
+
 const CREATE_CONNECTION_MUTATION = `
   mutation CreateConnection(
     $sourceId: String!,
@@ -372,6 +380,75 @@ describe("Connection GraphQL integration", () => {
 
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toBe("Authentication required");
+    });
+
+    it("rejects connection to another user's draft post", async () => {
+      const token1 = await signupAndRegisterArtist(
+        app,
+        "cn7a@example.com",
+        "cnuser7a",
+        "cnartist7a",
+      );
+      const token2 = await signupAndRegisterArtist(
+        app,
+        "cn7b@example.com",
+        "cnuser7b",
+        "cnartist7b",
+      );
+
+      const sourceId = await createPostForTest(app, token1);
+      const targetId = await createPostForTest(app, token2);
+
+      // Make target post a draft
+      await gql(
+        app,
+        UPDATE_POST_MUTATION,
+        { id: targetId, visibility: "draft" },
+        token2,
+      );
+
+      const result = await gql(
+        app,
+        CREATE_CONNECTION_MUTATION,
+        { sourceId, targetId, connectionType: "reference" },
+        token1,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe("Target post not found");
+    });
+
+    it("allows connection to own draft post", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "cn8@example.com",
+        "cnuser8",
+        "cnartist8",
+      );
+
+      const sourceId = await createPostForTest(app, token);
+      const targetId = await createPostForTest(app, token);
+
+      // Make target post a draft
+      await gql(
+        app,
+        UPDATE_POST_MUTATION,
+        { id: targetId, visibility: "draft" },
+        token,
+      );
+
+      const result = await gql(
+        app,
+        CREATE_CONNECTION_MUTATION,
+        { sourceId, targetId, connectionType: "reference" },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+      expect(
+        (result.data!.createConnection as { connectionType: string })
+          .connectionType,
+      ).toBe("reference");
     });
   });
 
