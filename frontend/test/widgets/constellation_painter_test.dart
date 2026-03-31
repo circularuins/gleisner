@@ -351,14 +351,17 @@ void main() {
       expect(reverse, 2);
     });
 
-    test('non-bidirectional types have all dots forward', () {
+    test('non-bidirectional types are not split into reverse dots', () {
       for (final type in [ConnectionType.reference, ConnectionType.evolution, ConnectionType.reply]) {
+        expect(ConstellationPainter.isBidirectional(type), isFalse,
+            reason: '$type should not be bidirectional');
+        // For non-bidirectional types, forward count equals total count
+        // (no reverse dots are allocated)
         final total = ConstellationPainter.dotCount(type);
-        final bidir = ConstellationPainter.isBidirectional(type);
-        expect(bidir, isFalse);
-        // All dots travel forward
-        final forward = total;
-        expect(forward, total);
+        final forwardDots = total; // bidir=false → no split
+        final reverseDots = 0;
+        expect(forwardDots + reverseDots, total);
+        expect(reverseDots, 0);
       }
     });
   });

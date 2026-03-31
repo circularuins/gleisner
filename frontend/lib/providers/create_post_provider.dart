@@ -173,7 +173,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
           (pending) => _createConnection(
             post.id,
             pending.post.id,
-            connectionType: pending.connectionType.name,
+            connectionType: pending.connectionType,
           ),
         ),
       );
@@ -194,7 +194,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
   Future<PostConnection?> _createConnection(
     String sourceId,
     String targetId, {
-    String connectionType = 'reference',
+    ConnectionType connectionType = ConnectionType.reference,
   }) async {
     try {
       final result = await _client.mutate(
@@ -203,7 +203,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
           variables: {
             'sourceId': sourceId,
             'targetId': targetId,
-            'connectionType': connectionType,
+            'connectionType': connectionType.name,
           },
         ),
       );
