@@ -7,8 +7,8 @@ import {
   signupAndGetToken,
   closeTestDb,
 } from "./helpers.js";
-import { parseLiteralJSON } from "../types/analytics.js";
-import { Kind } from "graphql";
+import { parseLiteralJSON, ALLOWED_EVENT_TYPES } from "../types/analytics.js";
+import { Kind, type ValueNode } from "graphql";
 
 const TRACK_EVENT_MUTATION = `
   mutation TrackEvent($eventType: String!, $sessionId: String!, $metadata: JSON) {
@@ -108,18 +108,7 @@ describe("Analytics", () => {
     });
 
     it("accepts all valid event types", async () => {
-      const types = [
-        "page_view",
-        "post_view",
-        "reaction_tap",
-        "connection_click",
-        "scroll_depth",
-        "session_start",
-        "signup_start",
-        "signup_complete",
-      ];
-
-      for (const eventType of types) {
+      for (const eventType of ALLOWED_EVENT_TYPES) {
         const result = await gql(app, TRACK_EVENT_MUTATION, {
           eventType,
           sessionId: `sess-${eventType}`,
@@ -130,7 +119,7 @@ describe("Analytics", () => {
       const rows = await db.execute(
         sql`SELECT count(*) as cnt FROM analytics_events`,
       );
-      expect(Number(rows[0].cnt)).toBe(types.length);
+      expect(Number(rows[0].cnt)).toBe(ALLOWED_EVENT_TYPES.length);
     });
 
     it("rejects sessionId exceeding 64 characters", async () => {
@@ -201,6 +190,30 @@ describe("Analytics", () => {
         ],
       });
       expect(result).toEqual([1, 2]);
+    });
+
+    it("returns null for unknown AST kind (e.g. ENUM)", () => {
+      expect(
+        parseLiteralJSON({ kind: Kind.ENUM, value: "SOME_ENUM" }),
+      ).toBeNull();
+    });
+
+    it("throws on nesting exceeding max depth", () => {
+      // Build a deeply nested object: { a: { a: { a: ... } } }
+      let ast = { kind: Kind.STRING, value: "leaf" } as ValueNode;
+      for (let i = 0; i < 12; i++) {
+        ast = {
+          kind: Kind.OBJECT,
+          fields: [
+            {
+              kind: Kind.OBJECT_FIELD as const,
+              name: { kind: Kind.NAME as const, value: "a" },
+              value: ast,
+            },
+          ],
+        } as ValueNode;
+      }
+      expect(() => parseLiteralJSON(ast)).toThrow("maximum depth");
     });
   });
 });

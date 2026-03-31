@@ -4,8 +4,15 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { analyticsEvents } from "../../db/schema/index.js";
 
-// JSON scalar for metadata — accepts any JSON value
-export function parseLiteralJSON(ast: ValueNode): unknown {
+const MAX_JSON_DEPTH = 10;
+
+// JSON scalar for metadata — accepts any JSON value (depth-limited)
+export function parseLiteralJSON(ast: ValueNode, depth = 0): unknown {
+  if (depth > MAX_JSON_DEPTH) {
+    throw new GraphQLError(
+      `JSON nesting exceeds maximum depth of ${MAX_JSON_DEPTH}`,
+    );
+  }
   if (ast.kind === Kind.STRING) return ast.value;
   if (ast.kind === Kind.INT) return parseInt(ast.value, 10);
   if (ast.kind === Kind.FLOAT) return parseFloat(ast.value);
@@ -14,12 +21,12 @@ export function parseLiteralJSON(ast: ValueNode): unknown {
   if (ast.kind === Kind.OBJECT) {
     const obj: Record<string, unknown> = {};
     for (const field of ast.fields) {
-      obj[field.name.value] = parseLiteralJSON(field.value);
+      obj[field.name.value] = parseLiteralJSON(field.value, depth + 1);
     }
     return obj;
   }
   if (ast.kind === Kind.LIST) {
-    return ast.values.map((v) => parseLiteralJSON(v));
+    return ast.values.map((v) => parseLiteralJSON(v, depth + 1));
   }
   return null;
 }
@@ -29,7 +36,7 @@ const GraphQLJSON = new GraphQLScalarType({
   description: "Arbitrary JSON value",
   serialize: (value) => value,
   parseValue: (value) => value,
-  parseLiteral: parseLiteralJSON,
+  parseLiteral: (ast) => parseLiteralJSON(ast),
 });
 
 /**
@@ -39,7 +46,7 @@ const GraphQLJSON = new GraphQLScalarType({
  * To add a new type: append here and add corresponding frontend trackEvent
  * call. Keep the list small — analytics noise dilutes signal.
  */
-const ALLOWED_EVENT_TYPES = [
+export const ALLOWED_EVENT_TYPES = [
   "page_view", // Screen navigation (includes page path in metadata)
   "post_view", // Post detail sheet opened
   "reaction_tap", // Reaction added/removed
@@ -83,10 +90,10 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("sessionId must be between 1 and 64 characters");
       }
 
-      // Validate metadata size (4KB limit to prevent DoS)
+      // Validate metadata size (4KB byte limit to prevent DoS)
       if (args.metadata != null) {
         const metadataStr = JSON.stringify(args.metadata);
-        if (metadataStr.length > 4096) {
+        if (Buffer.byteLength(metadataStr, "utf-8") > 4096) {
           throw new GraphQLError("metadata must be 4096 bytes or less");
         }
       }
