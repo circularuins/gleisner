@@ -30,6 +30,13 @@
     "jose": "^6.2.2",
     "postgres": "^3.4.8"
   },
+  "pnpm": {
+    "overrides": {
+      "picomatch@>=4.0.0 <4.0.4": ">=4.0.4",
+      "brace-expansion@>=4.0.0 <5.0.5": ">=5.0.5",
+      "esbuild@<=0.24.2": ">=0.25.0"
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.5.0",
@@ -40,7 +47,7 @@
     "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.2",
+    "typescript-eslint": "^8.58.0",
     "vitest": "^4.1.1"
   }
 }
