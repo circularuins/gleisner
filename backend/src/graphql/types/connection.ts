@@ -92,7 +92,11 @@ builder.mutationFields((t) => ({
 
       // Verify target post exists and is accessible (not draft, unless own)
       const [targetPost] = await db
-        .select({ id: posts.id, visibility: posts.visibility, authorId: posts.authorId })
+        .select({
+          id: posts.id,
+          visibility: posts.visibility,
+          authorId: posts.authorId,
+        })
         .from(posts)
         .where(eq(posts.id, args.targetId))
         .limit(1);
