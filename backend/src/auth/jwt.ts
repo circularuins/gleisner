@@ -5,6 +5,7 @@ import {
   importSPKI,
   generateKeyPair,
 } from "jose";
+import { env } from "../env.js";
 
 const ALG = "EdDSA";
 const TOKEN_EXPIRY = "24h";
@@ -19,16 +20,16 @@ export async function initJwtKeys(
   if (privateKeyPem && publicKeyPem) {
     privateKey = await importPKCS8(privateKeyPem, ALG);
     publicKey = await importSPKI(publicKeyPem, ALG);
+  } else if (env.NODE_ENV === "production") {
+    throw new Error(
+      "JWT_PRIVATE_KEY and JWT_PUBLIC_KEY must be set in production. " +
+        "Generate keys with: node scripts/generate-jwt-keys.ts",
+    );
   } else {
-    // Auto-generate for development
+    // Auto-generate for development/test only
     const keyPair = await generateKeyPair(ALG, { extractable: true });
     privateKey = keyPair.privateKey;
     publicKey = keyPair.publicKey;
-    // Log guidance without exposing key material
-    console.log("JWT keys auto-generated (development mode)");
-    console.log(
-      "Set JWT_PRIVATE_KEY and JWT_PUBLIC_KEY env vars for production",
-    );
   }
 }
 
