@@ -14,6 +14,7 @@ export { comments } from "./comment.js";
 export { tuneIns } from "./tune-in.js";
 export { follows } from "./follow.js";
 export { artistLinks, linkCategoryEnum } from "./artist-link.js";
+export { invites } from "./invite.js";
 
 // Re-import for relations
 import { users } from "./user.js";

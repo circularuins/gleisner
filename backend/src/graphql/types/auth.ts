@@ -2,8 +2,9 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { UserType, type UserShape, userColumns } from "./user.js";
 import { db } from "../../db/index.js";
-import { users } from "../../db/schema/index.js";
-import { eq } from "drizzle-orm";
+import { users, invites } from "../../db/schema/index.js";
+import { eq, and, isNull } from "drizzle-orm";
+import { env } from "../../env.js";
 import {
   generateEdKeyPair,
   generateSalt,
@@ -37,6 +38,7 @@ builder.mutationType({
         password: t.arg.string({ required: true }),
         username: t.arg.string({ required: true }),
         displayName: t.arg.string(),
+        inviteCode: t.arg.string(),
       },
       resolve: async (_parent, args) => {
         // Validate
@@ -87,6 +89,29 @@ builder.mutationType({
           throw new GraphQLError("Username already taken");
         }
 
+        // Validate invite code (when required)
+        if (env.REQUIRE_INVITE) {
+          if (!args.inviteCode) {
+            throw new GraphQLError("Invite code is required");
+          }
+          const [invite] = await db
+            .select()
+            .from(invites)
+            .where(
+              and(eq(invites.code, args.inviteCode), isNull(invites.usedBy)),
+            )
+            .limit(1);
+          if (!invite) {
+            throw new GraphQLError("Invalid or already used invite code");
+          }
+          if (invite.expiresAt && invite.expiresAt < new Date()) {
+            throw new GraphQLError("Invite code has expired");
+          }
+          if (invite.email && invite.email !== args.email) {
+            throw new GraphQLError("This invite code is for a different email");
+          }
+        }
+
         // Generate keys and credentials
         const { publicKey, privateKey } = generateEdKeyPair();
         const passwordSalt = generateSalt();
@@ -121,6 +146,14 @@ builder.mutationType({
           .set({ did })
           .where(eq(users.id, userId))
           .returning(userColumns);
+
+        // Mark invite as used
+        if (env.REQUIRE_INVITE && args.inviteCode) {
+          await db
+            .update(invites)
+            .set({ usedBy: userId, usedAt: new Date() })
+            .where(eq(invites.code, args.inviteCode));
+        }
 
         const token = await signToken(safeUser.id);
         return { token, user: safeUser };
