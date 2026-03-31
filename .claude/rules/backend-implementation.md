@@ -154,6 +154,52 @@ if (cached) return cached;
 5. **認可ロジック** — nullable になった FK を経由する認可チェックが null 時にバイパスされないか確認
 6. **マイグレーション** — `pnpm db:generate` + `pnpm db:migrate`（または `db:push`）
 
+### 複合 mutation はトランザクション必須
+
+**複数テーブルに書き込む mutation は `db.transaction()` で包むこと。** 後からロールバック処理を追加するアプローチは CASCADE 漏れ・孤児データのリスクがある。
+
+```typescript
+// ❌ 非トランザクション + 手動ロールバック — artists 等が CASCADE されない
+const [{ id }] = await db.insert(users).values({ ... }).returning({ id: users.id });
+const [claimed] = await db.update(invites).set({ usedBy: id }).where(...).returning(...);
+if (!claimed) {
+  await db.delete(users).where(eq(users.id, id)); // artists は残る
+  throw new GraphQLError("...");
+}
+
+// ✅ トランザクション — 失敗時は全て自動ロールバック
+const user = await db.transaction(async (tx) => {
+  const [{ id }] = await tx.insert(users).values({ ... }).returning({ id: users.id });
+  const [claimed] = await tx.update(invites).set({ usedBy: id }).where(...).returning(...);
+  if (!claimed) throw new GraphQLError("...");
+  return user;
+});
+```
+
+該当パターン: signup + invite claim、将来の決済系 mutation 等。
+
+### カスタム Scalar 追加チェックリスト
+
+**⚠ GraphQL カスタム Scalar を追加する場合、以下を同時に実装すること:**
+
+1. **`serialize`** — DB → クライアントへの出力変換
+2. **`parseValue`** — 変数渡し（`$metadata: JSON`）の入力検証。**フロントエンドの主要経路**
+3. **`parseLiteral`** — インラインリテラル（`metadata: { key: "val" }`）の入力検証
+
+`parseValue` と `parseLiteral` の**両方にバリデーション**（深度制限、サイズ制限等）を実装すること。`parseLiteral` だけにバリデーションを入れても、変数渡しでは呼ばれないため本番でバイパスされる。
+
+### CLI ツール（scripts/）のバイパス明示
+
+**CLI ツールが API のビジネスルール（上限チェック、認証等）をバイパスする場合、理由をコメントで明示すること。**
+
+```typescript
+// ✅ バイパスの意図を明記
+// admin-setup bypasses MAX_INVITES_PER_USER intentionally (CLI tool, not API)
+async function generateInvites(db, createdBy) { ... }
+```
+
+将来のメンテナが「バグでは？」と疑わないように、「なぜバイパスが妥当か」を1行で説明する。
+
 ### テスト
 
 - 共通ヘルパーは `src/graphql/__tests__/helpers.ts` に集約。新規テストファイルではこれを import
