@@ -254,5 +254,90 @@ void main() {
       final updated = state.copyWith(error: null);
       expect(updated.error, isNull);
     });
+
+    group('addConnection / removeConnection', () {
+      Post _fakePost(String id) => Post(
+            id: id,
+            mediaType: MediaType.text,
+            title: 'Post $id',
+            importance: 0.5,
+            createdAt: DateTime(2026),
+            updatedAt: DateTime(2026),
+            author: const PostAuthor(id: 'u1', username: 'test'),
+          );
+
+      test('adds a connection', () {
+        final container = _createContainer(client: _clientWith());
+        addTearDown(container.dispose);
+
+        final notifier = container.read(createPostProvider.notifier);
+        notifier.addConnection(_fakePost('p1'), ConnectionType.reference);
+
+        final state = container.read(createPostProvider);
+        expect(state.selectedConnections, hasLength(1));
+        expect(state.selectedConnections.first.post.id, 'p1');
+        expect(
+          state.selectedConnections.first.connectionType,
+          ConnectionType.reference,
+        );
+      });
+
+      test('enforces max 5 connections', () {
+        final container = _createContainer(client: _clientWith());
+        addTearDown(container.dispose);
+
+        final notifier = container.read(createPostProvider.notifier);
+        for (var i = 1; i <= 6; i++) {
+          notifier.addConnection(_fakePost('p$i'), ConnectionType.evolution);
+        }
+
+        expect(
+          container.read(createPostProvider).selectedConnections,
+          hasLength(5),
+        );
+      });
+
+      test('prevents duplicate target post', () {
+        final container = _createContainer(client: _clientWith());
+        addTearDown(container.dispose);
+
+        final notifier = container.read(createPostProvider.notifier);
+        notifier.addConnection(_fakePost('p1'), ConnectionType.reference);
+        notifier.addConnection(_fakePost('p1'), ConnectionType.remix);
+
+        expect(
+          container.read(createPostProvider).selectedConnections,
+          hasLength(1),
+        );
+      });
+
+      test('removes a connection by post id', () {
+        final container = _createContainer(client: _clientWith());
+        addTearDown(container.dispose);
+
+        final notifier = container.read(createPostProvider.notifier);
+        notifier.addConnection(_fakePost('p1'), ConnectionType.reference);
+        notifier.addConnection(_fakePost('p2'), ConnectionType.remix);
+        notifier.removeConnection('p1');
+
+        final conns = container.read(createPostProvider).selectedConnections;
+        expect(conns, hasLength(1));
+        expect(conns.first.post.id, 'p2');
+      });
+
+      test('reset clears connections', () {
+        final container = _createContainer(client: _clientWith());
+        addTearDown(container.dispose);
+
+        final notifier = container.read(createPostProvider.notifier);
+        notifier.addConnection(_fakePost('p1'), ConnectionType.reply);
+        notifier.reset();
+
+        expect(
+          container.read(createPostProvider).selectedConnections,
+          isEmpty,
+        );
+      });
+    });
   });
 }

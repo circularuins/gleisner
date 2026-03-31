@@ -50,6 +50,7 @@ class DaySection {
 class SynapseConnection {
   final String sourcePostId;
   final String targetPostId;
+  final ConnectionType connectionType;
   final Offset start;
   final Offset end;
   final Offset cp1;
@@ -62,6 +63,7 @@ class SynapseConnection {
   const SynapseConnection({
     required this.sourcePostId,
     required this.targetPostId,
+    this.connectionType = ConnectionType.reference,
     required this.start,
     required this.end,
     required this.cp1,
@@ -469,7 +471,7 @@ class ConstellationLayout {
 
         final a = node;
         final b = target;
-        connections.add(_makeSynapse(a, b));
+        connections.add(_makeSynapse(a, b, conn.connectionType));
       }
 
       // Also check incomingConnections for connections from posts
@@ -483,14 +485,18 @@ class ConstellationLayout {
 
         final a = source;
         final b = node;
-        connections.add(_makeSynapse(a, b));
+        connections.add(_makeSynapse(a, b, conn.connectionType));
       }
     }
 
     return connections;
   }
 
-  static SynapseConnection _makeSynapse(PlacedNode a, PlacedNode b) {
+  static SynapseConnection _makeSynapse(
+    PlacedNode a,
+    PlacedNode b,
+    ConnectionType connectionType,
+  ) {
     final dist = sqrt(
       pow(a.centerX - b.centerX, 2) + pow(a.centerY - b.centerY, 2),
     );
@@ -510,6 +516,7 @@ class ConstellationLayout {
     return SynapseConnection(
       sourcePostId: a.post.id,
       targetPostId: b.post.id,
+      connectionType: connectionType,
       start: Offset(a.centerX, a.centerY),
       end: Offset(b.centerX, b.centerY),
       cp1: Offset(cx1, cy1),

@@ -90,13 +90,23 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Source post not found");
       }
 
-      // Verify target post exists
+      // Verify target post exists and is accessible (not draft, unless own)
       const [targetPost] = await db
-        .select({ id: posts.id })
+        .select({
+          id: posts.id,
+          visibility: posts.visibility,
+          authorId: posts.authorId,
+        })
         .from(posts)
         .where(eq(posts.id, args.targetId))
         .limit(1);
       if (!targetPost) {
+        throw new GraphQLError("Target post not found");
+      }
+      if (
+        targetPost.visibility === "draft" &&
+        targetPost.authorId !== ctx.authUser.userId
+      ) {
         throw new GraphQLError("Target post not found");
       }
 

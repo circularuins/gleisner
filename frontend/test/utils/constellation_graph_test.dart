@@ -25,7 +25,7 @@ PostConnection _conn(String id, String sourceId, String targetId) {
     id: id,
     sourceId: sourceId,
     targetId: targetId,
-    connectionType: 'reference',
+    connectionType: ConnectionType.reference,
   );
 }
 

@@ -22,7 +22,8 @@ class TimelineScreen extends ConsumerStatefulWidget {
   ConsumerState<TimelineScreen> createState() => _TimelineScreenState();
 }
 
-class _TimelineScreenState extends ConsumerState<TimelineScreen> {
+class _TimelineScreenState extends ConsumerState<TimelineScreen>
+    with SingleTickerProviderStateMixin {
   double? _lastWidth;
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0;
@@ -30,8 +31,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   final _fabLayerLink = LayerLink();
   bool _showFirstPostTutorial = false;
 
+  // Synapse dot animation — continuous cycle through all connections
+  late final AnimationController _dotController;
+
   @override
   void dispose() {
+    _dotController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -39,6 +44,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   @override
   void initState() {
     super.initState();
+    // Synapse travelling dots: one full cycle = every dot visits every
+    // visible connection once. 12s feels unhurried with 3 simultaneous dots.
+    _dotController = AnimationController(
+      duration: const Duration(seconds: 35),
+      vsync: this,
+    )..repeat();
     Future.microtask(_loadData);
     // Re-load data when auth state changes (e.g. new user after logout)
     ref.listenManual(myArtistProvider, (prev, next) {
@@ -435,13 +446,23 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                                         height: layout.totalHeight,
                                         child: Stack(
                                           children: [
-                                            // Background: spine + synapses
+                                            // Background: spine + synapses + travelling dot
                                             Positioned.fill(
-                                              child: CustomPaint(
-                                                painter: ConstellationPainter(
-                                                  layout: layout,
-                                                  constellationPostIds: timeline
-                                                      .constellationPostIds,
+                                              child: AnimatedBuilder(
+                                                animation: _dotController,
+                                                builder: (context, _) =>
+                                                    CustomPaint(
+                                                  painter: ConstellationPainter(
+                                                    layout: layout,
+                                                    constellationPostIds:
+                                                        timeline
+                                                            .constellationPostIds,
+                                                    animationValue:
+                                                        _dotController.value,
+                                                    scrollOffset: _scrollOffset,
+                                                    viewportHeight:
+                                                        constraints.maxHeight,
+                                                  ),
                                                 ),
                                               ),
                                             ),
@@ -625,8 +646,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         notifier.updatePostReactions(id, counts, myReactions);
       },
       onCreateConnection: isOwn
-          ? (sourceId, targetId) =>
-                notifier.createConnection(sourceId, targetId)
+          ? (sourceId, targetId, type) => notifier.createConnection(
+              sourceId,
+              targetId,
+              connectionType: type,
+            )
           : null,
       onDeleteConnection: isOwn
           ? (connectionId) => notifier.deleteConnection(connectionId)

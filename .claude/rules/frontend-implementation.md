@@ -325,3 +325,34 @@ final notifier = container.read(fooProvider.notifier);
 2. `frontend/lib/providers/timeline_provider.dart` の `updatePostReactions` — 手動コピー箇所に追加
 3. `frontend/lib/providers/timeline_provider.dart` の `_copyPostWith` — コピーヘルパーに追加
 4. `frontend/lib/providers/create_post_provider.dart` の `submit` — Post 再構築箇所（接続追加時等）
+
+### ビジュアル差別化は「動き」で表現する（Motion over shape）
+
+**同種の UI 要素を視覚的に区別する場合、形状のバリエーションではなく動きのバリエーションを優先すること。**（ADR 024）
+
+- ❌ 線の形状を変える（zigzag, helix, arrowhead 等）→ ノイジーになり constellation の美しさを壊す
+- ✅ 動きのパラメータを変える（速度カーブ、方向、ドット数、脈動）→ 視覚的に静かだが発見可能
+
+PR #89 で synapse の形状バリエーションを6回試行し全て revert した教訓に基づく。
+
+### enum 導入時の全経路一括変更
+
+**`String` リテラルを `enum` に置き換える場合、以下を原子的に（1コミットで）変更すること。**
+
+1. `enum` 定義を追加（モデル層: `models/post.dart` 等）
+2. `grep` で全出現箇所を洗い出し（lib/ と test/ の両方）
+3. public API（Provider のメソッドシグネチャ、callback 型定義）を変更
+4. private メソッド・内部変数を変更
+5. GraphQL 送信箇所で `.name` に変換（境界のみ String）
+6. テストヘルパー・テストデータの型を変更
+7. `dart analyze` でエラーゼロを確認
+
+途中で止めると、レビューのたびに「まだ String が残っている」と指摘される（PR #89 で3回のレビューを要した教訓）。
+
+### CustomPainter フィールド追加チェックリスト
+
+**⚠ CustomPainter にフィールドを追加する場合、以下を同時に更新すること:**
+
+1. コンストラクタにパラメータ追加
+2. `shouldRepaint` の比較条件に追加（**忘れると描画更新が欠落する**）
+3. 該当フィールドのテストを `shouldRepaint` テストグループに追加

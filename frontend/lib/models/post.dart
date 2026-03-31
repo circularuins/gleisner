@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
+
 import '../utils/sentinel.dart';
 import 'track.dart';
 
@@ -62,11 +64,37 @@ class PostConstellation {
   }
 }
 
+/// The four connection types supported by Gleisner.
+///
+/// Each type has a distinct motion signature when visualized as
+/// travelling dots on the timeline (see ADR 024).
+enum ConnectionType {
+  reference,
+  evolution,
+  remix,
+  reply;
+
+  /// Parse from a backend string. Falls back to [reference] for unknown values.
+  static ConnectionType fromString(String value) {
+    return switch (value) {
+      'reference' => ConnectionType.reference,
+      'evolution' => ConnectionType.evolution,
+      'remix' => ConnectionType.remix,
+      'reply' => ConnectionType.reply,
+      _ => () {
+          debugPrint('[ConnectionType] Unknown value "$value", '
+              'falling back to reference');
+          return ConnectionType.reference;
+        }(),
+    };
+  }
+}
+
 class PostConnection {
   final String id;
   final String sourceId;
   final String targetId;
-  final String connectionType;
+  final ConnectionType connectionType;
 
   const PostConnection({
     required this.id,
@@ -80,7 +108,8 @@ class PostConnection {
       id: json['id'] as String,
       sourceId: json['sourceId'] as String,
       targetId: json['targetId'] as String,
-      connectionType: json['connectionType'] as String,
+      connectionType:
+          ConnectionType.fromString(json['connectionType'] as String),
     );
   }
 }
