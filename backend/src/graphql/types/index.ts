@@ -15,6 +15,7 @@ import "./follow.js";
 import "./tune-in.js";
 import "./artist-link.js";
 import "./genre.js";
+import "./analytics.js";
 
 builder.queryType({
   fields: (t) => ({
