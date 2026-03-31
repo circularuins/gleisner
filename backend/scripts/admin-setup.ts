@@ -127,6 +127,9 @@ async function main() {
   }
 }
 
+// Inserts directly into DB, bypassing the GraphQL createInvite resolver
+// and its MAX_INVITES_PER_USER limit. This is intentional — admin-setup
+// is a CLI tool for initial bootstrapping, not a user-facing API.
 async function generateInvites(
   db: ReturnType<typeof drizzle>,
   createdBy: string,
