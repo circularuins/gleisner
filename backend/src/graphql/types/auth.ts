@@ -2,8 +2,9 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { UserType, type UserShape, userColumns } from "./user.js";
 import { db } from "../../db/index.js";
-import { users } from "../../db/schema/index.js";
-import { eq } from "drizzle-orm";
+import { users, invites } from "../../db/schema/index.js";
+import { eq, and, isNull, sql } from "drizzle-orm";
+import { env } from "../../env.js";
 import {
   generateEdKeyPair,
   generateSalt,
@@ -37,6 +38,7 @@ builder.mutationType({
         password: t.arg.string({ required: true }),
         username: t.arg.string({ required: true }),
         displayName: t.arg.string(),
+        inviteCode: t.arg.string(),
       },
       resolve: async (_parent, args) => {
         // Validate
@@ -87,7 +89,12 @@ builder.mutationType({
           throw new GraphQLError("Username already taken");
         }
 
-        // Generate keys and credentials
+        // Validate invite code early (when required)
+        if (env.REQUIRE_INVITE && !args.inviteCode) {
+          throw new GraphQLError("Invite code is required");
+        }
+
+        // Generate keys and credentials (CPU-bound, outside transaction)
         const { publicKey, privateKey } = generateEdKeyPair();
         const passwordSalt = generateSalt();
         const encryptionSalt = generateSalt();
@@ -98,29 +105,52 @@ builder.mutationType({
           encryptionSalt,
         );
 
-        // Insert user — DID uses the generated UUID
-        const [{ id: userId }] = await db
-          .insert(users)
-          .values({
-            email: args.email,
-            username: args.username,
-            displayName: args.displayName ?? null,
-            passwordHash: passwordHashValue,
-            passwordSalt,
-            publicKey,
-            encryptedPrivateKey,
-            encryptionSalt,
-            did: "pending", // Temporary, updated after we have the ID
-          })
-          .returning({ id: users.id });
+        // Transaction: user creation + invite claim are atomic.
+        // If invite claim fails, user creation is automatically rolled back.
+        const safeUser = await db.transaction(async (tx) => {
+          const [{ id: userId }] = await tx
+            .insert(users)
+            .values({
+              email: args.email,
+              username: args.username,
+              displayName: args.displayName ?? null,
+              passwordHash: passwordHashValue,
+              passwordSalt,
+              publicKey,
+              encryptedPrivateKey,
+              encryptionSalt,
+              did: "pending",
+            })
+            .returning({ id: users.id });
 
-        // Update DID and return safe columns in one query
-        const did = generateDid(userId);
-        const [safeUser] = await db
-          .update(users)
-          .set({ did })
-          .where(eq(users.id, userId))
-          .returning(userColumns);
+          const did = generateDid(userId);
+          const [user] = await tx
+            .update(users)
+            .set({ did })
+            .where(eq(users.id, userId))
+            .returning(userColumns);
+
+          // Atomically claim invite (all conditions in one UPDATE)
+          if (env.REQUIRE_INVITE && args.inviteCode) {
+            const [claimed] = await tx
+              .update(invites)
+              .set({ usedBy: userId, usedAt: new Date() })
+              .where(
+                and(
+                  eq(invites.code, args.inviteCode),
+                  isNull(invites.usedBy),
+                  sql`(${invites.expiresAt} IS NULL OR ${invites.expiresAt} > NOW())`,
+                  sql`(${invites.email} IS NULL OR ${invites.email} = ${args.email})`,
+                ),
+              )
+              .returning({ id: invites.id });
+            if (!claimed) {
+              throw new GraphQLError("Invalid or already used invite code");
+            }
+          }
+
+          return user;
+        });
 
         const token = await signToken(safeUser.id);
         return { token, user: safeUser };

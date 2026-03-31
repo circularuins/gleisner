@@ -22,6 +22,13 @@
       "when": 1774546223149,
       "tag": "0002_dry_xavin",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774968775196,
+      "tag": "0003_new_namor",
+      "breakpoints": true
     }
   ]
 }

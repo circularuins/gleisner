@@ -16,4 +16,5 @@ export const env = {
   JWT_PRIVATE_KEY: process.env.JWT_PRIVATE_KEY?.replace(/\\n/g, "\n"),
   JWT_PUBLIC_KEY: process.env.JWT_PUBLIC_KEY?.replace(/\\n/g, "\n"),
   CORS_ORIGIN: process.env.CORS_ORIGIN ?? "http://localhost:3000",
+  REQUIRE_INVITE: process.env.REQUIRE_INVITE === "true",
 } as const;
