@@ -5,6 +5,9 @@ import { db } from "../../db/index.js";
 import { invites } from "../../db/schema/index.js";
 import { eq, desc, sql } from "drizzle-orm";
 
+// Cumulative limit (includes used codes). This is intentional —
+// prevents unlimited code generation. Admin can increase or reset
+// via direct DB access if needed.
 const MAX_INVITES_PER_USER = 10;
 
 const InviteType = builder.objectRef<{
@@ -63,7 +66,10 @@ builder.mutationFields((t) => ({
           ? new Date(Date.now() + args.expiresInDays * 24 * 60 * 60 * 1000)
           : null;
 
-      // Transaction: COUNT + INSERT atomically to prevent race past limit
+      // Transaction: COUNT + INSERT atomically to prevent race past limit.
+      // NOTE: Under READ COMMITTED, concurrent transactions can still pass
+      // the COUNT check simultaneously. Acceptable at Phase 0 scale.
+      // TODO: Use SELECT FOR UPDATE or SERIALIZABLE if this becomes an issue.
       const invite = await db.transaction(async (tx) => {
         const [{ count }] = await tx
           .select({ count: sql<number>`count(*)::int` })

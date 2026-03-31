@@ -89,28 +89,34 @@ async function main() {
       encryptionSalt,
     );
 
-    const [{ id: userId }] = await db
-      .insert(users)
-      .values({
-        email,
-        username,
-        displayName: displayName ?? null,
-        passwordHash: passwordHashValue,
-        passwordSalt,
-        publicKey,
-        encryptedPrivateKey,
-        encryptionSalt,
-        did: "pending",
-      })
-      .returning({ id: users.id });
+    // Transaction: INSERT + DID UPDATE are atomic
+    const { userId, did } = await db.transaction(async (tx) => {
+      const [{ id }] = await tx
+        .insert(users)
+        .values({
+          email,
+          username,
+          displayName: displayName ?? null,
+          passwordHash: passwordHashValue,
+          passwordSalt,
+          publicKey,
+          encryptedPrivateKey,
+          encryptionSalt,
+          did: "pending",
+        })
+        .returning({ id: users.id });
 
-    const did = generateDid(userId);
-    await db.update(users).set({ did }).where(eq(users.id, userId));
+      const userDid = generateDid(id);
+      await tx.update(users).set({ did: userDid }).where(eq(users.id, id));
+
+      return { userId: id, did: userDid };
+    });
 
     console.log("✓ Admin user created");
     console.log(`  Email:    ${email}`);
     console.log(`  Username: ${username}`);
-    console.log(`  Password: ${password}`);
+    // Password to stderr to avoid leaking into piped stdout / CI logs
+    console.error(`  Password: ${password}`);
     console.log(`  DID:      ${did}`);
     console.log();
 
