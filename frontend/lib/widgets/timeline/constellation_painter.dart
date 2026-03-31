@@ -52,8 +52,12 @@ class ConstellationPainter extends CustomPainter {
     canvas.drawLine(const Offset(18, 0), Offset(18, size.height), paint);
   }
 
+  // ── Testable static helpers ─────────────────────────────────────
+
   /// Evaluate a cubic bezier at parameter [t].
-  Offset _bezierAt(double t, Offset p0, Offset p1, Offset p2, Offset p3) {
+  @visibleForTesting
+  static Offset bezierAt(
+          double t, Offset p0, Offset p1, Offset p2, Offset p3) {
     final u = 1 - t;
     final uu = u * u;
     final uuu = uu * u;
@@ -63,9 +67,14 @@ class ConstellationPainter extends CustomPainter {
   }
 
   /// Whether a synapse overlaps the visible viewport (with margin).
-  bool _isInViewport(SynapseConnection conn) {
+  @visibleForTesting
+  static bool isInViewport(
+    SynapseConnection conn, {
+    required double scrollOffset,
+    required double viewportHeight,
+    double margin = 100.0,
+  }) {
     if (viewportHeight == double.infinity) return true;
-    const margin = 100.0;
     final top = scrollOffset - margin;
     final bottom = scrollOffset + viewportHeight + margin;
     final minY = conn.start.dy < conn.end.dy ? conn.start.dy : conn.end.dy;
@@ -76,7 +85,8 @@ class ConstellationPainter extends CustomPainter {
   // ── Connection-type dot configuration ──────────────────────────
 
   /// Number of dots travelling along a connection.
-  int _dotCount(String type) => switch (type) {
+  @visibleForTesting
+  static int dotCount(String type) => switch (type) {
         'reference' => 1,
         'evolution' => 2,
         'remix' => 4,
@@ -85,21 +95,24 @@ class ConstellationPainter extends CustomPainter {
       };
 
   /// Apply easing per type. Returns adjusted progress (0–1).
-  double _applyEasing(String type, double t) => switch (type) {
+  @visibleForTesting
+  static double applyEasing(String type, double t) => switch (type) {
         // evolution: ease-in — slow start, accelerating finish
         'evolution' => t * t,
         _ => t,
       };
 
   /// Alpha multiplier for pulsing (reply type).
-  double _pulseAlpha(String type, double t) => switch (type) {
+  @visibleForTesting
+  static double pulseAlpha(String type, double t) => switch (type) {
         // reply: sinusoidal pulse — 0.5–1.0 oscillation
         'reply' => 0.5 + 0.5 * sin(t * pi * 4),
         _ => 1.0,
       };
 
   /// Whether this type has dots flowing in both directions.
-  bool _isBidirectional(String type) => type == 'remix';
+  @visibleForTesting
+  static bool isBidirectional(String type) => type == 'remix';
 
   // ────────────────────────────────────────────────────────────────
 
@@ -149,7 +162,7 @@ class ConstellationPainter extends CustomPainter {
 
     // Animate dots on viewport-visible connections
     final animatable =
-        allVisible.where((c) => _isInViewport(c)).toList(growable: false);
+        allVisible.where((c) => isInViewport(c, scrollOffset: scrollOffset, viewportHeight: viewportHeight)).toList(growable: false);
     if (animatable.isEmpty) return;
 
     final activeCount = simultaneousDots < animatable.length
@@ -164,16 +177,16 @@ class ConstellationPainter extends CustomPainter {
       final conn = animatable[connIdx];
       final type = conn.connectionType;
 
-      final dotsOnLine = _dotCount(type);
-      final bidir = _isBidirectional(type);
+      final dotsOnLine = dotCount(type);
+      final bidir = isBidirectional(type);
 
       // Forward-travelling dots
       final forwardDots = bidir ? (dotsOnLine / 2).ceil() : dotsOnLine;
       for (var d = 0; d < forwardDots; d++) {
         final spacing = 1.0 / (forwardDots + 1);
         final baseT = (rawProgress + d * spacing) % 1.0;
-        final easedT = _applyEasing(type, baseT);
-        final alpha = _pulseAlpha(type, baseT);
+        final easedT = applyEasing(type, baseT);
+        final alpha = pulseAlpha(type, baseT);
         _drawTravellingDot(canvas, conn, easedT, sw, alphaScale: alpha);
       }
 
@@ -203,7 +216,7 @@ class ConstellationPainter extends CustomPainter {
     final p2 = Offset(conn.cp2.dx + sw, conn.cp2.dy);
     final p3 = Offset(conn.end.dx + sw, conn.end.dy);
 
-    final pos = _bezierAt(progress, p0, p1, p2, p3);
+    final pos = bezierAt(progress, p0, p1, p2, p3);
 
     // Color: interpolate in the direction of travel
     final colorT = reverse ? 1.0 - progress : progress;
@@ -240,7 +253,7 @@ class ConstellationPainter extends CustomPainter {
       final trailOffset = i * 0.04;
       final trailT = reverse ? progress + trailOffset : progress - trailOffset;
       if (trailT < 0 || trailT > 1) break;
-      final trailPos = _bezierAt(trailT, p0, p1, p2, p3);
+      final trailPos = bezierAt(trailT, p0, p1, p2, p3);
       canvas.drawCircle(
         trailPos,
         5.0 - i * 0.8,
