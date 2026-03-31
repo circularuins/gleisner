@@ -31,8 +31,10 @@ export function parseLiteralJSON(ast: ValueNode, depth = 0): unknown {
   return null;
 }
 
+export const MAX_METADATA_BYTES = 4096;
+
 /** Validate JSON depth recursively (works on parseValue input — plain JS objects). */
-function validateJsonDepth(value: unknown, depth = 0): void {
+export function validateJsonDepth(value: unknown, depth = 0): void {
   if (depth > MAX_JSON_DEPTH) {
     throw new GraphQLError(
       `JSON nesting exceeds maximum depth of ${MAX_JSON_DEPTH}`,
@@ -67,6 +69,14 @@ builder.scalarType("JSON", {
   serialize: (value) => value,
   parseValue: (value) => {
     validateJsonDepth(value);
+    if (value != null) {
+      const bytes = Buffer.byteLength(JSON.stringify(value), "utf-8");
+      if (bytes > MAX_METADATA_BYTES) {
+        throw new GraphQLError(
+          `metadata must be ${MAX_METADATA_BYTES} bytes or less`,
+        );
+      }
+    }
     return value;
   },
   parseLiteral: (ast) => parseLiteralJSON(ast),
@@ -97,13 +107,7 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("sessionId must be between 1 and 64 characters");
       }
 
-      // Validate metadata size (4KB byte limit to prevent DoS)
-      if (args.metadata != null) {
-        const metadataStr = JSON.stringify(args.metadata);
-        if (Buffer.byteLength(metadataStr, "utf-8") > 4096) {
-          throw new GraphQLError("metadata must be 4096 bytes or less");
-        }
-      }
+      // metadata depth + size validation is handled by the JSON scalar's parseValue
 
       try {
         await db.insert(analyticsEvents).values({

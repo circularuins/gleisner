@@ -146,6 +146,35 @@ describe("Analytics", () => {
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toContain("4096 bytes");
     });
+
+    it("accepts metadata just under 4096 bytes", async () => {
+      // {"d":"x...x"} with 4000 chars is well under 4096 bytes
+      const result = await gql(app, TRACK_EVENT_MUTATION, {
+        eventType: "page_view",
+        sessionId: "sess-boundary",
+        metadata: { d: "x".repeat(4000) },
+      });
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data!.trackEvent).toBe(true);
+    });
+
+    it("rejects deeply nested metadata via variables (parseValue path)", async () => {
+      // Build deeply nested object via variables (goes through parseValue, not parseLiteral)
+      let nested: Record<string, unknown> = { leaf: true };
+      for (let i = 0; i < MAX_JSON_DEPTH + 2; i++) {
+        nested = { a: nested };
+      }
+
+      const result = await gql(app, TRACK_EVENT_MUTATION, {
+        eventType: "page_view",
+        sessionId: "sess-deep-var",
+        metadata: nested,
+      });
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("maximum depth");
+    });
   });
 
   describe("parseLiteralJSON", () => {
