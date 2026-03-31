@@ -57,32 +57,35 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Email must be 255 characters or less");
       }
 
-      // Enforce per-user invite limit
-      const [{ count }] = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(invites)
-        .where(eq(invites.createdBy, ctx.authUser.userId));
-      if (count >= MAX_INVITES_PER_USER) {
-        throw new GraphQLError(
-          `You can create up to ${MAX_INVITES_PER_USER} invite codes`,
-        );
-      }
-
       const code = crypto.randomBytes(10).toString("hex");
       const expiresAt =
         args.expiresInDays != null
           ? new Date(Date.now() + args.expiresInDays * 24 * 60 * 60 * 1000)
           : null;
 
-      const [invite] = await db
-        .insert(invites)
-        .values({
-          code,
-          email: args.email ?? null,
-          createdBy: ctx.authUser.userId,
-          expiresAt,
-        })
-        .returning();
+      // Transaction: COUNT + INSERT atomically to prevent race past limit
+      const invite = await db.transaction(async (tx) => {
+        const [{ count }] = await tx
+          .select({ count: sql<number>`count(*)::int` })
+          .from(invites)
+          .where(eq(invites.createdBy, ctx.authUser!.userId));
+        if (count >= MAX_INVITES_PER_USER) {
+          throw new GraphQLError(
+            `You can create up to ${MAX_INVITES_PER_USER} invite codes`,
+          );
+        }
+
+        const [row] = await tx
+          .insert(invites)
+          .values({
+            code,
+            email: args.email ?? null,
+            createdBy: ctx.authUser!.userId,
+            expiresAt,
+          })
+          .returning();
+        return row;
+      });
 
       return invite;
     },

@@ -285,8 +285,10 @@ describe("Invite system", () => {
       });
 
       expect(result.errors).toBeDefined();
+      // Email mismatch is caught by the atomic UPDATE WHERE clause,
+      // so the error is the generic "Invalid or already used" message
       expect(result.errors![0].message).toBe(
-        "This invite code is for a different email",
+        "Invalid or already used invite code",
       );
     });
 

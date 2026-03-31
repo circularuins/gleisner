@@ -89,27 +89,12 @@ builder.mutationType({
           throw new GraphQLError("Username already taken");
         }
 
-        // Validate invite code (when required)
-        // Uses atomic UPDATE ... WHERE ... RETURNING to prevent TOCTOU race
-        if (env.REQUIRE_INVITE) {
-          if (!args.inviteCode) {
-            throw new GraphQLError("Invite code is required");
-          }
-          // Pre-check email restriction (before atomic claim)
-          const [inviteCheck] = await db
-            .select({ email: invites.email })
-            .from(invites)
-            .where(eq(invites.code, args.inviteCode))
-            .limit(1);
-          if (!inviteCheck) {
-            throw new GraphQLError("Invalid or already used invite code");
-          }
-          if (inviteCheck.email && inviteCheck.email !== args.email) {
-            throw new GraphQLError("This invite code is for a different email");
-          }
+        // Validate invite code early (when required)
+        if (env.REQUIRE_INVITE && !args.inviteCode) {
+          throw new GraphQLError("Invite code is required");
         }
 
-        // Generate keys and credentials
+        // Generate keys and credentials (CPU-bound, outside transaction)
         const { publicKey, privateKey } = generateEdKeyPair();
         const passwordSalt = generateSalt();
         const encryptionSalt = generateSalt();
@@ -120,51 +105,52 @@ builder.mutationType({
           encryptionSalt,
         );
 
-        // Insert user — DID uses the generated UUID
-        const [{ id: userId }] = await db
-          .insert(users)
-          .values({
-            email: args.email,
-            username: args.username,
-            displayName: args.displayName ?? null,
-            passwordHash: passwordHashValue,
-            passwordSalt,
-            publicKey,
-            encryptedPrivateKey,
-            encryptionSalt,
-            did: "pending", // Temporary, updated after we have the ID
-          })
-          .returning({ id: users.id });
+        // Transaction: user creation + invite claim are atomic.
+        // If invite claim fails, user creation is automatically rolled back.
+        const safeUser = await db.transaction(async (tx) => {
+          const [{ id: userId }] = await tx
+            .insert(users)
+            .values({
+              email: args.email,
+              username: args.username,
+              displayName: args.displayName ?? null,
+              passwordHash: passwordHashValue,
+              passwordSalt,
+              publicKey,
+              encryptedPrivateKey,
+              encryptionSalt,
+              did: "pending",
+            })
+            .returning({ id: users.id });
 
-        // Update DID and return safe columns in one query
-        const did = generateDid(userId);
-        const [safeUser] = await db
-          .update(users)
-          .set({ did })
-          .where(eq(users.id, userId))
-          .returning(userColumns);
+          const did = generateDid(userId);
+          const [user] = await tx
+            .update(users)
+            .set({ did })
+            .where(eq(users.id, userId))
+            .returning(userColumns);
 
-        // Atomically claim invite (prevents TOCTOU: concurrent signups
-        // with the same code will fail here since only one UPDATE can
-        // match used_by IS NULL)
-        if (env.REQUIRE_INVITE && args.inviteCode) {
-          const [claimed] = await db
-            .update(invites)
-            .set({ usedBy: userId, usedAt: new Date() })
-            .where(
-              and(
-                eq(invites.code, args.inviteCode),
-                isNull(invites.usedBy),
-                sql`(${invites.expiresAt} IS NULL OR ${invites.expiresAt} > NOW())`,
-              ),
-            )
-            .returning({ id: invites.id });
-          if (!claimed) {
-            // Rollback: delete the user we just created
-            await db.delete(users).where(eq(users.id, userId));
-            throw new GraphQLError("Invalid or already used invite code");
+          // Atomically claim invite (all conditions in one UPDATE)
+          if (env.REQUIRE_INVITE && args.inviteCode) {
+            const [claimed] = await tx
+              .update(invites)
+              .set({ usedBy: userId, usedAt: new Date() })
+              .where(
+                and(
+                  eq(invites.code, args.inviteCode),
+                  isNull(invites.usedBy),
+                  sql`(${invites.expiresAt} IS NULL OR ${invites.expiresAt} > NOW())`,
+                  sql`(${invites.email} IS NULL OR ${invites.email} = ${args.email})`,
+                ),
+              )
+              .returning({ id: invites.id });
+            if (!claimed) {
+              throw new GraphQLError("Invalid or already used invite code");
+            }
           }
-        }
+
+          return user;
+        });
 
         const token = await signToken(safeUser.id);
         return { token, user: safeUser };
