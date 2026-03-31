@@ -38,4 +38,9 @@ export interface GraphQLContext {
   >;
 }
 
-export const builder = new SchemaBuilder<{ Context: GraphQLContext }>({});
+export const builder = new SchemaBuilder<{
+  Context: GraphQLContext;
+  Scalars: {
+    JSON: { Input: unknown; Output: unknown };
+  };
+}>({});
