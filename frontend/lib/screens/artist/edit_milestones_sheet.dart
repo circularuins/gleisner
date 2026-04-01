@@ -317,14 +317,26 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                       fontWeight: weightBold,
                     ),
                   ),
+                  const SizedBox(width: spaceSm),
+                  Text(
+                    '${_milestones.length}/200',
+                    style: const TextStyle(
+                      color: colorTextMuted,
+                      fontSize: fontSizeSm,
+                    ),
+                  ),
                   const Spacer(),
                   IconButton(
                     icon: Icon(
                       _showAddForm ? Icons.close : Icons.add,
-                      color: colorInteractive,
+                      color: _milestones.length >= 200
+                          ? colorTextMuted
+                          : colorInteractive,
                     ),
-                    onPressed: () =>
-                        setState(() => _showAddForm = !_showAddForm),
+                    onPressed: _milestones.length >= 200
+                        ? null
+                        : () => setState(
+                            () => _showAddForm = !_showAddForm),
                   ),
                 ],
               ),

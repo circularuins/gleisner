@@ -2,7 +2,9 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, artistMilestones } from "../../db/schema/index.js";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
+
+const MAX_MILESTONES_PER_ARTIST = 200;
 import { ArtistType } from "./artist.js";
 
 const MilestoneCategoryEnum = builder.enumType("MilestoneCategory", {
@@ -78,6 +80,17 @@ builder.mutationFields((t) => ({
       }
 
       const artistId = await getOwnArtistId(ctx.authUser.userId);
+
+      // Enforce per-artist milestone limit
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(artistMilestones)
+        .where(eq(artistMilestones.artistId, artistId));
+      if (count >= MAX_MILESTONES_PER_ARTIST) {
+        throw new GraphQLError(
+          `Maximum ${MAX_MILESTONES_PER_ARTIST} milestones allowed`,
+        );
+      }
 
       const title = args.title.trim();
       if (title.length === 0 || title.length > 255) {
@@ -203,7 +216,7 @@ builder.objectFields(ArtistType, (t) => ({
         .from(artistMilestones)
         .where(eq(artistMilestones.artistId, artist.id))
         .orderBy(desc(artistMilestones.date))
-        .limit(100);
+        .limit(MAX_MILESTONES_PER_ARTIST);
     },
   }),
 }));
