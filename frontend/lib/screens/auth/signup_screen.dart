@@ -140,14 +140,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     border: OutlineInputBorder(),
                   ),
                   maxLength: 20,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) return null;
-                    if (!RegExp(r'^[a-f0-9]{20}$')
-                        .hasMatch(value.trim())) {
-                      return 'Invalid invite code format';
-                    }
-                    return null;
-                  },
+                  validator: validateInviteCode,
                 ),
                 const SizedBox(height: spaceXl),
                 FilledButton(

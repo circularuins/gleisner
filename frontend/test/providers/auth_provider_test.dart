@@ -8,6 +8,7 @@ import 'package:hive_ce/hive.dart';
 
 import 'package:gleisner_web/graphql/client.dart';
 import 'package:gleisner_web/providers/auth_provider.dart';
+import 'package:gleisner_web/utils/validators.dart' as gleisner_validators;
 
 class MockSecureStorage implements FlutterSecureStorage {
   final Map<String, String> _store = {};
@@ -253,18 +254,21 @@ void main() {
       },
     };
 
-    test('includes inviteCode in mutation variables when provided', () async {
-      final link = _MockLink(data: signupResponse);
+    late _MockLink link;
+    late ProviderContainer container;
+
+    setUp(() {
+      link = _MockLink(data: signupResponse);
       final client = GraphQLClient(
         link: link,
         cache: GraphQLCache(store: InMemoryStore()),
       );
-      final container = _createContainer(
-        client: client,
-        storage: mockStorage,
-      );
-      addTearDown(container.dispose);
+      container = _createContainer(client: client, storage: mockStorage);
+    });
 
+    tearDown(() => container.dispose());
+
+    test('includes inviteCode in mutation variables when provided', () async {
       await container.read(authProvider.notifier).signup(
             email: 'test@test.com',
             password: 'password123',
@@ -276,17 +280,6 @@ void main() {
     });
 
     test('omits inviteCode from variables when null', () async {
-      final link = _MockLink(data: signupResponse);
-      final client = GraphQLClient(
-        link: link,
-        cache: GraphQLCache(store: InMemoryStore()),
-      );
-      final container = _createContainer(
-        client: client,
-        storage: mockStorage,
-      );
-      addTearDown(container.dispose);
-
       await container.read(authProvider.notifier).signup(
             email: 'test@test.com',
             password: 'password123',
@@ -294,6 +287,40 @@ void main() {
           );
 
       expect(link.lastVariables?.containsKey('inviteCode'), isFalse);
+    });
+  });
+
+  group('validateInviteCode', () {
+    // Import the validator function for boundary tests
+    String? validate(String? v) =>
+        gleisner_validators.validateInviteCode(v);
+
+    test('accepts null (optional field)', () {
+      expect(validate(null), isNull);
+    });
+
+    test('accepts empty string', () {
+      expect(validate(''), isNull);
+    });
+
+    test('accepts valid 20-char hex', () {
+      expect(validate('a1b2c3d4e5f6a7b8c9d0'), isNull);
+    });
+
+    test('rejects 19-char hex (too short)', () {
+      expect(validate('a1b2c3d4e5f6a7b8c9d'), isNotNull);
+    });
+
+    test('rejects 21-char hex (too long)', () {
+      expect(validate('a1b2c3d4e5f6a7b8c9d0e'), isNotNull);
+    });
+
+    test('rejects uppercase hex', () {
+      expect(validate('A1B2C3D4E5F6A7B8C9D0'), isNotNull);
+    });
+
+    test('rejects non-hex characters', () {
+      expect(validate('a1b2c3d4e5f6a7b8c9gx'), isNotNull);
     });
   });
 }
