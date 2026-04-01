@@ -276,6 +276,36 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
     }
   }
 
+  Future<ArtistMilestone?> updateMilestone({
+    required String id,
+    String? category,
+    String? title,
+    String? description,
+    String? date,
+  }) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(updateArtistMilestoneMutation),
+          variables: {
+            'id': id,
+            if (category != null) 'category': category,
+            if (title != null) 'title': title,
+            if (description != null) 'description': description,
+            if (date != null) 'date': date,
+          },
+        ),
+      );
+      if (result.hasException) return null;
+      final data =
+          result.data?['updateArtistMilestone'] as Map<String, dynamic>?;
+      return data != null ? ArtistMilestone.fromJson(data) : null;
+    } catch (e) {
+      debugPrint('[EditArtistNotifier] updateMilestone error: $e');
+      return null;
+    }
+  }
+
   Future<bool> deleteMilestone(String id) async {
     try {
       final result = await _client.mutate(

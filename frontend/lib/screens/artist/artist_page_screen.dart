@@ -1174,7 +1174,7 @@ class _MilestonesSection extends StatefulWidget {
 }
 
 class _MilestonesSectionState extends State<_MilestonesSection> {
-  static const _previewCount = 5;
+  static const _previewCount = 3;
   bool _expanded = false;
 
   static IconData _icon(String category) => switch (category) {

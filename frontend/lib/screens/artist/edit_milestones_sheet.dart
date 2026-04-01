@@ -144,6 +144,126 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
     }
   }
 
+  Future<void> _editMilestone(ArtistMilestone milestone) async {
+    final titleCtl = TextEditingController(text: milestone.title);
+    final descCtl = TextEditingController(text: milestone.description ?? '');
+    var editCategory = milestone.category;
+    var editDate = DateTime.tryParse(milestone.date) ?? DateTime.now();
+
+    final updated = await showDialog<ArtistMilestone>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: colorSurface1,
+          title: const Text('Edit Milestone',
+              style: TextStyle(color: colorTextPrimary)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Wrap(
+                  spacing: spaceXs,
+                  children: _categories.map((c) {
+                    final (key, label, icon) = c;
+                    return ChoiceChip(
+                      label: Text(label),
+                      avatar: Icon(icon, size: 16),
+                      selected: editCategory == key,
+                      onSelected: (_) =>
+                          setDialogState(() => editCategory = key),
+                      visualDensity: VisualDensity.compact,
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: spaceMd),
+                TextField(
+                  controller: titleCtl,
+                  style: const TextStyle(color: colorTextPrimary),
+                  decoration: const InputDecoration(
+                    labelText: 'Title',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLength: 255,
+                ),
+                const SizedBox(height: spaceSm),
+                TextField(
+                  controller: descCtl,
+                  style: const TextStyle(color: colorTextPrimary),
+                  decoration: const InputDecoration(
+                    labelText: 'Description (optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: spaceMd),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: editDate,
+                      firstDate: DateTime(1900),
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) {
+                      setDialogState(() => editDate = picked);
+                    }
+                  },
+                  icon: const Icon(Icons.calendar_today, size: 16),
+                  label: Text(
+                    '${editDate.year}/${editDate.month.toString().padLeft(2, '0')}/${editDate.day.toString().padLeft(2, '0')}',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final title = titleCtl.text.trim();
+                if (title.isEmpty) return;
+                final date =
+                    '${editDate.year}-${editDate.month.toString().padLeft(2, '0')}-${editDate.day.toString().padLeft(2, '0')}';
+                final desc = descCtl.text.trim();
+                final result = await ref
+                    .read(editArtistProvider.notifier)
+                    .updateMilestone(
+                      id: milestone.id,
+                      category: editCategory,
+                      title: title,
+                      description: desc.isNotEmpty ? desc : null,
+                      date: date,
+                    );
+                if (result != null && ctx.mounted) {
+                  Navigator.pop(ctx, result);
+                }
+              },
+              child: const Text('Save',
+                  style: TextStyle(color: colorAccentGold)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    titleCtl.dispose();
+    descCtl.dispose();
+
+    if (updated != null && mounted) {
+      setState(() {
+        _milestones = _milestones
+            .map((m) => m.id == updated.id ? updated : m)
+            .toList()
+          ..sort((a, b) => b.date.compareTo(a.date));
+      });
+      ref.read(artistPageProvider.notifier).loadArtist(widget.artistUsername);
+    }
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -303,56 +423,59 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                           const SizedBox(height: spaceMd),
                       itemBuilder: (context, index) {
                         final m = _milestones[index];
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              _categoryIcon(m.category),
-                              size: 20,
-                              color: colorAccentGold,
-                            ),
-                            const SizedBox(width: spaceMd),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    m.title,
-                                    style: const TextStyle(
-                                      color: colorTextPrimary,
-                                      fontWeight: weightMedium,
+                        return GestureDetector(
+                          onTap: () => _editMilestone(m),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                _categoryIcon(m.category),
+                                size: 20,
+                                color: colorAccentGold,
+                              ),
+                              const SizedBox(width: spaceMd),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      m.title,
+                                      style: const TextStyle(
+                                        color: colorTextPrimary,
+                                        fontWeight: weightMedium,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: spaceXxs),
-                                  Text(
-                                    m.date.substring(0, 7), // YYYY-MM
-                                    style: const TextStyle(
-                                      color: colorTextMuted,
-                                      fontSize: fontSizeXs,
-                                    ),
-                                  ),
-                                  if (m.description != null) ...[
                                     const SizedBox(height: spaceXxs),
                                     Text(
-                                      m.description!,
+                                      m.date.substring(0, 7),
                                       style: const TextStyle(
-                                        color: colorTextSecondary,
-                                        fontSize: fontSizeSm,
+                                        color: colorTextMuted,
+                                        fontSize: fontSizeXs,
                                       ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
+                                    if (m.description != null) ...[
+                                      const SizedBox(height: spaceXxs),
+                                      Text(
+                                        m.description!,
+                                        style: const TextStyle(
+                                          color: colorTextSecondary,
+                                          fontSize: fontSizeSm,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline,
-                                  size: 18, color: colorTextMuted),
-                              onPressed: () => _deleteMilestone(m),
-                            ),
-                          ],
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    size: 18, color: colorTextMuted),
+                                onPressed: () => _deleteMilestone(m),
+                              ),
+                            ],
+                          ),
                         );
                       },
                     ),
