@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/track.dart';
+import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/public_timeline_provider.dart';
 import '../../providers/timeline_provider.dart';
@@ -39,6 +40,10 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(analyticsProvider.notifier).trackPageView('/@:username');
+    });
     Future.microtask(() {
       ref.read(publicTimelineProvider.notifier).loadArtist(widget.username);
     });

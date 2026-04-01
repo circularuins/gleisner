@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/validators.dart';
@@ -23,6 +24,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _displayNameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(analyticsProvider.notifier).trackPageView('/signup',
+          metadata: {'funnel': 'signup_start'});
+    });
+  }
 
   @override
   void dispose() {
