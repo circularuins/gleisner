@@ -1,5 +1,5 @@
 final _emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-final _usernameRegex = RegExp(r'^[a-zA-Z0-9_]{3,30}$');
+final _usernameRegex = RegExp(r'^[a-zA-Z0-9_]{2,30}$');
 
 String? validateEmail(String? value) {
   if (value == null || value.isEmpty) return 'Email is required';
@@ -10,7 +10,7 @@ String? validateEmail(String? value) {
 String? validateUsername(String? value) {
   if (value == null || value.isEmpty) return 'Username is required';
   if (!_usernameRegex.hasMatch(value)) {
-    return 'Letters, numbers, underscores (3-30 chars)';
+    return 'Letters, numbers, underscores (2-30 chars)';
   }
   return null;
 }
