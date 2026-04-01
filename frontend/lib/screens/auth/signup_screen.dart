@@ -10,7 +10,9 @@ import '../../widgets/common/auth_header.dart';
 import '../../widgets/common/error_banner.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
-  const SignupScreen({super.key});
+  final String? inviteCode;
+
+  const SignupScreen({super.key, this.inviteCode});
 
   @override
   ConsumerState<SignupScreen> createState() => _SignupScreenState();
@@ -21,8 +23,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _passwordController = TextEditingController();
   final _usernameController = TextEditingController();
   final _displayNameController = TextEditingController();
+  late final TextEditingController _inviteCodeController;
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _inviteCodeController = TextEditingController(
+      text: widget.inviteCode ?? '',
+    );
+  }
 
   @override
   void dispose() {
@@ -30,6 +41,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     _passwordController.dispose();
     _usernameController.dispose();
     _displayNameController.dispose();
+    _inviteCodeController.dispose();
     super.dispose();
   }
 
@@ -38,6 +50,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     setState(() => _isSubmitting = true);
 
     final displayName = _displayNameController.text.trim();
+    final inviteCode = _inviteCodeController.text.trim();
     await ref
         .read(authProvider.notifier)
         .signup(
@@ -45,6 +58,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           password: _passwordController.text,
           username: _usernameController.text.trim(),
           displayName: displayName.isNotEmpty ? displayName : null,
+          inviteCode: inviteCode.isNotEmpty ? inviteCode : null,
         );
 
     if (mounted) setState(() => _isSubmitting = false);
@@ -110,6 +124,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   ),
                   obscureText: true,
                   validator: validatePassword,
+                ),
+                const SizedBox(height: spaceLg),
+                TextFormField(
+                  controller: _inviteCodeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Invite Code',
+                    hintText: 'Enter your invite code',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
                 const SizedBox(height: spaceXl),
                 FilledButton(
