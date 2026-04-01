@@ -25,3 +25,14 @@ String? validateRequired(String? value, String fieldName) {
   if (value == null || value.isEmpty) return '$fieldName is required';
   return null;
 }
+
+final _inviteCodeRegex = RegExp(r'^[a-f0-9]{20}$');
+
+/// Validates an invite code. Returns null if valid or empty (optional field).
+String? validateInviteCode(String? value) {
+  if (value == null || value.trim().isEmpty) return null;
+  if (!_inviteCodeRegex.hasMatch(value.trim())) {
+    return 'Invalid invite code format';
+  }
+  return null;
+}
