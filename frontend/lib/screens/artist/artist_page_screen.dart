@@ -853,66 +853,16 @@ class _LinksSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final musicLinks = links.where((l) => l.linkCategory == 'music').toList();
-    final snsLinks = links
-        .where((l) => l.linkCategory == 'social' || l.linkCategory == 'video')
-        .toList();
-    final otherLinks = links
-        .where(
-          (l) =>
-              l.linkCategory != 'music' &&
-              l.linkCategory != 'social' &&
-              l.linkCategory != 'video',
-        )
-        .toList();
+    // Sort: music first, then social/video, then others
+    final sorted = [...links]..sort((a, b) {
+        const order = {'music': 0, 'social': 1, 'video': 1, 'website': 2, 'store': 3, 'other': 4};
+        return (order[a.linkCategory] ?? 5).compareTo(order[b.linkCategory] ?? 5);
+      });
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (musicLinks.isNotEmpty) ...[
-          const Text(
-            'MUSIC',
-            style: TextStyle(
-              color: colorTextMuted,
-              fontSize: fontSizeXs,
-              fontWeight: weightSemibold,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: spaceSm),
-          Wrap(
-            spacing: spaceSm,
-            runSpacing: spaceSm,
-            children: musicLinks.map((l) => _LinkChip(link: l)).toList(),
-          ),
-          const SizedBox(height: spaceMd),
-        ],
-        if (snsLinks.isNotEmpty) ...[
-          const Text(
-            'SNS',
-            style: TextStyle(
-              color: colorTextMuted,
-              fontSize: fontSizeXs,
-              fontWeight: weightSemibold,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: spaceSm),
-          Wrap(
-            spacing: spaceSm,
-            runSpacing: spaceSm,
-            children: snsLinks.map((l) => _LinkChip(link: l)).toList(),
-          ),
-          const SizedBox(height: spaceMd),
-        ],
-        if (otherLinks.isNotEmpty) ...[
-          Wrap(
-            spacing: spaceSm,
-            runSpacing: spaceSm,
-            children: otherLinks.map((l) => _LinkChip(link: l)).toList(),
-          ),
-        ],
-      ],
+    return Wrap(
+      spacing: spaceSm,
+      runSpacing: spaceSm,
+      children: sorted.map((l) => _LinkChip(link: l)).toList(),
     );
   }
 }
@@ -1214,10 +1164,18 @@ class _GenerativeAvatar extends StatelessWidget {
   }
 }
 
-class _MilestonesSection extends StatelessWidget {
+class _MilestonesSection extends StatefulWidget {
   final List<ArtistMilestone> milestones;
 
   const _MilestonesSection({required this.milestones});
+
+  @override
+  State<_MilestonesSection> createState() => _MilestonesSectionState();
+}
+
+class _MilestonesSectionState extends State<_MilestonesSection> {
+  static const _previewCount = 5;
+  bool _expanded = false;
 
   static IconData _icon(String category) => switch (category) {
         'award' => Icons.emoji_events,
@@ -1230,56 +1188,77 @@ class _MilestonesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final all = widget.milestones;
+    final visible = _expanded ? all : all.take(_previewCount).toList();
+    final hasMore = all.length > _previewCount;
+
     return Column(
-      children: milestones.map((m) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: spaceMd),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(_icon(m.category), size: 18, color: colorAccentGold),
-              const SizedBox(width: spaceMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      m.title,
-                      style: const TextStyle(
-                        color: colorTextPrimary,
-                        fontSize: fontSizeSm,
-                        fontWeight: weightMedium,
-                      ),
-                    ),
-                    const SizedBox(height: spaceXxs),
-                    Text(
-                      m.date.substring(0, 7), // YYYY-MM
-                      style: const TextStyle(
-                        color: colorTextMuted,
-                        fontSize: fontSizeXs,
-                        fontFamily: 'monospace',
-                      ),
-                    ),
-                    if (m.description != null) ...[
-                      const SizedBox(height: spaceXxs),
-                      Text(
-                        m.description!,
-                        style: const TextStyle(
-                          color: colorTextSecondary,
-                          fontSize: fontSizeXs,
-                          height: 1.4,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...visible.map((m) => Padding(
+              padding: const EdgeInsets.only(bottom: spaceMd),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(_icon(m.category), size: 18, color: colorAccentGold),
+                  const SizedBox(width: spaceMd),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                m.title,
+                                style: const TextStyle(
+                                  color: colorTextPrimary,
+                                  fontSize: fontSizeSm,
+                                  fontWeight: weightMedium,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              m.date.substring(0, 7),
+                              style: const TextStyle(
+                                color: colorTextMuted,
+                                fontSize: fontSizeXs,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
+                        if (m.description != null) ...[
+                          const SizedBox(height: spaceXxs),
+                          Text(
+                            m.description!,
+                            style: const TextStyle(
+                              color: colorTextSecondary,
+                              fontSize: fontSizeXs,
+                              height: 1.4,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            )),
+        if (hasMore && !_expanded)
+          GestureDetector(
+            onTap: () => setState(() => _expanded = true),
+            child: Text(
+              'See all ${all.length} milestones',
+              style: const TextStyle(
+                color: colorInteractive,
+                fontSize: fontSizeSm,
+              ),
+            ),
           ),
-        );
-      }).toList(),
+      ],
     );
   }
 }
