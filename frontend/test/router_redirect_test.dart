@@ -57,9 +57,12 @@ void main() {
 
       final isAuthRoute = path == '/login' || path == '/signup';
       final isPublicProfile = RegExp(r'^/@[^/]+$').hasMatch(path);
+      final isPublicPage = path == '/about';
 
       if (status == 'unauthenticated') {
-        return (isAuthRoute || isPublicProfile) ? null : '/login';
+        return (isAuthRoute || isPublicProfile || isPublicPage)
+            ? null
+            : '/login';
       }
 
       // authenticated
@@ -80,6 +83,10 @@ void main() {
     test('unauthenticated can access public profiles', () {
       expect(redirect(path: '/@seeduser', status: 'unauthenticated'), isNull);
       expect(redirect(path: '/@alice', status: 'unauthenticated'), isNull);
+    });
+
+    test('unauthenticated can access /about', () {
+      expect(redirect(path: '/about', status: 'unauthenticated'), isNull);
     });
 
     test('unauthenticated cannot access protected routes', () {
