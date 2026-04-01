@@ -9,6 +9,7 @@ import '../../graphql/mutations/track.dart';
 import '../../graphql/queries/artist.dart';
 import '../../models/genre.dart';
 import '../../providers/my_artist_provider.dart';
+import '../../providers/timeline_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 
 /// ADR 013: 4-step artist registration wizard.
@@ -206,7 +207,16 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
       artistUsername: _registeredArtistUsername ?? '',
       displayName: _displayNameController.text.trim(),
       tracks: _tracks,
-      onDone: () {
+      onDone: () async {
+        // Ensure data is loaded before navigating — Timeline needs
+        // myArtist + timeline.artist to show FAB and tutorial
+        await Future.wait([
+          ref.read(myArtistProvider.notifier).load(),
+          ref
+              .read(timelineProvider.notifier)
+              .loadArtist(_registeredArtistUsername!),
+        ]);
+        if (!mounted) return;
         Navigator.pop(context);
         widget.onRegistered(_registeredArtistUsername!);
       },
