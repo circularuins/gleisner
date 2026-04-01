@@ -126,8 +126,13 @@ void main() {
       // Timeline loaded with own data
       timelineArtist = 'my_artist';
 
-      // FAB should be visible
-      expect(timelineArtist, myArtistState);
+      // FAB visibility check (mirrors _isOwnTimeline + FAB condition)
+      final viewingArtistUsername = 'other'; // stale from before registration
+      final isOwn = viewingArtistUsername == myArtistState ||
+          timelineArtist == myArtistState;
+      expect(isOwn, isTrue, reason: 'FAB should show via timeline data match');
+      expect(timelineArtist, isNotNull, reason: 'timeline.artist required for FAB');
+      expect(myArtistState, isNotNull, reason: 'myArtist required for isOwn');
     });
   });
 }
