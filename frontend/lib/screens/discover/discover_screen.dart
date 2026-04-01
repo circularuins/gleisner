@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../providers/analytics_provider.dart';
 
 import '../../models/artist.dart';
 import '../../models/genre.dart';
@@ -26,6 +27,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   @override
   void initState() {
     super.initState();
+    ref.read(analyticsProvider.notifier).trackPageView('/discover');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_initialized && context.mounted) {
         _initialized = true;

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../graphql/client.dart';
 import '../../models/user.dart';
+import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/discover_provider.dart';
 import '../../providers/edit_artist_provider.dart';
@@ -23,6 +24,12 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    ref.read(analyticsProvider.notifier).trackPageView('/profile');
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);

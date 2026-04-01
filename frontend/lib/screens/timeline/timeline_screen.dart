@@ -10,6 +10,7 @@ import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/avatar_rail.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/node_card.dart';
+import '../../providers/analytics_provider.dart';
 import '../../providers/tutorial_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
@@ -44,6 +45,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
   @override
   void initState() {
     super.initState();
+    ref.read(analyticsProvider.notifier).trackPageView('/timeline');
     // Synapse travelling dots: one full cycle = every dot visits every
     // visible connection once. 12s feels unhurried with 3 simultaneous dots.
     _dotController = AnimationController(
