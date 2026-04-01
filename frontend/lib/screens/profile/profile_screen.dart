@@ -335,8 +335,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         fullscreenDialog: true,
         builder: (_) => RegisterArtistWizard(
           onRegistered: (artistUsername) {
-            // Navigate to timeline — the timeline screen's listener
-            // on myArtistProvider handles the switch to own timeline
+            debugPrint('[Profile] onRegistered: $artistUsername, myArtist=${ref.read(myArtistProvider)?.artistUsername}');
             context.go('/timeline');
           },
         ),

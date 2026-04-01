@@ -56,12 +56,14 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
       vsync: this,
     )..repeat();
     Future.microtask(_loadData);
-    // Re-load when auth/artist state changes (e.g. new artist registration)
+    // Re-load data when auth state changes (e.g. new user after logout)
     ref.listenManual(myArtistProvider, (prev, next) {
+      debugPrint('[Timeline] myArtist listener: prev=${prev?.artistUsername} next=${next?.artistUsername} viewing=$_viewingArtistUsername');
       if (prev == null && next != null) {
-        // New artist registered — reset to own timeline on next build
+        debugPrint('[Timeline] New artist detected — resetting to own timeline');
         _viewingArtistUsername = null;
         _showFirstPostTutorial = false;
+        Future.microtask(_loadData);
       }
     });
     // Listen for pending artist (set by Artist Page after Tune In)
@@ -90,6 +92,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
   }
 
   Future<void> _loadData() async {
+    debugPrint('[Timeline] _loadData called, viewing=$_viewingArtistUsername');
     // Load own artist + tune-in list in parallel
     await Future.wait([
       ref.read(myArtistProvider.notifier).load(),
@@ -99,14 +102,17 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
 
     final myArtist = ref.read(myArtistProvider);
     final tunedIn = ref.read(tuneInProvider).tunedInArtists;
+    debugPrint('[Timeline] _loadData: myArtist=${myArtist?.artistUsername} viewing=$_viewingArtistUsername tunedIn=${tunedIn.length}');
 
     if (_viewingArtistUsername != null) {
       // Already viewing someone — just refresh
+      debugPrint('[Timeline] _loadData: early return — viewing=$_viewingArtistUsername');
       return;
     }
 
     if (myArtist != null) {
       // Artist user — load own timeline
+      debugPrint('[Timeline] _loadData: loading own timeline for ${myArtist.artistUsername}');
       ref.read(timelineProvider.notifier).loadArtist(myArtist.artistUsername);
     } else if (tunedIn.isNotEmpty) {
       // Fan-only user with tuned-in artists — show the first one
@@ -141,29 +147,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     final myArtist = ref.watch(myArtistProvider);
     final selfArtistUsername = myArtist?.artistUsername;
 
-    // Auto-load own timeline when artist exists but timeline shows
-    // different/no artist (e.g. after artist registration while viewing
-    // another artist's timeline)
-    if (myArtist != null &&
-        _viewingArtistUsername == null &&
-        timeline.artist?.artistUsername != myArtist.artistUsername &&
-        !timeline.isLoading) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ref
-              .read(timelineProvider.notifier)
-              .loadArtist(myArtist.artistUsername);
-        }
-      });
-    }
-
     final theme = Theme.of(context);
     final isOwn = _isOwnTimeline;
 
     // Show first-post tutorial when: artist mode + no posts + not seen + loaded
     final tutorialState = ref.watch(tutorialProvider);
     if (isOwn &&
-        (myArtist != null || timeline.artist != null) &&
+        timeline.artist != null &&
         timeline.posts.isEmpty &&
         !timeline.isLoading &&
         tutorialState.isLoaded &&
@@ -331,7 +321,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
           // FAB only in Artist Mode (ADR 008)
           // Use myArtist as primary check — timeline.artist may be stale
           // after initial artist registration (async load not yet complete)
-          floatingActionButton: (myArtist != null || timeline.artist != null) && isOwn
+          floatingActionButton: timeline.artist != null && isOwn
               ? CompositedTransformTarget(
                   link: _fabLayerLink,
                   child: _GlowingStarButton(
