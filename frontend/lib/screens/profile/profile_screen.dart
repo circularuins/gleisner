@@ -334,10 +334,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       MaterialPageRoute<void>(
         fullscreenDialog: true,
         builder: (_) => RegisterArtistWizard(
-          onRegistered: (artistUsername) {
-            // Reload artist data + navigate to timeline
-            ref.read(timelineProvider.notifier).loadArtist(artistUsername);
-            ref.read(myArtistProvider.notifier).load();
+          onRegistered: (artistUsername) async {
+            // Load artist data before navigating — ensures FAB and
+            // tutorial are visible on first timeline render
+            await Future.wait([
+              ref.read(myArtistProvider.notifier).load(),
+              ref.read(timelineProvider.notifier).loadArtist(artistUsername),
+            ]);
+            if (!context.mounted) return;
             context.go('/timeline');
           },
         ),
