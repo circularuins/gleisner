@@ -60,6 +60,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return AuthLayout(
       // TODO(featured-artist): Replace with featured/demo artist from API
       onTryIt: () => context.go('/@seeduser'),
+      onAboutTap: () => context.push('/about'),
       form: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),
         child: Padding(
