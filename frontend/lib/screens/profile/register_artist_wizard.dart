@@ -207,8 +207,8 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
       displayName: _displayNameController.text.trim(),
       tracks: _tracks,
       onDone: () {
-        Navigator.pop(context);
-        widget.onRegistered(_registeredArtistUsername!);
+        // Return artist username to the caller via Navigator result
+        Navigator.pop(context, _registeredArtistUsername!);
       },
     ),
     _ => const SizedBox.shrink(),
@@ -421,7 +421,6 @@ class _FeatureCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorSurface1,
         borderRadius: BorderRadius.circular(radiusLg),
-        border: Border.all(color: colorBorder),
       ),
       child: Row(
         children: [
@@ -565,7 +564,7 @@ class _StepProfile extends StatelessWidget {
               controller: taglineController,
               style: const TextStyle(color: colorTextPrimary),
               decoration: const InputDecoration(
-                labelText: 'Tagline',
+                labelText: 'Tagline (optional)',
                 hintText: 'A short creative tagline (max 80 chars)',
                 border: OutlineInputBorder(),
               ),
@@ -576,7 +575,7 @@ class _StepProfile extends StatelessWidget {
               controller: locationController,
               style: const TextStyle(color: colorTextPrimary),
               decoration: const InputDecoration(
-                labelText: 'Location',
+                labelText: 'Location (optional)',
                 hintText: 'e.g. Osaka, Japan',
                 border: OutlineInputBorder(),
               ),
@@ -586,10 +585,10 @@ class _StepProfile extends StatelessWidget {
             TextFormField(
               controller: activeSinceController,
               style: const TextStyle(color: colorTextPrimary),
-              decoration: const InputDecoration(
-                labelText: 'Active Since (Year)',
-                hintText: 'e.g. 2019',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: 'Active Since (optional)',
+                hintText: 'e.g. 2019 (1900–${DateTime.now().year})',
+                border: const OutlineInputBorder(),
               ),
               keyboardType: TextInputType.number,
               validator: (v) {
@@ -650,6 +649,7 @@ class _StepProfile extends StatelessWidget {
                 }).toList(),
               ),
               const SizedBox(height: spaceSm),
+              if (selectedGenres.length < 5)
               GestureDetector(
                 onTap: () async {
                   final controller = TextEditingController();
@@ -900,7 +900,7 @@ class _StepTracks extends StatelessWidget {
                 onTracksChanged(updated);
               },
               icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add Track'),
+              label: Text('Add Track (${tracks.length}/10)'),
             ),
 
           if (error != null) ...[

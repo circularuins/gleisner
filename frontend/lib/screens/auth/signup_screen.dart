@@ -22,6 +22,7 @@ class SignupScreen extends ConsumerStatefulWidget {
 class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordConfirmController = TextEditingController();
   final _usernameController = TextEditingController();
   final _displayNameController = TextEditingController();
   late final TextEditingController _inviteCodeController;
@@ -45,6 +46,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _passwordConfirmController.dispose();
     _usernameController.dispose();
     _displayNameController.dispose();
     _inviteCodeController.dispose();
@@ -131,6 +133,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   ),
                   obscureText: true,
                   validator: validatePassword,
+                ),
+                const SizedBox(height: spaceLg),
+                TextFormField(
+                  controller: _passwordConfirmController,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm Password',
+                    border: OutlineInputBorder(),
+                  ),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please confirm your password';
+                    }
+                    if (value != _passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: spaceLg),
                 TextFormField(

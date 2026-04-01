@@ -59,9 +59,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     // Re-load data when auth state changes (e.g. new user after logout)
     ref.listenManual(myArtistProvider, (prev, next) {
       if (prev == null && next != null) {
-        // New artist registered — reload timeline data
         _viewingArtistUsername = null;
-        _showFirstPostTutorial = false; // Reset for new session
+        _showFirstPostTutorial = false;
         Future.microtask(_loadData);
       }
     });
@@ -84,10 +83,16 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
   String? get _ownArtistUsername => ref.read(myArtistProvider)?.artistUsername;
 
   /// Whether the current view is the user's own timeline (Artist Mode).
+  /// Checks both the explicit viewing state AND the actual loaded timeline
+  /// data — after artist registration, _viewingArtistUsername may still
+  /// point to another artist while timelineProvider has already loaded
+  /// the user's own data.
   bool get _isOwnTimeline {
     final own = _ownArtistUsername;
+    if (own == null) return _viewingArtistUsername == null;
     return _viewingArtistUsername == null ||
-        (own != null && _viewingArtistUsername == own);
+        _viewingArtistUsername == own ||
+        ref.read(timelineProvider).artist?.artistUsername == own;
   }
 
   Future<void> _loadData() async {
@@ -314,6 +319,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
             actions: const [],
           ),
           // FAB only in Artist Mode (ADR 008)
+          // Use myArtist as primary check — timeline.artist may be stale
+          // after initial artist registration (async load not yet complete)
           floatingActionButton: timeline.artist != null && isOwn
               ? CompositedTransformTarget(
                   link: _fabLayerLink,

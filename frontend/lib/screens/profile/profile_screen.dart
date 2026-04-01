@@ -329,19 +329,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  void _showRegisterSheet(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
+  Future<void> _showRegisterSheet(BuildContext context) async {
+    final artistUsername = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
         fullscreenDialog: true,
         builder: (_) => RegisterArtistWizard(
-          onRegistered: (artistUsername) {
-            // Reload artist data + navigate to timeline
-            ref.read(timelineProvider.notifier).loadArtist(artistUsername);
-            ref.read(myArtistProvider.notifier).load();
-            context.go('/timeline');
-          },
+          // onRegistered is unused — Wizard returns username via
+          // Navigator.pop(context, username) and we await the result below.
+          // TODO: Remove onRegistered parameter from RegisterArtistWizard
+          // once all callers are migrated to the Navigator.pop pattern.
+          onRegistered: (_) {},
         ),
       ),
     );
+    if (artistUsername == null || !context.mounted) return;
+
+    // Force full reload after artist registration.
+    // Timeline's listenManual does not fire across StatefulShellRoute tabs,
+    // so we explicitly load data before navigating.
+    // Note: myArtistProvider (myArtist query) and timelineProvider
+    // (artist+posts query) fetch different data — both are needed.
+    await ref.read(myArtistProvider.notifier).load();
+    await ref.read(timelineProvider.notifier).loadArtist(artistUsername);
+    if (!context.mounted) return;
+    context.go('/timeline');
   }
 }
