@@ -421,7 +421,6 @@ class _FeatureCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorSurface1,
         borderRadius: BorderRadius.circular(radiusLg),
-        border: Border.all(color: colorBorder),
       ),
       child: Row(
         children: [
@@ -650,6 +649,7 @@ class _StepProfile extends StatelessWidget {
                 }).toList(),
               ),
               const SizedBox(height: spaceSm),
+              if (selectedGenres.length < 5)
               GestureDetector(
                 onTap: () async {
                   final controller = TextEditingController();
