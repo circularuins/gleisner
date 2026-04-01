@@ -6,6 +6,7 @@ import '../../utils/open_url.dart';
 
 import '../../models/artist.dart';
 import '../../models/post.dart';
+import '../../providers/analytics_provider.dart';
 import '../../providers/artist_page_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/edit_artist_provider.dart';
@@ -37,6 +38,10 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(analyticsProvider.notifier).trackPageView('/artist/:username');
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(artistPageProvider.notifier).loadArtist(widget.username);
       // Only load unassigned posts when viewing own artist page

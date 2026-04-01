@@ -8,6 +8,7 @@ import 'package:hive_ce/hive.dart';
 
 import 'package:gleisner_web/graphql/client.dart';
 import 'package:gleisner_web/providers/auth_provider.dart';
+import 'package:gleisner_web/utils/validators.dart' as gleisner_validators;
 
 class MockSecureStorage implements FlutterSecureStorage {
   final Map<String, String> _store = {};
@@ -65,10 +66,14 @@ class _MockLink extends Link {
   final List<GraphQLError>? errors;
   final Exception? exception;
 
+  /// Captured variables from the last request (for assertion).
+  Map<String, dynamic>? lastVariables;
+
   _MockLink({this.data, this.errors, this.exception});
 
   @override
   Stream<Response> request(Request request, [NextLink? forward]) {
+    lastVariables = request.variables;
     if (exception != null) {
       return Stream.error(exception!);
     }
@@ -226,6 +231,96 @@ void main() {
 
       expect(container.read(authProvider).status, AuthStatus.unauthenticated);
       expect(await mockStorage.read(key: 'jwt'), isNull);
+    });
+  });
+
+  group('signup inviteCode handling', () {
+    const signupResponse = {
+      'signup': {
+        'token': 'test-jwt-token',
+        'user': {
+          'id': 'u1',
+          'did': 'did:web:gleisner.app:u:u1',
+          'email': 'test@test.com',
+          'username': 'testuser',
+          'displayName': null,
+          'bio': null,
+          'avatarUrl': null,
+          'profileVisibility': 'public',
+          'publicKey': 'pk',
+          'createdAt': '2026-01-01T00:00:00Z',
+          'updatedAt': '2026-01-01T00:00:00Z',
+        },
+      },
+    };
+
+    late _MockLink link;
+    late ProviderContainer container;
+
+    setUp(() {
+      link = _MockLink(data: signupResponse);
+      final client = GraphQLClient(
+        link: link,
+        cache: GraphQLCache(store: InMemoryStore()),
+      );
+      container = _createContainer(client: client, storage: mockStorage);
+    });
+
+    tearDown(() => container.dispose());
+
+    test('includes inviteCode in mutation variables when provided', () async {
+      await container.read(authProvider.notifier).signup(
+            email: 'test@test.com',
+            password: 'password123',
+            username: 'testuser',
+            inviteCode: 'abc123',
+          );
+
+      expect(link.lastVariables?['inviteCode'], 'abc123');
+    });
+
+    test('omits inviteCode from variables when null', () async {
+      await container.read(authProvider.notifier).signup(
+            email: 'test@test.com',
+            password: 'password123',
+            username: 'testuser',
+          );
+
+      expect(link.lastVariables?.containsKey('inviteCode'), isFalse);
+    });
+  });
+
+  group('validateInviteCode', () {
+    // Import the validator function for boundary tests
+    String? validate(String? v) =>
+        gleisner_validators.validateInviteCode(v);
+
+    test('accepts null (optional field)', () {
+      expect(validate(null), isNull);
+    });
+
+    test('accepts empty string', () {
+      expect(validate(''), isNull);
+    });
+
+    test('accepts valid 20-char hex', () {
+      expect(validate('a1b2c3d4e5f6a7b8c9d0'), isNull);
+    });
+
+    test('rejects 19-char hex (too short)', () {
+      expect(validate('a1b2c3d4e5f6a7b8c9d'), isNotNull);
+    });
+
+    test('rejects 21-char hex (too long)', () {
+      expect(validate('a1b2c3d4e5f6a7b8c9d0e'), isNotNull);
+    });
+
+    test('rejects uppercase hex', () {
+      expect(validate('A1B2C3D4E5F6A7B8C9D0'), isNotNull);
+    });
+
+    test('rejects non-hex characters', () {
+      expect(validate('a1b2c3d4e5f6a7b8c9gx'), isNotNull);
     });
   });
 }

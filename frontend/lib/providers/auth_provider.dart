@@ -95,6 +95,7 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
     required String password,
     required String username,
     String? displayName,
+    String? inviteCode,
   }) async {
     await _executeMutation(
       mutation: signupMutation,
@@ -103,6 +104,7 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
         'password': password,
         'username': username,
         if (displayName case final dn?) 'displayName': dn,
+        if (inviteCode case final ic?) 'inviteCode': ic,
       },
       resultKey: 'signup',
       fallbackError: 'Signup failed',
