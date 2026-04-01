@@ -26,7 +26,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    ref.read(analyticsProvider.notifier).trackPageView('/login');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(analyticsProvider.notifier).trackPageView('/login');
+    });
   }
 
   @override

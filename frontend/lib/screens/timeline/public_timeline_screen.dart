@@ -40,9 +40,10 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
   @override
   void initState() {
     super.initState();
-    ref
-        .read(analyticsProvider.notifier)
-        .trackPageView('/@${widget.username}');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(analyticsProvider.notifier).trackPageView('/@:username');
+    });
     Future.microtask(() {
       ref.read(publicTimelineProvider.notifier).loadArtist(widget.username);
     });

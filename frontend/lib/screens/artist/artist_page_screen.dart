@@ -38,9 +38,10 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
   @override
   void initState() {
     super.initState();
-    ref
-        .read(analyticsProvider.notifier)
-        .trackPageView('/artist/${widget.username}');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(analyticsProvider.notifier).trackPageView('/artist/:username');
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(artistPageProvider.notifier).loadArtist(widget.username);
       // Only load unassigned posts when viewing own artist page

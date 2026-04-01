@@ -45,7 +45,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
   @override
   void initState() {
     super.initState();
-    ref.read(analyticsProvider.notifier).trackPageView('/timeline');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(analyticsProvider.notifier).trackPageView('/timeline');
+    });
     // Synapse travelling dots: one full cycle = every dot visits every
     // visible connection once. 12s feels unhurried with 3 simultaneous dots.
     _dotController = AnimationController(

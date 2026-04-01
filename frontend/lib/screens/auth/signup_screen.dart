@@ -28,8 +28,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   void initState() {
     super.initState();
-    ref.read(analyticsProvider.notifier).trackEvent('signup_start');
-    ref.read(analyticsProvider.notifier).trackPageView('/signup');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(analyticsProvider.notifier).trackPageView('/signup',
+          metadata: {'funnel': 'signup_start'});
+    });
   }
 
   @override

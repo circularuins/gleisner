@@ -27,8 +27,9 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   @override
   void initState() {
     super.initState();
-    ref.read(analyticsProvider.notifier).trackPageView('/discover');
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(analyticsProvider.notifier).trackPageView('/discover');
       if (!_initialized && context.mounted) {
         _initialized = true;
         ref.read(discoverProvider.notifier).loadInitial();

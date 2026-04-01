@@ -27,7 +27,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    ref.read(analyticsProvider.notifier).trackPageView('/profile');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(analyticsProvider.notifier).trackPageView('/profile');
+    });
   }
 
   @override

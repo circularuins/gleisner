@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -5,7 +7,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import '../graphql/client.dart';
 import '../graphql/mutations/analytics.dart';
 
-/// Generates a unique session ID (UUID v4 format using DateTime + hashCode).
+/// Generates a unique session ID using timestamp + hash.
 String _generateSessionId() {
   final now = DateTime.now();
   return '${now.millisecondsSinceEpoch}-${now.hashCode.toRadixString(36)}';
@@ -22,29 +24,35 @@ class AnalyticsNotifier extends Notifier<void> {
   }
 
   /// Fire-and-forget analytics event. Errors are silently logged.
+  /// Works for both authenticated and unauthenticated users —
+  /// the backend trackEvent mutation does not require auth.
   void trackEvent(String eventType, {Map<String, dynamic>? metadata}) {
-    _client
-        .mutate(
-          MutationOptions(
-            document: gql(trackEventMutation),
-            variables: {
-              'eventType': eventType,
-              'sessionId': _sessionId,
-              if (metadata != null) 'metadata': metadata,
-            },
-          ),
-        )
-        .catchError((e) {
-          debugPrint('[Analytics] trackEvent failed: $e');
-          return QueryResult.internal(
-            parserFn: (_) => null,
-            source: QueryResultSource.network,
-          );
-        });
+    unawaited(
+      _client
+          .mutate(
+            MutationOptions(
+              document: gql(trackEventMutation),
+              variables: {
+                'eventType': eventType,
+                'sessionId': _sessionId,
+                if (metadata != null) 'metadata': metadata,
+              },
+            ),
+          )
+          .catchError((e) {
+            debugPrint('[Analytics] trackEvent failed: $e');
+            return QueryResult.internal(
+              parserFn: (_) => null,
+              source: QueryResultSource.network,
+            );
+          }),
+    );
   }
 
-  void trackPageView(String page) {
-    trackEvent('page_view', metadata: {'page': page});
+  /// Track a page view. [page] should use placeholders for PII
+  /// (e.g., '/artist/:username' instead of '/artist/john').
+  void trackPageView(String page, {Map<String, dynamic>? metadata}) {
+    trackEvent('page_view', metadata: {'page': page, ...?metadata});
   }
 }
 
