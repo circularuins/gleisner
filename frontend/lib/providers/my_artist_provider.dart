@@ -22,7 +22,10 @@ class MyArtistNotifier extends Notifier<Artist?> with DisposableNotifier {
   Future<void> load() async {
     try {
       final result = await _client.query(
-        QueryOptions(document: gql(myArtistQuery)),
+        QueryOptions(
+          document: gql(myArtistQuery),
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
       );
       if (disposed) return;
       final data = result.data?['myArtist'];
