@@ -12,6 +12,7 @@ import 'screens/edit_post/edit_post_screen.dart';
 import 'models/post.dart';
 import 'screens/discover/discover_screen.dart';
 import 'screens/profile/profile_screen.dart';
+import 'screens/about/about_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/timeline/public_timeline_screen.dart';
 import 'screens/timeline/timeline_screen.dart';
@@ -50,10 +51,13 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isAuthRoute = path == '/login' || path == '/signup';
       final isPublicProfile = _publicProfilePattern.hasMatch(path);
+      final isPublicPage = path == '/about';
       final isOnboarding = path == '/onboarding';
 
       if (status == AuthStatus.unauthenticated) {
-        return (isAuthRoute || isPublicProfile) ? null : '/login';
+        return (isAuthRoute || isPublicProfile || isPublicPage)
+            ? null
+            : '/login';
       }
 
       // authenticated — redirect auth/splash pages, but allow onboarding + public profiles
@@ -73,6 +77,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/signup',
         builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: '/about',
+        builder: (context, state) => const AboutScreen(),
       ),
 
       // Main app with bottom navigation

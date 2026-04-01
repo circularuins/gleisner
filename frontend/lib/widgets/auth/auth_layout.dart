@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/gleisner_tokens.dart';
+import '../common/app_footer.dart';
 import 'gleisner_hero.dart';
 
 /// Responsive layout shared by login and signup screens.
@@ -13,7 +14,15 @@ class AuthLayout extends StatelessWidget {
   /// Navigation is handled by the caller (Screen level).
   final VoidCallback? onTryIt;
 
-  const AuthLayout({super.key, required this.form, this.onTryIt});
+  /// Called when the user taps "About" in the footer.
+  final VoidCallback? onAboutTap;
+
+  const AuthLayout({
+    super.key,
+    required this.form,
+    this.onTryIt,
+    this.onAboutTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -25,11 +34,18 @@ class AuthLayout extends StatelessWidget {
             final isWide = constraints.maxWidth >= 800;
 
             if (isWide) {
-              return Row(
+              return Column(
                 children: [
-                  Expanded(child: GleisnerHero(onTryIt: onTryIt)),
-                  Container(width: 1, color: colorBorder),
-                  Expanded(child: Center(child: form)),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Expanded(child: GleisnerHero(onTryIt: onTryIt)),
+                        Container(width: 1, color: colorBorder),
+                        Expanded(child: Center(child: form)),
+                      ],
+                    ),
+                  ),
+                  AppFooter(onAboutTap: onAboutTap),
                 ],
               );
             }
@@ -41,6 +57,8 @@ class AuthLayout extends StatelessWidget {
                   form,
                   const SizedBox(height: spaceLg),
                   GleisnerHero(compact: true, onTryIt: onTryIt),
+                  const SizedBox(height: spaceLg),
+                  AppFooter(onAboutTap: onAboutTap),
                 ],
               ),
             );
