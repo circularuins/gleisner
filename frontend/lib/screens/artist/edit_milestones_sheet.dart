@@ -470,9 +470,16 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                                 ),
                               ),
                               IconButton(
+                                icon: const Icon(Icons.edit_outlined,
+                                    size: 18, color: colorInteractive),
+                                onPressed: () => _editMilestone(m),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              IconButton(
                                 icon: const Icon(Icons.delete_outline,
                                     size: 18, color: colorTextMuted),
                                 onPressed: () => _deleteMilestone(m),
+                                visualDensity: VisualDensity.compact,
                               ),
                             ],
                           ),
