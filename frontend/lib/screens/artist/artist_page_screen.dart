@@ -21,6 +21,7 @@ import '../unassigned_posts/unassigned_posts_screen.dart';
 import 'edit_artist_about_sheet.dart';
 import 'edit_artist_genres_sheet.dart';
 import 'edit_artist_links_sheet.dart';
+import 'edit_milestones_sheet.dart';
 import 'edit_artist_tracks_sheet.dart';
 
 /// Artist Page (ADR 013).
@@ -399,6 +400,38 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                             _LinksSection(links: artist.links),
                         ],
 
+                        // Career milestones section
+                        if (artist.milestones.isNotEmpty || isSelf) ...[
+                          const SizedBox(height: spaceXl),
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'CAREER',
+                                  style: TextStyle(
+                                    color: colorTextMuted,
+                                    fontSize: fontSizeXs,
+                                    fontWeight: weightSemibold,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ),
+                              if (isSelf)
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined,
+                                      size: 18, color: colorInteractive),
+                                  onPressed: () =>
+                                      _showEditMilestonesSheet(
+                                          context, artist),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                            ],
+                          ),
+                          if (artist.milestones.isNotEmpty)
+                            _MilestonesSection(
+                                milestones: artist.milestones),
+                        ],
+
                         // Tracks section
                         if (artist.tracks.isNotEmpty || isSelf) ...[
                           const SizedBox(height: spaceXl),
@@ -691,6 +724,18 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => EditArtistLinksSheet(artist: artist),
+    );
+  }
+
+  void _showEditMilestonesSheet(BuildContext context, Artist artist) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => EditMilestonesSheet(
+        milestones: artist.milestones,
+        artistUsername: artist.artistUsername,
+      ),
     );
   }
 
@@ -1165,6 +1210,76 @@ class _GenerativeAvatar extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MilestonesSection extends StatelessWidget {
+  final List<ArtistMilestone> milestones;
+
+  const _MilestonesSection({required this.milestones});
+
+  static IconData _icon(String category) => switch (category) {
+        'award' => Icons.emoji_events,
+        'release' => Icons.album,
+        'event' => Icons.event,
+        'affiliation' => Icons.groups,
+        'education' => Icons.school,
+        _ => Icons.star_outline,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: milestones.map((m) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: spaceMd),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(_icon(m.category), size: 18, color: colorAccentGold),
+              const SizedBox(width: spaceMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      m.title,
+                      style: const TextStyle(
+                        color: colorTextPrimary,
+                        fontSize: fontSizeSm,
+                        fontWeight: weightMedium,
+                      ),
+                    ),
+                    const SizedBox(height: spaceXxs),
+                    Text(
+                      m.date.substring(0, 7), // YYYY-MM
+                      style: const TextStyle(
+                        color: colorTextMuted,
+                        fontSize: fontSizeXs,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                    if (m.description != null) ...[
+                      const SizedBox(height: spaceXxs),
+                      Text(
+                        m.description!,
+                        style: const TextStyle(
+                          color: colorTextSecondary,
+                          fontSize: fontSizeXs,
+                          height: 1.4,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

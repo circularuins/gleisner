@@ -4,6 +4,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
 import '../graphql/mutations/artist.dart';
+import '../graphql/mutations/artist-milestone.dart';
 import '../graphql/mutations/genre.dart';
 import '../graphql/mutations/track.dart';
 import '../models/artist.dart';
@@ -240,6 +241,52 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
       return true;
     } catch (e) {
       debugPrint('[EditArtistNotifier] deleteTrack error: $e');
+      return false;
+    }
+  }
+  // ── Milestones ──
+
+  Future<ArtistMilestone?> createMilestone({
+    required String category,
+    required String title,
+    String? description,
+    required String date,
+    int? position,
+  }) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(createArtistMilestoneMutation),
+          variables: {
+            'category': category,
+            'title': title,
+            if (description != null) 'description': description,
+            'date': date,
+            if (position != null) 'position': position,
+          },
+        ),
+      );
+      if (result.hasException) return null;
+      final data =
+          result.data?['createArtistMilestone'] as Map<String, dynamic>?;
+      return data != null ? ArtistMilestone.fromJson(data) : null;
+    } catch (e) {
+      debugPrint('[EditArtistNotifier] createMilestone error: $e');
+      return null;
+    }
+  }
+
+  Future<bool> deleteMilestone(String id) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(deleteArtistMilestoneMutation),
+          variables: {'id': id},
+        ),
+      );
+      return !result.hasException;
+    } catch (e) {
+      debugPrint('[EditArtistNotifier] deleteMilestone error: $e');
       return false;
     }
   }

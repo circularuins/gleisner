@@ -27,6 +27,35 @@ class ArtistLink {
   }
 }
 
+class ArtistMilestone {
+  final String id;
+  final String category;
+  final String title;
+  final String? description;
+  final String date; // YYYY-MM-DD
+  final int position;
+
+  const ArtistMilestone({
+    required this.id,
+    required this.category,
+    required this.title,
+    this.description,
+    required this.date,
+    required this.position,
+  });
+
+  factory ArtistMilestone.fromJson(Map<String, dynamic> json) {
+    return ArtistMilestone(
+      id: json['id'] as String,
+      category: json['category'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String?,
+      date: json['date'] as String,
+      position: json['position'] as int? ?? 0,
+    );
+  }
+}
+
 class Artist {
   final String id;
   final String artistUsername;
@@ -42,6 +71,7 @@ class Artist {
   final List<Track> tracks;
   final List<ArtistGenre> genres;
   final List<ArtistLink> links;
+  final List<ArtistMilestone> milestones;
 
   const Artist({
     required this.id,
@@ -58,6 +88,7 @@ class Artist {
     required this.tracks,
     this.genres = const [],
     this.links = const [],
+    this.milestones = const [],
   });
 
   Artist withTrack(Track track) => Artist(
@@ -75,6 +106,7 @@ class Artist {
     tracks: [...tracks, track],
     genres: genres,
     links: links,
+    milestones: milestones,
   );
 
   factory Artist.fromJson(Map<String, dynamic> json) {
@@ -103,6 +135,12 @@ class Artist {
       links:
           (json['links'] as List<dynamic>?)
               ?.map((l) => ArtistLink.fromJson(l as Map<String, dynamic>))
+              .toList() ??
+          [],
+      milestones:
+          (json['milestones'] as List<dynamic>?)
+              ?.map(
+                  (m) => ArtistMilestone.fromJson(m as Map<String, dynamic>))
               .toList() ??
           [],
     );
