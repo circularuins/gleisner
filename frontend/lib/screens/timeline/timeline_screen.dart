@@ -148,7 +148,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     // Show first-post tutorial when: artist mode + no posts + not seen + loaded
     final tutorialState = ref.watch(tutorialProvider);
     if (isOwn &&
-        timeline.artist != null &&
+        (myArtist != null || timeline.artist != null) &&
         timeline.posts.isEmpty &&
         !timeline.isLoading &&
         tutorialState.isLoaded &&
@@ -314,7 +314,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
             actions: const [],
           ),
           // FAB only in Artist Mode (ADR 008)
-          floatingActionButton: timeline.artist != null && isOwn
+          // Use myArtist as primary check — timeline.artist may be stale
+          // after initial artist registration (async load not yet complete)
+          floatingActionButton: (myArtist != null || timeline.artist != null) && isOwn
               ? CompositedTransformTarget(
                   link: _fabLayerLink,
                   child: _GlowingStarButton(
