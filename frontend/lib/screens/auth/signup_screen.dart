@@ -143,6 +143,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   ),
                   obscureText: true,
                   validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please confirm your password';
+                    }
                     if (value != _passwordController.text) {
                       return 'Passwords do not match';
                     }
