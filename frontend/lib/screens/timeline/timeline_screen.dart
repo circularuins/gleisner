@@ -56,13 +56,15 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
       vsync: this,
     )..repeat();
     Future.microtask(_loadData);
-    // Re-load data when auth state changes (e.g. new user after logout)
+    // Switch to own timeline when artist status changes:
+    // - New registration (null → non-null): first artist setup
+    // - Re-login after logout (null → non-null): session restore
+    // - Artist username change (different value): edge case
     ref.listenManual(myArtistProvider, (prev, next) {
-      if (prev == null && next != null) {
-        // New artist registered — reload timeline data
+      if (next != null && prev?.artistUsername != next.artistUsername) {
         _viewingArtistUsername = null;
-        _showFirstPostTutorial = false; // Reset for new session
-        Future.microtask(_loadData);
+        _showFirstPostTutorial = false;
+        ref.read(timelineProvider.notifier).loadArtist(next.artistUsername);
       }
     });
     // Listen for pending artist (set by Artist Page after Tune In)
