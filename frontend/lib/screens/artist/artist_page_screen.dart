@@ -1247,11 +1247,13 @@ class _MilestonesSectionState extends State<_MilestonesSection> {
                 ],
               ),
             )),
-        if (hasMore && !_expanded)
+        if (hasMore)
           GestureDetector(
-            onTap: () => setState(() => _expanded = true),
+            onTap: () => setState(() => _expanded = !_expanded),
             child: Text(
-              'See all ${all.length} milestones',
+              _expanded
+                  ? 'Show less'
+                  : 'See all ${all.length} milestones',
               style: const TextStyle(
                 color: colorInteractive,
                 fontSize: fontSizeSm,
