@@ -65,10 +65,14 @@ class _MockLink extends Link {
   final List<GraphQLError>? errors;
   final Exception? exception;
 
+  /// Captured variables from the last request (for assertion).
+  Map<String, dynamic>? lastVariables;
+
   _MockLink({this.data, this.errors, this.exception});
 
   @override
   Stream<Response> request(Request request, [NextLink? forward]) {
+    lastVariables = request.variables;
     if (exception != null) {
       return Stream.error(exception!);
     }
@@ -226,6 +230,70 @@ void main() {
 
       expect(container.read(authProvider).status, AuthStatus.unauthenticated);
       expect(await mockStorage.read(key: 'jwt'), isNull);
+    });
+  });
+
+  group('signup inviteCode handling', () {
+    const signupResponse = {
+      'signup': {
+        'token': 'test-jwt-token',
+        'user': {
+          'id': 'u1',
+          'did': 'did:web:gleisner.app:u:u1',
+          'email': 'test@test.com',
+          'username': 'testuser',
+          'displayName': null,
+          'bio': null,
+          'avatarUrl': null,
+          'profileVisibility': 'public',
+          'publicKey': 'pk',
+          'createdAt': '2026-01-01T00:00:00Z',
+          'updatedAt': '2026-01-01T00:00:00Z',
+        },
+      },
+    };
+
+    test('includes inviteCode in mutation variables when provided', () async {
+      final link = _MockLink(data: signupResponse);
+      final client = GraphQLClient(
+        link: link,
+        cache: GraphQLCache(store: InMemoryStore()),
+      );
+      final container = _createContainer(
+        client: client,
+        storage: mockStorage,
+      );
+      addTearDown(container.dispose);
+
+      await container.read(authProvider.notifier).signup(
+            email: 'test@test.com',
+            password: 'password123',
+            username: 'testuser',
+            inviteCode: 'abc123',
+          );
+
+      expect(link.lastVariables?['inviteCode'], 'abc123');
+    });
+
+    test('omits inviteCode from variables when null', () async {
+      final link = _MockLink(data: signupResponse);
+      final client = GraphQLClient(
+        link: link,
+        cache: GraphQLCache(store: InMemoryStore()),
+      );
+      final container = _createContainer(
+        client: client,
+        storage: mockStorage,
+      );
+      addTearDown(container.dispose);
+
+      await container.read(authProvider.notifier).signup(
+            email: 'test@test.com',
+            password: 'password123',
+            username: 'testuser',
+          );
+
+      expect(link.lastVariables?.containsKey('inviteCode'), isFalse);
     });
   });
 }
