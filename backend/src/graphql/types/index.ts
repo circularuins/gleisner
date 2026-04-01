@@ -14,6 +14,7 @@ import "./constellation.js";
 import "./follow.js";
 import "./tune-in.js";
 import "./artist-link.js";
+import "./artist-milestone.js";
 import "./genre.js";
 import "./analytics.js";
 import "./invite.js";

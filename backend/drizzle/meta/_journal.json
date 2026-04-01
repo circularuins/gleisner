@@ -29,6 +29,13 @@
       "when": 1774968775196,
       "tag": "0003_new_namor",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775056769972,
+      "tag": "0004_normal_shocker",
+      "breakpoints": true
     }
   ]
 }
