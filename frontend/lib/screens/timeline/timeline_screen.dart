@@ -56,15 +56,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
       vsync: this,
     )..repeat();
     Future.microtask(_loadData);
-    // Switch to own timeline when artist status changes:
-    // - New registration (null → non-null): first artist setup
-    // - Re-login after logout (null → non-null): session restore
-    // - Artist username change (different value): edge case
+    // Re-load when auth/artist state changes (e.g. new artist registration)
     ref.listenManual(myArtistProvider, (prev, next) {
-      if (next != null && prev?.artistUsername != next.artistUsername) {
+      if (prev == null && next != null) {
+        // New artist registered — reset to own timeline on next build
         _viewingArtistUsername = null;
         _showFirstPostTutorial = false;
-        ref.read(timelineProvider.notifier).loadArtist(next.artistUsername);
       }
     });
     // Listen for pending artist (set by Artist Page after Tune In)
@@ -143,6 +140,22 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     // Watch myArtistProvider so FAB and mode badge update when artist registers
     final myArtist = ref.watch(myArtistProvider);
     final selfArtistUsername = myArtist?.artistUsername;
+
+    // Auto-load own timeline when artist exists but timeline shows
+    // different/no artist (e.g. after artist registration while viewing
+    // another artist's timeline)
+    if (myArtist != null &&
+        _viewingArtistUsername == null &&
+        timeline.artist?.artistUsername != myArtist.artistUsername &&
+        !timeline.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref
+              .read(timelineProvider.notifier)
+              .loadArtist(myArtist.artistUsername);
+        }
+      });
+    }
 
     final theme = Theme.of(context);
     final isOwn = _isOwnTimeline;
