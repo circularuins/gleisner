@@ -149,7 +149,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
 
     final theme = Theme.of(context);
     final isOwn = _isOwnTimeline;
-    debugPrint('[Timeline] build: myArtist=$selfArtistUsername timeline.artist=${timeline.artist?.artistUsername} viewing=$_viewingArtistUsername isOwn=$isOwn isLoading=${timeline.isLoading}');
 
     // Show first-post tutorial when: artist mode + no posts + not seen + loaded
     final tutorialState = ref.watch(tutorialProvider);

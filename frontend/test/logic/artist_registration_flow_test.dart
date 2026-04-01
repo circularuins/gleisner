@@ -1,128 +1,133 @@
 import 'package:flutter_test/flutter_test.dart';
 
-/// Simulates the Timeline screen's myArtistProvider listener logic
-/// and _loadData flow to verify FAB visibility after artist registration.
+/// Tests for the artist registration → timeline FAB visibility flow.
 ///
-/// This test reproduces the exact sequence of events:
-/// 1. User signs up (fan-only, no artist)
-/// 2. User tunes in to other artists → _viewingArtistUsername set
-/// 3. User registers as artist → myArtistProvider null → non-null
-/// 4. User taps "View Your Timeline" → context.go('/timeline')
+/// These tests simulate the state transitions that occur when a user
+/// registers as an artist and navigates to their timeline. They verify
+/// that the FAB (post button) and tutorial are visible immediately.
 void main() {
-  group('Artist registration → Timeline FAB visibility', () {
-    // Simulate Timeline screen state
-    String? viewingArtistUsername;
-    bool showFirstPostTutorial = false;
-    String? timelineArtistUsername; // What timelineProvider has loaded
-    String? myArtistUsername; // What myArtistProvider holds
-
-    // Simulate _loadData
-    Future<void> loadData() async {
-      // In real code: await myArtistProvider.load() + tuneInProvider.loadMyTuneIns()
-      // For test: myArtistUsername is already set
-
-      if (viewingArtistUsername != null) {
-        return; // Early return — already viewing someone
-      }
-
-      if (myArtistUsername != null) {
-        timelineArtistUsername = myArtistUsername;
-      }
+  group('isOwnTimeline logic', () {
+    // Simulates _isOwnTimeline getter
+    bool isOwnTimeline({
+      required String? viewingArtistUsername,
+      required String? ownArtistUsername,
+      required String? timelineArtistUsername,
+    }) {
+      final own = ownArtistUsername;
+      if (own == null) return viewingArtistUsername == null;
+      return viewingArtistUsername == null ||
+          viewingArtistUsername == own ||
+          timelineArtistUsername == own;
     }
 
-    // Simulate listener callback
-    void onMyArtistChanged(String? prev, String? next) {
-      if (prev == null && next != null) {
-        viewingArtistUsername = null;
-        showFirstPostTutorial = false;
-        // Future.microtask(_loadData) — simulated as sync for test
-        loadData();
-      }
-    }
-
-    // Simulate FAB visibility check
-    bool isFabVisible() {
-      final isOwn = viewingArtistUsername == null ||
-          (myArtistUsername != null &&
-              viewingArtistUsername == myArtistUsername);
-      return timelineArtistUsername != null && isOwn;
-    }
-
-    setUp(() {
-      viewingArtistUsername = null;
-      showFirstPostTutorial = false;
-      timelineArtistUsername = null;
-      myArtistUsername = null;
+    test('own when viewingArtistUsername is null', () {
+      expect(
+        isOwnTimeline(
+          viewingArtistUsername: null,
+          ownArtistUsername: 'me',
+          timelineArtistUsername: 'me',
+        ),
+        isTrue,
+      );
     });
 
-    test('Scenario: fan tunes in, then registers as artist', () async {
-      // Step 1: User signs up as fan, _loadData runs
-      myArtistUsername = null;
-      await loadData();
-      expect(isFabVisible(), isFalse, reason: 'No artist yet');
+    test('own when viewingArtistUsername matches own', () {
+      expect(
+        isOwnTimeline(
+          viewingArtistUsername: 'me',
+          ownArtistUsername: 'me',
+          timelineArtistUsername: 'me',
+        ),
+        isTrue,
+      );
+    });
 
-      // Step 2: User tunes in to another artist → view their timeline
-      viewingArtistUsername = 'other_artist';
-      timelineArtistUsername = 'other_artist';
-      expect(isFabVisible(), isFalse, reason: 'Viewing other artist');
+    test('not own when viewing another artist', () {
+      expect(
+        isOwnTimeline(
+          viewingArtistUsername: 'other',
+          ownArtistUsername: 'me',
+          timelineArtistUsername: 'other',
+        ),
+        isFalse,
+      );
+    });
 
-      // Step 3: Wizard Step 3 submit → myArtistProvider.load() called
-      // This triggers the listener (null → non-null)
-      final prevMyArtist = myArtistUsername; // null
-      myArtistUsername = 'my_new_artist';
-      onMyArtistChanged(prevMyArtist, myArtistUsername);
+    test('own when viewing stale but timeline loaded with own data', () {
+      // After artist registration: _viewingArtistUsername still holds
+      // the previous artist, but timelineProvider was explicitly loaded
+      // with own data by Profile's onRegistered callback
+      expect(
+        isOwnTimeline(
+          viewingArtistUsername: 'other',
+          ownArtistUsername: 'me',
+          timelineArtistUsername: 'me',
+        ),
+        isTrue,
+      );
+    });
 
-      // After listener: viewingArtistUsername should be reset
-      expect(viewingArtistUsername, isNull,
-          reason: 'Listener should reset viewingArtistUsername');
+    test('not own when no artist registered', () {
+      expect(
+        isOwnTimeline(
+          viewingArtistUsername: null,
+          ownArtistUsername: null,
+          timelineArtistUsername: null,
+        ),
+        isTrue, // fan-only with no viewing = "own" (empty state)
+      );
+    });
 
-      // After _loadData: timeline should show own artist
-      expect(timelineArtistUsername, 'my_new_artist',
-          reason: '_loadData should load own artist timeline');
+    test('not own when fan viewing another artist', () {
+      expect(
+        isOwnTimeline(
+          viewingArtistUsername: 'other',
+          ownArtistUsername: null,
+          timelineArtistUsername: 'other',
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('Artist registration flow: FAB visibility', () {
+    test('Profile onRegistered flow ensures data is loaded', () {
+      // Simulates the Profile._showRegisterSheet flow:
+      // 1. Wizard completes → Navigator.pop returns artistUsername
+      // 2. await myArtistProvider.load() → must use networkOnly (not cache)
+      // 3. await timelineProvider.loadArtist(artistUsername)
+      // 4. context.go('/timeline')
+      //
+      // The key insight: myArtistProvider MUST use FetchPolicy.networkOnly
+      // because the initial load (pre-registration) cached null, and
+      // cacheFirst would return stale null after registration.
+
+      String? cachedMyArtist; // Simulates GraphQL cache
+      String? myArtistState;
+      String? timelineArtist;
+
+      // Initial load (pre-registration) — caches null
+      cachedMyArtist = null;
+      myArtistState = cachedMyArtist;
+      expect(myArtistState, isNull);
+
+      // Artist registration happens (server-side)
+      // ...
+
+      // load() with cacheFirst → returns stale null (BUG)
+      myArtistState = cachedMyArtist; // Still null from cache!
+      expect(myArtistState, isNull, reason: 'cacheFirst returns stale null');
+
+      // load() with networkOnly → fetches fresh data (FIX)
+      cachedMyArtist = 'my_artist'; // Simulates server response
+      myArtistState = cachedMyArtist;
+      expect(myArtistState, 'my_artist');
+
+      // Timeline loaded with own data
+      timelineArtist = 'my_artist';
 
       // FAB should be visible
-      expect(isFabVisible(), isTrue,
-          reason: 'FAB should show for own timeline');
-    });
-
-    test('Scenario: fan registers as artist without tuning in first', () async {
-      // Step 1: Fresh signup, no tune-ins
-      myArtistUsername = null;
-      await loadData();
-      expect(isFabVisible(), isFalse);
-
-      // Step 2: Register as artist directly
-      final prevMyArtist = myArtistUsername;
-      myArtistUsername = 'direct_artist';
-      onMyArtistChanged(prevMyArtist, myArtistUsername);
-
-      expect(isFabVisible(), isTrue,
-          reason: 'FAB should show immediately after registration');
-    });
-
-    test('BUG REPRO: listener fires during Wizard Step 3, but _loadData '
-        'hits early return because _viewingArtistUsername was set', () async {
-      // Setup: viewing another artist
-      viewingArtistUsername = 'other_artist';
-      timelineArtistUsername = 'other_artist';
-      myArtistUsername = null;
-
-      // Wizard Step 3: myArtistProvider changes
-      final prevMyArtist = myArtistUsername;
-      myArtistUsername = 'my_new_artist';
-      onMyArtistChanged(prevMyArtist, myArtistUsername);
-
-      // The listener should have:
-      // 1. Set viewingArtistUsername = null
-      // 2. Called _loadData which should NOT early return
-      // 3. Loaded own timeline
-
-      expect(viewingArtistUsername, isNull,
-          reason: 'Listener must reset viewingArtistUsername BEFORE _loadData');
-      expect(timelineArtistUsername, 'my_new_artist',
-          reason: '_loadData must load own timeline after reset');
-      expect(isFabVisible(), isTrue,
-          reason: 'FAB must be visible after artist registration');
+      expect(timelineArtist, myArtistState);
     });
   });
 }

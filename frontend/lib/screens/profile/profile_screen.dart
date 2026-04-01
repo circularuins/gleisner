@@ -338,17 +338,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       ),
     );
-    debugPrint('[Profile] push returned: $artistUsername');
     if (artistUsername == null || !context.mounted) return;
 
     // Force full reload after artist registration.
-    debugPrint('[Profile] loading myArtist + timeline...');
+    // Timeline's listenManual does not fire across StatefulShellRoute tabs,
+    // so we explicitly load data before navigating.
     await ref.read(myArtistProvider.notifier).load();
-    debugPrint('[Profile] myArtist loaded: ${ref.read(myArtistProvider)?.artistUsername}');
     await ref.read(timelineProvider.notifier).loadArtist(artistUsername);
-    debugPrint('[Profile] timeline loaded: ${ref.read(timelineProvider).artist?.artistUsername}');
     if (!context.mounted) return;
-    debugPrint('[Profile] navigating to /timeline');
     context.go('/timeline');
   }
 }
