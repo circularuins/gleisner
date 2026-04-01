@@ -5,22 +5,7 @@ import '../../models/artist.dart';
 import '../../providers/artist_page_provider.dart';
 import '../../providers/edit_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
-
-const _categories = [
-  ('award', 'Award', Icons.emoji_events),
-  ('release', 'Release', Icons.album),
-  ('event', 'Event', Icons.event),
-  ('affiliation', 'Affiliation', Icons.groups),
-  ('education', 'Education', Icons.school),
-  ('other', 'Other', Icons.star_outline),
-];
-
-IconData _categoryIcon(String category) {
-  for (final (key, _, icon) in _categories) {
-    if (key == category) return icon;
-  }
-  return Icons.star_outline;
-}
+import '../../utils/milestone_category.dart';
 
 class EditMilestonesSheet extends ConsumerStatefulWidget {
   final List<ArtistMilestone> milestones;
@@ -164,7 +149,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
               children: [
                 Wrap(
                   spacing: spaceXs,
-                  children: _categories.map((c) {
+                  children: milestoneCategories.map((c) {
                     final (key, label, icon) = c;
                     return ChoiceChip(
                       label: Text(label),
@@ -360,7 +345,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                     // Category chips
                     Wrap(
                       spacing: spaceXs,
-                      children: _categories.map((c) {
+                      children: milestoneCategories.map((c) {
                         final (key, label, icon) = c;
                         final selected = _selectedCategory == key;
                         return ChoiceChip(
@@ -441,7 +426,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Icon(
-                                _categoryIcon(m.category),
+                                milestoneCategoryIcon(m.category),
                                 size: 20,
                                 color: colorAccentGold,
                               ),

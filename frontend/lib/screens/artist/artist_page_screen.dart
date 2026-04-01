@@ -22,6 +22,7 @@ import 'edit_artist_about_sheet.dart';
 import 'edit_artist_genres_sheet.dart';
 import 'edit_artist_links_sheet.dart';
 import 'edit_milestones_sheet.dart';
+import '../../utils/milestone_category.dart';
 import 'edit_artist_tracks_sheet.dart';
 
 /// Artist Page (ADR 013).
@@ -1177,14 +1178,7 @@ class _MilestonesSectionState extends State<_MilestonesSection> {
   static const _previewCount = 3;
   bool _expanded = false;
 
-  static IconData _icon(String category) => switch (category) {
-        'award' => Icons.emoji_events,
-        'release' => Icons.album,
-        'event' => Icons.event,
-        'affiliation' => Icons.groups,
-        'education' => Icons.school,
-        _ => Icons.star_outline,
-      };
+  static IconData _icon(String category) => milestoneCategoryIcon(category);
 
   @override
   Widget build(BuildContext context) {

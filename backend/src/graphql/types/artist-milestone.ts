@@ -97,9 +97,14 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Title must be between 1 and 255 characters");
       }
 
-      // Validate date format (YYYY-MM-DD)
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) {
-        throw new GraphQLError("Date must be in YYYY-MM-DD format");
+      // Validate date format and existence
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(args.date) ||
+        isNaN(new Date(args.date).getTime())
+      ) {
+        throw new GraphQLError(
+          "Date must be a valid date in YYYY-MM-DD format",
+        );
       }
 
       try {
@@ -151,8 +156,13 @@ builder.mutationFields((t) => ({
         updateData.description = args.description?.trim() || null;
       }
       if (args.date != null) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) {
-          throw new GraphQLError("Date must be in YYYY-MM-DD format");
+        if (
+          !/^\d{4}-\d{2}-\d{2}$/.test(args.date) ||
+          isNaN(new Date(args.date).getTime())
+        ) {
+          throw new GraphQLError(
+            "Date must be a valid date in YYYY-MM-DD format",
+          );
         }
         updateData.date = args.date;
       }
