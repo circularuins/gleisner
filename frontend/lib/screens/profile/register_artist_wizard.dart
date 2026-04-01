@@ -207,8 +207,8 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
       displayName: _displayNameController.text.trim(),
       tracks: _tracks,
       onDone: () {
-        Navigator.pop(context);
-        widget.onRegistered(_registeredArtistUsername!);
+        // Return artist username to the caller via Navigator result
+        Navigator.pop(context, _registeredArtistUsername!);
       },
     ),
     _ => const SizedBox.shrink(),

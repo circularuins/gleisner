@@ -58,9 +58,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     Future.microtask(_loadData);
     // Re-load data when auth state changes (e.g. new user after logout)
     ref.listenManual(myArtistProvider, (prev, next) {
-      debugPrint('[Timeline] myArtist listener: prev=${prev?.artistUsername} next=${next?.artistUsername} viewing=$_viewingArtistUsername');
       if (prev == null && next != null) {
-        debugPrint('[Timeline] New artist detected — resetting to own timeline');
         _viewingArtistUsername = null;
         _showFirstPostTutorial = false;
         Future.microtask(_loadData);
@@ -92,7 +90,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
   }
 
   Future<void> _loadData() async {
-    debugPrint('[Timeline] _loadData called, viewing=$_viewingArtistUsername');
     // Load own artist + tune-in list in parallel
     await Future.wait([
       ref.read(myArtistProvider.notifier).load(),
@@ -102,17 +99,14 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
 
     final myArtist = ref.read(myArtistProvider);
     final tunedIn = ref.read(tuneInProvider).tunedInArtists;
-    debugPrint('[Timeline] _loadData: myArtist=${myArtist?.artistUsername} viewing=$_viewingArtistUsername tunedIn=${tunedIn.length}');
 
     if (_viewingArtistUsername != null) {
       // Already viewing someone — just refresh
-      debugPrint('[Timeline] _loadData: early return — viewing=$_viewingArtistUsername');
       return;
     }
 
     if (myArtist != null) {
       // Artist user — load own timeline
-      debugPrint('[Timeline] _loadData: loading own timeline for ${myArtist.artistUsername}');
       ref.read(timelineProvider.notifier).loadArtist(myArtist.artistUsername);
     } else if (tunedIn.isNotEmpty) {
       // Fan-only user with tuned-in artists — show the first one
