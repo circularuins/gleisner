@@ -83,10 +83,16 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
   String? get _ownArtistUsername => ref.read(myArtistProvider)?.artistUsername;
 
   /// Whether the current view is the user's own timeline (Artist Mode).
+  /// Checks both the explicit viewing state AND the actual loaded timeline
+  /// data — after artist registration, _viewingArtistUsername may still
+  /// point to another artist while timelineProvider has already loaded
+  /// the user's own data.
   bool get _isOwnTimeline {
     final own = _ownArtistUsername;
+    if (own == null) return _viewingArtistUsername == null;
     return _viewingArtistUsername == null ||
-        (own != null && _viewingArtistUsername == own);
+        _viewingArtistUsername == own ||
+        ref.read(timelineProvider).artist?.artistUsername == own;
   }
 
   Future<void> _loadData() async {
