@@ -81,13 +81,13 @@ ORDER BY date;
 ### アクティブユーザー（過去7日間にイベントを送信した認証済みユーザー）
 
 ```sql
-SELECT u.username, u.email, count(*) AS events,
+SELECT u.username, count(*) AS events,
        count(DISTINCT ae.session_id) AS sessions,
        max(ae.created_at) AS last_seen
 FROM analytics_events ae
 JOIN users u ON ae.user_id = u.id
 WHERE ae.created_at >= CURRENT_DATE - INTERVAL '7 days'
-GROUP BY u.id, u.username, u.email
+GROUP BY u.id, u.username
 ORDER BY last_seen DESC;
 ```
 
@@ -172,6 +172,12 @@ FROM analytics_events;
 -- ⚠ 実行前に件数を確認
 SELECT count(*) FROM analytics_events WHERE created_at < CURRENT_DATE - INTERVAL '90 days';
 
--- 削除実行
-DELETE FROM analytics_events WHERE created_at < CURRENT_DATE - INTERVAL '90 days';
+-- バッチ削除（1000件ずつ、テーブルロックを最小化）
+-- 件数が 0 になるまで繰り返し実行
+DELETE FROM analytics_events
+WHERE id IN (
+  SELECT id FROM analytics_events
+  WHERE created_at < CURRENT_DATE - INTERVAL '90 days'
+  LIMIT 1000
+);
 ```

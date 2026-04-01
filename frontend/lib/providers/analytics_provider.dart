@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,10 +8,11 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import '../graphql/client.dart';
 import '../graphql/mutations/analytics.dart';
 
-/// Generates a unique session ID using timestamp + hash.
+/// Generates a cryptographically random session ID (32 hex chars).
 String _generateSessionId() {
-  final now = DateTime.now();
-  return '${now.millisecondsSinceEpoch}-${now.hashCode.toRadixString(36)}';
+  final rng = Random.secure();
+  final bytes = List.generate(16, (_) => rng.nextInt(256));
+  return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 }
 
 class AnalyticsNotifier extends Notifier<void> {

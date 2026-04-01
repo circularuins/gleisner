@@ -286,6 +286,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ref.invalidate(tuneInProvider);
               ref.invalidate(discoverProvider);
               ref.invalidate(unassignedPostsProvider);
+              ref.invalidate(analyticsProvider);
               await ref.read(tutorialProvider.notifier).reset();
               ref.invalidate(tutorialProvider);
             },
