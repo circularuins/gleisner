@@ -113,10 +113,9 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
           ),
         ],
       ),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: _buildStep(),
-      ),
+      // AnimatedSwitcher removed: it caused TextFormField controller double-attach
+      // on Flutter Web, making fields unresponsive after focus changes (#120).
+      body: _buildStep(),
     );
   }
 
@@ -650,59 +649,59 @@ class _StepProfile extends StatelessWidget {
               ),
               const SizedBox(height: spaceSm),
               if (selectedGenres.length < 5)
-              GestureDetector(
-                onTap: () async {
-                  final controller = TextEditingController();
-                  final name = await showDialog<String>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      backgroundColor: colorSurface1,
-                      title: const Text(
-                        'Create Genre',
-                        style: TextStyle(color: colorTextPrimary),
+                GestureDetector(
+                  onTap: () async {
+                    final controller = TextEditingController();
+                    final name = await showDialog<String>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: colorSurface1,
+                        title: const Text(
+                          'Create Genre',
+                          style: TextStyle(color: colorTextPrimary),
+                        ),
+                        content: TextField(
+                          controller: controller,
+                          autofocus: true,
+                          style: const TextStyle(color: colorTextPrimary),
+                          decoration: const InputDecoration(
+                            hintText: 'e.g. Ambient Pop',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.pop(ctx, controller.text.trim()),
+                            child: const Text('Create'),
+                          ),
+                        ],
                       ),
-                      content: TextField(
-                        controller: controller,
-                        autofocus: true,
-                        style: const TextStyle(color: colorTextPrimary),
-                        decoration: const InputDecoration(
-                          hintText: 'e.g. Ambient Pop',
-                          border: OutlineInputBorder(),
+                    );
+                    controller.dispose();
+                    if (name != null && name.isNotEmpty) {
+                      onCreateGenre(name);
+                    }
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, size: 14, color: colorInteractiveMuted),
+                      const SizedBox(width: spaceXs),
+                      Text(
+                        'Create custom genre',
+                        style: TextStyle(
+                          color: colorInteractiveMuted,
+                          fontSize: fontSizeSm,
                         ),
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.pop(ctx, controller.text.trim()),
-                          child: const Text('Create'),
-                        ),
-                      ],
-                    ),
-                  );
-                  controller.dispose();
-                  if (name != null && name.isNotEmpty) {
-                    onCreateGenre(name);
-                  }
-                },
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.add, size: 14, color: colorInteractiveMuted),
-                    const SizedBox(width: spaceXs),
-                    Text(
-                      'Create custom genre',
-                      style: TextStyle(
-                        color: colorInteractiveMuted,
-                        fontSize: fontSizeSm,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
             ],
             const SizedBox(height: spaceXl),
             FilledButton(
