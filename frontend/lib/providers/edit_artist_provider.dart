@@ -71,6 +71,9 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
   /// Like [updateArtist] but sends ALL fields including null values.
   /// Used by Edit About sheet where clearing a field (e.g. activeSince)
   /// requires sending null explicitly.
+  ///
+  /// Only includes fields managed by Edit About. displayName is excluded
+  /// because it's edited inline on the Artist Page, not here.
   Future<bool> updateArtistFull({
     String? tagline,
     String? bio,

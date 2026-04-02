@@ -56,17 +56,16 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
       _error = null;
     });
 
-    final tagline = _taglineController.text.trim();
-    final bio = _bioController.text.trim();
-    final location = _locationController.text.trim();
+    // Normalize: empty string → null (server convention: null = clear)
+    String? nullIfEmpty(String s) => s.isEmpty ? null : s;
+    final tagline = nullIfEmpty(_taglineController.text.trim());
+    final bio = nullIfEmpty(_bioController.text.trim());
+    final location = nullIfEmpty(_locationController.text.trim());
     final activeSinceText = _activeSinceController.text.trim();
     final activeSince = activeSinceText.isNotEmpty
         ? int.tryParse(activeSinceText)
         : null;
 
-    // Always send all fields — empty string clears text values,
-    // null clears activeSince. Call mutation directly to bypass
-    // updateArtist's null-skipping logic for int fields.
     final ok = await ref
         .read(editArtistProvider.notifier)
         .updateArtistFull(
