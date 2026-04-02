@@ -64,11 +64,12 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
         ? int.tryParse(activeSinceText)
         : null;
 
-    // Always send all fields — empty string clears the value on the server.
-    // The backend treats empty string and null equivalently for optional fields.
+    // Always send all fields — empty string clears text values,
+    // null clears activeSince. Call mutation directly to bypass
+    // updateArtist's null-skipping logic for int fields.
     final ok = await ref
         .read(editArtistProvider.notifier)
-        .updateArtist(
+        .updateArtistFull(
           tagline: tagline,
           bio: bio,
           location: location,

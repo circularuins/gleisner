@@ -68,6 +68,44 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
     }
   }
 
+  /// Like [updateArtist] but sends ALL fields including null values.
+  /// Used by Edit About sheet where clearing a field (e.g. activeSince)
+  /// requires sending null explicitly.
+  Future<bool> updateArtistFull({
+    String? tagline,
+    String? bio,
+    String? location,
+    int? activeSince,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(updateArtistMutation),
+          variables: {
+            'tagline': tagline,
+            'bio': bio,
+            'location': location,
+            'activeSince': activeSince,
+          },
+        ),
+      );
+
+      if (result.hasException) {
+        state = const AsyncData(null);
+        return false;
+      }
+
+      await ref.read(myArtistProvider.notifier).load();
+      state = const AsyncData(null);
+      return true;
+    } catch (e) {
+      debugPrint('[EditArtistNotifier] updateArtistFull error: $e');
+      state = const AsyncData(null);
+      return false;
+    }
+  }
+
   Future<ArtistLink?> createLink({
     required String linkCategory,
     required String platform,
