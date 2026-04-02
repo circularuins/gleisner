@@ -397,3 +397,42 @@ context.go('/timeline');
 ```
 
 listener に頼らず、遷移元の責任でデータを揃えるパターン。
+
+**JWT 差し替え後も同様。** `guardianProvider.switchToChild` / `switchBackToGuardian` で JWT を書き換えた後、`invalidate` だけではタブのデータが更新されない。`invalidate` + 明示的な `load()` の両方が必要。
+
+```dart
+// ✅ JWT switch 後のリロードパターン
+ref.invalidate(myArtistProvider);
+ref.invalidate(timelineProvider);
+ref.invalidate(discoverProvider);
+// invalidate だけでは不十分 — 明示的に再取得
+await ref.read(myArtistProvider.notifier).load();
+ref.read(discoverProvider.notifier).loadInitial();
+```
+
+### User を返す GraphQL クエリのフィールド同期（PR #119 の教訓）
+
+**`User` を返す新しい GraphQL クエリ/ミューテーションを定義する場合、`User.fromJson` の required フィールドを全て含めること。**
+
+`_userFields`（`lib/graphql/queries/auth.dart`）のようなフィールド定数を使うか、個別にフィールドをリストする場合は `User.fromJson` のコンストラクタを確認する。
+
+```dart
+// ❌ 一部フィールドだけリスト — fromJson でキャストエラー（ローディングが永遠に終わらない）
+const myChildrenQuery = r'''
+  query MyChildren {
+    myChildren { id username displayName createdAt }
+  }
+''';
+
+// ✅ フィールド定数を使って漏れを防止
+const _childUserFields = '''
+  id did email username displayName bio avatarUrl
+  profileVisibility publicKey birthYearMonth isChildAccount
+  createdAt updatedAt
+''';
+const myChildrenQuery = '''
+  query MyChildren { myChildren { $_childUserFields } }
+''';
+```
+
+該当パターン: `myChildren`, `switchToChild`, `switchBackToGuardian` 等、`User` 型を返す全クエリ。
