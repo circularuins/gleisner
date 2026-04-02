@@ -110,7 +110,8 @@ class GuardianNotifier extends Notifier<GuardianState>
       final serverMsg =
           result.exception?.graphqlErrors.firstOrNull?.message ?? '';
       final String message;
-      if (serverMsg.contains('Username already taken')) {
+      if (serverMsg.contains('Username already taken') ||
+          serverMsg.contains('unique constraint')) {
         message = 'That username is already taken. Please choose another.';
       } else if (serverMsg.contains('Invalid password')) {
         message = 'Incorrect password. Please try again.';
@@ -123,8 +124,12 @@ class GuardianNotifier extends Notifier<GuardianState>
       return false;
     }
 
-    // Reload children list
+    // Reload children list (best-effort: creation succeeded even if reload fails)
     await loadChildren(forceReload: true);
+    if (state.error != null) {
+      // loadChildren failed but child was created — clear error, keep stale list
+      state = state.copyWith(error: null);
+    }
     return true;
   }
 
