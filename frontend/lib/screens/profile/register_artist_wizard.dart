@@ -652,39 +652,42 @@ class _StepProfile extends StatelessWidget {
                 GestureDetector(
                   onTap: () async {
                     final controller = TextEditingController();
-                    final name = await showDialog<String>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        backgroundColor: colorSurface1,
-                        title: const Text(
-                          'Create Genre',
-                          style: TextStyle(color: colorTextPrimary),
+                    try {
+                      final name = await showDialog<String>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: colorSurface1,
+                          title: const Text(
+                            'Create Genre',
+                            style: TextStyle(color: colorTextPrimary),
+                          ),
+                          content: TextField(
+                            controller: controller,
+                            autofocus: true,
+                            style: const TextStyle(color: colorTextPrimary),
+                            decoration: const InputDecoration(
+                              hintText: 'e.g. Ambient Pop',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(ctx, controller.text.trim()),
+                              child: const Text('Create'),
+                            ),
+                          ],
                         ),
-                        content: TextField(
-                          controller: controller,
-                          autofocus: true,
-                          style: const TextStyle(color: colorTextPrimary),
-                          decoration: const InputDecoration(
-                            hintText: 'e.g. Ambient Pop',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.pop(ctx, controller.text.trim()),
-                            child: const Text('Create'),
-                          ),
-                        ],
-                      ),
-                    );
-                    controller.dispose();
-                    if (name != null && name.isNotEmpty) {
-                      onCreateGenre(name);
+                      );
+                      if (name != null && name.isNotEmpty) {
+                        onCreateGenre(name);
+                      }
+                    } finally {
+                      controller.dispose();
                     }
                   },
                   child: Row(
