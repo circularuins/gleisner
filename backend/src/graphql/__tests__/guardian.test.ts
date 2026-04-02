@@ -29,7 +29,7 @@ beforeEach(async () => {
   await db.execute(sql`TRUNCATE users CASCADE`);
 });
 
-const ME_QUERY = `query Me { me { id username email guardianId birthYearMonth profileVisibility } }`;
+const ME_QUERY = `query Me { me { id username email isChildAccount birthYearMonth profileVisibility } }`;
 const UPDATE_ME_MUTATION = `
   mutation UpdateMe($profileVisibility: String, $displayName: String) {
     updateMe(profileVisibility: $profileVisibility, displayName: $displayName) {
@@ -65,7 +65,7 @@ describe("createChildAccount", () => {
     expect(child.username).toBe("mychild");
     expect(child.displayName).toBe("My Child");
     expect(child.birthYearMonth).toBe("2020-06");
-    expect(child.guardianId).toBeTruthy();
+    expect(child.isChildAccount).toBe(true);
   });
 
   it("rejects unauthenticated requests", async () => {
@@ -189,6 +189,28 @@ describe("createChildAccount", () => {
       token,
     );
     expect(r4.errors?.[0]?.message).toBe("Invalid birth year");
+
+    // Month zero
+    const r5 = await gql(
+      app,
+      CREATE_CHILD_MUTATION,
+      { username: "child1", birthYearMonth: "2020-00" },
+      token,
+    );
+    expect(r5.errors?.[0]?.message).toBe(
+      "birthYearMonth must be in YYYY-MM format",
+    );
+
+    // Single digit month (missing leading zero)
+    const r6 = await gql(
+      app,
+      CREATE_CHILD_MUTATION,
+      { username: "child1", birthYearMonth: "2020-1" },
+      token,
+    );
+    expect(r6.errors?.[0]?.message).toBe(
+      "birthYearMonth must be in YYYY-MM format",
+    );
   });
 
   it("sets child profile to private by default", async () => {
@@ -215,7 +237,7 @@ describe("createChildAccount", () => {
 
 describe("switchToChild / switchBackToGuardian", () => {
   it("switches to child and back (round-trip)", async () => {
-    const { guardianToken, guardianId, childId } = await signupAndCreateChild(
+    const { guardianToken, childId } = await signupAndCreateChild(
       app,
       "parent@test.com",
       "parent",
@@ -232,10 +254,10 @@ describe("switchToChild / switchBackToGuardian", () => {
     expect(switchResult.errors).toBeUndefined();
     const switchData = switchResult.data!.switchToChild as {
       token: string;
-      user: { id: string; username: string; guardianId: string };
+      user: { id: string; username: string; isChildAccount: boolean };
     };
     expect(switchData.user.username).toBe("child1");
-    expect(switchData.user.guardianId).toBe(guardianId);
+    expect(switchData.user.isChildAccount).toBe(true);
 
     // Verify child JWT works
     const meResult = await gql(app, ME_QUERY, {}, switchData.token);
@@ -256,10 +278,10 @@ describe("switchToChild / switchBackToGuardian", () => {
     expect(backResult.errors).toBeUndefined();
     const backData = backResult.data!.switchBackToGuardian as {
       token: string;
-      user: { id: string; username: string; guardianId: string | null };
+      user: { id: string; username: string; isChildAccount: boolean };
     };
     expect(backData.user.username).toBe("parent");
-    expect(backData.user.guardianId).toBeNull();
+    expect(backData.user.isChildAccount).toBe(false);
 
     // Verify guardian JWT works
     const meResult2 = await gql(app, ME_QUERY, {}, backData.token);

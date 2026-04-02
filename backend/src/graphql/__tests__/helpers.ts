@@ -152,7 +152,7 @@ export async function signupAndRegisterArtist(
 export const CREATE_CHILD_MUTATION = `
   mutation CreateChildAccount($username: String!, $displayName: String, $birthYearMonth: String!) {
     createChildAccount(username: $username, displayName: $displayName, birthYearMonth: $birthYearMonth) {
-      id username displayName birthYearMonth guardianId
+      id username displayName birthYearMonth isChildAccount
     }
   }
 `;
@@ -161,7 +161,7 @@ export const SWITCH_TO_CHILD_MUTATION = `
   mutation SwitchToChild($childId: String!) {
     switchToChild(childId: $childId) {
       token
-      user { id username guardianId }
+      user { id username isChildAccount }
     }
   }
 `;
@@ -170,7 +170,7 @@ export const SWITCH_BACK_MUTATION = `
   mutation SwitchBackToGuardian {
     switchBackToGuardian {
       token
-      user { id username guardianId }
+      user { id username isChildAccount }
     }
   }
 `;

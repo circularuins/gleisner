@@ -1,4 +1,11 @@
-import { pgTable, uuid, varchar, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  type AnyPgColumn,
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -17,7 +24,9 @@ export const users = pgTable("users", {
   encryptedPrivateKey: text("encrypted_private_key").notNull(),
   encryptionSalt: text("encryption_salt").notNull(),
   birthYearMonth: varchar("birth_year_month", { length: 7 }),
-  guardianId: uuid("guardian_id"),
+  guardianId: uuid("guardian_id").references((): AnyPgColumn => users.id, {
+    onDelete: "cascade",
+  }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

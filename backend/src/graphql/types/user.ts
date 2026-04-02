@@ -65,6 +65,7 @@ UserType.implement({
   fields: (t) => ({
     id: t.exposeID("id"),
     did: t.exposeString("did"),
+    // Child accounts use internal placeholder emails — hide them
     email: t.string({
       nullable: true,
       resolve: (user) => (user.guardianId ? null : user.email),
@@ -76,7 +77,10 @@ UserType.implement({
     profileVisibility: t.exposeString("profileVisibility"),
     publicKey: t.exposeString("publicKey"),
     birthYearMonth: t.exposeString("birthYearMonth", { nullable: true }),
-    guardianId: t.exposeString("guardianId", { nullable: true }),
+    // Expose boolean instead of raw guardian UUID (ADR 019 data minimization)
+    isChildAccount: t.boolean({
+      resolve: (user) => user.guardianId !== null,
+    }),
     createdAt: t.string({ resolve: (user) => user.createdAt.toISOString() }),
     updatedAt: t.string({ resolve: (user) => user.updatedAt.toISOString() }),
   }),

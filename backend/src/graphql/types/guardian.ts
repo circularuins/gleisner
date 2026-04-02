@@ -4,7 +4,7 @@ import { builder } from "../builder.js";
 import { UserType, type UserShape, userColumns } from "./user.js";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema/index.js";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { generateEdKeyPair, generateSalt } from "../../auth/crypto.js";
 import { generateDid } from "../../auth/did.js";
 import { signToken } from "../../auth/jwt.js";
@@ -183,14 +183,19 @@ builder.mutationFields((t) => ({
         );
       }
 
-      // Verify the child belongs to this guardian
+      // Verify the child belongs to this guardian (single query with both conditions)
       const [child] = await db
         .select(userColumns)
         .from(users)
-        .where(eq(users.id, args.childId))
+        .where(
+          and(
+            eq(users.id, args.childId),
+            eq(users.guardianId, ctx.authUser.userId),
+          ),
+        )
         .limit(1);
 
-      if (!child || child.guardianId !== ctx.authUser.userId) {
+      if (!child) {
         throw new GraphQLError("Child account not found");
       }
 
@@ -223,7 +228,8 @@ builder.mutationFields((t) => ({
         .where(eq(users.id, ctx.authUser.guardianId))
         .limit(1);
 
-      if (!guardian) {
+      if (!guardian || guardian.guardianId !== null) {
+        // Guardian must exist and must not itself be a child account
         throw new GraphQLError("Guardian account not found");
       }
 
