@@ -59,8 +59,8 @@ async function gql(
 }
 
 const SIGNUP_MUTATION = `
-  mutation Signup($email: String!, $password: String!, $username: String!) {
-    signup(email: $email, password: $password, username: $username) {
+  mutation Signup($email: String!, $password: String!, $username: String!, $birthYearMonth: String!) {
+    signup(email: $email, password: $password, username: $username, birthYearMonth: $birthYearMonth) {
       token
       user { id }
     }
@@ -181,6 +181,7 @@ async function signupAndGetToken(
     email,
     password: "password123",
     username,
+    birthYearMonth: "1990-01",
   });
   return (result.data!.signup as { token: string }).token;
 }
@@ -1000,6 +1001,7 @@ describe("Post GraphQL integration", () => {
         email: "hash3@example.com",
         password: "password123",
         username: "hashuser3",
+        birthYearMonth: "1990-01",
       });
       const token = (signupResult.data!.signup as { token: string }).token;
       const userId = (signupResult.data!.signup as { user: { id: string } })
@@ -1092,6 +1094,7 @@ describe("Post GraphQL integration", () => {
         email: "hash5@example.com",
         password: "password123",
         username: "hashuser5",
+        birthYearMonth: "1990-01",
       });
       const token = (signupResult.data!.signup as { token: string }).token;
       const userId = (signupResult.data!.signup as { user: { id: string } })

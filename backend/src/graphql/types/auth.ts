@@ -14,6 +14,7 @@ import {
 } from "../../auth/crypto.js";
 import { generateDid } from "../../auth/did.js";
 import { signToken } from "../../auth/jwt.js";
+import { validateBirthYearMonth } from "../validators.js";
 
 const MAX_PASSWORD_LENGTH = 128;
 
@@ -38,6 +39,7 @@ builder.mutationType({
         password: t.arg.string({ required: true }),
         username: t.arg.string({ required: true }),
         displayName: t.arg.string(),
+        birthYearMonth: t.arg.string({ required: true }),
         inviteCode: t.arg.string(),
       },
       resolve: async (_parent, args) => {
@@ -73,6 +75,9 @@ builder.mutationType({
         if (args.displayName != null && args.displayName.length > 50) {
           throw new GraphQLError("Display name must be 50 characters or less");
         }
+
+        // Validate birthYearMonth
+        validateBirthYearMonth(args.birthYearMonth);
 
         // Check uniqueness
         const existing = await db
@@ -118,6 +123,7 @@ builder.mutationType({
               email: args.email,
               username: args.username,
               displayName: args.displayName ?? null,
+              birthYearMonth: args.birthYearMonth,
               passwordHash: passwordHashValue,
               passwordSalt,
               publicKey,

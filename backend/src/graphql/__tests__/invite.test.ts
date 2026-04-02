@@ -35,8 +35,8 @@ const MY_INVITES_QUERY = `
 `;
 
 const SIGNUP_WITH_INVITE = `
-  mutation Signup($email: String!, $password: String!, $username: String!, $inviteCode: String) {
-    signup(email: $email, password: $password, username: $username, inviteCode: $inviteCode) {
+  mutation Signup($email: String!, $password: String!, $username: String!, $birthYearMonth: String!, $inviteCode: String) {
+    signup(email: $email, password: $password, username: $username, birthYearMonth: $birthYearMonth, inviteCode: $inviteCode) {
       token
       user { id }
     }
@@ -163,6 +163,7 @@ describe("Invite system", () => {
         email: "new1@test.com",
         password: "password123",
         username: "newuser1",
+        birthYearMonth: "1990-01",
       });
 
       expect(result.errors).toBeDefined();
@@ -174,6 +175,7 @@ describe("Invite system", () => {
         email: "new2@test.com",
         password: "password123",
         username: "newuser2",
+        birthYearMonth: "1990-01",
         inviteCode: "nonexistent",
       });
 
@@ -205,6 +207,7 @@ describe("Invite system", () => {
         email: "new3@test.com",
         password: "password123",
         username: "newuser3",
+        birthYearMonth: "1990-01",
         inviteCode: code,
       });
 
@@ -243,6 +246,7 @@ describe("Invite system", () => {
         email: "first@test.com",
         password: "password123",
         username: "firstuser",
+        birthYearMonth: "1990-01",
         inviteCode: code,
       });
 
@@ -251,6 +255,7 @@ describe("Invite system", () => {
         email: "second@test.com",
         password: "password123",
         username: "seconduser",
+        birthYearMonth: "1990-01",
         inviteCode: code,
       });
 
@@ -281,6 +286,7 @@ describe("Invite system", () => {
         email: "wrong@test.com",
         password: "password123",
         username: "wronguser",
+        birthYearMonth: "1990-01",
         inviteCode: code,
       });
 
@@ -320,6 +326,7 @@ describe("Invite system", () => {
         email: "expired@test.com",
         password: "password123",
         username: "expireduser",
+        birthYearMonth: "1990-01",
         inviteCode: code,
       });
 
@@ -336,6 +343,7 @@ describe("Invite system", () => {
         email: "free1@test.com",
         password: "password123",
         username: "freeuser1",
+        birthYearMonth: "1990-01",
       });
 
       expect(result.errors).toBeUndefined();

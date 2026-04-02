@@ -78,8 +78,8 @@ export async function gql(
 }
 
 export const SIGNUP_MUTATION = `
-  mutation Signup($email: String!, $password: String!, $username: String!) {
-    signup(email: $email, password: $password, username: $username) {
+  mutation Signup($email: String!, $password: String!, $username: String!, $birthYearMonth: String!) {
+    signup(email: $email, password: $password, username: $username, birthYearMonth: $birthYearMonth) {
       token
       user { id }
     }
@@ -119,6 +119,7 @@ export async function signupAndGetTokenAndId(
     email,
     password: "password123",
     username,
+    birthYearMonth: "1990-01",
   });
   const signup = result.data!.signup as { token: string; user: { id: string } };
   return { token: signup.token, userId: signup.user.id };

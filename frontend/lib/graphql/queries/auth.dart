@@ -16,8 +16,8 @@ const _userFields = '''
 
 const signupMutation =
     '''
-  mutation Signup(\$email: String!, \$password: String!, \$username: String!, \$displayName: String, \$inviteCode: String) {
-    signup(email: \$email, password: \$password, username: \$username, displayName: \$displayName, inviteCode: \$inviteCode) {
+  mutation Signup(\$email: String!, \$password: String!, \$username: String!, \$birthYearMonth: String!, \$displayName: String, \$inviteCode: String) {
+    signup(email: \$email, password: \$password, username: \$username, birthYearMonth: \$birthYearMonth, displayName: \$displayName, inviteCode: \$inviteCode) {
       token
       user {
         $_userFields

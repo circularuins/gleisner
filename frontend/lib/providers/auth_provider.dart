@@ -94,6 +94,7 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
     required String email,
     required String password,
     required String username,
+    required String birthYearMonth,
     String? displayName,
     String? inviteCode,
   }) async {
@@ -103,6 +104,7 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
         'email': email,
         'password': password,
         'username': username,
+        'birthYearMonth': birthYearMonth,
         if (displayName case final dn?) 'displayName': dn,
         if (inviteCode case final ic?) 'inviteCode': ic,
       },

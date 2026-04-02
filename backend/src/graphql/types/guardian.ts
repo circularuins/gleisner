@@ -13,23 +13,12 @@ import {
 } from "../../auth/crypto.js";
 import { generateDid } from "../../auth/did.js";
 import { signToken } from "../../auth/jwt.js";
+import { validateBirthYearMonth } from "../validators.js";
 
 const MAX_PASSWORD_LENGTH = 128;
 
 const MAX_CHILDREN_PER_GUARDIAN = 10;
 const CHILD_EMAIL_DOMAIN = "@child.gleisner.local";
-const BIRTH_YEAR_MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
-
-function validateBirthYearMonth(value: string): void {
-  if (!BIRTH_YEAR_MONTH_REGEX.test(value)) {
-    throw new GraphQLError("birthYearMonth must be in YYYY-MM format");
-  }
-  const year = parseInt(value.split("-")[0]);
-  const currentYear = new Date().getFullYear();
-  if (year < 1900 || year > currentYear) {
-    throw new GraphQLError("Invalid birth year");
-  }
-}
 
 // --- Payload types (must be defined before mutation fields reference them) ---
 

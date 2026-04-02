@@ -29,3 +29,17 @@ export function validateProfileVisibility(value: string): void {
     throw new GraphQLError("profileVisibility must be 'public' or 'private'");
   }
 }
+
+const BIRTH_YEAR_MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/** Validate birthYearMonth format (YYYY-MM). Throws GraphQLError if invalid. */
+export function validateBirthYearMonth(value: string): void {
+  if (!BIRTH_YEAR_MONTH_REGEX.test(value)) {
+    throw new GraphQLError("birthYearMonth must be in YYYY-MM format");
+  }
+  const year = parseInt(value.split("-")[0]);
+  const currentYear = new Date().getFullYear();
+  if (year < 1900 || year > currentYear) {
+    throw new GraphQLError("Invalid birth year");
+  }
+}

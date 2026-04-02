@@ -54,6 +54,7 @@ describe("createChildAccount", () => {
       CREATE_CHILD_MUTATION,
       {
         username: "mychild",
+        birthYearMonth: "1990-01",
         displayName: "My Child",
         birthYearMonth: "2020-06",
         guardianPassword: "password123",
@@ -452,6 +453,7 @@ describe("myChildren", () => {
       CREATE_CHILD_MUTATION,
       {
         username: "child1",
+        birthYearMonth: "1990-01",
         displayName: "Child One",
         birthYearMonth: "2020-01",
         guardianPassword: "password123",
@@ -463,6 +465,7 @@ describe("myChildren", () => {
       CREATE_CHILD_MUTATION,
       {
         username: "child2",
+        birthYearMonth: "1990-01",
         displayName: "Child Two",
         birthYearMonth: "2022-06",
         guardianPassword: "password123",
@@ -474,6 +477,7 @@ describe("myChildren", () => {
       CREATE_CHILD_MUTATION,
       {
         username: "child3",
+        birthYearMonth: "1990-01",
         displayName: "Child Three",
         birthYearMonth: "2018-12",
         guardianPassword: "password123",
@@ -617,6 +621,7 @@ describe("login / signup child defenses", () => {
       email: "hacker@child.gleisner.local",
       password: "password123",
       username: "hacker",
+      birthYearMonth: "1990-01",
     });
     expect(result.errors?.[0]?.message).toBe("Invalid email format");
   });
