@@ -4,6 +4,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
 import '../graphql/mutations/artist.dart';
+import '../graphql/mutations/artist-milestone.dart';
 import '../graphql/mutations/genre.dart';
 import '../graphql/mutations/track.dart';
 import '../models/artist.dart';
@@ -35,6 +36,9 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
         MutationOptions(
           document: gql(updateArtistMutation),
           variables: {
+            // Always send provided fields (empty string clears the value).
+            // Only omit truly unset fields (null means "don't change"
+            // only for fields not passed by the caller).
             if (displayName != null) 'displayName': displayName,
             if (bio != null) 'bio': bio,
             if (tagline != null) 'tagline': tagline,
@@ -59,6 +63,47 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
       return true;
     } catch (e) {
       debugPrint('[EditArtistNotifier] updateArtist error: $e');
+      state = const AsyncData(null);
+      return false;
+    }
+  }
+
+  /// Like [updateArtist] but sends ALL fields including null values.
+  /// Used by Edit About sheet where clearing a field (e.g. activeSince)
+  /// requires sending null explicitly.
+  ///
+  /// Only includes fields managed by Edit About. displayName is excluded
+  /// because it's edited inline on the Artist Page, not here.
+  Future<bool> updateArtistFull({
+    String? tagline,
+    String? bio,
+    String? location,
+    int? activeSince,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(updateArtistMutation),
+          variables: {
+            'tagline': tagline,
+            'bio': bio,
+            'location': location,
+            'activeSince': activeSince,
+          },
+        ),
+      );
+
+      if (result.hasException) {
+        state = const AsyncData(null);
+        return false;
+      }
+
+      await ref.read(myArtistProvider.notifier).load();
+      state = const AsyncData(null);
+      return true;
+    } catch (e) {
+      debugPrint('[EditArtistNotifier] updateArtistFull error: $e');
       state = const AsyncData(null);
       return false;
     }
@@ -240,6 +285,83 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
       return true;
     } catch (e) {
       debugPrint('[EditArtistNotifier] deleteTrack error: $e');
+      return false;
+    }
+  }
+  // ── Milestones ──
+
+  Future<ArtistMilestone?> createMilestone({
+    required String category,
+    required String title,
+    String? description,
+    required String date,
+    int? position,
+  }) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(createArtistMilestoneMutation),
+          variables: {
+            'category': category,
+            'title': title,
+            if (description != null) 'description': description,
+            'date': date,
+            if (position != null) 'position': position,
+          },
+        ),
+      );
+      if (result.hasException) return null;
+      final data =
+          result.data?['createArtistMilestone'] as Map<String, dynamic>?;
+      return data != null ? ArtistMilestone.fromJson(data) : null;
+    } catch (e) {
+      debugPrint('[EditArtistNotifier] createMilestone error: $e');
+      return null;
+    }
+  }
+
+  Future<ArtistMilestone?> updateMilestone({
+    required String id,
+    String? category,
+    String? title,
+    String? description,
+    String? date,
+  }) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(updateArtistMilestoneMutation),
+          variables: {
+            'id': id,
+            if (category != null) 'category': category,
+            if (title != null) 'title': title,
+            // Always send description (null clears it)
+            'description': description,
+            if (date != null) 'date': date,
+          },
+        ),
+      );
+      if (result.hasException) return null;
+      final data =
+          result.data?['updateArtistMilestone'] as Map<String, dynamic>?;
+      return data != null ? ArtistMilestone.fromJson(data) : null;
+    } catch (e) {
+      debugPrint('[EditArtistNotifier] updateMilestone error: $e');
+      return null;
+    }
+  }
+
+  Future<bool> deleteMilestone(String id) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(deleteArtistMilestoneMutation),
+          variables: {'id': id},
+        ),
+      );
+      return !result.hasException;
+    } catch (e) {
+      debugPrint('[EditArtistNotifier] deleteMilestone error: $e');
       return false;
     }
   }

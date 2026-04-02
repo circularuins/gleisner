@@ -30,6 +30,14 @@ const _artistFields = '''
         url
         position
       }
+      milestones {
+        id
+        category
+        title
+        description
+        date
+        position
+      }
 ''';
 
 const _recentPostFields = '''

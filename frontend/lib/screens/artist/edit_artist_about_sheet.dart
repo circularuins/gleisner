@@ -56,9 +56,11 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
       _error = null;
     });
 
-    final tagline = _taglineController.text.trim();
-    final bio = _bioController.text.trim();
-    final location = _locationController.text.trim();
+    // Normalize: empty string → null (server convention: null = clear)
+    String? nullIfEmpty(String s) => s.isEmpty ? null : s;
+    final tagline = nullIfEmpty(_taglineController.text.trim());
+    final bio = nullIfEmpty(_bioController.text.trim());
+    final location = nullIfEmpty(_locationController.text.trim());
     final activeSinceText = _activeSinceController.text.trim();
     final activeSince = activeSinceText.isNotEmpty
         ? int.tryParse(activeSinceText)
@@ -66,17 +68,16 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
 
     final ok = await ref
         .read(editArtistProvider.notifier)
-        .updateArtist(
-          tagline: tagline.isNotEmpty ? tagline : null,
-          bio: bio.isNotEmpty ? bio : null,
-          location: location.isNotEmpty ? location : null,
+        .updateArtistFull(
+          tagline: tagline,
+          bio: bio,
+          location: location,
           activeSince: activeSince,
         );
 
     if (!mounted) return;
 
     if (ok) {
-      // Reload the artist page data
       ref
           .read(artistPageProvider.notifier)
           .loadArtist(widget.artist.artistUsername);
@@ -91,29 +92,26 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.75,
-      minChildSize: 0.5,
-      maxChildSize: 0.9,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: colorSurface1,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(radiusSheet),
-            ),
+    return FractionallySizedBox(
+      heightFactor: 0.9,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: colorSurface1,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(radiusSheet),
           ),
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              controller: scrollController,
-              padding: EdgeInsets.fromLTRB(
-                spaceXl,
-                spaceLg,
-                spaceXl,
-                spaceXl + MediaQuery.of(context).viewInsets.bottom,
-              ),
+        ),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              spaceXl,
+              spaceLg,
+              spaceXl,
+              spaceXl + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 // Handle bar
                 Center(
@@ -203,13 +201,15 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
                     style: FilledButton.styleFrom(
                       backgroundColor: colorAccentGold,
                       foregroundColor: colorSurface0,
-                      padding: const EdgeInsets.symmetric(vertical: spaceMd),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: spaceMd),
                     ),
                     child: _isSubmitting
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('Save'),
                   ),
@@ -217,8 +217,8 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 

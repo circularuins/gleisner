@@ -21,6 +21,8 @@ import '../unassigned_posts/unassigned_posts_screen.dart';
 import 'edit_artist_about_sheet.dart';
 import 'edit_artist_genres_sheet.dart';
 import 'edit_artist_links_sheet.dart';
+import 'edit_milestones_sheet.dart';
+import '../../utils/milestone_category.dart';
 import 'edit_artist_tracks_sheet.dart';
 
 /// Artist Page (ADR 013).
@@ -399,6 +401,38 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                             _LinksSection(links: artist.links),
                         ],
 
+                        // Career milestones section
+                        if (artist.milestones.isNotEmpty || isSelf) ...[
+                          const SizedBox(height: spaceXl),
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'CAREER',
+                                  style: TextStyle(
+                                    color: colorTextMuted,
+                                    fontSize: fontSizeXs,
+                                    fontWeight: weightSemibold,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ),
+                              if (isSelf)
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined,
+                                      size: 18, color: colorInteractive),
+                                  onPressed: () =>
+                                      _showEditMilestonesSheet(
+                                          context, artist),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                            ],
+                          ),
+                          if (artist.milestones.isNotEmpty)
+                            _MilestonesSection(
+                                milestones: artist.milestones),
+                        ],
+
                         // Tracks section
                         if (artist.tracks.isNotEmpty || isSelf) ...[
                           const SizedBox(height: spaceXl),
@@ -694,6 +728,18 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
     );
   }
 
+  void _showEditMilestonesSheet(BuildContext context, Artist artist) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => EditMilestonesSheet(
+        milestones: artist.milestones,
+        artistUsername: artist.artistUsername,
+      ),
+    );
+  }
+
   void _showEditGenresSheet(BuildContext context, Artist artist) {
     showModalBottomSheet<void>(
       context: context,
@@ -808,66 +854,16 @@ class _LinksSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final musicLinks = links.where((l) => l.linkCategory == 'music').toList();
-    final snsLinks = links
-        .where((l) => l.linkCategory == 'social' || l.linkCategory == 'video')
-        .toList();
-    final otherLinks = links
-        .where(
-          (l) =>
-              l.linkCategory != 'music' &&
-              l.linkCategory != 'social' &&
-              l.linkCategory != 'video',
-        )
-        .toList();
+    // Sort: music first, then social/video, then others
+    final sorted = [...links]..sort((a, b) {
+        const order = {'music': 0, 'social': 1, 'video': 1, 'website': 2, 'store': 3, 'other': 4};
+        return (order[a.linkCategory] ?? 5).compareTo(order[b.linkCategory] ?? 5);
+      });
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (musicLinks.isNotEmpty) ...[
-          const Text(
-            'MUSIC',
-            style: TextStyle(
-              color: colorTextMuted,
-              fontSize: fontSizeXs,
-              fontWeight: weightSemibold,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: spaceSm),
-          Wrap(
-            spacing: spaceSm,
-            runSpacing: spaceSm,
-            children: musicLinks.map((l) => _LinkChip(link: l)).toList(),
-          ),
-          const SizedBox(height: spaceMd),
-        ],
-        if (snsLinks.isNotEmpty) ...[
-          const Text(
-            'SNS',
-            style: TextStyle(
-              color: colorTextMuted,
-              fontSize: fontSizeXs,
-              fontWeight: weightSemibold,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: spaceSm),
-          Wrap(
-            spacing: spaceSm,
-            runSpacing: spaceSm,
-            children: snsLinks.map((l) => _LinkChip(link: l)).toList(),
-          ),
-          const SizedBox(height: spaceMd),
-        ],
-        if (otherLinks.isNotEmpty) ...[
-          Wrap(
-            spacing: spaceSm,
-            runSpacing: spaceSm,
-            children: otherLinks.map((l) => _LinkChip(link: l)).toList(),
-          ),
-        ],
-      ],
+    return Wrap(
+      spacing: spaceSm,
+      runSpacing: spaceSm,
+      children: sorted.map((l) => _LinkChip(link: l)).toList(),
     );
   }
 }
@@ -1165,6 +1161,100 @@ class _GenerativeAvatar extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MilestonesSection extends StatefulWidget {
+  final List<ArtistMilestone> milestones;
+
+  const _MilestonesSection({required this.milestones});
+
+  @override
+  State<_MilestonesSection> createState() => _MilestonesSectionState();
+}
+
+class _MilestonesSectionState extends State<_MilestonesSection> {
+  static const _previewCount = 3;
+  bool _expanded = false;
+
+  static IconData _icon(String category) => milestoneCategoryIcon(category);
+
+  @override
+  Widget build(BuildContext context) {
+    final all = widget.milestones;
+    final visible = _expanded ? all : all.take(_previewCount).toList();
+    final hasMore = all.length > _previewCount;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...visible.map((m) => Padding(
+              padding: const EdgeInsets.only(bottom: spaceMd),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(_icon(m.category), size: 18, color: colorAccentGold),
+                  const SizedBox(width: spaceMd),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                m.title,
+                                style: const TextStyle(
+                                  color: colorTextPrimary,
+                                  fontSize: fontSizeSm,
+                                  fontWeight: weightMedium,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              m.date.substring(0, 7),
+                              style: const TextStyle(
+                                color: colorTextMuted,
+                                fontSize: fontSizeXs,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (m.description != null) ...[
+                          const SizedBox(height: spaceXxs),
+                          Text(
+                            m.description!,
+                            style: const TextStyle(
+                              color: colorTextSecondary,
+                              fontSize: fontSizeXs,
+                              height: 1.4,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )),
+        if (hasMore)
+          GestureDetector(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Text(
+              _expanded
+                  ? 'Show less'
+                  : 'See all ${all.length} milestones',
+              style: const TextStyle(
+                color: colorInteractive,
+                fontSize: fontSizeSm,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
