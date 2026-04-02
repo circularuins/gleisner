@@ -149,6 +149,83 @@ export async function signupAndRegisterArtist(
   return token;
 }
 
+export const CREATE_CHILD_MUTATION = `
+  mutation CreateChildAccount($username: String!, $displayName: String, $birthYearMonth: String!) {
+    createChildAccount(username: $username, displayName: $displayName, birthYearMonth: $birthYearMonth) {
+      id username displayName birthYearMonth isChildAccount
+    }
+  }
+`;
+
+export const SWITCH_TO_CHILD_MUTATION = `
+  mutation SwitchToChild($childId: String!) {
+    switchToChild(childId: $childId) {
+      token
+      user { id username isChildAccount }
+    }
+  }
+`;
+
+export const SWITCH_BACK_MUTATION = `
+  mutation SwitchBackToGuardian {
+    switchBackToGuardian {
+      token
+      user { id username isChildAccount }
+    }
+  }
+`;
+
+export const MY_CHILDREN_QUERY = `
+  query MyChildren {
+    myChildren { id username displayName birthYearMonth createdAt }
+  }
+`;
+
+export async function signupAndCreateChild(
+  testApp: ReturnType<typeof createTestApp>,
+  guardianEmail: string,
+  guardianUsername: string,
+  childUsername: string,
+  birthYearMonth: string = "2020-01",
+) {
+  const { token: guardianToken, userId: guardianId } =
+    await signupAndGetTokenAndId(testApp, guardianEmail, guardianUsername);
+  const result = await gql(
+    testApp,
+    CREATE_CHILD_MUTATION,
+    {
+      username: childUsername,
+      displayName: `Child ${childUsername}`,
+      birthYearMonth,
+    },
+    guardianToken,
+  );
+  const child = result.data!.createChildAccount as {
+    id: string;
+    username: string;
+  };
+  return {
+    guardianToken,
+    guardianId,
+    childId: child.id,
+    childUsername: child.username,
+  };
+}
+
+export async function switchToChildAndGetToken(
+  testApp: ReturnType<typeof createTestApp>,
+  guardianToken: string,
+  childId: string,
+) {
+  const result = await gql(
+    testApp,
+    SWITCH_TO_CHILD_MUTATION,
+    { childId },
+    guardianToken,
+  );
+  return (result.data!.switchToChild as { token: string }).token;
+}
+
 export async function createPostForTest(
   testApp: ReturnType<typeof createTestApp>,
   token: string,

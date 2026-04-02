@@ -33,8 +33,15 @@ export async function initJwtKeys(
   }
 }
 
-export async function signToken(userId: string): Promise<string> {
-  return new SignJWT({ sub: userId })
+export async function signToken(
+  userId: string,
+  opts?: { guardianId?: string },
+): Promise<string> {
+  const claims: Record<string, unknown> = { sub: userId };
+  if (opts?.guardianId) {
+    claims.gid = opts.guardianId;
+  }
+  return new SignJWT(claims)
     .setProtectedHeader({ alg: ALG })
     .setIssuedAt()
     .setExpirationTime(TOKEN_EXPIRY)
@@ -42,12 +49,20 @@ export async function signToken(userId: string): Promise<string> {
     .sign(privateKey);
 }
 
-export async function verifyToken(token: string): Promise<{ userId: string }> {
+export async function verifyToken(
+  token: string,
+): Promise<{ userId: string; guardianId?: string }> {
   const { payload } = await jwtVerify(token, publicKey, {
     issuer: "gleisner",
   });
   if (!payload.sub) {
     throw new Error("Invalid token: missing sub");
   }
-  return { userId: payload.sub };
+  const result: { userId: string; guardianId?: string } = {
+    userId: payload.sub,
+  };
+  if (typeof payload.gid === "string") {
+    result.guardianId = payload.gid;
+  }
+  return result;
 }

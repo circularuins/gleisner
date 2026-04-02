@@ -48,6 +48,10 @@ builder.mutationType({
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(args.email)) {
           throw new GraphQLError("Invalid email format");
         }
+        // Reject child placeholder email domain
+        if (args.email.endsWith("@child.gleisner.local")) {
+          throw new GraphQLError("Invalid email format");
+        }
         if (
           args.password.length < 8 ||
           args.password.length > MAX_PASSWORD_LENGTH
@@ -184,6 +188,11 @@ builder.mutationType({
           !row ||
           !verifyPassword(args.password, row.passwordSalt, row.passwordHash)
         ) {
+          throw new GraphQLError("Invalid credentials");
+        }
+
+        // Child accounts cannot login directly (defense in depth — they also have random passwords)
+        if (row.guardianId) {
           throw new GraphQLError("Invalid credentials");
         }
 

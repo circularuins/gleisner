@@ -11,6 +11,23 @@ describe("JWT", () => {
     const token = await signToken(userId);
     const result = await verifyToken(token);
     expect(result.userId).toBe(userId);
+    expect(result.guardianId).toBeUndefined();
+  });
+
+  it("signs and verifies a token with guardianId", async () => {
+    const userId = "child-user-id";
+    const guardianId = "guardian-user-id";
+    const token = await signToken(userId, { guardianId });
+    const result = await verifyToken(token);
+    expect(result.userId).toBe(userId);
+    expect(result.guardianId).toBe(guardianId);
+  });
+
+  it("omits guardianId when not provided in opts", async () => {
+    const token = await signToken("user-1", {});
+    const result = await verifyToken(token);
+    expect(result.userId).toBe("user-1");
+    expect(result.guardianId).toBeUndefined();
   });
 
   it("rejects an invalid token", async () => {
