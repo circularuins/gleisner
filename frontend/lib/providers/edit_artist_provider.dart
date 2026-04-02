@@ -36,6 +36,9 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
         MutationOptions(
           document: gql(updateArtistMutation),
           variables: {
+            // Always send provided fields (empty string clears the value).
+            // Only omit truly unset fields (null means "don't change"
+            // only for fields not passed by the caller).
             if (displayName != null) 'displayName': displayName,
             if (bio != null) 'bio': bio,
             if (tagline != null) 'tagline': tagline,

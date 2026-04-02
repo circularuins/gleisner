@@ -64,19 +64,20 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
         ? int.tryParse(activeSinceText)
         : null;
 
+    // Always send all fields — empty string clears the value on the server.
+    // The backend treats empty string and null equivalently for optional fields.
     final ok = await ref
         .read(editArtistProvider.notifier)
         .updateArtist(
-          tagline: tagline.isNotEmpty ? tagline : null,
-          bio: bio.isNotEmpty ? bio : null,
-          location: location.isNotEmpty ? location : null,
+          tagline: tagline,
+          bio: bio,
+          location: location,
           activeSince: activeSince,
         );
 
     if (!mounted) return;
 
     if (ok) {
-      // Reload the artist page data
       ref
           .read(artistPageProvider.notifier)
           .loadArtist(widget.artist.artistUsername);
@@ -91,29 +92,26 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.9,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: colorSurface1,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(radiusSheet),
-            ),
+    return FractionallySizedBox(
+      heightFactor: 0.9,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: colorSurface1,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(radiusSheet),
           ),
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              controller: scrollController,
-              padding: EdgeInsets.fromLTRB(
-                spaceXl,
-                spaceLg,
-                spaceXl,
-                spaceXl + MediaQuery.of(context).viewInsets.bottom,
-              ),
+        ),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              spaceXl,
+              spaceLg,
+              spaceXl,
+              spaceXl + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 // Handle bar
                 Center(
@@ -203,13 +201,15 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
                     style: FilledButton.styleFrom(
                       backgroundColor: colorAccentGold,
                       foregroundColor: colorSurface0,
-                      padding: const EdgeInsets.symmetric(vertical: spaceMd),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: spaceMd),
                     ),
                     child: _isSubmitting
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('Save'),
                   ),
@@ -217,8 +217,8 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
