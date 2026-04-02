@@ -600,7 +600,7 @@ describe("child artist restrictions", () => {
     ).toBe("private");
   });
 
-  it("prevents child from changing artist visibility", async () => {
+  it("allows child to change artist visibility (guardian-managed)", async () => {
     const { guardianToken, childId } = await signupAndCreateChild(
       app,
       "parent@test.com",
@@ -621,16 +621,17 @@ describe("child artist restrictions", () => {
       childToken,
     );
 
-    // Try to change visibility
+    // Guardian (via child JWT) can change artist visibility to public
     const result = await gql(
       app,
       `mutation { updateArtist(profileVisibility: "public") { profileVisibility } }`,
       {},
       childToken,
     );
-    expect(result.errors?.[0]?.message).toBe(
-      "Child accounts cannot change artist visibility",
-    );
+    expect(result.errors).toBeUndefined();
+    expect(
+      (result.data!.updateArtist as Record<string, unknown>).profileVisibility,
+    ).toBe("public");
   });
 });
 

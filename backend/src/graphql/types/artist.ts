@@ -132,7 +132,8 @@ builder.mutationFields((t) => ({
           activeSince: args.activeSince ?? null,
           avatarUrl: args.avatarUrl ?? null,
           coverImageUrl: args.coverImageUrl ?? null,
-          // Child accounts: force private (ADR 019 Tier 1)
+          // Child accounts: default private (ADR 019 Tier 1)
+          // Guardian can change to public via updateArtist
           ...(ctx.authUser.guardianId ? { profileVisibility: "private" } : {}),
         })
         .returning();
@@ -211,12 +212,6 @@ builder.mutationFields((t) => ({
       if (args.coverImageUrl !== undefined)
         updateData.coverImageUrl = args.coverImageUrl;
       if (args.profileVisibility !== undefined) {
-        // Child accounts cannot change artist visibility (ADR 019 Tier 1: private fixed)
-        if (ctx.authUser.guardianId) {
-          throw new GraphQLError(
-            "Child accounts cannot change artist visibility",
-          );
-        }
         validateProfileVisibility(args.profileVisibility as string);
         updateData.profileVisibility = args.profileVisibility;
       }

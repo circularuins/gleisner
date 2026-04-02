@@ -209,71 +209,50 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       style: textCaption.copyWith(color: colorTextSecondary),
                     ),
                   ],
-                  // Artist visibility toggle (hidden for child — forced private)
-                  if (!isChild) ...[
-                    const SizedBox(height: spaceMd),
-                    Row(
-                      children: [
-                        Icon(
-                          artist.profileVisibility == 'private'
-                              ? Icons.lock_outline
-                              : Icons.public,
-                          size: 14,
-                          color: colorTextMuted,
-                        ),
-                        const SizedBox(width: spaceXs),
-                        Text(
-                          artist.profileVisibility == 'private'
-                              ? 'Private'
-                              : 'Public',
-                          style: textCaption.copyWith(color: colorTextMuted),
-                        ),
-                        const Spacer(),
-                        Switch(
-                          value: artist.profileVisibility == 'public',
-                          activeColor: colorAccentGold,
-                          onChanged: (isPublic) async {
-                            final v = isPublic ? 'public' : 'private';
-                            await ref
-                                .read(editArtistProvider.notifier)
-                                .updateArtist(profileVisibility: v);
-                            ref.read(discoverProvider.notifier).loadInitial();
-                          },
-                        ),
-                      ],
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: spaceSm),
-                      child: Text(
+                  // Artist visibility toggle
+                  const SizedBox(height: spaceMd),
+                  Row(
+                    children: [
+                      Icon(
                         artist.profileVisibility == 'private'
-                            ? 'Your artist page is hidden from Discover and search. Only existing fans and direct links can access it.'
-                            : 'Your artist page is visible in Discover and search. Anyone can view your profile and Tune In.',
-                        style: textCaption.copyWith(
-                          color: colorTextMuted,
-                          fontStyle: FontStyle.italic,
-                        ),
+                            ? Icons.lock_outline
+                            : Icons.public,
+                        size: 14,
+                        color: colorTextMuted,
+                      ),
+                      const SizedBox(width: spaceXs),
+                      Text(
+                        artist.profileVisibility == 'private'
+                            ? 'Private'
+                            : 'Public',
+                        style: textCaption.copyWith(color: colorTextMuted),
+                      ),
+                      const Spacer(),
+                      Switch(
+                        value: artist.profileVisibility == 'public',
+                        activeColor: colorAccentGold,
+                        onChanged: (isPublic) async {
+                          final v = isPublic ? 'public' : 'private';
+                          await ref
+                              .read(editArtistProvider.notifier)
+                              .updateArtist(profileVisibility: v);
+                          ref.read(discoverProvider.notifier).loadInitial();
+                        },
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: spaceSm),
+                    child: Text(
+                      artist.profileVisibility == 'private'
+                          ? 'Your artist page is hidden from Discover and search. Only existing fans and direct links can access it.'
+                          : 'Your artist page is visible in Discover and search. Anyone can view your profile and Tune In.',
+                      style: textCaption.copyWith(
+                        color: colorTextMuted,
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
-                  ] else ...[
-                    const SizedBox(height: spaceMd),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.lock_outline,
-                          size: 14,
-                          color: colorTextMuted,
-                        ),
-                        const SizedBox(width: spaceXs),
-                        Text(
-                          'Private (locked)',
-                          style: textCaption.copyWith(
-                            color: colorTextMuted,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                   const SizedBox(height: spaceSm),
                   SizedBox(
                     width: double.infinity,
