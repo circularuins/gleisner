@@ -60,10 +60,34 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
               ),
               const SizedBox(height: spaceXl),
               Text('Add Child Account', style: textTitle),
-              const SizedBox(height: spaceSm),
-              Text(
-                'Create a guardian-managed account for your child.',
-                style: textCaption.copyWith(color: colorTextMuted),
+              const SizedBox(height: spaceMd),
+              Container(
+                padding: const EdgeInsets.all(spaceMd),
+                decoration: BoxDecoration(
+                  color: colorSurface2,
+                  borderRadius: BorderRadius.circular(radiusMd),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'About Child Accounts',
+                      style: textLabel.copyWith(color: colorTextSecondary),
+                    ),
+                    const SizedBox(height: spaceSm),
+                    Text(
+                      'A child account lets your child build their creative journey under your supervision.\n\n'
+                      '\u2022 You can switch between your account and your child\'s at any time from your Profile\n'
+                      '\u2022 Your child can register as an artist and create posts\n'
+                      '\u2022 Their user profile stays private by default\n'
+                      '\u2022 You control whether their artist page is public or private',
+                      style: textCaption.copyWith(
+                        color: colorTextMuted,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: spaceXl),
 

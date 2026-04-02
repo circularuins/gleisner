@@ -72,10 +72,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // Child mode banner
           if (isChild) ...[
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: spaceLg,
-                vertical: spaceMd,
-              ),
+              padding: const EdgeInsets.all(spaceLg),
               decoration: BoxDecoration(
                 color: colorAccentGold.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(radiusMd),
@@ -83,25 +80,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   color: colorAccentGold.withValues(alpha: 0.3),
                 ),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.child_care,
-                    size: 18,
-                    color: colorAccentGold,
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.child_care,
+                        size: 18,
+                        color: colorAccentGold,
+                      ),
+                      const SizedBox(width: spaceSm),
+                      Text(
+                        'Child Account Mode',
+                        style: textLabel.copyWith(color: colorAccentGold),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: spaceSm),
-                  Expanded(
-                    child: Text(
-                      'Viewing as ${user.displayName ?? user.username}',
-                      style: textLabel.copyWith(color: colorAccentGold),
+                  const SizedBox(height: spaceSm),
+                  Text(
+                    'You are viewing as ${user.displayName ?? user.username}. '
+                    'All actions are performed on behalf of this child account.',
+                    style: textCaption.copyWith(
+                      color: colorAccentGold.withValues(alpha: 0.8),
                     ),
                   ),
-                  TextButton(
-                    onPressed: _switchBackToGuardian,
-                    child: Text(
-                      'Switch back',
-                      style: textLabel.copyWith(color: colorAccentGold),
+                  const SizedBox(height: spaceMd),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _switchBackToGuardian,
+                      icon: const Icon(Icons.swap_horiz, size: 16),
+                      label: const Text('Return to My Account'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colorAccentGold,
+                        side: BorderSide(
+                          color: colorAccentGold.withValues(alpha: 0.3),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -372,6 +388,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ],
 
           const SizedBox(height: spaceXxl),
+
+          // Child mode: show "Return to My Account" prominently above Logout
+          if (isChild) ...[
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _switchBackToGuardian,
+                icon: const Icon(Icons.swap_horiz, size: 16),
+                label: const Text('Return to My Account'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: colorAccentGold,
+                  foregroundColor: colorSurface0,
+                  padding: const EdgeInsets.symmetric(vertical: spaceMd),
+                ),
+              ),
+            ),
+            const SizedBox(height: spaceMd),
+          ],
 
           // Logout
           OutlinedButton(
