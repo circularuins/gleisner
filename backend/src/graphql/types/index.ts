@@ -18,6 +18,7 @@ import "./artist-milestone.js";
 import "./genre.js";
 import "./analytics.js";
 import "./invite.js";
+import "./guardian.js";
 
 builder.queryType({
   fields: (t) => ({

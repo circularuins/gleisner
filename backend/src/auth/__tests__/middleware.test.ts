@@ -26,6 +26,20 @@ describe("authMiddleware", () => {
     expect(body.authUser).toEqual({ userId: "user-123" });
   });
 
+  it("propagates guardianId from JWT to authUser", async () => {
+    const token = await signToken("child-456", {
+      guardianId: "guardian-789",
+    });
+    const res = await app.request("/test", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const body = await res.json();
+    expect(body.authUser).toEqual({
+      userId: "child-456",
+      guardianId: "guardian-789",
+    });
+  });
+
   it("leaves authUser undefined without token", async () => {
     const res = await app.request("/test");
     const body = await res.json();

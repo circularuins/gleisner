@@ -16,6 +16,8 @@ export const users = pgTable("users", {
   publicKey: text("public_key").notNull(),
   encryptedPrivateKey: text("encrypted_private_key").notNull(),
   encryptionSalt: text("encryption_salt").notNull(),
+  birthYearMonth: varchar("birth_year_month", { length: 7 }),
+  guardianId: uuid("guardian_id"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

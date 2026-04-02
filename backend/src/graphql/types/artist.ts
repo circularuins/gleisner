@@ -62,6 +62,11 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Authentication required");
       }
 
+      // Child accounts cannot register as artists (Phase 0 Tier 1)
+      if (ctx.authUser.guardianId) {
+        throw new GraphQLError("Child accounts cannot register as artists");
+      }
+
       // Validate artistUsername
       if (args.artistUsername.length < 2 || args.artistUsername.length > 30) {
         throw new GraphQLError(

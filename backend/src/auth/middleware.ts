@@ -3,6 +3,7 @@ import { verifyToken } from "./jwt.js";
 
 export interface AuthUser {
   userId: string;
+  guardianId?: string;
 }
 
 // Store auth user in Hono context variables
@@ -14,8 +15,8 @@ export async function authMiddleware(
   if (header?.startsWith("Bearer ")) {
     try {
       const token = header.slice(7);
-      const { userId } = await verifyToken(token);
-      c.set("authUser", { userId } satisfies AuthUser);
+      const { userId, guardianId } = await verifyToken(token);
+      c.set("authUser", { userId, guardianId } satisfies AuthUser);
     } catch (err) {
       // Invalid/expired token — log for security monitoring, continue as unauthenticated
       // Sanitize header values to prevent log injection

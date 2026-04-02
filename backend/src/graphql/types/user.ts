@@ -15,6 +15,8 @@ export interface UserShape {
   avatarUrl: string | null;
   profileVisibility: string;
   publicKey: string;
+  birthYearMonth: string | null;
+  guardianId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +42,8 @@ export const userColumns = {
   avatarUrl: users.avatarUrl,
   profileVisibility: users.profileVisibility,
   publicKey: users.publicKey,
+  birthYearMonth: users.birthYearMonth,
+  guardianId: users.guardianId,
   createdAt: users.createdAt,
   updatedAt: users.updatedAt,
 } as const;
@@ -61,13 +65,18 @@ UserType.implement({
   fields: (t) => ({
     id: t.exposeID("id"),
     did: t.exposeString("did"),
-    email: t.exposeString("email"),
+    email: t.string({
+      nullable: true,
+      resolve: (user) => (user.guardianId ? null : user.email),
+    }),
     username: t.exposeString("username"),
     displayName: t.exposeString("displayName", { nullable: true }),
     bio: t.exposeString("bio", { nullable: true }),
     avatarUrl: t.exposeString("avatarUrl", { nullable: true }),
     profileVisibility: t.exposeString("profileVisibility"),
     publicKey: t.exposeString("publicKey"),
+    birthYearMonth: t.exposeString("birthYearMonth", { nullable: true }),
+    guardianId: t.exposeString("guardianId", { nullable: true }),
     createdAt: t.string({ resolve: (user) => user.createdAt.toISOString() }),
     updatedAt: t.string({ resolve: (user) => user.updatedAt.toISOString() }),
   }),
@@ -117,6 +126,12 @@ builder.mutationFields((t) => ({
       if (args.bio !== undefined) updateData.bio = args.bio;
       if (args.avatarUrl !== undefined) updateData.avatarUrl = args.avatarUrl;
       if (args.profileVisibility !== undefined) {
+        // Child accounts cannot change profile visibility (Phase 0 Tier 1: private fixed)
+        if (ctx.authUser.guardianId) {
+          throw new GraphQLError(
+            "Child accounts cannot change profile visibility",
+          );
+        }
         validateProfileVisibility(args.profileVisibility as string);
         updateData.profileVisibility = args.profileVisibility;
       }

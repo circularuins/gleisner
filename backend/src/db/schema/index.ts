@@ -37,6 +37,12 @@ import { constellations } from "./constellation.js";
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   artist: one(artists, { fields: [users.id], references: [artists.userId] }),
+  guardian: one(users, {
+    fields: [users.guardianId],
+    references: [users.id],
+    relationName: "guardian",
+  }),
+  children: many(users, { relationName: "guardian" }),
   posts: many(posts),
   reactions: many(reactions),
   comments: many(comments),
