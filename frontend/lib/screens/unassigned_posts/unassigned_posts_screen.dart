@@ -49,7 +49,7 @@ class UnassignedPostsScreen extends ConsumerWidget {
                       tracks: tracks,
                       onTap: () => _openDetail(context, ref, post),
                       onAssign: (trackId) =>
-                          _assignToTrack(ref, post.id, trackId),
+                          _assignToTrack(context, ref, post.id, trackId),
                     );
                   },
                 ),
@@ -57,13 +57,19 @@ class UnassignedPostsScreen extends ConsumerWidget {
   }
 
   Future<void> _assignToTrack(
+    BuildContext context,
     WidgetRef ref,
     String postId,
     String trackId,
   ) async {
-    await ref
+    final result = await ref
         .read(unassignedPostsProvider.notifier)
         .updatePost(id: postId, trackId: trackId);
+    if (result == null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to assign post. Please try again.')),
+      );
+    }
   }
 
   void _openDetail(BuildContext context, WidgetRef ref, Post post) {
@@ -215,8 +221,10 @@ class _PostTile extends StatelessWidget {
                 ),
                 contentPadding: EdgeInsets.zero,
                 onTap: () {
+                  final trackId = track.id;
                   Navigator.pop(context);
-                  onAssign(track.id);
+                  // onAssign triggers async work — trackId captured before pop
+                  onAssign(trackId);
                 },
               ),
             ),
@@ -229,7 +237,8 @@ class _PostTile extends StatelessWidget {
 
   static Color _parseColor(String hex) {
     final value = int.tryParse(hex.replaceFirst('#', ''), radix: 16);
-    return value != null ? Color(0xFF000000 | value) : colorTextMuted;
+    // Fallback to muted interactive color when hex is malformed
+    return value != null ? Color(0xFF000000 | value) : colorInteractiveMuted;
   }
 
   static IconData _mediaTypeIcon(MediaType type) {
