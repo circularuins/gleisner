@@ -446,12 +446,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         .read(guardianProvider.notifier)
         .switchToChild(childId);
     if (!success || !mounted) return;
-    // Invalidate user-specific providers after switching
-    ref.invalidate(myArtistProvider);
-    ref.invalidate(timelineProvider);
-    ref.invalidate(tuneInProvider);
-    ref.invalidate(discoverProvider);
-    ref.invalidate(unassignedPostsProvider);
+    await _reloadAfterSwitch();
   }
 
   Future<void> _switchBackToGuardian() async {
@@ -459,14 +454,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         .read(guardianProvider.notifier)
         .switchBackToGuardian();
     if (!success || !mounted) return;
-    // Invalidate and reload after switching back
+    await _reloadAfterSwitch();
+    // Reload children list for guardian view
+    ref.read(guardianProvider.notifier).loadChildren();
+  }
+
+  /// Invalidate all user-specific providers and reload data after JWT switch.
+  /// Similar to the artist registration flow — explicit reload is needed
+  /// because StatefulShellRoute tabs don't auto-refresh on invalidate.
+  Future<void> _reloadAfterSwitch() async {
     ref.invalidate(myArtistProvider);
     ref.invalidate(timelineProvider);
     ref.invalidate(tuneInProvider);
     ref.invalidate(discoverProvider);
     ref.invalidate(unassignedPostsProvider);
-    // Reload children list
-    ref.read(guardianProvider.notifier).loadChildren();
+    // Explicitly reload data with new JWT
+    await ref.read(myArtistProvider.notifier).load();
+    if (!mounted) return;
+    ref.read(discoverProvider.notifier).loadInitial();
+    ref.read(tuneInProvider.notifier).loadMyTuneIns();
   }
 
   static String _formatJoinDate(DateTime date) {
