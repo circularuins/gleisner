@@ -48,6 +48,11 @@ builder.queryFields((t) => ({
         throw new GraphQLError("Authentication required");
       }
 
+      // Child accounts cannot list children
+      if (ctx.authUser.guardianId) {
+        return [];
+      }
+
       const children = await db
         .select(userColumns)
         .from(users)
