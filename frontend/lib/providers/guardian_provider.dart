@@ -79,6 +79,7 @@ class GuardianNotifier extends Notifier<GuardianState>
     required String username,
     String? displayName,
     required String birthYearMonth,
+    required String guardianPassword,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
@@ -89,6 +90,7 @@ class GuardianNotifier extends Notifier<GuardianState>
           'username': username,
           'displayName': displayName,
           'birthYearMonth': birthYearMonth,
+          'guardianPassword': guardianPassword,
         },
       ),
     );

@@ -5,9 +5,16 @@ import { UserType, type UserShape, userColumns } from "./user.js";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema/index.js";
 import { and, eq, sql } from "drizzle-orm";
-import { generateEdKeyPair, generateSalt } from "../../auth/crypto.js";
+import {
+  generateEdKeyPair,
+  generateSalt,
+  verifyPassword,
+  encryptPrivateKey,
+} from "../../auth/crypto.js";
 import { generateDid } from "../../auth/did.js";
 import { signToken } from "../../auth/jwt.js";
+
+const MAX_PASSWORD_LENGTH = 128;
 
 const MAX_CHILDREN_PER_GUARDIAN = 10;
 const CHILD_EMAIL_DOMAIN = "@child.gleisner.local";
@@ -72,6 +79,7 @@ builder.mutationFields((t) => ({
       username: t.arg.string({ required: true }),
       displayName: t.arg.string(),
       birthYearMonth: t.arg.string({ required: true }),
+      guardianPassword: t.arg.string({ required: true }),
     },
     resolve: async (_parent, args, ctx) => {
       if (!ctx.authUser) {
@@ -81,6 +89,31 @@ builder.mutationFields((t) => ({
       // Child accounts cannot create child accounts (JWT-level check)
       if (ctx.authUser.guardianId) {
         throw new GraphQLError("Child accounts cannot create child accounts");
+      }
+
+      // DoS prevention: reject oversized passwords before scrypt
+      if (args.guardianPassword.length > MAX_PASSWORD_LENGTH) {
+        throw new GraphQLError("Invalid password");
+      }
+
+      // Verify guardian's password
+      const [guardian] = await db
+        .select({
+          passwordSalt: users.passwordSalt,
+          passwordHash: users.passwordHash,
+        })
+        .from(users)
+        .where(eq(users.id, ctx.authUser.userId))
+        .limit(1);
+      if (
+        !guardian ||
+        !verifyPassword(
+          args.guardianPassword,
+          guardian.passwordSalt,
+          guardian.passwordHash,
+        )
+      ) {
+        throw new GraphQLError("Invalid password");
       }
 
       // Validate username
@@ -109,14 +142,19 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Username already taken");
       }
 
-      // Generate keys (CPU-bound, outside transaction)
-      const { publicKey, privateKey: _pk } = generateEdKeyPair();
+      // Generate child's key pair (CPU-bound, outside transaction)
+      const { publicKey, privateKey } = generateEdKeyPair();
       // Random password hash/salt — child cannot login directly
-      const passwordSalt = generateSalt();
-      const passwordHash = randomBytes(64).toString("hex");
-      // Random encryption salt and placeholder encrypted key
+      const childPasswordSalt = generateSalt();
+      const childPasswordHash = randomBytes(64).toString("hex");
+      // Encrypt child's private key with guardian's password
+      // (preserves the key for future graduation to self-managed account)
       const encryptionSalt = generateSalt();
-      const encryptedPrivateKey = randomBytes(128).toString("hex");
+      const childEncryptedPrivateKey = encryptPrivateKey(
+        privateKey,
+        args.guardianPassword,
+        encryptionSalt,
+      );
 
       const childEmail = `${args.username}${CHILD_EMAIL_DOMAIN}`;
 
@@ -144,10 +182,10 @@ builder.mutationFields((t) => ({
             email: childEmail,
             username: args.username,
             displayName: args.displayName ?? null,
-            passwordHash,
-            passwordSalt,
+            passwordHash: childPasswordHash,
+            passwordSalt: childPasswordSalt,
             publicKey,
-            encryptedPrivateKey,
+            encryptedPrivateKey: childEncryptedPrivateKey,
             encryptionSalt,
             profileVisibility: "private",
             birthYearMonth: args.birthYearMonth,

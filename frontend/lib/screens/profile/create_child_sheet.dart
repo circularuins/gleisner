@@ -15,6 +15,7 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
   final _formKey = GlobalKey<FormState>();
   final _usernameCtrl = TextEditingController();
   final _displayNameCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
   int _birthYear = DateTime.now().year - 5;
   int _birthMonth = 1;
   bool _submitting = false;
@@ -24,6 +25,7 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
   void dispose() {
     _usernameCtrl.dispose();
     _displayNameCtrl.dispose();
+    _passwordCtrl.dispose();
     super.dispose();
   }
 
@@ -195,6 +197,40 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
               ),
               const SizedBox(height: spaceXl),
 
+              // Guardian password confirmation
+              TextFormField(
+                controller: _passwordCtrl,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Your Password',
+                  hintText: 'Confirm your password to create',
+                  labelStyle: const TextStyle(color: colorTextMuted),
+                  hintStyle: const TextStyle(color: colorInteractiveMuted),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: colorBorder),
+                    borderRadius: BorderRadius.circular(radiusMd),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: colorAccentGold),
+                    borderRadius: BorderRadius.circular(radiusMd),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: colorError),
+                    borderRadius: BorderRadius.circular(radiusMd),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: colorError),
+                    borderRadius: BorderRadius.circular(radiusMd),
+                  ),
+                ),
+                style: const TextStyle(color: colorTextPrimary),
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Password is required';
+                  return null;
+                },
+              ),
+              const SizedBox(height: spaceXl),
+
               // Error
               if (_error != null) ...[
                 Text(_error!, style: textCaption.copyWith(color: colorError)),
@@ -256,6 +292,7 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
               ? null
               : _displayNameCtrl.text.trim(),
           birthYearMonth: birthYearMonth,
+          guardianPassword: _passwordCtrl.text,
         );
 
     if (!mounted) return;

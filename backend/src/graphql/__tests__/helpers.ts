@@ -150,8 +150,8 @@ export async function signupAndRegisterArtist(
 }
 
 export const CREATE_CHILD_MUTATION = `
-  mutation CreateChildAccount($username: String!, $displayName: String, $birthYearMonth: String!) {
-    createChildAccount(username: $username, displayName: $displayName, birthYearMonth: $birthYearMonth) {
+  mutation CreateChildAccount($username: String!, $displayName: String, $birthYearMonth: String!, $guardianPassword: String!) {
+    createChildAccount(username: $username, displayName: $displayName, birthYearMonth: $birthYearMonth, guardianPassword: $guardianPassword) {
       id username displayName birthYearMonth isChildAccount
     }
   }
@@ -197,6 +197,7 @@ export async function signupAndCreateChild(
       username: childUsername,
       displayName: `Child ${childUsername}`,
       birthYearMonth,
+      guardianPassword: "password123",
     },
     guardianToken,
   );
