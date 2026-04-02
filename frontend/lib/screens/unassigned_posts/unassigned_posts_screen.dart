@@ -31,25 +31,45 @@ class UnassignedPostsScreen extends ConsumerWidget {
               child: CircularProgressIndicator(color: colorAccentGold),
             )
           : state.posts.isEmpty
-          ? const Center(
-              child: Text(
-                'No unassigned posts',
-                style: TextStyle(color: colorTextMuted),
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.all(spaceLg),
-              itemCount: state.posts.length,
-              separatorBuilder: (_, _) => const SizedBox(height: spaceSm),
-              itemBuilder: (context, index) {
-                final post = state.posts[index];
-                return _PostTile(
-                  post: post,
-                  onTap: () => _openDetail(context, ref, post),
-                );
-              },
-            ),
+              ? const Center(
+                  child: Text(
+                    'No unassigned posts',
+                    style: TextStyle(color: colorTextMuted),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(spaceLg),
+                  itemCount: state.posts.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: spaceSm),
+                  itemBuilder: (context, index) {
+                    final post = state.posts[index];
+                    return _PostTile(
+                      post: post,
+                      tracks: tracks,
+                      onTap: () => _openDetail(context, ref, post),
+                      onAssign: (trackId) =>
+                          _assignToTrack(context, ref, post.id, trackId),
+                    );
+                  },
+                ),
     );
+  }
+
+  Future<void> _assignToTrack(
+    BuildContext context,
+    WidgetRef ref,
+    String postId,
+    String trackId,
+  ) async {
+    final result = await ref
+        .read(unassignedPostsProvider.notifier)
+        .updatePost(id: postId, trackId: trackId);
+    if (result == null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to assign post. Please try again.')),
+      );
+    }
   }
 
   void _openDetail(BuildContext context, WidgetRef ref, Post post) {
@@ -82,9 +102,16 @@ class UnassignedPostsScreen extends ConsumerWidget {
 
 class _PostTile extends StatelessWidget {
   final Post post;
+  final List<Track> tracks;
   final VoidCallback onTap;
+  final ValueChanged<String> onAssign;
 
-  const _PostTile({required this.post, required this.onTap});
+  const _PostTile({
+    required this.post,
+    required this.tracks,
+    required this.onTap,
+    required this.onAssign,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -130,15 +157,88 @@ class _PostTile extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: colorInteractiveMuted,
-            ),
+            if (tracks.isNotEmpty)
+              TextButton(
+                onPressed: () => _showTrackPicker(context),
+                style: TextButton.styleFrom(
+                  foregroundColor: colorAccentGold,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: spaceSm,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('Assign'),
+              )
+            else
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: colorInteractiveMuted,
+              ),
           ],
         ),
       ),
     );
+  }
+
+  void _showTrackPicker(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colorSurface1,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(radiusSheet),
+        ),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(spaceXl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colorBorder,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: spaceLg),
+            Text('Assign to Track', style: textHeading),
+            const SizedBox(height: spaceMd),
+            ...tracks.map(
+              (track) => ListTile(
+                leading: CircleAvatar(
+                  radius: 12,
+                  backgroundColor: _parseColor(track.color),
+                ),
+                title: Text(
+                  track.name,
+                  style: const TextStyle(color: colorTextPrimary),
+                ),
+                contentPadding: EdgeInsets.zero,
+                onTap: () {
+                  final trackId = track.id;
+                  Navigator.pop(context);
+                  // onAssign triggers async work — trackId captured before pop
+                  onAssign(trackId);
+                },
+              ),
+            ),
+            const SizedBox(height: spaceMd),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Color _parseColor(String hex) {
+    final value = int.tryParse(hex.replaceFirst('#', ''), radix: 16);
+    // Fallback to muted interactive color when hex is malformed
+    return value != null ? Color(0xFF000000 | value) : colorInteractiveMuted;
   }
 
   static IconData _mediaTypeIcon(MediaType type) {
