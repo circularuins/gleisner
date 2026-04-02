@@ -566,8 +566,8 @@ describe("updateMe child restrictions", () => {
 // registerArtist child restriction
 // =============================================================================
 
-describe("registerArtist child restriction", () => {
-  it("prevents child from registering as artist", async () => {
+describe("child artist restrictions", () => {
+  it("allows child to register as artist with forced private visibility", async () => {
     const { guardianToken, childId } = await signupAndCreateChild(
       app,
       "parent@test.com",
@@ -586,8 +586,50 @@ describe("registerArtist child restriction", () => {
       { artistUsername: "childartist", displayName: "Child Artist" },
       childToken,
     );
+    expect(result.errors).toBeUndefined();
+
+    // Verify artist is forced private
+    const artistResult = await gql(
+      app,
+      `query { artist(username: "childartist") { profileVisibility } }`,
+      {},
+      childToken,
+    );
+    expect(
+      (artistResult.data!.artist as Record<string, unknown>).profileVisibility,
+    ).toBe("private");
+  });
+
+  it("prevents child from changing artist visibility", async () => {
+    const { guardianToken, childId } = await signupAndCreateChild(
+      app,
+      "parent@test.com",
+      "parent",
+      "child1",
+    );
+    const childToken = await switchToChildAndGetToken(
+      app,
+      guardianToken,
+      childId,
+    );
+
+    // Register as artist first
+    await gql(
+      app,
+      REGISTER_ARTIST_MUTATION,
+      { artistUsername: "childartist", displayName: "Child Artist" },
+      childToken,
+    );
+
+    // Try to change visibility
+    const result = await gql(
+      app,
+      `mutation { updateArtist(profileVisibility: "public") { profileVisibility } }`,
+      {},
+      childToken,
+    );
     expect(result.errors?.[0]?.message).toBe(
-      "Child accounts cannot register as artists",
+      "Child accounts cannot change artist visibility",
     );
   });
 });

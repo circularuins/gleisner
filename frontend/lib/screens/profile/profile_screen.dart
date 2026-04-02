@@ -165,52 +165,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           const SizedBox(height: spaceXxl),
 
-          // Artist section (not shown for child accounts)
-          if (!isChild) ...[
-            if (artist != null) ...[
-              // Registered artist info
-              Container(
-                padding: const EdgeInsets.all(spaceLg),
-                decoration: BoxDecoration(
-                  color: colorSurface1,
-                  borderRadius: BorderRadius.circular(radiusLg),
-                  border: Border.all(color: colorBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.auto_awesome,
-                          size: 16,
-                          color: colorAccentGold,
-                        ),
-                        const SizedBox(width: spaceSm),
-                        Text(
-                          'Artist',
-                          style: textLabel.copyWith(color: colorAccentGold),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: spaceMd),
-                    Text(
-                      artist.displayName ?? artist.artistUsername,
-                      style: textHeading,
-                    ),
-                    const SizedBox(height: spaceXxs),
-                    Text(
-                      '@${artist.artistUsername}',
-                      style: textCaption.copyWith(color: colorTextMuted),
-                    ),
-                    if (artist.tracks.isNotEmpty) ...[
-                      const SizedBox(height: spaceMd),
+          // Artist section
+          if (artist != null) ...[
+            // Registered artist info
+            Container(
+              padding: const EdgeInsets.all(spaceLg),
+              decoration: BoxDecoration(
+                color: colorSurface1,
+                borderRadius: BorderRadius.circular(radiusLg),
+                border: Border.all(color: colorBorder),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.auto_awesome,
+                        size: 16,
+                        color: colorAccentGold,
+                      ),
+                      const SizedBox(width: spaceSm),
                       Text(
-                        '${artist.tracks.length} track${artist.tracks.length == 1 ? '' : 's'}',
-                        style: textCaption.copyWith(color: colorTextSecondary),
+                        'Artist',
+                        style: textLabel.copyWith(color: colorAccentGold),
                       ),
                     ],
-                    // Artist visibility toggle
+                  ),
+                  const SizedBox(height: spaceMd),
+                  Text(
+                    artist.displayName ?? artist.artistUsername,
+                    style: textHeading,
+                  ),
+                  const SizedBox(height: spaceXxs),
+                  Text(
+                    '@${artist.artistUsername}',
+                    style: textCaption.copyWith(color: colorTextMuted),
+                  ),
+                  if (artist.tracks.isNotEmpty) ...[
+                    const SizedBox(height: spaceMd),
+                    Text(
+                      '${artist.tracks.length} track${artist.tracks.length == 1 ? '' : 's'}',
+                      style: textCaption.copyWith(color: colorTextSecondary),
+                    ),
+                  ],
+                  // Artist visibility toggle (hidden for child — forced private)
+                  if (!isChild) ...[
                     const SizedBox(height: spaceMd),
                     Row(
                       children: [
@@ -254,77 +254,96 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: spaceSm),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            context.push('/artist/${artist.artistUsername}'),
-                        icon: const Icon(Icons.person, size: 16),
-                        label: const Text('View Artist Page'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: colorAccentGold,
-                          side: BorderSide(
-                            color: colorAccentGold.withValues(alpha: 0.3),
+                  ] else ...[
+                    const SizedBox(height: spaceMd),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.lock_outline,
+                          size: 14,
+                          color: colorTextMuted,
+                        ),
+                        const SizedBox(width: spaceXs),
+                        Text(
+                          'Private (locked)',
+                          style: textCaption.copyWith(
+                            color: colorTextMuted,
+                            fontStyle: FontStyle.italic,
                           ),
                         ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: spaceSm),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          context.push('/artist/${artist.artistUsername}'),
+                      icon: const Icon(Icons.person, size: 16),
+                      label: const Text('View Artist Page'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colorAccentGold,
+                        side: BorderSide(
+                          color: colorAccentGold.withValues(alpha: 0.3),
+                        ),
                       ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            // Become an artist CTA
+            GestureDetector(
+              onTap: () => _showRegisterSheet(context),
+              child: Container(
+                padding: const EdgeInsets.all(spaceLg),
+                decoration: BoxDecoration(
+                  color: colorSurface1,
+                  borderRadius: BorderRadius.circular(radiusLg),
+                  border: Border.all(
+                    color: colorAccentGold.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: colorAccentGold.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(radiusMd),
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome,
+                        color: colorAccentGold,
+                      ),
+                    ),
+                    const SizedBox(width: spaceLg),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Become an Artist', style: textHeading),
+                          const SizedBox(height: spaceXxs),
+                          Text(
+                            'Start sharing your creative journey',
+                            style: textCaption.copyWith(
+                              color: colorTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right,
+                      color: colorInteractiveMuted,
                     ),
                   ],
                 ),
               ),
-            ] else ...[
-              // Become an artist CTA
-              GestureDetector(
-                onTap: () => _showRegisterSheet(context),
-                child: Container(
-                  padding: const EdgeInsets.all(spaceLg),
-                  decoration: BoxDecoration(
-                    color: colorSurface1,
-                    borderRadius: BorderRadius.circular(radiusLg),
-                    border: Border.all(
-                      color: colorAccentGold.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: colorAccentGold.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(radiusMd),
-                        ),
-                        child: const Icon(
-                          Icons.auto_awesome,
-                          color: colorAccentGold,
-                        ),
-                      ),
-                      const SizedBox(width: spaceLg),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Become an Artist', style: textHeading),
-                            const SizedBox(height: spaceXxs),
-                            Text(
-                              'Start sharing your creative journey',
-                              style: textCaption.copyWith(
-                                color: colorTextSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(
-                        Icons.chevron_right,
-                        color: colorInteractiveMuted,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+            ),
           ],
 
           // Guardian section: child accounts (not shown for child accounts)
