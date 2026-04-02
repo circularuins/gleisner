@@ -43,3 +43,31 @@ export function validateBirthYearMonth(value: string): void {
     throw new GraphQLError("Invalid birth year");
   }
 }
+
+/** Calculate age from YYYY-MM birth date. Uses year+month for accuracy. */
+export function ageFromBirthYearMonth(value: string): number {
+  const [year, month] = value.split("-").map(Number);
+  const now = new Date();
+  let age = now.getFullYear() - year;
+  // If birth month hasn't occurred yet this year, subtract 1
+  if (now.getMonth() + 1 < month) {
+    age--;
+  }
+  return age;
+}
+
+const COPPA_MIN_AGE = 13;
+
+/**
+ * Validate that a self-signup user is at least 13 (COPPA).
+ * Under-13 users must be created via guardian's createChildAccount.
+ */
+export function validateSignupAge(birthYearMonth: string): void {
+  const age = ageFromBirthYearMonth(birthYearMonth);
+  if (age < COPPA_MIN_AGE) {
+    throw new GraphQLError(
+      "You must be at least 13 to create an account. " +
+        "Please ask your parent or guardian to create an account for you.",
+    );
+  }
+}

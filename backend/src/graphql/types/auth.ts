@@ -14,7 +14,7 @@ import {
 } from "../../auth/crypto.js";
 import { generateDid } from "../../auth/did.js";
 import { signToken } from "../../auth/jwt.js";
-import { validateBirthYearMonth } from "../validators.js";
+import { validateBirthYearMonth, validateSignupAge } from "../validators.js";
 
 const MAX_PASSWORD_LENGTH = 128;
 
@@ -76,8 +76,9 @@ builder.mutationType({
           throw new GraphQLError("Display name must be 50 characters or less");
         }
 
-        // Validate birthYearMonth
+        // Validate birthYearMonth format + COPPA age check
         validateBirthYearMonth(args.birthYearMonth);
+        validateSignupAge(args.birthYearMonth);
 
         // Check uniqueness
         const existing = await db

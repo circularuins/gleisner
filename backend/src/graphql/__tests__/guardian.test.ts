@@ -54,7 +54,6 @@ describe("createChildAccount", () => {
       CREATE_CHILD_MUTATION,
       {
         username: "mychild",
-        birthYearMonth: "1990-01",
         displayName: "My Child",
         birthYearMonth: "2020-06",
         guardianPassword: "password123",
@@ -453,7 +452,6 @@ describe("myChildren", () => {
       CREATE_CHILD_MUTATION,
       {
         username: "child1",
-        birthYearMonth: "1990-01",
         displayName: "Child One",
         birthYearMonth: "2020-01",
         guardianPassword: "password123",
@@ -465,7 +463,6 @@ describe("myChildren", () => {
       CREATE_CHILD_MUTATION,
       {
         username: "child2",
-        birthYearMonth: "1990-01",
         displayName: "Child Two",
         birthYearMonth: "2022-06",
         guardianPassword: "password123",
@@ -477,7 +474,6 @@ describe("myChildren", () => {
       CREATE_CHILD_MUTATION,
       {
         username: "child3",
-        birthYearMonth: "1990-01",
         displayName: "Child Three",
         birthYearMonth: "2018-12",
         guardianPassword: "password123",
@@ -624,5 +620,30 @@ describe("login / signup child defenses", () => {
       birthYearMonth: "1990-01",
     });
     expect(result.errors?.[0]?.message).toBe("Invalid email format");
+  });
+
+  it("rejects self-signup for under-13 (COPPA)", async () => {
+    const currentYear = new Date().getFullYear();
+    const result = await gql(app, SIGNUP_MUTATION, {
+      email: "kid@test.com",
+      password: "password123",
+      username: "kiduser",
+      birthYearMonth: `${currentYear - 10}-01`,
+    });
+    expect(result.errors?.[0]?.message).toContain(
+      "You must be at least 13 to create an account",
+    );
+  });
+
+  it("allows self-signup for 13+", async () => {
+    const currentYear = new Date().getFullYear();
+    const result = await gql(app, SIGNUP_MUTATION, {
+      email: "teen@test.com",
+      password: "password123",
+      username: "teenuser",
+      birthYearMonth: `${currentYear - 14}-01`,
+    });
+    expect(result.errors).toBeUndefined();
+    expect(result.data?.signup).toBeTruthy();
   });
 });
