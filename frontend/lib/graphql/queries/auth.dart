@@ -8,6 +8,8 @@ const _userFields = '''
   avatarUrl
   profileVisibility
   publicKey
+  birthYearMonth
+  isChildAccount
   createdAt
   updatedAt
 ''';

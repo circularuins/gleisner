@@ -7,12 +7,14 @@ import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/discover_provider.dart';
 import '../../providers/edit_artist_provider.dart';
+import '../../providers/guardian_provider.dart';
 import '../../providers/my_artist_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../providers/tutorial_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import 'create_child_sheet.dart';
 import 'edit_profile_sheet.dart';
 import 'register_artist_wizard.dart';
 
@@ -30,6 +32,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(analyticsProvider.notifier).trackPageView('/profile');
+      // Load children if not a child account
+      final user = ref.read(authProvider).user;
+      if (user != null && !user.isChildAccount) {
+        ref.read(guardianProvider.notifier).loadChildren();
+      }
     });
   }
 
@@ -41,8 +48,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // which may hold another artist's data in fan mode
     final artist = ref.watch(myArtistProvider);
     final tuneInState = ref.watch(tuneInProvider);
+    final guardianState = ref.watch(guardianProvider);
 
     if (user == null) return const SizedBox.shrink();
+
+    final isChild = user.isChildAccount;
 
     return Scaffold(
       backgroundColor: colorSurface0,
@@ -59,6 +69,47 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.all(spaceXl),
         children: [
+          // Child mode banner
+          if (isChild) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: spaceLg,
+                vertical: spaceMd,
+              ),
+              decoration: BoxDecoration(
+                color: colorAccentGold.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(radiusMd),
+                border: Border.all(
+                  color: colorAccentGold.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.child_care,
+                    size: 18,
+                    color: colorAccentGold,
+                  ),
+                  const SizedBox(width: spaceSm),
+                  Expanded(
+                    child: Text(
+                      'Viewing as ${user.displayName ?? user.username}',
+                      style: textLabel.copyWith(color: colorAccentGold),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _switchBackToGuardian,
+                    child: Text(
+                      'Switch back',
+                      style: textLabel.copyWith(color: colorAccentGold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: spaceLg),
+          ],
+
           // User info
           Row(
             children: [
@@ -114,164 +165,212 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           const SizedBox(height: spaceXxl),
 
-          // Artist section
-          if (artist != null) ...[
-            // Registered artist info
-            Container(
-              padding: const EdgeInsets.all(spaceLg),
-              decoration: BoxDecoration(
-                color: colorSurface1,
-                borderRadius: BorderRadius.circular(radiusLg),
-                border: Border.all(color: colorBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.auto_awesome,
-                        size: 16,
-                        color: colorAccentGold,
-                      ),
-                      const SizedBox(width: spaceSm),
-                      Text(
-                        'Artist',
-                        style: textLabel.copyWith(color: colorAccentGold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: spaceMd),
-                  Text(
-                    artist.displayName ?? artist.artistUsername,
-                    style: textHeading,
-                  ),
-                  const SizedBox(height: spaceXxs),
-                  Text(
-                    '@${artist.artistUsername}',
-                    style: textCaption.copyWith(color: colorTextMuted),
-                  ),
-                  if (artist.tracks.isNotEmpty) ...[
-                    const SizedBox(height: spaceMd),
-                    Text(
-                      '${artist.tracks.length} track${artist.tracks.length == 1 ? '' : 's'}',
-                      style: textCaption.copyWith(color: colorTextSecondary),
-                    ),
-                  ],
-                  // Artist visibility toggle
-                  const SizedBox(height: spaceMd),
-                  Row(
-                    children: [
-                      Icon(
-                        artist.profileVisibility == 'private'
-                            ? Icons.lock_outline
-                            : Icons.public,
-                        size: 14,
-                        color: colorTextMuted,
-                      ),
-                      const SizedBox(width: spaceXs),
-                      Text(
-                        artist.profileVisibility == 'private'
-                            ? 'Private'
-                            : 'Public',
-                        style: textCaption.copyWith(color: colorTextMuted),
-                      ),
-                      const Spacer(),
-                      Switch(
-                        value: artist.profileVisibility == 'public',
-                        activeColor: colorAccentGold,
-                        onChanged: (isPublic) async {
-                          final v = isPublic ? 'public' : 'private';
-                          await ref
-                              .read(editArtistProvider.notifier)
-                              .updateArtist(profileVisibility: v);
-                          ref.read(discoverProvider.notifier).loadInitial();
-                        },
-                      ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: spaceSm),
-                    child: Text(
-                      artist.profileVisibility == 'private'
-                          ? 'Your artist page is hidden from Discover and search. Only existing fans and direct links can access it.'
-                          : 'Your artist page is visible in Discover and search. Anyone can view your profile and Tune In.',
-                      style: textCaption.copyWith(
-                        color: colorTextMuted,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: spaceSm),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () =>
-                          context.push('/artist/${artist.artistUsername}'),
-                      icon: const Icon(Icons.person, size: 16),
-                      label: const Text('View Artist Page'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: colorAccentGold,
-                        side: BorderSide(
-                          color: colorAccentGold.withValues(alpha: 0.3),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            // Become an artist CTA
-            GestureDetector(
-              onTap: () => _showRegisterSheet(context),
-              child: Container(
+          // Artist section (not shown for child accounts)
+          if (!isChild) ...[
+            if (artist != null) ...[
+              // Registered artist info
+              Container(
                 padding: const EdgeInsets.all(spaceLg),
                 decoration: BoxDecoration(
                   color: colorSurface1,
                   borderRadius: BorderRadius.circular(radiusLg),
-                  border: Border.all(
-                    color: colorAccentGold.withValues(alpha: 0.3),
-                  ),
+                  border: Border.all(color: colorBorder),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: colorAccentGold.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(radiusMd),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.auto_awesome,
+                          size: 16,
+                          color: colorAccentGold,
+                        ),
+                        const SizedBox(width: spaceSm),
+                        Text(
+                          'Artist',
+                          style: textLabel.copyWith(color: colorAccentGold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: spaceMd),
+                    Text(
+                      artist.displayName ?? artist.artistUsername,
+                      style: textHeading,
+                    ),
+                    const SizedBox(height: spaceXxs),
+                    Text(
+                      '@${artist.artistUsername}',
+                      style: textCaption.copyWith(color: colorTextMuted),
+                    ),
+                    if (artist.tracks.isNotEmpty) ...[
+                      const SizedBox(height: spaceMd),
+                      Text(
+                        '${artist.tracks.length} track${artist.tracks.length == 1 ? '' : 's'}',
+                        style: textCaption.copyWith(color: colorTextSecondary),
                       ),
-                      child: const Icon(
-                        Icons.auto_awesome,
-                        color: colorAccentGold,
+                    ],
+                    // Artist visibility toggle
+                    const SizedBox(height: spaceMd),
+                    Row(
+                      children: [
+                        Icon(
+                          artist.profileVisibility == 'private'
+                              ? Icons.lock_outline
+                              : Icons.public,
+                          size: 14,
+                          color: colorTextMuted,
+                        ),
+                        const SizedBox(width: spaceXs),
+                        Text(
+                          artist.profileVisibility == 'private'
+                              ? 'Private'
+                              : 'Public',
+                          style: textCaption.copyWith(color: colorTextMuted),
+                        ),
+                        const Spacer(),
+                        Switch(
+                          value: artist.profileVisibility == 'public',
+                          activeColor: colorAccentGold,
+                          onChanged: (isPublic) async {
+                            final v = isPublic ? 'public' : 'private';
+                            await ref
+                                .read(editArtistProvider.notifier)
+                                .updateArtist(profileVisibility: v);
+                            ref.read(discoverProvider.notifier).loadInitial();
+                          },
+                        ),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: spaceSm),
+                      child: Text(
+                        artist.profileVisibility == 'private'
+                            ? 'Your artist page is hidden from Discover and search. Only existing fans and direct links can access it.'
+                            : 'Your artist page is visible in Discover and search. Anyone can view your profile and Tune In.',
+                        style: textCaption.copyWith(
+                          color: colorTextMuted,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: spaceLg),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Become an Artist', style: textHeading),
-                          const SizedBox(height: spaceXxs),
-                          Text(
-                            'Start sharing your creative journey',
-                            style: textCaption.copyWith(
-                              color: colorTextSecondary,
-                            ),
+                    const SizedBox(height: spaceSm),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            context.push('/artist/${artist.artistUsername}'),
+                        icon: const Icon(Icons.person, size: 16),
+                        label: const Text('View Artist Page'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colorAccentGold,
+                          side: BorderSide(
+                            color: colorAccentGold.withValues(alpha: 0.3),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                    const Icon(
-                      Icons.chevron_right,
-                      color: colorInteractiveMuted,
                     ),
                   ],
                 ),
               ),
+            ] else ...[
+              // Become an artist CTA
+              GestureDetector(
+                onTap: () => _showRegisterSheet(context),
+                child: Container(
+                  padding: const EdgeInsets.all(spaceLg),
+                  decoration: BoxDecoration(
+                    color: colorSurface1,
+                    borderRadius: BorderRadius.circular(radiusLg),
+                    border: Border.all(
+                      color: colorAccentGold.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: colorAccentGold.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(radiusMd),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome,
+                          color: colorAccentGold,
+                        ),
+                      ),
+                      const SizedBox(width: spaceLg),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Become an Artist', style: textHeading),
+                            const SizedBox(height: spaceXxs),
+                            Text(
+                              'Start sharing your creative journey',
+                              style: textCaption.copyWith(
+                                color: colorTextSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: colorInteractiveMuted,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+
+          // Guardian section: child accounts (not shown for child accounts)
+          if (!isChild) ...[
+            const SizedBox(height: spaceXxl),
+            Row(
+              children: [
+                const Icon(
+                  Icons.people_outline,
+                  size: 18,
+                  color: colorTextMuted,
+                ),
+                const SizedBox(width: spaceSm),
+                Text(
+                  'Child Accounts',
+                  style: textHeading.copyWith(fontSize: 16),
+                ),
+              ],
             ),
+            const SizedBox(height: spaceMd),
+            if (guardianState.isLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(spaceLg),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else ...[
+              // Child cards
+              ...guardianState.children.map(
+                (child) => Padding(
+                  padding: const EdgeInsets.only(bottom: spaceSm),
+                  child: _buildChildCard(child),
+                ),
+              ),
+              // Add child button
+              OutlinedButton.icon(
+                onPressed: () => _showCreateChildSheet(context),
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add Child Account'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: colorTextSecondary,
+                  side: const BorderSide(color: colorBorder),
+                ),
+              ),
+            ],
           ],
 
           const SizedBox(height: spaceXxl),
@@ -287,6 +386,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ref.invalidate(discoverProvider);
               ref.invalidate(unassignedPostsProvider);
               ref.invalidate(analyticsProvider);
+              ref.invalidate(guardianProvider);
               await ref.read(tutorialProvider.notifier).reset();
               ref.invalidate(tutorialProvider);
             },
@@ -295,6 +395,80 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildChildCard(User child) {
+    return Container(
+      padding: const EdgeInsets.all(spaceMd),
+      decoration: BoxDecoration(
+        color: colorSurface1,
+        borderRadius: BorderRadius.circular(radiusMd),
+        border: Border.all(color: colorBorder),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: colorSurface2,
+            child: Text(
+              child.username[0].toUpperCase(),
+              style: textLabel.copyWith(color: colorTextPrimary),
+            ),
+          ),
+          const SizedBox(width: spaceMd),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  child.displayName ?? child.username,
+                  style: textBody.copyWith(fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  '@${child.username}',
+                  style: textCaption.copyWith(color: colorTextMuted),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () => _switchToChild(child.id),
+            child: Text(
+              'Switch',
+              style: textLabel.copyWith(color: colorAccentGold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _switchToChild(String childId) async {
+    final success = await ref
+        .read(guardianProvider.notifier)
+        .switchToChild(childId);
+    if (!success || !mounted) return;
+    // Invalidate user-specific providers after switching
+    ref.invalidate(myArtistProvider);
+    ref.invalidate(timelineProvider);
+    ref.invalidate(tuneInProvider);
+    ref.invalidate(discoverProvider);
+    ref.invalidate(unassignedPostsProvider);
+  }
+
+  Future<void> _switchBackToGuardian() async {
+    final success = await ref
+        .read(guardianProvider.notifier)
+        .switchBackToGuardian();
+    if (!success || !mounted) return;
+    // Invalidate and reload after switching back
+    ref.invalidate(myArtistProvider);
+    ref.invalidate(timelineProvider);
+    ref.invalidate(tuneInProvider);
+    ref.invalidate(discoverProvider);
+    ref.invalidate(unassignedPostsProvider);
+    // Reload children list
+    ref.read(guardianProvider.notifier).loadChildren();
   }
 
   static String _formatJoinDate(DateTime date) {
@@ -325,6 +499,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         initialBio: user.bio,
         initialAvatarUrl: user.avatarUrl,
         initialProfileVisibility: user.profileVisibility,
+        isChildAccount: user.isChildAccount,
       ),
     );
   }
@@ -333,25 +508,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final artistUsername = await Navigator.of(context).push<String>(
       MaterialPageRoute<String>(
         fullscreenDialog: true,
-        builder: (_) => RegisterArtistWizard(
-          // onRegistered is unused — Wizard returns username via
-          // Navigator.pop(context, username) and we await the result below.
-          // TODO: Remove onRegistered parameter from RegisterArtistWizard
-          // once all callers are migrated to the Navigator.pop pattern.
-          onRegistered: (_) {},
-        ),
+        builder: (_) => RegisterArtistWizard(onRegistered: (_) {}),
       ),
     );
     if (artistUsername == null || !context.mounted) return;
 
-    // Force full reload after artist registration.
-    // Timeline's listenManual does not fire across StatefulShellRoute tabs,
-    // so we explicitly load data before navigating.
-    // Note: myArtistProvider (myArtist query) and timelineProvider
-    // (artist+posts query) fetch different data — both are needed.
     await ref.read(myArtistProvider.notifier).load();
     await ref.read(timelineProvider.notifier).loadArtist(artistUsername);
     if (!context.mounted) return;
     context.go('/timeline');
+  }
+
+  void _showCreateChildSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const CreateChildSheet(),
+    );
   }
 }
