@@ -1,5 +1,7 @@
 import { GraphQLError } from "graphql";
 
+export const MAX_PASSWORD_LENGTH = 128;
+
 /** Validate that a URL uses http or https protocol. Prevents javascript:/data: XSS vectors. */
 export function validateUrl(url: string): void {
   try {
@@ -27,5 +29,47 @@ export function validatePostVisibility(value: string): void {
 export function validateProfileVisibility(value: string): void {
   if (!(VALID_PROFILE_VISIBILITY as readonly string[]).includes(value)) {
     throw new GraphQLError("profileVisibility must be 'public' or 'private'");
+  }
+}
+
+const BIRTH_YEAR_MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/** Validate birthYearMonth format (YYYY-MM). Throws GraphQLError if invalid. */
+export function validateBirthYearMonth(value: string): void {
+  if (!BIRTH_YEAR_MONTH_REGEX.test(value)) {
+    throw new GraphQLError("birthYearMonth must be in YYYY-MM format");
+  }
+  const year = parseInt(value.split("-")[0]);
+  const currentYear = new Date().getFullYear();
+  if (year < 1900 || year > currentYear) {
+    throw new GraphQLError("Invalid birth year");
+  }
+}
+
+/** Calculate age from YYYY-MM birth date. Uses year+month for accuracy. */
+export function ageFromBirthYearMonth(value: string): number {
+  const [year, month] = value.split("-").map(Number);
+  const now = new Date();
+  let age = now.getFullYear() - year;
+  // If birth month hasn't occurred yet this year, subtract 1
+  if (now.getMonth() + 1 < month) {
+    age--;
+  }
+  return age;
+}
+
+const COPPA_MIN_AGE = 13;
+
+/**
+ * Validate that a self-signup user is at least 13 (COPPA).
+ * Under-13 users must be created via guardian's createChildAccount.
+ */
+export function validateSignupAge(birthYearMonth: string): void {
+  const age = ageFromBirthYearMonth(birthYearMonth);
+  if (age < COPPA_MIN_AGE) {
+    throw new GraphQLError(
+      "You must be at least 13 to create an account. " +
+        "Please ask your parent or guardian to create an account for you.",
+    );
   }
 }

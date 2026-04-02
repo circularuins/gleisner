@@ -72,8 +72,8 @@ describe("Auth GraphQL integration", () => {
   });
 
   const SIGNUP_MUTATION = `
-    mutation Signup($email: String!, $password: String!, $username: String!) {
-      signup(email: $email, password: $password, username: $username) {
+    mutation Signup($email: String!, $password: String!, $username: String!, $birthYearMonth: String!) {
+      signup(email: $email, password: $password, username: $username, birthYearMonth: $birthYearMonth) {
         token
         user { id did email username publicKey }
       }
@@ -99,6 +99,7 @@ describe("Auth GraphQL integration", () => {
         email: "test@example.com",
         password: "password123",
         username: "testuser",
+        birthYearMonth: "1990-01",
       });
 
       expect(result.errors).toBeUndefined();
@@ -118,6 +119,7 @@ describe("Auth GraphQL integration", () => {
         email: "test@example.com",
         password: "short",
         username: "testuser",
+        birthYearMonth: "1990-01",
       });
 
       expect(result.errors).toBeDefined();
@@ -131,6 +133,7 @@ describe("Auth GraphQL integration", () => {
         email: "test@example.com",
         password: "a".repeat(129),
         username: "testuser",
+        birthYearMonth: "1990-01",
       });
 
       expect(result.errors).toBeDefined();
@@ -144,6 +147,7 @@ describe("Auth GraphQL integration", () => {
         email: "test@example.com",
         password: "password123",
         username: "a",
+        birthYearMonth: "1990-01",
       });
 
       expect(result.errors).toBeDefined();
@@ -157,6 +161,7 @@ describe("Auth GraphQL integration", () => {
         email: "test@example.com",
         password: "password123",
         username: "bad user!",
+        birthYearMonth: "1990-01",
       });
 
       expect(result.errors).toBeDefined();
@@ -170,12 +175,14 @@ describe("Auth GraphQL integration", () => {
         email: "dup@example.com",
         password: "password123",
         username: "user1",
+        birthYearMonth: "1990-01",
       });
 
       const result = await gql(app, SIGNUP_MUTATION, {
         email: "dup@example.com",
         password: "password123",
         username: "user2",
+        birthYearMonth: "1990-01",
       });
 
       expect(result.errors).toBeDefined();
@@ -187,12 +194,14 @@ describe("Auth GraphQL integration", () => {
         email: "user1@example.com",
         password: "password123",
         username: "sameuser",
+        birthYearMonth: "1990-01",
       });
 
       const result = await gql(app, SIGNUP_MUTATION, {
         email: "user2@example.com",
         password: "password123",
         username: "sameuser",
+        birthYearMonth: "1990-01",
       });
 
       expect(result.errors).toBeDefined();
@@ -207,6 +216,7 @@ describe("Auth GraphQL integration", () => {
         email: "login@example.com",
         password: "password123",
         username: "loginuser",
+        birthYearMonth: "1990-01",
       });
     });
 
@@ -263,6 +273,7 @@ describe("Auth GraphQL integration", () => {
         email: "me@example.com",
         password: "password123",
         username: "meuser",
+        birthYearMonth: "1990-01",
       });
       const { token } = signupResult.data!.signup as { token: string };
 

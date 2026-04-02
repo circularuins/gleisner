@@ -62,11 +62,6 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Authentication required");
       }
 
-      // Child accounts cannot register as artists (Phase 0 Tier 1)
-      if (ctx.authUser.guardianId) {
-        throw new GraphQLError("Child accounts cannot register as artists");
-      }
-
       // Validate artistUsername
       if (args.artistUsername.length < 2 || args.artistUsername.length > 30) {
         throw new GraphQLError(
@@ -137,6 +132,9 @@ builder.mutationFields((t) => ({
           activeSince: args.activeSince ?? null,
           avatarUrl: args.avatarUrl ?? null,
           coverImageUrl: args.coverImageUrl ?? null,
+          // Child accounts: default private (ADR 019 Tier 1)
+          // Guardian can change to public via updateArtist
+          ...(ctx.authUser.guardianId ? { profileVisibility: "private" } : {}),
         })
         .returning();
 

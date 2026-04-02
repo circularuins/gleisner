@@ -78,8 +78,8 @@ export async function gql(
 }
 
 export const SIGNUP_MUTATION = `
-  mutation Signup($email: String!, $password: String!, $username: String!) {
-    signup(email: $email, password: $password, username: $username) {
+  mutation Signup($email: String!, $password: String!, $username: String!, $birthYearMonth: String!) {
+    signup(email: $email, password: $password, username: $username, birthYearMonth: $birthYearMonth) {
       token
       user { id }
     }
@@ -119,6 +119,7 @@ export async function signupAndGetTokenAndId(
     email,
     password: "password123",
     username,
+    birthYearMonth: "1990-01",
   });
   const signup = result.data!.signup as { token: string; user: { id: string } };
   return { token: signup.token, userId: signup.user.id };
@@ -150,8 +151,8 @@ export async function signupAndRegisterArtist(
 }
 
 export const CREATE_CHILD_MUTATION = `
-  mutation CreateChildAccount($username: String!, $displayName: String, $birthYearMonth: String!) {
-    createChildAccount(username: $username, displayName: $displayName, birthYearMonth: $birthYearMonth) {
+  mutation CreateChildAccount($username: String!, $displayName: String, $birthYearMonth: String!, $guardianPassword: String!) {
+    createChildAccount(username: $username, displayName: $displayName, birthYearMonth: $birthYearMonth, guardianPassword: $guardianPassword) {
       id username displayName birthYearMonth isChildAccount
     }
   }
@@ -197,6 +198,7 @@ export async function signupAndCreateChild(
       username: childUsername,
       displayName: `Child ${childUsername}`,
       birthYearMonth,
+      guardianPassword: "password123",
     },
     guardianToken,
   );

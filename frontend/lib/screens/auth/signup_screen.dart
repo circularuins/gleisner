@@ -28,6 +28,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   late final TextEditingController _inviteCodeController;
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
+  int _birthYear = DateTime.now().year - 25;
+  int _birthMonth = 1;
 
   @override
   void initState() {
@@ -37,8 +39,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(analyticsProvider.notifier).trackPageView('/signup',
-          metadata: {'funnel': 'signup_start'});
+      ref
+          .read(analyticsProvider.notifier)
+          .trackPageView('/signup', metadata: {'funnel': 'signup_start'});
     });
   }
 
@@ -59,12 +62,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     final displayName = _displayNameController.text.trim();
     final inviteCode = _inviteCodeController.text.trim();
+    final birthYearMonth =
+        '$_birthYear-${_birthMonth.toString().padLeft(2, '0')}';
     await ref
         .read(authProvider.notifier)
         .signup(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           username: _usernameController.text.trim(),
+          birthYearMonth: birthYearMonth,
           displayName: displayName.isNotEmpty ? displayName : null,
           inviteCode: inviteCode.isNotEmpty ? inviteCode : null,
         );
@@ -151,6 +157,56 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: spaceLg),
+                Text(
+                  'Birth Year & Month',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colorTextMuted),
+                ),
+                const SizedBox(height: spaceSm),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: DropdownButtonFormField<int>(
+                        initialValue: _birthYear,
+                        decoration: const InputDecoration(
+                          labelText: 'Year',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: List.generate(DateTime.now().year - 1900 + 1, (
+                          i,
+                        ) {
+                          final year = DateTime.now().year - i;
+                          return DropdownMenuItem(
+                            value: year,
+                            child: Text('$year'),
+                          );
+                        }),
+                        onChanged: (v) => setState(() => _birthYear = v!),
+                      ),
+                    ),
+                    const SizedBox(width: spaceMd),
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        initialValue: _birthMonth,
+                        decoration: const InputDecoration(
+                          labelText: 'Month',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: List.generate(
+                          12,
+                          (i) => DropdownMenuItem(
+                            value: i + 1,
+                            child: Text('${i + 1}'.padLeft(2, '0')),
+                          ),
+                        ),
+                        onChanged: (v) => setState(() => _birthMonth = v!),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: spaceLg),
                 TextFormField(

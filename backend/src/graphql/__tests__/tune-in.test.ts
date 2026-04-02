@@ -58,8 +58,8 @@ async function gql(
 }
 
 const SIGNUP_MUTATION = `
-  mutation Signup($email: String!, $password: String!, $username: String!) {
-    signup(email: $email, password: $password, username: $username) {
+  mutation Signup($email: String!, $password: String!, $username: String!, $birthYearMonth: String!) {
+    signup(email: $email, password: $password, username: $username, birthYearMonth: $birthYearMonth) {
       token
       user { id }
     }
@@ -109,6 +109,7 @@ async function signupAndGetToken(
     email,
     password: "password123",
     username,
+    birthYearMonth: "1990-01",
   });
   return (result.data!.signup as { token: string }).token;
 }
@@ -174,6 +175,7 @@ describe("TuneIn GraphQL integration", () => {
       // Verify tunedInCount incremented
       const artistResult = await gql(app, ARTIST_QUERY, {
         username: "tartist1a",
+        birthYearMonth: "1990-01",
       });
       const artist = artistResult.data!.artist as Record<string, unknown>;
       expect(artist.tunedInCount).toBe(1);
@@ -206,6 +208,7 @@ describe("TuneIn GraphQL integration", () => {
       // Verify tunedInCount decremented back to 0
       const artistResult = await gql(app, ARTIST_QUERY, {
         username: "tartist2a",
+        birthYearMonth: "1990-01",
       });
       const artist = artistResult.data!.artist as Record<string, unknown>;
       expect(artist.tunedInCount).toBe(0);

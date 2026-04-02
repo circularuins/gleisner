@@ -27,7 +27,7 @@ gql_quiet() {
 get_token() {
   local EMAIL="$1" USER="$2"
   local RESULT
-  RESULT=$(gql "mutation { signup(email:\"$EMAIL\", password:\"$PASSWORD\", username:\"$USER\") { token } }")
+  RESULT=$(gql "mutation { signup(email:\"$EMAIL\", password:\"$PASSWORD\", username:\"$USER\", birthYearMonth:\"1990-01\") { token } }")
   TOKEN=$(echo "$RESULT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['data']['signup']['token'])" 2>/dev/null || true)
   if [ -z "$TOKEN" ]; then
     RESULT=$(gql "mutation { login(email:\"$EMAIL\", password:\"$PASSWORD\") { token } }")

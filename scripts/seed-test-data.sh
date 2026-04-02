@@ -12,7 +12,7 @@ echo "==> Seeding test data at $API"
 
 # 1. Signup (ignore error if user exists)
 TOKEN=$(curl -s "$API" -X POST -H 'Content-Type: application/json' \
-  -d "{\"query\":\"mutation { signup(email:\\\"$EMAIL\\\", password:\\\"$PASSWORD\\\", username:\\\"$USERNAME\\\") { token } }\"}" \
+  -d "{\"query\":\"mutation { signup(email:\\\"$EMAIL\\\", password:\\\"$PASSWORD\\\", username:\\\"$USERNAME\\\", birthYearMonth:\\\"1990-01\\\") { token } }\"}" \
   | python3 -c "import json,sys; print(json.load(sys.stdin)['data']['signup']['token'])" 2>/dev/null || true)
 
 # 2. Login (if signup failed, user already exists)
@@ -187,7 +187,7 @@ echo "==> Reactions added to $i posts"
 FAN_EMAIL="fan@test.com"
 FAN_USER="fanuser"
 curl -s "$API" -X POST -H 'Content-Type: application/json' \
-  -d "{\"query\":\"mutation { signup(email:\\\"$FAN_EMAIL\\\", password:\\\"$PASSWORD\\\", username:\\\"$FAN_USER\\\") { token } }\"}" > /dev/null 2>&1
+  -d "{\"query\":\"mutation { signup(email:\\\"$FAN_EMAIL\\\", password:\\\"$PASSWORD\\\", username:\\\"$FAN_USER\\\", birthYearMonth:\\\"1990-01\\\") { token } }\"}" > /dev/null 2>&1
 
 FAN_TOKEN=$(curl -s "$API" -X POST -H 'Content-Type: application/json' \
   -d "{\"query\":\"mutation { login(email:\\\"$FAN_EMAIL\\\", password:\\\"$PASSWORD\\\") { token } }\"}" \

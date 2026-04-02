@@ -9,6 +9,7 @@ class EditProfileSheet extends ConsumerStatefulWidget {
   final String? initialBio;
   final String? initialAvatarUrl;
   final String initialProfileVisibility;
+  final bool isChildAccount;
 
   const EditProfileSheet({
     super.key,
@@ -16,6 +17,7 @@ class EditProfileSheet extends ConsumerStatefulWidget {
     this.initialBio,
     this.initialAvatarUrl,
     this.initialProfileVisibility = 'public',
+    this.isChildAccount = false,
   });
 
   @override
@@ -69,7 +71,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
           displayName: displayName.isEmpty ? null : displayName,
           bio: bio.isEmpty ? null : bio,
           avatarUrl: avatarUrl.isEmpty ? null : avatarUrl,
-          profileVisibility: _profileVisibility,
+          profileVisibility: widget.isChildAccount ? null : _profileVisibility,
         );
 
     if (!mounted) return;
@@ -179,31 +181,49 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                 ),
                 const SizedBox(height: spaceLg),
 
-                // Profile visibility
-                Row(
-                  children: [
-                    Text(
-                      'Profile Visibility',
-                      style: textLabel.copyWith(color: colorTextSecondary),
-                    ),
-                    const SizedBox(width: spaceLg),
-                    ChoiceChip(
-                      label: const Text('Public'),
-                      selected: _profileVisibility == 'public',
-                      onSelected: (_) =>
-                          setState(() => _profileVisibility = 'public'),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    const SizedBox(width: spaceSm),
-                    ChoiceChip(
-                      label: const Text('Private'),
-                      selected: _profileVisibility == 'private',
-                      onSelected: (_) =>
-                          setState(() => _profileVisibility = 'private'),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                ),
+                // Profile visibility (disabled for child accounts)
+                if (widget.isChildAccount) ...[
+                  Row(
+                    children: [
+                      Text(
+                        'Profile Visibility',
+                        style: textLabel.copyWith(color: colorTextMuted),
+                      ),
+                      const SizedBox(width: spaceLg),
+                      Text(
+                        'Private (locked)',
+                        style: textCaption.copyWith(
+                          color: colorTextMuted,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else
+                  Row(
+                    children: [
+                      Text(
+                        'Profile Visibility',
+                        style: textLabel.copyWith(color: colorTextSecondary),
+                      ),
+                      const SizedBox(width: spaceLg),
+                      ChoiceChip(
+                        label: const Text('Public'),
+                        selected: _profileVisibility == 'public',
+                        onSelected: (_) =>
+                            setState(() => _profileVisibility = 'public'),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      const SizedBox(width: spaceSm),
+                      ChoiceChip(
+                        label: const Text('Private'),
+                        selected: _profileVisibility == 'private',
+                        onSelected: (_) =>
+                            setState(() => _profileVisibility = 'private'),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ),
                 const SizedBox(height: spaceXl),
 
                 // Save button

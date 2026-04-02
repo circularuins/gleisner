@@ -58,8 +58,8 @@ async function gql(
 }
 
 const SIGNUP_MUTATION = `
-  mutation Signup($email: String!, $password: String!, $username: String!) {
-    signup(email: $email, password: $password, username: $username) {
+  mutation Signup($email: String!, $password: String!, $username: String!, $birthYearMonth: String!) {
+    signup(email: $email, password: $password, username: $username, birthYearMonth: $birthYearMonth) {
       token
       user { id }
     }
@@ -122,6 +122,7 @@ async function signupAndGetToken(
     email,
     password: "password123",
     username,
+    birthYearMonth: "1990-01",
   });
   return (result.data!.signup as { token: string }).token;
 }
@@ -309,6 +310,7 @@ describe("Genre / ArtistGenre GraphQL integration", () => {
       // Verify gone
       const artistResult = await gql(app, ARTIST_WITH_GENRES_QUERY, {
         username: "rartist1",
+        birthYearMonth: "1990-01",
       });
       const artist = artistResult.data!.artist as Record<string, unknown>;
       expect(artist.genres).toEqual([]);
@@ -358,6 +360,7 @@ describe("Genre / ArtistGenre GraphQL integration", () => {
 
       const result = await gql(app, ARTIST_WITH_GENRES_QUERY, {
         username: "afartist1",
+        birthYearMonth: "1990-01",
       });
 
       expect(result.errors).toBeUndefined();

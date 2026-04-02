@@ -56,6 +56,7 @@ describe("createChildAccount", () => {
         username: "mychild",
         displayName: "My Child",
         birthYearMonth: "2020-06",
+        guardianPassword: "password123",
       },
       token,
     );
@@ -68,10 +69,26 @@ describe("createChildAccount", () => {
     expect(child.isChildAccount).toBe(true);
   });
 
+  it("rejects wrong guardian password", async () => {
+    const token = await signupAndGetToken(app, "parent@test.com", "parent");
+    const result = await gql(
+      app,
+      CREATE_CHILD_MUTATION,
+      {
+        username: "child1",
+        birthYearMonth: "2020-01",
+        guardianPassword: "wrongpassword",
+      },
+      token,
+    );
+    expect(result.errors?.[0]?.message).toBe("Invalid password");
+  });
+
   it("rejects unauthenticated requests", async () => {
     const result = await gql(app, CREATE_CHILD_MUTATION, {
       username: "child1",
       birthYearMonth: "2020-01",
+      guardianPassword: "password123",
     });
     expect(result.errors?.[0]?.message).toBe("Authentication required");
   });
@@ -92,7 +109,11 @@ describe("createChildAccount", () => {
     const result = await gql(
       app,
       CREATE_CHILD_MUTATION,
-      { username: "grandchild", birthYearMonth: "2023-01" },
+      {
+        username: "grandchild",
+        birthYearMonth: "2023-01",
+        guardianPassword: "password123",
+      },
       childToken,
     );
     expect(result.errors?.[0]?.message).toBe(
@@ -112,7 +133,11 @@ describe("createChildAccount", () => {
       const result = await gql(
         app,
         CREATE_CHILD_MUTATION,
-        { username: `child${i}`, birthYearMonth: "2020-01" },
+        {
+          username: `child${i}`,
+          birthYearMonth: "2020-01",
+          guardianPassword: "password123",
+        },
         token,
       );
       expect(result.errors).toBeUndefined();
@@ -122,7 +147,11 @@ describe("createChildAccount", () => {
     const result = await gql(
       app,
       CREATE_CHILD_MUTATION,
-      { username: "child10", birthYearMonth: "2020-01" },
+      {
+        username: "child10",
+        birthYearMonth: "2020-01",
+        guardianPassword: "password123",
+      },
       token,
     );
     expect(result.errors?.[0]?.message).toBe(
@@ -135,13 +164,21 @@ describe("createChildAccount", () => {
     await gql(
       app,
       CREATE_CHILD_MUTATION,
-      { username: "taken", birthYearMonth: "2020-01" },
+      {
+        username: "taken",
+        birthYearMonth: "2020-01",
+        guardianPassword: "password123",
+      },
       token,
     );
     const result = await gql(
       app,
       CREATE_CHILD_MUTATION,
-      { username: "taken", birthYearMonth: "2020-01" },
+      {
+        username: "taken",
+        birthYearMonth: "2020-01",
+        guardianPassword: "password123",
+      },
       token,
     );
     expect(result.errors?.[0]?.message).toBe("Username already taken");
@@ -154,7 +191,11 @@ describe("createChildAccount", () => {
     const r1 = await gql(
       app,
       CREATE_CHILD_MUTATION,
-      { username: "child1", birthYearMonth: "2020" },
+      {
+        username: "child1",
+        birthYearMonth: "2020",
+        guardianPassword: "password123",
+      },
       token,
     );
     expect(r1.errors?.[0]?.message).toBe(
@@ -165,7 +206,11 @@ describe("createChildAccount", () => {
     const r2 = await gql(
       app,
       CREATE_CHILD_MUTATION,
-      { username: "child1", birthYearMonth: "2020-13" },
+      {
+        username: "child1",
+        birthYearMonth: "2020-13",
+        guardianPassword: "password123",
+      },
       token,
     );
     expect(r2.errors?.[0]?.message).toBe(
@@ -176,7 +221,11 @@ describe("createChildAccount", () => {
     const r3 = await gql(
       app,
       CREATE_CHILD_MUTATION,
-      { username: "child1", birthYearMonth: "2099-01" },
+      {
+        username: "child1",
+        birthYearMonth: "2099-01",
+        guardianPassword: "password123",
+      },
       token,
     );
     expect(r3.errors?.[0]?.message).toBe("Invalid birth year");
@@ -185,7 +234,11 @@ describe("createChildAccount", () => {
     const r4 = await gql(
       app,
       CREATE_CHILD_MUTATION,
-      { username: "child1", birthYearMonth: "1899-01" },
+      {
+        username: "child1",
+        birthYearMonth: "1899-01",
+        guardianPassword: "password123",
+      },
       token,
     );
     expect(r4.errors?.[0]?.message).toBe("Invalid birth year");
@@ -194,7 +247,11 @@ describe("createChildAccount", () => {
     const r5 = await gql(
       app,
       CREATE_CHILD_MUTATION,
-      { username: "child1", birthYearMonth: "2020-00" },
+      {
+        username: "child1",
+        birthYearMonth: "2020-00",
+        guardianPassword: "password123",
+      },
       token,
     );
     expect(r5.errors?.[0]?.message).toBe(
@@ -205,7 +262,11 @@ describe("createChildAccount", () => {
     const r6 = await gql(
       app,
       CREATE_CHILD_MUTATION,
-      { username: "child1", birthYearMonth: "2020-1" },
+      {
+        username: "child1",
+        birthYearMonth: "2020-1",
+        guardianPassword: "password123",
+      },
       token,
     );
     expect(r6.errors?.[0]?.message).toBe(
@@ -343,7 +404,11 @@ describe("switchToChild / switchBackToGuardian", () => {
     await gql(
       app,
       CREATE_CHILD_MUTATION,
-      { username: "child2", birthYearMonth: "2021-01" },
+      {
+        username: "child2",
+        birthYearMonth: "2021-01",
+        guardianPassword: "password123",
+      },
       guardianToken,
     );
 
@@ -389,6 +454,7 @@ describe("myChildren", () => {
         username: "child1",
         displayName: "Child One",
         birthYearMonth: "2020-01",
+        guardianPassword: "password123",
       },
       token,
     );
@@ -399,6 +465,7 @@ describe("myChildren", () => {
         username: "child2",
         displayName: "Child Two",
         birthYearMonth: "2022-06",
+        guardianPassword: "password123",
       },
       token,
     );
@@ -409,6 +476,7 @@ describe("myChildren", () => {
         username: "child3",
         displayName: "Child Three",
         birthYearMonth: "2018-12",
+        guardianPassword: "password123",
       },
       token,
     );
@@ -498,8 +566,8 @@ describe("updateMe child restrictions", () => {
 // registerArtist child restriction
 // =============================================================================
 
-describe("registerArtist child restriction", () => {
-  it("prevents child from registering as artist", async () => {
+describe("child artist restrictions", () => {
+  it("allows child to register as artist with forced private visibility", async () => {
     const { guardianToken, childId } = await signupAndCreateChild(
       app,
       "parent@test.com",
@@ -518,9 +586,52 @@ describe("registerArtist child restriction", () => {
       { artistUsername: "childartist", displayName: "Child Artist" },
       childToken,
     );
-    expect(result.errors?.[0]?.message).toBe(
-      "Child accounts cannot register as artists",
+    expect(result.errors).toBeUndefined();
+
+    // Verify artist is forced private
+    const artistResult = await gql(
+      app,
+      `query { artist(username: "childartist") { profileVisibility } }`,
+      {},
+      childToken,
     );
+    expect(
+      (artistResult.data!.artist as Record<string, unknown>).profileVisibility,
+    ).toBe("private");
+  });
+
+  it("allows child to change artist visibility (guardian-managed)", async () => {
+    const { guardianToken, childId } = await signupAndCreateChild(
+      app,
+      "parent@test.com",
+      "parent",
+      "child1",
+    );
+    const childToken = await switchToChildAndGetToken(
+      app,
+      guardianToken,
+      childId,
+    );
+
+    // Register as artist first
+    await gql(
+      app,
+      REGISTER_ARTIST_MUTATION,
+      { artistUsername: "childartist", displayName: "Child Artist" },
+      childToken,
+    );
+
+    // Guardian (via child JWT) can change artist visibility to public
+    const result = await gql(
+      app,
+      `mutation { updateArtist(profileVisibility: "public") { profileVisibility } }`,
+      {},
+      childToken,
+    );
+    expect(result.errors).toBeUndefined();
+    expect(
+      (result.data!.updateArtist as Record<string, unknown>).profileVisibility,
+    ).toBe("public");
   });
 });
 
@@ -549,7 +660,33 @@ describe("login / signup child defenses", () => {
       email: "hacker@child.gleisner.local",
       password: "password123",
       username: "hacker",
+      birthYearMonth: "1990-01",
     });
     expect(result.errors?.[0]?.message).toBe("Invalid email format");
+  });
+
+  it("rejects self-signup for under-13 (COPPA)", async () => {
+    const currentYear = new Date().getFullYear();
+    const result = await gql(app, SIGNUP_MUTATION, {
+      email: "kid@test.com",
+      password: "password123",
+      username: "kiduser",
+      birthYearMonth: `${currentYear - 10}-01`,
+    });
+    expect(result.errors?.[0]?.message).toContain(
+      "You must be at least 13 to create an account",
+    );
+  });
+
+  it("allows self-signup for 13+", async () => {
+    const currentYear = new Date().getFullYear();
+    const result = await gql(app, SIGNUP_MUTATION, {
+      email: "teen@test.com",
+      password: "password123",
+      username: "teenuser",
+      birthYearMonth: `${currentYear - 14}-01`,
+    });
+    expect(result.errors).toBeUndefined();
+    expect(result.data?.signup).toBeTruthy();
   });
 });
