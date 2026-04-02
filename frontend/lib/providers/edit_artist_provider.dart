@@ -291,7 +291,8 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
             'id': id,
             if (category != null) 'category': category,
             if (title != null) 'title': title,
-            if (description != null) 'description': description,
+            // Always send description (null clears it)
+            'description': description,
             if (date != null) 'date': date,
           },
         ),

@@ -1,0 +1,1 @@
+CREATE INDEX "artist_milestones_artist_id_idx" ON "artist_milestones" USING btree ("artist_id");

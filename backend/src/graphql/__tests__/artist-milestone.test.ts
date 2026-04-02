@@ -144,6 +144,23 @@ describe("Artist Milestones", () => {
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toContain("YYYY-MM-DD");
     });
+
+    it("rejects non-existent date", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "m5@test.com",
+        "muser5",
+        "martist5",
+      );
+      const result = await gql(
+        app,
+        CREATE_MILESTONE,
+        { category: "event", title: "Show", date: "2025-13-45" },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("valid date");
+    });
   });
 
   describe("updateArtistMilestone", () => {
