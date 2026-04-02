@@ -13,9 +13,7 @@ import {
 } from "../../auth/crypto.js";
 import { generateDid } from "../../auth/did.js";
 import { signToken } from "../../auth/jwt.js";
-import { validateBirthYearMonth } from "../validators.js";
-
-const MAX_PASSWORD_LENGTH = 128;
+import { MAX_PASSWORD_LENGTH, validateBirthYearMonth } from "../validators.js";
 
 const MAX_CHILDREN_PER_GUARDIAN = 10;
 const CHILD_EMAIL_DOMAIN = "@child.gleisner.local";

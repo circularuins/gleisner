@@ -489,8 +489,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         .switchBackToGuardian();
     if (!success || !mounted) return;
     await _reloadAfterSwitch();
-    // Reload children list for guardian view
-    ref.read(guardianProvider.notifier).loadChildren();
+    // Reload children list for guardian view (force because provider was invalidated)
+    ref.read(guardianProvider.notifier).loadChildren(forceReload: true);
   }
 
   /// Invalidate all user-specific providers and reload data after JWT switch.

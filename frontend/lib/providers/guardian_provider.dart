@@ -12,22 +12,26 @@ import 'disposable_notifier.dart';
 class GuardianState {
   final List<User> children;
   final bool isLoading;
+  final bool isLoaded;
   final String? error;
 
   const GuardianState({
     this.children = const [],
     this.isLoading = false,
+    this.isLoaded = false,
     this.error,
   });
 
   GuardianState copyWith({
     List<User>? children,
     bool? isLoading,
+    bool? isLoaded,
     String? error,
   }) {
     return GuardianState(
       children: children ?? this.children,
       isLoading: isLoading ?? this.isLoading,
+      isLoaded: isLoaded ?? this.isLoaded,
       error: error,
     );
   }
@@ -46,7 +50,10 @@ class GuardianNotifier extends Notifier<GuardianState>
     return const GuardianState();
   }
 
-  Future<void> loadChildren() async {
+  Future<void> loadChildren({bool forceReload = false}) async {
+    // Skip if already loaded (avoids re-fetch on every tab switch)
+    if (state.isLoaded && !forceReload) return;
+
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _client.query(
@@ -72,7 +79,7 @@ class GuardianNotifier extends Notifier<GuardianState>
         .map((json) => User.fromJson(json as Map<String, dynamic>))
         .toList();
 
-    state = GuardianState(children: children);
+    state = GuardianState(children: children, isLoaded: true);
   }
 
   Future<bool> createChild({
@@ -98,16 +105,26 @@ class GuardianNotifier extends Notifier<GuardianState>
     if (disposed) return false;
 
     if (result.hasException) {
-      final message =
-          result.exception?.graphqlErrors.firstOrNull?.message ??
-          'Failed to create child account.';
-      debugPrint('[Guardian] createChild error: $message');
+      debugPrint('[Guardian] createChild error: ${result.exception}');
+      // Map known business errors to user-friendly messages
+      final serverMsg =
+          result.exception?.graphqlErrors.firstOrNull?.message ?? '';
+      final String message;
+      if (serverMsg.contains('Username already taken')) {
+        message = 'That username is already taken. Please choose another.';
+      } else if (serverMsg.contains('Invalid password')) {
+        message = 'Incorrect password. Please try again.';
+      } else if (serverMsg.contains('Maximum of')) {
+        message = 'You have reached the maximum number of child accounts.';
+      } else {
+        message = 'Failed to create child account. Please try again.';
+      }
       state = state.copyWith(isLoading: false, error: message);
       return false;
     }
 
     // Reload children list
-    await loadChildren();
+    await loadChildren(forceReload: true);
     return true;
   }
 

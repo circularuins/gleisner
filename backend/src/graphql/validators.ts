@@ -1,5 +1,7 @@
 import { GraphQLError } from "graphql";
 
+export const MAX_PASSWORD_LENGTH = 128;
+
 /** Validate that a URL uses http or https protocol. Prevents javascript:/data: XSS vectors. */
 export function validateUrl(url: string): void {
   try {

@@ -14,9 +14,11 @@ import {
 } from "../../auth/crypto.js";
 import { generateDid } from "../../auth/did.js";
 import { signToken } from "../../auth/jwt.js";
-import { validateBirthYearMonth, validateSignupAge } from "../validators.js";
-
-const MAX_PASSWORD_LENGTH = 128;
+import {
+  MAX_PASSWORD_LENGTH,
+  validateBirthYearMonth,
+  validateSignupAge,
+} from "../validators.js";
 
 const AuthPayload = builder.objectRef<{
   token: string;
