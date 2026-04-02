@@ -150,12 +150,10 @@ class GuardianNotifier extends Notifier<GuardianState>
     }
 
     final data = result.data?['switchToChild'] as Map<String, dynamic>?;
-    if (data == null) return false;
+    if (data == null || disposed) return false;
 
     final token = data['token'] as String;
     await _storage.write(key: 'jwt', value: token);
-
-    if (disposed) return false;
 
     // Re-initialize auth with new JWT
     ref.invalidate(graphqlClientProvider);
@@ -184,12 +182,10 @@ class GuardianNotifier extends Notifier<GuardianState>
     }
 
     final data = result.data?['switchBackToGuardian'] as Map<String, dynamic>?;
-    if (data == null) return false;
+    if (data == null || disposed) return false;
 
     final token = data['token'] as String;
     await _storage.write(key: 'jwt', value: token);
-
-    if (disposed) return false;
 
     // Re-initialize auth with new JWT
     ref.invalidate(graphqlClientProvider);

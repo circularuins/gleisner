@@ -14,7 +14,8 @@ const _childUserFields = '''
   updatedAt
 ''';
 
-const createChildAccountMutation = '''
+const createChildAccountMutation =
+    '''
   mutation CreateChildAccount(\$username: String!, \$displayName: String, \$birthYearMonth: String!, \$guardianPassword: String!) {
     createChildAccount(username: \$username, displayName: \$displayName, birthYearMonth: \$birthYearMonth, guardianPassword: \$guardianPassword) {
       $_childUserFields
@@ -22,7 +23,8 @@ const createChildAccountMutation = '''
   }
 ''';
 
-const switchToChildMutation = '''
+const switchToChildMutation =
+    '''
   mutation SwitchToChild(\$childId: String!) {
     switchToChild(childId: \$childId) {
       token
@@ -33,30 +35,20 @@ const switchToChildMutation = '''
   }
 ''';
 
-const switchBackToGuardianMutation = r'''
+const switchBackToGuardianMutation =
+    '''
   mutation SwitchBackToGuardian {
     switchBackToGuardian {
       token
       user {
-        id
-        did
-        email
-        username
-        displayName
-        bio
-        avatarUrl
-        profileVisibility
-        publicKey
-        birthYearMonth
-        isChildAccount
-        createdAt
-        updatedAt
+        $_childUserFields
       }
     }
   }
 ''';
 
-const myChildrenQuery = '''
+const myChildrenQuery =
+    '''
   query MyChildren {
     myChildren {
       $_childUserFields
