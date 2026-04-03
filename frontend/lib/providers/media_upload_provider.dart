@@ -20,14 +20,17 @@ class MediaUploadState {
   const MediaUploadState({this.isUploading = false, this.progress, this.error});
 }
 
-/// Magic bytes for allowed image types.
+// ── Magic bytes detection ──
+
 const _jpegMagic = [0xFF, 0xD8, 0xFF];
 const _pngMagic = [0x89, 0x50, 0x4E, 0x47];
 const _webpPrefix = [0x52, 0x49, 0x46, 0x46]; // "RIFF"
 const _gifMagic = [0x47, 0x49, 0x46]; // "GIF"
 
-/// Detect MIME type from file magic bytes. Returns null if unrecognized.
-String? _mimeFromBytes(Uint8List bytes) {
+/// Detect MIME type from file magic bytes.
+/// Returns null if the file doesn't match any allowed image format.
+@visibleForTesting
+String? mimeFromBytes(Uint8List bytes) {
   if (bytes.length < 12) return null;
   if (_startsWith(bytes, _jpegMagic)) return 'image/jpeg';
   if (_startsWith(bytes, _pngMagic)) return 'image/png';
@@ -49,13 +52,22 @@ bool _startsWith(Uint8List data, List<int> prefix) {
   return true;
 }
 
+// ── DI providers ──
+
+/// Injectable HTTP client for R2 uploads. Override in tests with a mock.
+final httpClientProvider = Provider<http.Client>((ref) => http.Client());
+
+// ── Notifier ──
+
 class MediaUploadNotifier extends Notifier<MediaUploadState>
     with DisposableNotifier<MediaUploadState> {
-  late GraphQLClient _client;
+  late GraphQLClient _gqlClient;
+  late http.Client _httpClient;
 
   @override
   MediaUploadState build() {
-    _client = ref.watch(graphqlClientProvider);
+    _gqlClient = ref.watch(graphqlClientProvider);
+    _httpClient = ref.watch(httpClientProvider);
     initDisposable();
     return const MediaUploadState();
   }
@@ -81,14 +93,13 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         imageQuality: imageQuality ?? 85,
       );
 
-      if (picked == null) return null; // User cancelled
+      if (picked == null) return null;
       if (disposed) return null;
 
       final bytes = await picked.readAsBytes();
       if (disposed) return null;
 
-      // Validate content type from magic bytes, not file extension
-      final contentType = _mimeFromBytes(bytes);
+      final contentType = mimeFromBytes(bytes);
       if (contentType == null) {
         state = const MediaUploadState(
           error: 'Unsupported image format. Use JPEG, PNG, or WebP.',
@@ -112,7 +123,6 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     }
   }
 
-  /// Upload raw bytes to R2 via presigned URL.
   Future<String?> _upload({
     required UploadCategory category,
     required Uint8List bytes,
@@ -122,7 +132,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     state = const MediaUploadState(isUploading: true, progress: 0);
 
     // Step 1: Get presigned URL from backend
-    final result = await _client.mutate(
+    final result = await _gqlClient.mutate(
       MutationOptions(
         document: gql(getUploadUrlMutation),
         variables: {
@@ -136,10 +146,10 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     if (disposed) return null;
 
     if (result.hasException) {
-      final message =
-          result.exception?.graphqlErrors.firstOrNull?.message ??
-          'Failed to prepare upload';
-      debugPrint('[MediaUpload] getUploadUrl error: $message');
+      debugPrint(
+        '[MediaUpload] getUploadUrl error: '
+        '${result.exception?.graphqlErrors.firstOrNull?.message}',
+      );
       state = const MediaUploadState(
         error: 'Failed to prepare upload. Please try again.',
       );
@@ -157,21 +167,33 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     final uploadUrl = data['uploadUrl'] as String;
     final publicUrl = data['publicUrl'] as String;
 
+    // Validate URLs from server response (SSRF prevention)
+    if (!isAllowedUploadUrl(uploadUrl) || !isAllowedPublicUrl(publicUrl)) {
+      debugPrint(
+        '[MediaUpload] URL validation failed: $uploadUrl / $publicUrl',
+      );
+      state = const MediaUploadState(
+        error: 'Failed to prepare upload. Please try again.',
+      );
+      return null;
+    }
+
     // Step 2: PUT file directly to R2
     state = const MediaUploadState(isUploading: true, progress: 0.5);
 
-    final response = await http.put(
+    final response = await _httpClient.put(
       Uri.parse(uploadUrl),
-      headers: {'Content-Type': contentType},
+      headers: {
+        'Content-Type': contentType,
+        'Content-Length': bytes.length.toString(),
+      },
       body: bytes,
     );
 
     if (disposed) return null;
 
     if (response.statusCode != 200) {
-      debugPrint(
-        '[MediaUpload] R2 PUT failed: ${response.statusCode} ${response.body}',
-      );
+      debugPrint('[MediaUpload] R2 PUT failed: ${response.statusCode}');
       state = const MediaUploadState(
         error: 'Failed to upload file. Please try again.',
       );
@@ -186,6 +208,22 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     if (!disposed) {
       state = const MediaUploadState();
     }
+  }
+
+  /// Upload URL must be HTTPS to an R2 storage endpoint.
+  @visibleForTesting
+  static bool isAllowedUploadUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.scheme != 'https') return false;
+    return uri.host.endsWith('.r2.cloudflarestorage.com');
+  }
+
+  /// Public URL must be HTTPS. Domain is configured server-side (R2_PUBLIC_URL).
+  @visibleForTesting
+  static bool isAllowedPublicUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.scheme != 'https') return false;
+    return true;
   }
 }
 
