@@ -11,6 +11,7 @@ import '../../widgets/common/connection_type_picker.dart';
 import '../../widgets/common/error_banner.dart';
 import '../../widgets/common/related_post_picker.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../providers/media_upload_provider.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
@@ -32,6 +33,31 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     _bodyController.dispose();
     _mediaUrlController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickMedia(MediaType mediaType) async {
+    final notifier = ref.read(mediaUploadProvider.notifier);
+    String? url;
+
+    switch (mediaType) {
+      case MediaType.image:
+        url = await notifier.pickAndUploadImage(
+          category: UploadCategory.media,
+          maxWidth: 1280,
+          maxHeight: 1280,
+          imageQuality: 75,
+        );
+      case MediaType.video:
+        url = await notifier.pickAndUploadVideo(category: UploadCategory.media);
+      case MediaType.audio:
+        url = await notifier.pickAndUploadAudio(category: UploadCategory.media);
+      default:
+        return;
+    }
+
+    if (url != null && mounted) {
+      setState(() => _mediaUrlController.text = url!);
+    }
   }
 
   Future<void> _submit() async {
@@ -100,6 +126,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               bodyController: _bodyController,
               mediaUrlController: _mediaUrlController,
               onSubmit: _submit,
+              onPickMedia: _pickMedia,
             ),
           },
         ),
@@ -364,6 +391,7 @@ class _FormStep extends ConsumerWidget {
   final TextEditingController bodyController;
   final TextEditingController mediaUrlController;
   final VoidCallback onSubmit;
+  final Future<void> Function(MediaType) onPickMedia;
 
   const _FormStep({
     required this.formKey,
@@ -371,6 +399,7 @@ class _FormStep extends ConsumerWidget {
     required this.bodyController,
     required this.mediaUrlController,
     required this.onSubmit,
+    required this.onPickMedia,
   });
 
   @override
@@ -408,7 +437,7 @@ class _FormStep extends ConsumerWidget {
             const SizedBox(height: spaceLg),
 
             // Media-type-specific fields
-            ..._buildContentFields(mediaType, theme),
+            ..._buildContentFields(mediaType, theme, ref),
 
             // Importance slider + node preview
             Column(
@@ -539,14 +568,18 @@ class _FormStep extends ConsumerWidget {
     }
   }
 
-  List<Widget> _buildContentFields(MediaType mediaType, ThemeData theme) {
+  List<Widget> _buildContentFields(
+    MediaType mediaType,
+    ThemeData theme,
+    WidgetRef ref,
+  ) {
     switch (mediaType) {
       case MediaType.text:
         return _buildTextFields(theme);
       case MediaType.image:
       case MediaType.video:
       case MediaType.audio:
-        return _buildMediaFields(mediaType, theme);
+        return _buildMediaFields(mediaType, theme, ref);
       case MediaType.link:
         return _buildLinkFields(theme);
     }
@@ -591,14 +624,21 @@ class _FormStep extends ConsumerWidget {
     ];
   }
 
-  // image/video/audio: caption + upload placeholder
-  List<Widget> _buildMediaFields(MediaType mediaType, ThemeData theme) {
+  // image/video/audio: title + upload area + caption
+  List<Widget> _buildMediaFields(
+    MediaType mediaType,
+    ThemeData theme,
+    WidgetRef ref,
+  ) {
     final (icon, label) = switch (mediaType) {
       MediaType.image => (Icons.photo_library, 'Image'),
       MediaType.video => (Icons.videocam, 'Video'),
       MediaType.audio => (Icons.audiotrack, 'Audio'),
       _ => (Icons.attach_file, 'Media'),
     };
+
+    final uploadState = ref.watch(mediaUploadProvider);
+    final hasMedia = mediaUrlController.text.isNotEmpty;
 
     return [
       // Title (optional)
@@ -615,34 +655,64 @@ class _FormStep extends ConsumerWidget {
         style: theme.textTheme.titleMedium,
       ),
       const SizedBox(height: spaceMd),
-      // Upload placeholder
-      Container(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: theme.colorScheme.outline.withAlpha(80),
-            style: BorderStyle.solid,
+      // Upload area
+      GestureDetector(
+        onTap: uploadState.isUploading ? null : () => onPickMedia(mediaType),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: hasMedia
+                  ? colorAccentGold.withAlpha(128)
+                  : theme.colorScheme.outline.withAlpha(80),
+            ),
+            borderRadius: BorderRadius.circular(12),
+            color: theme.colorScheme.surfaceContainerHighest.withAlpha(30),
           ),
-          borderRadius: BorderRadius.circular(12),
-          color: theme.colorScheme.surfaceContainerHighest.withAlpha(30),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 40,
-              color: theme.colorScheme.onSurface.withAlpha(100),
-            ),
-            const SizedBox(height: spaceSm),
-            Text(
-              '$label upload coming soon',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withAlpha(100),
-              ),
-            ),
-          ],
+          child: uploadState.isUploading
+              ? Column(
+                  children: [
+                    const SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(height: spaceSm),
+                    Text(
+                      'Uploading...',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withAlpha(128),
+                      ),
+                    ),
+                  ],
+                )
+              : hasMedia
+              ? _buildMediaPreview(mediaType, theme)
+              : Column(
+                  children: [
+                    Icon(
+                      icon,
+                      size: 40,
+                      color: theme.colorScheme.onSurface.withAlpha(100),
+                    ),
+                    const SizedBox(height: spaceSm),
+                    Text(
+                      'Tap to upload $label',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withAlpha(128),
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
+      if (uploadState.error != null) ...[
+        const SizedBox(height: spaceSm),
+        Text(
+          uploadState.error!,
+          style: theme.textTheme.bodySmall?.copyWith(color: colorError),
+        ),
+      ],
       const SizedBox(height: spaceLg),
       // Caption
       TextFormField(
@@ -657,6 +727,41 @@ class _FormStep extends ConsumerWidget {
       ),
       const SizedBox(height: spaceLg),
     ];
+  }
+
+  Widget _buildMediaPreview(MediaType mediaType, ThemeData theme) {
+    final url = mediaUrlController.text;
+    return Column(
+      children: [
+        if (mediaType == MediaType.image)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              url,
+              height: 160,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const Icon(
+                Icons.broken_image,
+                size: 40,
+                color: colorTextMuted,
+              ),
+            ),
+          )
+        else
+          Icon(
+            mediaType == MediaType.video ? Icons.videocam : Icons.audiotrack,
+            size: 40,
+            color: colorAccentGold,
+          ),
+        const SizedBox(height: spaceSm),
+        Text(
+          'Tap to replace',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withAlpha(128),
+          ),
+        ),
+      ],
+    );
   }
 
   // link: URL (required) + caption

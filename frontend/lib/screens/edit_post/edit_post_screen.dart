@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../models/post.dart';
 import '../../models/track.dart';
+import '../../providers/media_upload_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
@@ -321,6 +322,13 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   }
 
   List<Widget> _buildMediaFields() {
+    final uploadState = ref.watch(mediaUploadProvider);
+    final hasMedia = _mediaUrlController.text.isNotEmpty;
+    final mediaType = widget.post.mediaType;
+    final isImage = mediaType == MediaType.image;
+    final isVideoOrAudio =
+        mediaType == MediaType.video || mediaType == MediaType.audio;
+
     return [
       TextFormField(
         controller: _titleController,
@@ -328,6 +336,87 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         style: const TextStyle(color: colorTextPrimary),
         decoration: _inputDecoration('Title (optional)'),
       ),
+      const SizedBox(height: spaceMd),
+      // Media preview / upload area
+      if (isImage || isVideoOrAudio)
+        GestureDetector(
+          onTap: uploadState.isUploading ? null : _replaceMedia,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: hasMedia ? colorAccentGold.withAlpha(128) : colorBorder,
+              ),
+              borderRadius: BorderRadius.circular(radiusMd),
+              color: colorSurface0,
+            ),
+            child: uploadState.isUploading
+                ? const Center(
+                    child: SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : hasMedia
+                ? Column(
+                    children: [
+                      if (isImage)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            _mediaUrlController.text,
+                            height: 160,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => const Icon(
+                              Icons.broken_image,
+                              size: 40,
+                              color: colorTextMuted,
+                            ),
+                          ),
+                        )
+                      else
+                        Icon(
+                          mediaType == MediaType.video
+                              ? Icons.videocam
+                              : Icons.audiotrack,
+                          size: 40,
+                          color: colorAccentGold,
+                        ),
+                      const SizedBox(height: spaceSm),
+                      Text(
+                        'Tap to replace',
+                        style: textCaption.copyWith(color: colorTextMuted),
+                      ),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      Icon(
+                        isImage
+                            ? Icons.photo_library
+                            : mediaType == MediaType.video
+                            ? Icons.videocam
+                            : Icons.audiotrack,
+                        size: 40,
+                        color: colorTextMuted,
+                      ),
+                      const SizedBox(height: spaceSm),
+                      Text(
+                        'Tap to upload',
+                        style: textCaption.copyWith(color: colorTextMuted),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      if (uploadState.error != null) ...[
+        const SizedBox(height: spaceSm),
+        Text(
+          uploadState.error!,
+          style: textCaption.copyWith(color: colorError),
+        ),
+      ],
       const SizedBox(height: spaceMd),
       TextFormField(
         controller: _bodyController,
@@ -337,6 +426,31 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         decoration: _inputDecoration('Caption (optional)'),
       ),
     ];
+  }
+
+  Future<void> _replaceMedia() async {
+    final notifier = ref.read(mediaUploadProvider.notifier);
+    String? url;
+
+    switch (widget.post.mediaType) {
+      case MediaType.image:
+        url = await notifier.pickAndUploadImage(
+          category: UploadCategory.media,
+          maxWidth: 1280,
+          maxHeight: 1280,
+          imageQuality: 75,
+        );
+      case MediaType.video:
+        url = await notifier.pickAndUploadVideo(category: UploadCategory.media);
+      case MediaType.audio:
+        url = await notifier.pickAndUploadAudio(category: UploadCategory.media);
+      default:
+        return;
+    }
+
+    if (url != null && mounted) {
+      setState(() => _mediaUrlController.text = url!);
+    }
   }
 
   List<Widget> _buildLinkFields() {
