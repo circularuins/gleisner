@@ -111,10 +111,19 @@ void main() {
       );
     });
 
-    test('_isAllowedPublicUrl accepts HTTPS URLs', () {
+    test('_isAllowedPublicUrl accepts gleisner.app domain', () {
       expect(
         MediaUploadNotifier.isAllowedPublicUrl(
           'https://media-dev.gleisner.app/avatars/user/file.jpg',
+        ),
+        true,
+      );
+    });
+
+    test('_isAllowedPublicUrl accepts r2.dev domain', () {
+      expect(
+        MediaUploadNotifier.isAllowedPublicUrl(
+          'https://pub-abc123.r2.dev/avatars/user/file.jpg',
         ),
         true,
       );
@@ -124,6 +133,15 @@ void main() {
       expect(
         MediaUploadNotifier.isAllowedPublicUrl(
           'http://media-dev.gleisner.app/avatars/user/file.jpg',
+        ),
+        false,
+      );
+    });
+
+    test('_isAllowedPublicUrl rejects arbitrary domains', () {
+      expect(
+        MediaUploadNotifier.isAllowedPublicUrl(
+          'https://attacker.com/malware.jpg',
         ),
         false,
       );

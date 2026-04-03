@@ -218,12 +218,14 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     return uri.host.endsWith('.r2.cloudflarestorage.com');
   }
 
-  /// Public URL must be HTTPS. Domain is configured server-side (R2_PUBLIC_URL).
+  /// Public URL must be HTTPS on an allowed R2 domain.
+  /// Accepts: *.r2.dev (R2 default), *.gleisner.app (custom CDN domain).
   @visibleForTesting
   static bool isAllowedPublicUrl(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null || uri.scheme != 'https') return false;
-    return true;
+    final host = uri.host;
+    return host.endsWith('.r2.dev') || host.endsWith('.gleisner.app');
   }
 }
 
