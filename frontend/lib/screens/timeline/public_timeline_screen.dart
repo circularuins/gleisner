@@ -13,6 +13,7 @@ import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/node_card.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
+import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 
 class PublicTimelineScreen extends ConsumerStatefulWidget {
@@ -75,8 +76,9 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
             Padding(
               padding: const EdgeInsets.only(right: spaceSm),
               child: SvgPicture.asset(
-                'assets/images/logo-icon.svg',
+                GleisnerAssets.logoIcon,
                 height: 28,
+                excludeFromSemantics: true,
               ),
             ),
             Flexible(

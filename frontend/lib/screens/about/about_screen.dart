@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 
 /// About page — operator info + external services disclosure.
@@ -29,8 +30,9 @@ class AboutScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: spaceXl),
                 child: SvgPicture.asset(
-                  'assets/images/logo-full.svg',
+                  GleisnerAssets.logoFull,
                   height: 100,
+                  semanticsLabel: 'Gleisner logo',
                 ),
               ),
             ),

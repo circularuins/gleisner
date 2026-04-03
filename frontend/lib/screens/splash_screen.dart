@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../providers/auth_provider.dart';
+import '../theme/gleisner_assets.dart';
 import '../theme/gleisner_tokens.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -27,7 +28,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SvgPicture.asset('assets/images/logo-full.svg', height: 120),
+            SvgPicture.asset(GleisnerAssets.logoFull, height: 120, semanticsLabel: 'Gleisner logo'),
             const SizedBox(height: spaceXl),
             Text(
               'Gleisner',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 
 /// Hero section showing Gleisner's value propositions.
@@ -35,8 +36,9 @@ class GleisnerHero extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SvgPicture.asset(
-                'assets/images/logo-full.svg',
+                GleisnerAssets.logoFull,
                 height: 80,
+                semanticsLabel: 'Gleisner logo',
               ),
               const SizedBox(width: spaceLg),
               Column(
