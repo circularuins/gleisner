@@ -1,15 +1,10 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { db, getTestApp, gql, closeTestDb, signupAndGetToken } from "./helpers";
 import { sql } from "drizzle-orm";
-import {
-  ALLOWED_CONTENT_TYPES,
-  UPLOAD_LIMITS,
-  R2ValidationError,
-} from "../../storage/r2.js";
+import { UPLOAD_LIMITS } from "../../storage/r2.js";
 
 // Mock the R2 module to avoid needing real AWS credentials in tests.
-// Reuses exported ALLOWED_CONTENT_TYPES and UPLOAD_LIMITS from r2.ts
-// to avoid duplication.
+// The mock returns fixed values — validation logic is tested in r2.test.ts.
 vi.mock("../../storage/r2.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../storage/r2.js")>();
   return {
@@ -18,16 +13,7 @@ vi.mock("../../storage/r2.js", async (importOriginal) => {
     isR2Url: vi.fn((url: string) =>
       url.startsWith("https://media.gleisner.test/"),
     ),
-    isLocalDevUrl: vi.fn((url: string) => {
-      try {
-        const parsed = new URL(url);
-        return (
-          parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1"
-        );
-      } catch {
-        return false;
-      }
-    }),
+    isLocalDevUrl: actual.isLocalDevUrl,
     generateUploadUrl: vi.fn(
       async (
         userId: string,
@@ -35,27 +21,29 @@ vi.mock("../../storage/r2.js", async (importOriginal) => {
         contentType: string,
         contentLength: number,
       ) => {
-        const allowed = actual.ALLOWED_CONTENT_TYPES;
-        const limits = actual.UPLOAD_LIMITS;
-
-        if (!allowed[category as keyof typeof allowed]?.includes(contentType)) {
+        // Minimal validation — mirrors r2.ts contract without duplicating logic
+        if (
+          !actual.ALLOWED_CONTENT_TYPES[
+            category as keyof typeof actual.ALLOWED_CONTENT_TYPES
+          ]?.includes(contentType)
+        ) {
           throw new actual.R2ValidationError(
-            `Content type ${contentType} is not allowed for ${category}. Allowed: ${allowed[category as keyof typeof allowed]?.join(", ")}`,
+            `Content type ${contentType} is not allowed for ${category}`,
           );
         }
-
-        const maxSize = limits[category as keyof typeof limits]?.maxSize ?? 0;
+        const maxSize =
+          actual.UPLOAD_LIMITS[category as keyof typeof actual.UPLOAD_LIMITS]
+            ?.maxSize ?? 0;
         if (contentLength <= 0 || contentLength > maxSize) {
           throw new actual.R2ValidationError(
             `File size must be between 1 byte and ${maxSize} bytes for ${category}`,
           );
         }
 
-        const ext = contentType === "image/jpeg" ? "jpg" : "bin";
         return {
-          uploadUrl: `https://r2-presigned.test/upload/${category}/${userId}/test-uuid.${ext}?signature=abc`,
-          publicUrl: `https://media.gleisner.test/${category}/${userId}/test-uuid.${ext}`,
-          key: `${category}/${userId}/test-uuid.${ext}`,
+          uploadUrl: `https://r2-presigned.test/upload/${category}/${userId}/test-uuid.jpg`,
+          publicUrl: `https://media.gleisner.test/${category}/${userId}/test-uuid.jpg`,
+          key: `${category}/${userId}/test-uuid.jpg`,
         };
       },
     ),
@@ -229,17 +217,5 @@ describe("Media Upload", () => {
     );
 
     expect(result.errors?.[0]?.message).toContain("configured storage domain");
-  });
-
-  it("should use same content type allowlist as r2.ts", () => {
-    expect(ALLOWED_CONTENT_TYPES.avatars).toContain("image/jpeg");
-    expect(ALLOWED_CONTENT_TYPES.media).toContain("video/mp4");
-    expect(ALLOWED_CONTENT_TYPES.media).toContain("audio/mpeg");
-  });
-
-  it("should use R2ValidationError for safe client messages", () => {
-    const err = new R2ValidationError("test");
-    expect(err).toBeInstanceOf(Error);
-    expect(err.name).toBe("R2ValidationError");
   });
 });

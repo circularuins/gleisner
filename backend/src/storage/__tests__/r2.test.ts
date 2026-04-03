@@ -7,12 +7,38 @@ import {
   R2ValidationError,
   type UploadCategory,
 } from "../r2.js";
+import { env } from "../../env.js";
 
 describe("r2 utility functions", () => {
   describe("isR2Url", () => {
     it("should return false when R2_PUBLIC_URL is not set", () => {
       // R2_PUBLIC_URL is not set in test env
       expect(isR2Url("https://example.com/file.jpg")).toBe(false);
+    });
+
+    it("should accept URLs matching R2_PUBLIC_URL", () => {
+      const original = env.R2_PUBLIC_URL;
+      Object.defineProperty(env, "R2_PUBLIC_URL", {
+        value: "https://media.gleisner.app",
+        writable: true,
+        configurable: true,
+      });
+      try {
+        expect(
+          isR2Url("https://media.gleisner.app/avatars/user1/test.jpg"),
+        ).toBe(true);
+        expect(isR2Url("https://evil.com/avatars/test.jpg")).toBe(false);
+        // Must have trailing slash after domain to prevent prefix attacks
+        expect(isR2Url("https://media.gleisner.app.evil.com/test.jpg")).toBe(
+          false,
+        );
+      } finally {
+        Object.defineProperty(env, "R2_PUBLIC_URL", {
+          value: original,
+          writable: true,
+          configurable: true,
+        });
+      }
     });
   });
 

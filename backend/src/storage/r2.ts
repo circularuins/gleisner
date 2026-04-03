@@ -143,6 +143,11 @@ export function isR2Url(url: string): boolean {
   return url.startsWith(env.R2_PUBLIC_URL + "/");
 }
 
+/** Reset singleton S3 client. For testing and credential rotation. */
+export function _resetS3ClientForTesting(): void {
+  s3Client = null;
+}
+
 /**
  * Check if a URL is allowed for media fields in local dev (R2 not configured).
  * Only localhost URLs are permitted to prevent external URL injection.
