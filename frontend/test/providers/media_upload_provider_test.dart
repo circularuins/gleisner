@@ -56,6 +56,48 @@ void main() {
       expect(mimeFromBytes(bytes), null);
     });
 
+    test('detects MP4 video from ftyp box', () {
+      final bytes = Uint8List.fromList([
+        0x00, 0x00, 0x00, 0x1C, // box size
+        0x66, 0x74, 0x79, 0x70, // "ftyp"
+        0x69, 0x73, 0x6F, 0x6D, // "isom" brand
+      ]);
+      expect(mimeFromBytes(bytes), 'video/mp4');
+    });
+
+    test('detects M4A audio from ftyp box', () {
+      final bytes = Uint8List.fromList([
+        0x00, 0x00, 0x00, 0x20, // box size
+        0x66, 0x74, 0x79, 0x70, // "ftyp"
+        0x4D, 0x34, 0x41, 0x20, // "M4A " brand
+      ]);
+      expect(mimeFromBytes(bytes), 'audio/mp4');
+    });
+
+    test('detects MP3 from ID3 header', () {
+      final bytes = Uint8List.fromList([
+        0x49, 0x44, 0x33, 0x03, // "ID3" + version
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      ]);
+      expect(mimeFromBytes(bytes), 'audio/mpeg');
+    });
+
+    test('detects Ogg audio', () {
+      final bytes = Uint8List.fromList([
+        0x4F, 0x67, 0x67, 0x53, // "OggS"
+        0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      ]);
+      expect(mimeFromBytes(bytes), 'audio/ogg');
+    });
+
+    test('detects WebM video', () {
+      final bytes = Uint8List.fromList([
+        0x1A, 0x45, 0xDF, 0xA3, // EBML header
+        0x93, 0x42, 0x82, 0x88, 0x6D, 0x61, 0x74, 0x72,
+      ]);
+      expect(mimeFromBytes(bytes), 'video/webm');
+    });
+
     test('rejects RIFF without WEBP signature', () {
       final bytes = Uint8List.fromList([
         0x52, 0x49, 0x46, 0x46, // "RIFF"
