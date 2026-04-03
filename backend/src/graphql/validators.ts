@@ -1,4 +1,5 @@
 import { GraphQLError } from "graphql";
+import { isR2Configured, isR2Url } from "../storage/r2.js";
 
 export const MAX_PASSWORD_LENGTH = 128;
 
@@ -12,6 +13,20 @@ export function validateUrl(url: string): void {
   } catch (err) {
     if (err instanceof GraphQLError) throw err;
     throw new GraphQLError("Invalid URL format");
+  }
+}
+
+/**
+ * Validate that a media URL points to the configured R2 domain.
+ * When R2 is configured, only R2 URLs are accepted for media fields.
+ * When R2 is not configured (local dev), any valid http/https URL is accepted.
+ */
+export function validateMediaUrl(url: string): void {
+  validateUrl(url);
+  if (isR2Configured() && !isR2Url(url)) {
+    throw new GraphQLError(
+      "Media URLs must point to the configured storage domain",
+    );
   }
 }
 

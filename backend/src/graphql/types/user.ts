@@ -3,7 +3,7 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema/index.js";
 import { eq } from "drizzle-orm";
-import { validateProfileVisibility, validateUrl } from "../validators.js";
+import { validateProfileVisibility, validateMediaUrl } from "../validators.js";
 
 export interface UserShape {
   id: string;
@@ -120,7 +120,7 @@ builder.mutationFields((t) => ({
       if (args.bio != null && args.bio.length > 1000) {
         throw new GraphQLError("Bio must be 1000 characters or less");
       }
-      if (args.avatarUrl != null) validateUrl(args.avatarUrl);
+      if (args.avatarUrl != null) validateMediaUrl(args.avatarUrl);
 
       // undefined = not provided (skip), null = clear field, value = update
       // Validation above uses != null so null (clear) skips validation intentionally
