@@ -129,6 +129,7 @@ const myTuneInsQuery = r'''
         displayName
         avatarUrl
         tunedInCount
+        profileVisibility
       }
     }
   }
