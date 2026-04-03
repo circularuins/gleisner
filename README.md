@@ -1,6 +1,13 @@
-# Gleisner
+<p align="center">
+  <img src="docs/social-preview.png" alt="Gleisner" width="640"/>
+</p>
 
-A decentralized, DAW-style multi-track timeline platform for artists to publish and control their multifaceted creative work.
+<p align="center">
+  <strong>Your creative journey, your universe</strong><br/>
+  A decentralized, DAW-style multi-track timeline platform for artists.
+</p>
+
+---
 
 ## Why "Gleisner"?
 

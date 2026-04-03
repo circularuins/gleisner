@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <rect width="1280" height="640" fill="#0a0a0f"/>
+
+  <!-- Robot body fill -->
+  <path d="M555,155 C555,115 655,115 655,155 L662,320 C662,355 643,370 605,370 C567,370 548,355 548,320 Z" fill="#d4af37" fill-opacity="0.2" stroke="none"/>
+  <!-- Robot body outline -->
+  <path d="M555,155 C555,115 655,115 655,155 L662,320 C662,355 643,370 605,370 C567,370 548,355 548,320 Z" fill="none" stroke="#d4af37" stroke-width="3"/>
+
+  <!-- Visor fill -->
+  <rect x="570" y="140" width="65" height="48" rx="12" fill="#d4af37" fill-opacity="0.4" stroke="none"/>
+  <!-- Visor outline -->
+  <rect x="570" y="140" width="65" height="48" rx="12" fill="none" stroke="#d4af37" stroke-width="3"/>
+  <ellipse cx="590" cy="158" rx="5" ry="9" fill="#d4af37" fill-opacity="0.45"/>
+
+  <!-- Panel lines -->
+  <line x1="558" y1="205" x2="652" y2="205" stroke="#d4af37" stroke-width="1" opacity="0.5"/>
+  <line x1="555" y1="280" x2="655" y2="280" stroke="#d4af37" stroke-width="1" opacity="0.5"/>
+  <circle cx="605" cy="218" r="3" fill="#d4af37" opacity="0.7"/>
+  <circle cx="558" cy="185" r="2" fill="#d4af37" opacity="0.6"/>
+  <circle cx="652" cy="185" r="2" fill="#d4af37" opacity="0.6"/>
+
+  <!-- Backpack fill -->
+  <path d="M662,195 L680,198 L680,310 L662,313 Z" fill="#d4af37" fill-opacity="0.2" stroke="none"/>
+  <!-- Backpack outline -->
+  <path d="M662,195 L680,198 L680,310 L662,313 Z" fill="none" stroke="#d4af37" stroke-width="2.5"/>
+
+  <!-- Constellation inside body -->
+  <circle cx="577" cy="235" r="3.5" fill="#d4af37"/>
+  <circle cx="620" cy="228" r="3" fill="#d4af37"/>
+  <circle cx="640" cy="258" r="3.5" fill="#d4af37"/>
+  <circle cx="590" cy="285" r="3" fill="#d4af37"/>
+  <circle cx="632" cy="302" r="3.5" fill="#d4af37"/>
+  <circle cx="570" cy="312" r="2.5" fill="#d4af37"/>
+  <circle cx="608" cy="330" r="3" fill="#d4af37"/>
+  <line x1="577" y1="235" x2="620" y2="228" stroke="#d4af37" stroke-width="1.2" opacity="0.6"/>
+  <line x1="620" y1="228" x2="640" y2="258" stroke="#d4af37" stroke-width="1.2" opacity="0.6"/>
+  <line x1="620" y1="228" x2="590" y2="285" stroke="#d4af37" stroke-width="1.2" opacity="0.6"/>
+  <line x1="590" y1="285" x2="632" y2="302" stroke="#d4af37" stroke-width="1.2" opacity="0.6"/>
+  <line x1="640" y1="258" x2="632" y2="302" stroke="#d4af37" stroke-width="1.2" opacity="0.6"/>
+  <line x1="590" y1="285" x2="570" y2="312" stroke="#d4af37" stroke-width="1.2" opacity="0.6"/>
+  <line x1="570" y1="312" x2="608" y2="330" stroke="#d4af37" stroke-width="1.2" opacity="0.6"/>
+  <line x1="632" y1="302" x2="608" y2="330" stroke="#d4af37" stroke-width="1.2" opacity="0.6"/>
+
+  <!-- Legs -->
+  <rect x="578" y="368" width="18" height="30" rx="6" fill="#d4af37" fill-opacity="0.2" stroke="none"/>
+  <rect x="578" y="368" width="18" height="30" rx="6" fill="none" stroke="#d4af37" stroke-width="3"/>
+  <rect x="614" y="368" width="18" height="30" rx="6" fill="#d4af37" fill-opacity="0.2" stroke="none"/>
+  <rect x="614" y="368" width="18" height="30" rx="6" fill="none" stroke="#d4af37" stroke-width="3"/>
+  <rect x="574" y="394" width="26" height="8" rx="4" fill="#d4af37" fill-opacity="0.2" stroke="none"/>
+  <rect x="574" y="394" width="26" height="8" rx="4" fill="none" stroke="#d4af37" stroke-width="2.5"/>
+  <rect x="610" y="394" width="26" height="8" rx="4" fill="#d4af37" fill-opacity="0.2" stroke="none"/>
+  <rect x="610" y="394" width="26" height="8" rx="4" fill="none" stroke="#d4af37" stroke-width="2.5"/>
+
+  <!-- Ambient stars -->
+  <circle cx="480" cy="130" r="3" fill="#d4af37" opacity="0.4"/>
+  <circle cx="720" cy="150" r="3.5" fill="#d4af37" opacity="0.35"/>
+  <circle cx="490" cy="350" r="2.5" fill="#d4af37" opacity="0.35"/>
+  <circle cx="710" cy="340" r="3" fill="#d4af37" opacity="0.4"/>
+  <circle cx="510" cy="240" r="2" fill="#d4af37" opacity="0.2"/>
+  <circle cx="700" cy="250" r="2" fill="#d4af37" opacity="0.2"/>
+
+  <!-- Far scattered stars -->
+  <circle cx="100" cy="80" r="2" fill="#d4af37" opacity="0.15"/>
+  <circle cx="200" cy="500" r="2.5" fill="#d4af37" opacity="0.12"/>
+  <circle cx="1100" cy="100" r="2" fill="#d4af37" opacity="0.15"/>
+  <circle cx="1180" cy="540" r="2.5" fill="#d4af37" opacity="0.12"/>
+  <circle cx="350" cy="300" r="1.5" fill="#d4af37" opacity="0.1"/>
+  <circle cx="900" cy="200" r="1.5" fill="#d4af37" opacity="0.1"/>
+
+  <!-- Text -->
+  <text x="640" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="52" fill="#d4af37" letter-spacing="-1">Gleisner</text>
+  <text x="640" y="510" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#9999b0">Your creative journey, your universe</text>
+
+  <!-- Subtle bottom line -->
+  <line x1="440" y1="540" x2="840" y2="540" stroke="#d4af37" stroke-width="1" opacity="0.2"/>
+  <text x="640" y="570" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#666688">DAW-style multitrack timeline for artists</text>
+</svg>
