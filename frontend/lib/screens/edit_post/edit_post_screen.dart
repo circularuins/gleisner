@@ -42,6 +42,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
   String? _error;
+  String? _thumbnailUrl;
 
   @override
   void initState() {
@@ -54,6 +55,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     _importance = widget.post.importance;
     _visibility = widget.post.visibility;
     _selectedTrackId = widget.post.trackId;
+    _thumbnailUrl = widget.post.thumbnailUrl;
   }
 
   @override
@@ -92,6 +94,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             title: title.isNotEmpty ? title : null,
             body: body.isNotEmpty ? body : null,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
+            thumbnailUrl: _thumbnailUrl,
             importance: _importance,
             visibility: _visibility,
           );
@@ -104,6 +107,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             title: title.isNotEmpty ? title : null,
             body: body.isNotEmpty ? body : null,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
+            thumbnailUrl: _thumbnailUrl,
             importance: _importance,
             visibility: _visibility,
           );
@@ -361,11 +365,14 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                 : hasMedia
                 ? Column(
                     children: [
-                      if (isImage)
+                      if (isImage ||
+                          (mediaType == MediaType.video &&
+                              _thumbnailUrl != null &&
+                              _thumbnailUrl!.isNotEmpty))
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.network(
-                            _mediaUrlController.text,
+                            isImage ? _mediaUrlController.text : _thumbnailUrl!,
                             height: 160,
                             fit: BoxFit.cover,
                             errorBuilder: (_, _, _) => const Icon(
@@ -430,26 +437,37 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
 
   Future<void> _replaceMedia() async {
     final notifier = ref.read(mediaUploadProvider.notifier);
-    String? url;
 
     switch (widget.post.mediaType) {
       case MediaType.image:
-        url = await notifier.pickAndUploadImage(
+        final url = await notifier.pickAndUploadImage(
           category: UploadCategory.media,
           maxWidth: 1280,
           maxHeight: 1280,
           imageQuality: 75,
         );
+        if (url != null && mounted) {
+          setState(() => _mediaUrlController.text = url);
+        }
       case MediaType.video:
-        url = await notifier.pickAndUploadVideo(category: UploadCategory.media);
+        final result = await notifier.pickAndUploadVideo(
+          category: UploadCategory.media,
+        );
+        if (result != null && mounted) {
+          setState(() {
+            _mediaUrlController.text = result.videoUrl;
+            _thumbnailUrl = result.thumbnailUrl;
+          });
+        }
       case MediaType.audio:
-        url = await notifier.pickAndUploadAudio(category: UploadCategory.media);
+        final url = await notifier.pickAndUploadAudio(
+          category: UploadCategory.media,
+        );
+        if (url != null && mounted) {
+          setState(() => _mediaUrlController.text = url);
+        }
       default:
         return;
-    }
-
-    if (url != null && mounted) {
-      setState(() => _mediaUrlController.text = url!);
     }
   }
 

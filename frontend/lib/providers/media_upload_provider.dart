@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../graphql/client.dart';
 import '../graphql/mutations/media.dart';
+import '../utils/video_thumbnail.dart';
 import '../utils/web_file_picker.dart';
 import 'disposable_notifier.dart';
 
@@ -155,7 +156,10 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
   }
 
   /// Pick a video via image_picker and upload to R2.
-  Future<String?> pickAndUploadVideo({required UploadCategory category}) async {
+  /// Returns (videoUrl, thumbnailUrl) on success, null on failure.
+  Future<({String videoUrl, String? thumbnailUrl})?> pickAndUploadVideo({
+    required UploadCategory category,
+  }) async {
     if (state.isUploading) return null;
 
     try {
@@ -178,11 +182,32 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         return null;
       }
 
-      return await _upload(
+      // Upload video
+      final videoUrl = await _upload(
         category: category,
         bytes: bytes,
         contentType: contentType,
       );
+      if (videoUrl == null) return null;
+      if (disposed) return null;
+
+      // Generate and upload thumbnail
+      String? thumbnailUrl;
+      try {
+        final thumbBytes = await captureVideoThumbnail(bytes);
+        if (thumbBytes != null && !disposed) {
+          thumbnailUrl = await _upload(
+            category: category,
+            bytes: thumbBytes,
+            contentType: 'image/jpeg',
+          );
+        }
+      } catch (e) {
+        debugPrint('[MediaUpload] thumbnail generation failed: $e');
+        // Non-fatal: video uploaded successfully, thumbnail is optional
+      }
+
+      return (videoUrl: videoUrl, thumbnailUrl: thumbnailUrl);
     } catch (e) {
       debugPrint('[MediaUpload] pickAndUploadVideo error: $e');
       if (!disposed) {

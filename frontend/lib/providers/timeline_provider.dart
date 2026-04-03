@@ -454,6 +454,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     String? title,
     String? body,
     String? mediaUrl,
+    String? thumbnailUrl,
     double? importance,
     String? visibility,
   }) async {
@@ -474,6 +475,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
             if (title != null) 'title': title,
             if (body != null) 'body': body,
             if (mediaUrl != null) 'mediaUrl': mediaUrl,
+            if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
             if (importance != null) 'importance': importance,
           },
         ),

@@ -4,6 +4,7 @@ const postFields = '''
   title
   body
   mediaUrl
+  thumbnailUrl
   duration
   importance
   visibility

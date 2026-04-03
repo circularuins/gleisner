@@ -25,6 +25,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
   final _mediaUrlController = TextEditingController();
+  String? _thumbnailUrl;
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -37,26 +38,37 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   Future<void> _pickMedia(MediaType mediaType) async {
     final notifier = ref.read(mediaUploadProvider.notifier);
-    String? url;
 
     switch (mediaType) {
       case MediaType.image:
-        url = await notifier.pickAndUploadImage(
+        final url = await notifier.pickAndUploadImage(
           category: UploadCategory.media,
           maxWidth: 1280,
           maxHeight: 1280,
           imageQuality: 75,
         );
+        if (url != null && mounted) {
+          setState(() => _mediaUrlController.text = url);
+        }
       case MediaType.video:
-        url = await notifier.pickAndUploadVideo(category: UploadCategory.media);
+        final result = await notifier.pickAndUploadVideo(
+          category: UploadCategory.media,
+        );
+        if (result != null && mounted) {
+          setState(() {
+            _mediaUrlController.text = result.videoUrl;
+            _thumbnailUrl = result.thumbnailUrl;
+          });
+        }
       case MediaType.audio:
-        url = await notifier.pickAndUploadAudio(category: UploadCategory.media);
+        final url = await notifier.pickAndUploadAudio(
+          category: UploadCategory.media,
+        );
+        if (url != null && mounted) {
+          setState(() => _mediaUrlController.text = url);
+        }
       default:
         return;
-    }
-
-    if (url != null && mounted) {
-      setState(() => _mediaUrlController.text = url!);
     }
   }
 
@@ -73,6 +85,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           mediaUrl: _mediaUrlController.text.isEmpty
               ? null
               : _mediaUrlController.text,
+          thumbnailUrl: _thumbnailUrl,
         );
 
     if (result != null && mounted) {
@@ -125,6 +138,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               titleController: _titleController,
               bodyController: _bodyController,
               mediaUrlController: _mediaUrlController,
+              thumbnailUrl: _thumbnailUrl,
               onSubmit: _submit,
               onPickMedia: _pickMedia,
             ),
@@ -390,6 +404,7 @@ class _FormStep extends ConsumerWidget {
   final TextEditingController titleController;
   final TextEditingController bodyController;
   final TextEditingController mediaUrlController;
+  final String? thumbnailUrl;
   final VoidCallback onSubmit;
   final Future<void> Function(MediaType) onPickMedia;
 
@@ -398,6 +413,7 @@ class _FormStep extends ConsumerWidget {
     required this.titleController,
     required this.bodyController,
     required this.mediaUrlController,
+    this.thumbnailUrl,
     required this.onSubmit,
     required this.onPickMedia,
   });
@@ -731,13 +747,22 @@ class _FormStep extends ConsumerWidget {
 
   Widget _buildMediaPreview(MediaType mediaType, ThemeData theme) {
     final url = mediaUrlController.text;
+    final showThumbnail =
+        (mediaType == MediaType.image) ||
+        (mediaType == MediaType.video &&
+            thumbnailUrl != null &&
+            thumbnailUrl!.isNotEmpty);
+    final displayUrl = mediaType == MediaType.image
+        ? url
+        : (thumbnailUrl ?? '');
+
     return Column(
       children: [
-        if (mediaType == MediaType.image)
+        if (showThumbnail)
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.network(
-              url,
+              displayUrl,
               height: 160,
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => const Icon(

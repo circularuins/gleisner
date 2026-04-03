@@ -53,6 +53,7 @@ type PostShape = {
   title: string | null;
   body: string | null;
   mediaUrl: string | null;
+  thumbnailUrl: string | null;
   duration: number | null;
   importance: number;
   visibility: string;
@@ -84,6 +85,7 @@ PostType.implement({
     title: t.exposeString("title", { nullable: true }),
     body: t.exposeString("body", { nullable: true }),
     mediaUrl: t.exposeString("mediaUrl", { nullable: true }),
+    thumbnailUrl: t.exposeString("thumbnailUrl", { nullable: true }),
     duration: t.exposeInt("duration", { nullable: true }),
     importance: t.exposeFloat("importance"),
     visibility: t.exposeString("visibility"),
@@ -136,6 +138,7 @@ builder.mutationFields((t) => ({
       title: t.arg.string(),
       body: t.arg.string(),
       mediaUrl: t.arg.string(),
+      thumbnailUrl: t.arg.string(),
       duration: t.arg.int(),
       importance: t.arg.float(),
       visibility: t.arg.string(),
@@ -181,9 +184,12 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Body must be 10000 characters or less");
       }
 
-      // Validate mediaUrl
+      // Validate mediaUrl and thumbnailUrl
       if (args.mediaUrl != null) {
         validateMediaUrl(args.mediaUrl);
+      }
+      if (args.thumbnailUrl != null) {
+        validateMediaUrl(args.thumbnailUrl);
       }
 
       // Validate duration
@@ -239,6 +245,7 @@ builder.mutationFields((t) => ({
           title: args.title ?? null,
           body: args.body ?? null,
           mediaUrl: args.mediaUrl ?? null,
+          thumbnailUrl: args.thumbnailUrl ?? null,
           duration: args.duration ?? null,
           contentHash,
           signature: signatureValue,
@@ -262,6 +269,7 @@ builder.mutationFields((t) => ({
       title: t.arg.string(),
       body: t.arg.string(),
       mediaUrl: t.arg.string(),
+      thumbnailUrl: t.arg.string(),
       duration: t.arg.int(),
       importance: t.arg.float(),
       visibility: t.arg.string(),
@@ -297,9 +305,12 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Body must be 10000 characters or less");
       }
 
-      // Validate mediaUrl
+      // Validate mediaUrl and thumbnailUrl
       if (args.mediaUrl != null) {
         validateMediaUrl(args.mediaUrl);
+      }
+      if (args.thumbnailUrl != null) {
+        validateMediaUrl(args.thumbnailUrl);
       }
 
       // Validate duration
@@ -347,6 +358,8 @@ builder.mutationFields((t) => ({
       if (args.title !== undefined) updateData.title = args.title;
       if (args.body !== undefined) updateData.body = args.body;
       if (args.mediaUrl !== undefined) updateData.mediaUrl = args.mediaUrl;
+      if (args.thumbnailUrl !== undefined)
+        updateData.thumbnailUrl = args.thumbnailUrl;
       if (args.duration !== undefined) updateData.duration = args.duration;
       if (args.importance !== undefined)
         updateData.importance = args.importance;

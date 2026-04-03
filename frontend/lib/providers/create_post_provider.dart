@@ -123,6 +123,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
     required String? title,
     required String? body,
     required String? mediaUrl,
+    String? thumbnailUrl,
   }) async {
     final track = state.selectedTrack;
     final mediaType = state.selectedMediaType;
@@ -140,6 +141,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
             'title': title,
             'body': body,
             'mediaUrl': mediaUrl,
+            if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
             'importance': state.importance,
             'visibility': state.visibility,
           },

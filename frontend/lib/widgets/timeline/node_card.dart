@@ -415,6 +415,8 @@ class _VideoContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final post = node.post;
     final seed = '${post.title ?? ''}${post.createdAt.toIso8601String()}';
+    final hasThumbnail =
+        post.thumbnailUrl != null && post.thumbnailUrl!.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -422,13 +424,31 @@ class _VideoContent extends StatelessWidget {
         Stack(
           alignment: Alignment.center,
           children: [
-            SeedArtCanvas(
-              width: node.width,
-              height: node.mediaHeight,
-              trackColor: trackColor,
-              seed: seed,
-              mediaType: MediaType.video,
-            ),
+            if (hasThumbnail)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.network(
+                  post.thumbnailUrl!,
+                  width: node.width,
+                  height: node.mediaHeight,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => SeedArtCanvas(
+                    width: node.width,
+                    height: node.mediaHeight,
+                    trackColor: trackColor,
+                    seed: seed,
+                    mediaType: MediaType.video,
+                  ),
+                ),
+              )
+            else
+              SeedArtCanvas(
+                width: node.width,
+                height: node.mediaHeight,
+                trackColor: trackColor,
+                seed: seed,
+                mediaType: MediaType.video,
+              ),
             Container(
               width: 32,
               height: 32,

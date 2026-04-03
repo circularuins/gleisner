@@ -57,6 +57,7 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
     String? title,
     String? body,
     String? mediaUrl,
+    String? thumbnailUrl,
     double? importance,
     String? visibility,
   }) async {
@@ -70,6 +71,7 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
             if (title != null) 'title': title,
             if (body != null) 'body': body,
             if (mediaUrl != null) 'mediaUrl': mediaUrl,
+            if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
             if (importance != null) 'importance': importance,
             if (visibility != null) 'visibility': visibility,
           },

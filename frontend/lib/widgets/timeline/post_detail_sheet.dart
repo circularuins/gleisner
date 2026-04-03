@@ -939,7 +939,13 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     final width = MediaQuery.of(context).size.width;
     return switch (post.mediaType) {
       MediaType.text => _textMediaArea(post, trackColor),
-      MediaType.image => _visualMediaArea(post, trackColor, seedString, width),
+      MediaType.image => _visualMediaArea(
+        context,
+        post,
+        trackColor,
+        seedString,
+        width,
+      ),
       MediaType.video => _videoMediaArea(post, trackColor, seedString, width),
       MediaType.audio => _audioMediaArea(post, trackColor),
       MediaType.link => _linkMediaArea(post, trackColor),
@@ -997,6 +1003,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   }
 
   Widget _visualMediaArea(
+    BuildContext context,
     Post post,
     Color trackColor,
     String seedString,
@@ -1006,17 +1013,40 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     return Stack(
       children: [
         if (hasImage)
-          Image.network(
-            post.mediaUrl!,
-            width: width,
-            height: 220,
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => SeedArtCanvas(
-              width: width,
-              height: 220,
-              trackColor: trackColor,
-              seed: seedString,
-              mediaType: MediaType.image,
+          GestureDetector(
+            onTap: () => _openImageFullScreen(context, post.mediaUrl!),
+            child: Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                Image.network(
+                  post.mediaUrl!,
+                  width: width,
+                  height: 220,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => SeedArtCanvas(
+                    width: width,
+                    height: 220,
+                    trackColor: trackColor,
+                    seed: seedString,
+                    mediaType: MediaType.image,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(spaceSm),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Icon(
+                      Icons.fullscreen,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ],
             ),
           )
         else
@@ -1581,6 +1611,61 @@ class _AudioPlayerState extends State<_AudioPlayer> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Image Full Screen ──
+
+void _openImageFullScreen(BuildContext context, String imageUrl) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => _FullScreenImage(url: imageUrl),
+    ),
+  );
+}
+
+class _FullScreenImage extends StatefulWidget {
+  final String url;
+  const _FullScreenImage({required this.url});
+
+  @override
+  State<_FullScreenImage> createState() => _FullScreenImageState();
+}
+
+class _FullScreenImageState extends State<_FullScreenImage>
+    with SingleTickerProviderStateMixin {
+  final _transformController = TransformationController();
+
+  @override
+  void dispose() {
+    _transformController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      extendBodyBehindAppBar: true,
+      body: InteractiveViewer(
+        transformationController: _transformController,
+        minScale: 0.5,
+        maxScale: 4.0,
+        child: Center(
+          child: Image.network(
+            widget.url,
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) =>
+                const Icon(Icons.broken_image, color: Colors.white54, size: 64),
+          ),
+        ),
       ),
     );
   }
