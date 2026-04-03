@@ -97,6 +97,7 @@ const discoverArtistsQuery = r'''
       tagline
       avatarUrl
       coverImageUrl
+      profileVisibility
       tunedInCount
       genres {
         position
