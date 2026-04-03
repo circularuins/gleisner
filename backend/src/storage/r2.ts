@@ -38,7 +38,7 @@ export type UploadCategory = "avatars" | "covers" | "media";
 export const UPLOAD_LIMITS: Record<UploadCategory, { maxSize: number }> = {
   avatars: { maxSize: 5 * 1024 * 1024 }, // 5 MB
   covers: { maxSize: 10 * 1024 * 1024 }, // 10 MB
-  media: { maxSize: 50 * 1024 * 1024 }, // 50 MB
+  media: { maxSize: 100 * 1024 * 1024 }, // 100 MB
 };
 
 export const ALLOWED_CONTENT_TYPES: Record<UploadCategory, string[]> = {
