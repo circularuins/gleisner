@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 
 class AuthHeader extends StatelessWidget {
@@ -12,6 +14,8 @@ class AuthHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        SvgPicture.asset(GleisnerAssets.logoIcon, height: 60, semanticsLabel: 'Gleisner logo'),
+        const SizedBox(height: spaceMd),
         Text(
           'Gleisner',
           style: GoogleFonts.urbanist(

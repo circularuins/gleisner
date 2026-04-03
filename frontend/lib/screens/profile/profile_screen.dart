@@ -407,6 +407,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: spaceMd),
           ],
 
+          // About
+          TextButton(
+            onPressed: () => context.push('/about'),
+            child: Text(
+              'About Gleisner',
+              style: textCaption.copyWith(color: colorTextMuted),
+            ),
+          ),
+          const SizedBox(height: spaceSm),
+
           // Logout
           OutlinedButton(
             onPressed: () async {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 
 /// Hero section showing Gleisner's value propositions.
@@ -30,23 +32,38 @@ class GleisnerHero extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Gleisner',
-            style: GoogleFonts.urbanist(
-              fontSize: 36,
-              fontWeight: FontWeight.w700,
-              color: colorTextPrimary,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: spaceSm),
-          Text(
-            'Your creative universe',
-            style: GoogleFonts.urbanist(
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-              color: colorTextMuted,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SvgPicture.asset(
+                GleisnerAssets.logoFull,
+                height: 80,
+                semanticsLabel: 'Gleisner logo',
+              ),
+              const SizedBox(width: spaceLg),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Gleisner',
+                    style: GoogleFonts.urbanist(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w700,
+                      color: colorTextPrimary,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  Text(
+                    'Your creative universe',
+                    style: GoogleFonts.urbanist(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                      color: colorTextMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           const SizedBox(height: spaceXxl + spaceLg),
           ..._propositions.expand((p) => [p, const SizedBox(height: spaceXl)]),

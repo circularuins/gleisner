@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/track.dart';
 import '../../providers/my_artist_provider.dart';
@@ -12,6 +13,7 @@ import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/node_card.dart';
 import '../../providers/analytics_provider.dart';
 import '../../providers/tutorial_provider.dart';
+import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
 import '../../widgets/tutorial/tutorial_spotlight.dart';
@@ -182,6 +184,14 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
             backgroundColor: colorSurface0,
             title: Row(
               children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: spaceSm),
+                  child: SvgPicture.asset(
+                    GleisnerAssets.logoIcon,
+                    height: 28,
+                    excludeFromSemantics: true,
+                  ),
+                ),
                 Flexible(
                   child: GestureDetector(
                     onTap: isOwn

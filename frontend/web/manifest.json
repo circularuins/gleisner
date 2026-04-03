@@ -1,11 +1,11 @@
 {
-    "name": "gleisner_web",
-    "short_name": "gleisner_web",
+    "name": "Gleisner",
+    "short_name": "Gleisner",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0a0a0f",
+    "theme_color": "#0a0a0f",
+    "description": "Your creative journey, your universe",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

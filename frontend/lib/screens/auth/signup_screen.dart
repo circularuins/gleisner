@@ -93,7 +93,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           padding: const EdgeInsets.all(spaceXl),
           child: Form(
             key: _formKey,
-            child: Column(
+            child: SingleChildScrollView(
+              child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -236,6 +237,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   child: const Text('Already have an account? Sign in'),
                 ),
               ],
+            ),
             ),
           ),
         ),

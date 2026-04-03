@@ -1,6 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/track.dart';
 import '../../providers/analytics_provider.dart';
@@ -12,6 +13,7 @@ import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/node_card.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
+import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 
 class PublicTimelineScreen extends ConsumerStatefulWidget {
@@ -71,6 +73,14 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsets.only(right: spaceSm),
+              child: SvgPicture.asset(
+                GleisnerAssets.logoIcon,
+                height: 28,
+                excludeFromSemantics: true,
+              ),
+            ),
             Flexible(
               child: Text(
                 timeline.artist?.displayName ??
