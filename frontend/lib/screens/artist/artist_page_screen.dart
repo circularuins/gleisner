@@ -653,8 +653,8 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
         .read(mediaUploadProvider.notifier)
         .pickAndUploadImage(
           category: UploadCategory.covers,
-          maxWidth: 1920,
-          maxHeight: 1080,
+          maxWidth: 1280,
+          maxHeight: 720,
         );
     if (url == null || !context.mounted) return;
     await ref

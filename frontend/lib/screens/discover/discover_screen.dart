@@ -346,12 +346,14 @@ class _ArtistCard extends StatelessWidget {
                           fit: BoxFit.cover,
                           errorBuilder: (_, _, _) => CustomPaint(
                             painter: _ArtistCoverPainter(
-                                seed: artist.artistUsername),
+                              seed: artist.artistUsername,
+                            ),
                           ),
                         )
                       : CustomPaint(
                           painter: _ArtistCoverPainter(
-                              seed: artist.artistUsername),
+                            seed: artist.artistUsername,
+                          ),
                         ),
                   // Gradient overlay for text readability
                   Positioned(

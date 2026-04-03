@@ -369,17 +369,36 @@ class _ImageContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final post = node.post;
     final seed = '${post.title ?? ''}${post.createdAt.toIso8601String()}';
+    final hasImage = post.mediaUrl != null && post.mediaUrl!.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SeedArtCanvas(
-          width: node.width,
-          height: node.mediaHeight,
-          trackColor: trackColor,
-          seed: seed,
-          mediaType: MediaType.image,
-        ),
+        if (hasImage)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Image.network(
+              post.mediaUrl!,
+              width: node.width,
+              height: node.mediaHeight,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => SeedArtCanvas(
+                width: node.width,
+                height: node.mediaHeight,
+                trackColor: trackColor,
+                seed: seed,
+                mediaType: MediaType.image,
+              ),
+            ),
+          )
+        else
+          SeedArtCanvas(
+            width: node.width,
+            height: node.mediaHeight,
+            trackColor: trackColor,
+            seed: seed,
+            mediaType: MediaType.image,
+          ),
         if (node.showInfo) _InfoBar(post: post, trackColor: trackColor),
       ],
     );
