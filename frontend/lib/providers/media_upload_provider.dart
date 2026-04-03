@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../graphql/client.dart';
 import '../graphql/mutations/media.dart';
+import 'disposable_notifier.dart';
 
 enum UploadCategory { avatars, covers, media }
 
@@ -19,12 +20,43 @@ class MediaUploadState {
   const MediaUploadState({this.isUploading = false, this.progress, this.error});
 }
 
-class MediaUploadNotifier extends Notifier<MediaUploadState> {
+/// Magic bytes for allowed image types.
+const _jpegMagic = [0xFF, 0xD8, 0xFF];
+const _pngMagic = [0x89, 0x50, 0x4E, 0x47];
+const _webpPrefix = [0x52, 0x49, 0x46, 0x46]; // "RIFF"
+const _gifMagic = [0x47, 0x49, 0x46]; // "GIF"
+
+/// Detect MIME type from file magic bytes. Returns null if unrecognized.
+String? _mimeFromBytes(Uint8List bytes) {
+  if (bytes.length < 12) return null;
+  if (_startsWith(bytes, _jpegMagic)) return 'image/jpeg';
+  if (_startsWith(bytes, _pngMagic)) return 'image/png';
+  if (_startsWith(bytes, _webpPrefix) &&
+      bytes[8] == 0x57 &&
+      bytes[9] == 0x45 &&
+      bytes[10] == 0x42 &&
+      bytes[11] == 0x50) {
+    return 'image/webp';
+  }
+  if (_startsWith(bytes, _gifMagic)) return 'image/gif';
+  return null;
+}
+
+bool _startsWith(Uint8List data, List<int> prefix) {
+  for (int i = 0; i < prefix.length; i++) {
+    if (data[i] != prefix[i]) return false;
+  }
+  return true;
+}
+
+class MediaUploadNotifier extends Notifier<MediaUploadState>
+    with DisposableNotifier<MediaUploadState> {
   late GraphQLClient _client;
 
   @override
   MediaUploadState build() {
     _client = ref.watch(graphqlClientProvider);
+    initDisposable();
     return const MediaUploadState();
   }
 
@@ -37,7 +69,8 @@ class MediaUploadNotifier extends Notifier<MediaUploadState> {
     double? maxHeight,
     int? imageQuality,
   }) async {
-    state = const MediaUploadState(isUploading: false);
+    // Guard against double-tap / concurrent uploads
+    if (state.isUploading) return null;
 
     try {
       final picker = ImagePicker();
@@ -49,9 +82,19 @@ class MediaUploadNotifier extends Notifier<MediaUploadState> {
       );
 
       if (picked == null) return null; // User cancelled
+      if (disposed) return null;
 
       final bytes = await picked.readAsBytes();
-      final contentType = _mimeFromPath(picked.name);
+      if (disposed) return null;
+
+      // Validate content type from magic bytes, not file extension
+      final contentType = _mimeFromBytes(bytes);
+      if (contentType == null) {
+        state = const MediaUploadState(
+          error: 'Unsupported image format. Use JPEG, PNG, or WebP.',
+        );
+        return null;
+      }
 
       return await _upload(
         category: category,
@@ -60,9 +103,11 @@ class MediaUploadNotifier extends Notifier<MediaUploadState> {
       );
     } catch (e) {
       debugPrint('[MediaUpload] pickAndUploadImage error: $e');
-      state = const MediaUploadState(
-        error: 'Failed to upload image. Please try again.',
-      );
+      if (!disposed) {
+        state = const MediaUploadState(
+          error: 'Failed to upload image. Please try again.',
+        );
+      }
       return null;
     }
   }
@@ -73,6 +118,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState> {
     required Uint8List bytes,
     required String contentType,
   }) async {
+    if (disposed) return null;
     state = const MediaUploadState(isUploading: true, progress: 0);
 
     // Step 1: Get presigned URL from backend
@@ -86,6 +132,8 @@ class MediaUploadNotifier extends Notifier<MediaUploadState> {
         },
       ),
     );
+
+    if (disposed) return null;
 
     if (result.hasException) {
       final message =
@@ -118,6 +166,8 @@ class MediaUploadNotifier extends Notifier<MediaUploadState> {
       body: bytes,
     );
 
+    if (disposed) return null;
+
     if (response.statusCode != 200) {
       debugPrint(
         '[MediaUpload] R2 PUT failed: ${response.statusCode} ${response.body}',
@@ -133,23 +183,8 @@ class MediaUploadNotifier extends Notifier<MediaUploadState> {
   }
 
   void clearError() {
-    state = const MediaUploadState();
-  }
-
-  static String _mimeFromPath(String path) {
-    final ext = path.split('.').last.toLowerCase();
-    switch (ext) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'webp':
-        return 'image/webp';
-      case 'gif':
-        return 'image/gif';
-      default:
-        return 'image/jpeg';
+    if (!disposed) {
+      state = const MediaUploadState();
     }
   }
 }
