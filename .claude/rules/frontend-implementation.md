@@ -436,3 +436,52 @@ const myChildrenQuery = '''
 ```
 
 該当パターン: `myChildren`, `switchToChild`, `switchBackToGuardian` 等、`User` 型を返す全クエリ。
+
+### R2 CORS 設定（Flutter Web からの直接アップロード）
+
+**Flutter Web から R2 に直接 PUT/GET する場合、R2 バケットの CORS 設定が必要。**
+
+R2 ダッシュボード → バケット → Settings → CORS Policy で以下を設定：
+
+```json
+[
+  {
+    "AllowedOrigins": ["*"],
+    "AllowedMethods": ["GET", "PUT"],
+    "AllowedHeaders": ["Content-Type"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+- `PUT`: presigned URL へのアップロード用
+- `GET`: `Image.network` での画像表示用
+- カスタムドメイン（`media-dev.gleisner.app` 等）で CORS が効かない場合は、Cloudflare **Transform Rules** → **Modify Response Header** で `Access-Control-Allow-Origin: *` を追加
+
+### UI コンポーネント置換チェックリスト
+
+**共有ウィジェットを新規作成して既存の private ウィジェットを置き換える場合、全使用箇所を一括で置換すること。**
+
+PR #130 で `_GenerativeAvatar` → `AvatarImage` を artist_page_screen のみ変更し、profile_screen / discover_screen / avatar_rail を見落とした結果、「アバターをアップロードしたのに他の画面に反映されない」バグが発生。
+
+手順:
+1. `grep -r "旧ウィジェット名"` で全使用箇所を洗い出す
+2. 全箇所を新ウィジェットに置換
+3. 新ウィジェットに必要なデータ（`avatarUrl` 等）が各呼び出し元で利用可能か確認
+4. Provider の更新が全画面に伝播するか確認（watch vs read、タブ間の state 同期）
+
+### 外部 URL / ファイル検証ルール
+
+**サーバーレスポンスの URL を無検証で使わないこと（SSRF 防止）。ファイルの MIME 判定は拡張子ではなくマジックバイトで行うこと。**
+
+PR #130 で初回実装時に URL ドメイン検証なし + 拡張子ベース MIME 判定で提出し、4回のレビューを要した。
+
+URL 検証:
+- uploadUrl → `*.r2.cloudflarestorage.com`（HTTPS のみ）
+- publicUrl → 許可ドメインのホワイトリスト（`*.r2.dev`, `*.gleisner.app`）
+- `Uri.tryParse` + `scheme` + `host.endsWith()` で検証
+
+ファイル検証:
+- マジックバイト（先頭 4〜12 バイト）で JPEG/PNG/WebP/GIF を判定
+- 拡張子は信用しない（`malware.exe` を `image.jpg` にリネーム可能）
+- 未知のフォーマットは拒否（`null` 返却 → ユーザーにエラー表示）
