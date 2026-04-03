@@ -1,6 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/track.dart';
 import '../../providers/analytics_provider.dart';
@@ -71,6 +72,13 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsets.only(right: spaceSm),
+              child: SvgPicture.asset(
+                'assets/images/logo-icon.svg',
+                height: 28,
+              ),
+            ),
             Flexible(
               child: Text(
                 timeline.artist?.displayName ??
