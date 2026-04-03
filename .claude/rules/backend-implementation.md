@@ -200,8 +200,75 @@ async function generateInvites(db, createdBy) { ... }
 
 将来のメンテナが「バグでは？」と疑わないように、「なぜバイパスが妥当か」を1行で説明する。
 
+### R2/S3 presigned URL の注意事項
+
+**`PutObjectCommand` の `ContentLength` は「上限」ではなく「正確なバイト数」の宣言。**
+
+presigned URL に含まれる `Content-Length` は署名対象であり、クライアントが送信するファイルサイズと一致しなければ R2/S3 がリクエストを拒否する。「maxSize を渡せば上限制限になる」という誤解に注意。
+
+```typescript
+// ❌ maxSize を渡しても上限制限にならない — 実サイズと不一致で常にエラー
+const command = new PutObjectCommand({
+  ContentLength: limits.maxSize,
+});
+
+// ✅ クライアントから実サイズを受け取り、上限チェック後に渡す
+if (contentLength > limits.maxSize) throw new R2ValidationError("...");
+const command = new PutObjectCommand({
+  ContentLength: contentLength,
+});
+```
+
+### 外部 SDK エラーのクライアント露出防止
+
+**外部 SDK（AWS SDK、AI API 等）のエラーメッセージをクライアントにそのまま返さないこと。** バケット名、エンドポイント、認証情報の断片が含まれうる。
+
+カスタムエラークラスで「クライアントに安全なエラー」と「内部エラー」を分離し、`instanceof` で判定する。文字列前方一致（`startsWith`）での分岐はメッセージ変更時にサイレントに壊れるため禁止。
+
+```typescript
+// ❌ 内部エラーをそのまま露出
+throw new GraphQLError(err.message);
+
+// ❌ 文字列前方一致 — メッセージ変更で壊れる
+const message = err.message.startsWith("Content type ") ? err.message : "Failed";
+
+// ✅ カスタムエラークラスで安全な境界を作る
+if (err instanceof R2ValidationError) {
+  throw new GraphQLError(err.message); // 安全なメッセージのみ
+}
+console.error("internal error:", err);
+throw new GraphQLError("Failed to generate upload URL");
+```
+
 ### テスト
 
 - 共通ヘルパーは `src/graphql/__tests__/helpers.ts` に集約。新規テストファイルではこれを import
 - 各テストファイルの `beforeEach` で `TRUNCATE users CASCADE` を実行
 - **⚠ テスト実行後は seed データが消える。** 動作確認前に `./scripts/seed-test-data.sh` を再実行すること
+
+### テストモックにビジネスロジックを再実装しない
+
+**外部サービスのモックは固定値返却に留め、バリデーションロジックの検証は単体テストに委ねること。**
+
+モック内に許可リスト・サイズ上限等のロジックを再実装すると、本体を変更してもモックが追従せず、テストが実態と乖離したまま通過する。定数は本体から `export` して共有する。
+
+```typescript
+// ❌ モック内にロジックを再実装 — 本体と乖離するリスク
+vi.mock("../../storage/r2.js", () => ({
+  generateUploadUrl: vi.fn(async (...) => {
+    const allowed = { avatars: ["image/jpeg", ...] }; // ← r2.ts と二重管理
+    if (!allowed[category].includes(contentType)) throw ...;
+  }),
+}));
+
+// ✅ 定数は本体から import + モックは固定値返却
+vi.mock("../../storage/r2.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("...")>();
+  return {
+    ...actual, // ALLOWED_CONTENT_TYPES, UPLOAD_LIMITS 等はそのまま
+    generateUploadUrl: vi.fn(async () => ({
+      uploadUrl: "https://test/upload", publicUrl: "https://test/file", key: "test",
+    })),
+  };
+});
+```
