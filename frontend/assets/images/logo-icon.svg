@@ -1,13 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">
-  <!-- Gleisner Logo: Icon / upper body (G2) -->
-  <!-- For favicon, app icon, small contexts -->
   <style>
     .star { fill: #d4af37; }
-    .line { stroke: #d4af37; stroke-width: 1; opacity: 0.5; }
-    .suit { fill: rgba(212,175,55,0.06); stroke: #d4af37; stroke-width: 1.5; }
-    .visor { fill: rgba(212,175,55,0.18); stroke: #d4af37; stroke-width: 1.5; }
-    .panel { fill: none; stroke: #d4af37; stroke-width: 0.6; opacity: 0.35; }
-    .rivet { fill: #d4af37; opacity: 0.4; }
+    .line { stroke: #d4af37; stroke-width: 1.2; opacity: 0.6; }
+    .suit { fill: rgba(212,175,55,0.15); stroke: #d4af37; stroke-width: 2.5; }
+    .visor { fill: rgba(212,175,55,0.35); stroke: #d4af37; stroke-width: 2.5; }
+    .panel { fill: none; stroke: #d4af37; stroke-width: 0.8; opacity: 0.5; }
+    .rivet { fill: #d4af37; opacity: 0.6; }
   </style>
 
   <!-- Body (no legs) -->
@@ -15,27 +13,26 @@
 
   <!-- Visor -->
   <rect x="68" y="48" width="64" height="48" rx="12" class="visor"/>
-  <ellipse cx="86" cy="66" rx="5" ry="9" fill="#d4af37" opacity="0.25"/>
-  <ellipse cx="98" cy="60" rx="3" ry="5" fill="#d4af37" opacity="0.12"/>
+  <ellipse cx="86" cy="66" rx="5" ry="9" fill="#d4af37" opacity="0.4"/>
+  <ellipse cx="98" cy="60" rx="3" ry="5" fill="#d4af37" opacity="0.2"/>
 
   <!-- Panel lines -->
   <line x1="58" y1="120" x2="142" y2="120" class="panel"/>
   <line x1="56" y1="175" x2="144" y2="175" class="panel"/>
-  <circle cx="100" cy="132" r="2.5" class="star" opacity="0.5"/>
-  <!-- Rivets -->
-  <circle cx="60" cy="95" r="2" class="rivet"/>
-  <circle cx="140" cy="95" r="2" class="rivet"/>
+  <circle cx="100" cy="132" r="3" class="star" opacity="0.7"/>
+  <circle cx="60" cy="95" r="2.5" class="rivet"/>
+  <circle cx="140" cy="95" r="2.5" class="rivet"/>
 
   <!-- Backpack -->
-  <path d="M150,105 L170,108 L170,175 L150,178 Z" class="suit" stroke-width="1"/>
+  <path d="M150,105 L170,108 L170,175 L150,178 Z" class="suit" stroke-width="2"/>
 
   <!-- Constellation inside -->
-  <circle cx="78" cy="142" r="3" class="star"/>
-  <circle cx="120" cy="135" r="2.5" class="star"/>
-  <circle cx="135" cy="160" r="3" class="star"/>
-  <circle cx="92" cy="180" r="2.5" class="star"/>
-  <circle cx="128" cy="195" r="3" class="star"/>
-  <circle cx="72" cy="198" r="2.2" class="star"/>
+  <circle cx="78" cy="142" r="3.5" class="star"/>
+  <circle cx="120" cy="135" r="3" class="star"/>
+  <circle cx="135" cy="160" r="3.5" class="star"/>
+  <circle cx="92" cy="180" r="3" class="star"/>
+  <circle cx="128" cy="195" r="3.5" class="star"/>
+  <circle cx="72" cy="198" r="2.8" class="star"/>
   <line x1="78" y1="142" x2="120" y2="135" class="line"/>
   <line x1="120" y1="135" x2="135" y2="160" class="line"/>
   <line x1="120" y1="135" x2="92" y2="180" class="line"/>
@@ -44,12 +41,12 @@
   <line x1="92" y1="180" x2="72" y2="198" class="line"/>
 
   <!-- Outer constellation -->
-  <circle cx="28" cy="60" r="2.5" class="star" opacity="0.45"/>
-  <circle cx="178" cy="80" r="2" class="star" opacity="0.35"/>
-  <circle cx="22" cy="180" r="3" class="star" opacity="0.45"/>
-  <circle cx="182" cy="190" r="2.5" class="star" opacity="0.35"/>
-  <line x1="28" y1="60" x2="78" y2="142" class="line" opacity="0.25"/>
-  <line x1="178" y1="80" x2="135" y2="160" class="line" opacity="0.25"/>
-  <line x1="22" y1="180" x2="72" y2="198" class="line" opacity="0.25"/>
-  <line x1="182" y1="190" x2="128" y2="195" class="line" opacity="0.25"/>
+  <circle cx="28" cy="60" r="3" class="star" opacity="0.55"/>
+  <circle cx="178" cy="80" r="2.5" class="star" opacity="0.45"/>
+  <circle cx="22" cy="180" r="3.5" class="star" opacity="0.55"/>
+  <circle cx="182" cy="190" r="3" class="star" opacity="0.45"/>
+  <line x1="28" y1="60" x2="78" y2="142" class="line" opacity="0.3"/>
+  <line x1="178" y1="80" x2="135" y2="160" class="line" opacity="0.3"/>
+  <line x1="22" y1="180" x2="72" y2="198" class="line" opacity="0.3"/>
+  <line x1="182" y1="190" x2="128" y2="195" class="line" opacity="0.3"/>
 </svg>
