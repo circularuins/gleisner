@@ -1,9 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 280" width="200" height="280">
-  <!-- Body -->
-  <path d="M65,72 C65,42 135,42 135,72 L140,195 C140,222 125,235 100,235 C75,235 60,222 60,195 Z" fill="#d4af37" fill-opacity="0.2" stroke="#d4af37" stroke-width="3"/>
+  <!-- Body fill (translucent) -->
+  <path d="M65,72 C65,42 135,42 135,72 L140,195 C140,222 125,235 100,235 C75,235 60,222 60,195 Z" fill="#d4af37" fill-opacity="0.2" stroke="none"/>
+  <!-- Body outline (fully opaque) -->
+  <path d="M65,72 C65,42 135,42 135,72 L140,195 C140,222 125,235 100,235 C75,235 60,222 60,195 Z" fill="none" stroke="#d4af37" stroke-width="3"/>
 
-  <!-- Visor -->
-  <rect x="75" y="58" width="50" height="38" rx="9" fill="#d4af37" fill-opacity="0.4" stroke="#d4af37" stroke-width="3"/>
+  <!-- Visor fill -->
+  <rect x="75" y="58" width="50" height="38" rx="9" fill="#d4af37" fill-opacity="0.4" stroke="none"/>
+  <!-- Visor outline -->
+  <rect x="75" y="58" width="50" height="38" rx="9" fill="none" stroke="#d4af37" stroke-width="3"/>
   <ellipse cx="89" cy="72" rx="4" ry="7" fill="#d4af37" fill-opacity="0.45"/>
 
   <!-- Panel lines -->
@@ -13,8 +17,10 @@
   <circle cx="68" cy="90" r="2" fill="#d4af37" opacity="0.6"/>
   <circle cx="132" cy="90" r="2" fill="#d4af37" opacity="0.6"/>
 
-  <!-- Backpack -->
-  <path d="M140,100 L155,103 L155,180 L140,183 Z" fill="#d4af37" fill-opacity="0.2" stroke="#d4af37" stroke-width="2.5"/>
+  <!-- Backpack fill -->
+  <path d="M140,100 L155,103 L155,180 L140,183 Z" fill="#d4af37" fill-opacity="0.2" stroke="none"/>
+  <!-- Backpack outline -->
+  <path d="M140,100 L155,103 L155,180 L140,183 Z" fill="none" stroke="#d4af37" stroke-width="2.5"/>
   <line x1="143" y1="125" x2="152" y2="126" stroke="#d4af37" stroke-width="1" opacity="0.4"/>
   <line x1="143" y1="150" x2="152" y2="151" stroke="#d4af37" stroke-width="1" opacity="0.4"/>
 
@@ -36,11 +42,15 @@
   <line x1="76" y1="200" x2="105" y2="212" stroke="#d4af37" stroke-width="1.2" opacity="0.6"/>
   <line x1="122" y1="190" x2="105" y2="212" stroke="#d4af37" stroke-width="1.2" opacity="0.6"/>
 
-  <!-- Legs -->
-  <rect x="78" y="233" width="16" height="24" rx="5" fill="#d4af37" fill-opacity="0.2" stroke="#d4af37" stroke-width="3"/>
-  <rect x="106" y="233" width="16" height="24" rx="5" fill="#d4af37" fill-opacity="0.2" stroke="#d4af37" stroke-width="3"/>
-  <rect x="75" y="254" width="22" height="6" rx="3" fill="#d4af37" fill-opacity="0.2" stroke="#d4af37" stroke-width="2.5"/>
-  <rect x="103" y="254" width="22" height="6" rx="3" fill="#d4af37" fill-opacity="0.2" stroke="#d4af37" stroke-width="2.5"/>
+  <!-- Legs fill + outline -->
+  <rect x="78" y="233" width="16" height="24" rx="5" fill="#d4af37" fill-opacity="0.2" stroke="none"/>
+  <rect x="78" y="233" width="16" height="24" rx="5" fill="none" stroke="#d4af37" stroke-width="3"/>
+  <rect x="106" y="233" width="16" height="24" rx="5" fill="#d4af37" fill-opacity="0.2" stroke="none"/>
+  <rect x="106" y="233" width="16" height="24" rx="5" fill="none" stroke="#d4af37" stroke-width="3"/>
+  <rect x="75" y="254" width="22" height="6" rx="3" fill="#d4af37" fill-opacity="0.2" stroke="none"/>
+  <rect x="75" y="254" width="22" height="6" rx="3" fill="none" stroke="#d4af37" stroke-width="2.5"/>
+  <rect x="103" y="254" width="22" height="6" rx="3" fill="#d4af37" fill-opacity="0.2" stroke="none"/>
+  <rect x="103" y="254" width="22" height="6" rx="3" fill="none" stroke="#d4af37" stroke-width="2.5"/>
 
   <!-- Ambient stars -->
   <circle cx="30" cy="55" r="2.2" fill="#d4af37" opacity="0.5"/>
