@@ -254,7 +254,7 @@ describe("Post GraphQL integration", () => {
           mediaType: "image",
           title: "My Photo",
           body: "A beautiful sunset",
-          mediaUrl: "https://example.com/photo.jpg",
+          mediaUrl: "http://localhost:4000/photo.jpg",
           importance: 0.8,
           layoutX: 10,
           layoutY: 20,
@@ -268,7 +268,7 @@ describe("Post GraphQL integration", () => {
       expect(post.mediaType).toBe("image");
       expect(post.title).toBe("My Photo");
       expect(post.body).toBe("A beautiful sunset");
-      expect(post.mediaUrl).toBe("https://example.com/photo.jpg");
+      expect(post.mediaUrl).toBe("http://localhost:4000/photo.jpg");
       expect(post.importance).toBe(0.8);
       expect(post.layoutX).toBe(10);
       expect(post.layoutY).toBe(20);

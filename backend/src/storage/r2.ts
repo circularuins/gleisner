@@ -35,7 +35,7 @@ function getS3Client(): S3Client {
 
 export type UploadCategory = "avatars" | "covers" | "media";
 
-const UPLOAD_LIMITS: Record<UploadCategory, { maxSize: number }> = {
+export const UPLOAD_LIMITS: Record<UploadCategory, { maxSize: number }> = {
   avatars: { maxSize: 5 * 1024 * 1024 }, // 5 MB
   covers: { maxSize: 10 * 1024 * 1024 }, // 10 MB
   media: { maxSize: 50 * 1024 * 1024 }, // 50 MB
@@ -58,10 +58,32 @@ export const ALLOWED_CONTENT_TYPES: Record<UploadCategory, string[]> = {
   ],
 };
 
+/** Derive file extension from content type instead of trusting client filename. */
+const CONTENT_TYPE_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "audio/mpeg": "mp3",
+  "audio/mp4": "m4a",
+  "audio/ogg": "ogg",
+  "audio/webm": "weba",
+};
+
 export interface PresignedUpload {
   uploadUrl: string;
   publicUrl: string;
   key: string;
+}
+
+/** Validation error thrown by R2 upload functions. Safe to expose to clients. */
+export class R2ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "R2ValidationError";
+  }
 }
 
 /**
@@ -71,33 +93,33 @@ export interface PresignedUpload {
  * @param contentLength - Actual file size in bytes declared by the client.
  *   Validated against category max size and included in the presigned signature
  *   so R2 rejects uploads that don't match the declared size.
+ * @throws R2ValidationError for client input issues (safe to expose)
+ * @throws Error for infrastructure issues (must NOT be exposed)
  */
 export async function generateUploadUrl(
   userId: string,
   category: UploadCategory,
   contentType: string,
-  filename: string,
   contentLength: number,
 ): Promise<PresignedUpload> {
   const limits = UPLOAD_LIMITS[category];
   const allowed = ALLOWED_CONTENT_TYPES[category];
 
   if (!allowed.includes(contentType)) {
-    throw new Error(
+    throw new R2ValidationError(
       `Content type ${contentType} is not allowed for ${category}. Allowed: ${allowed.join(", ")}`,
     );
   }
 
   if (contentLength <= 0 || contentLength > limits.maxSize) {
-    throw new Error(
+    throw new R2ValidationError(
       `File size must be between 1 byte and ${limits.maxSize} bytes for ${category}`,
     );
   }
 
-  const ext = filename.split(".").pop()?.toLowerCase() ?? "bin";
-  const safeExt = ext.replace(/[^a-z0-9]/g, "").slice(0, 10);
+  const ext = CONTENT_TYPE_EXT[contentType] ?? "bin";
   const uuid = crypto.randomUUID();
-  const key = `${category}/${userId}/${uuid}.${safeExt}`;
+  const key = `${category}/${userId}/${uuid}.${ext}`;
 
   const command = new PutObjectCommand({
     Bucket: env.R2_BUCKET_NAME,
@@ -119,4 +141,17 @@ export async function generateUploadUrl(
 export function isR2Url(url: string): boolean {
   if (!env.R2_PUBLIC_URL) return false;
   return url.startsWith(env.R2_PUBLIC_URL + "/");
+}
+
+/**
+ * Check if a URL is allowed for media fields in local dev (R2 not configured).
+ * Only localhost URLs are permitted to prevent external URL injection.
+ */
+export function isLocalDevUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
 }
