@@ -17,6 +17,7 @@ import '../../theme/gleisner_tokens.dart';
 import 'create_child_sheet.dart';
 import 'edit_profile_sheet.dart';
 import 'register_artist_wizard.dart';
+import '../../widgets/media/avatar_image.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -129,13 +130,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // User info
           Row(
             children: [
-              CircleAvatar(
-                radius: 32,
-                backgroundColor: colorSurface2,
-                child: Text(
-                  user.username[0].toUpperCase(),
-                  style: textTitle.copyWith(color: colorTextPrimary),
-                ),
+              AvatarImage(
+                imageUrl: user.avatarUrl,
+                seed: user.username,
+                size: 64,
               ),
               const SizedBox(width: spaceLg),
               Expanded(
@@ -449,13 +447,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: colorSurface2,
-            child: Text(
-              child.username[0].toUpperCase(),
-              style: textLabel.copyWith(color: colorTextPrimary),
-            ),
+          AvatarImage(
+            imageUrl: child.avatarUrl,
+            seed: child.username,
+            size: 36,
           ),
           const SizedBox(width: spaceMd),
           Expanded(

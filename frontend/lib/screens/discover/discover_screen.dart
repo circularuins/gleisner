@@ -11,6 +11,7 @@ import '../../providers/discover_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/deterministic_rng.dart';
+import '../../widgets/media/avatar_image.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
@@ -339,9 +340,19 @@ class _ArtistCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  CustomPaint(
-                    painter: _ArtistCoverPainter(seed: artist.artistUsername),
-                  ),
+                  artist.coverImageUrl != null
+                      ? Image.network(
+                          artist.coverImageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => CustomPaint(
+                            painter: _ArtistCoverPainter(
+                                seed: artist.artistUsername),
+                          ),
+                        )
+                      : CustomPaint(
+                          painter: _ArtistCoverPainter(
+                              seed: artist.artistUsername),
+                        ),
                   // Gradient overlay for text readability
                   Positioned(
                     left: 0,
@@ -365,10 +376,10 @@ class _ArtistCard extends StatelessWidget {
                   Positioned(
                     left: spaceSm,
                     bottom: spaceXs,
-                    child: _ArtistAvatar(
+                    child: AvatarImage(
+                      imageUrl: artist.avatarUrl,
                       seed: artist.artistUsername,
                       size: 32,
-                      isPrivate: artist.isPrivate,
                     ),
                   ),
                 ],

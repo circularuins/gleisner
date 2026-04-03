@@ -41,6 +41,7 @@ class CoverImage extends StatelessWidget {
 
     if (onTap != null) {
       return GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Stack(
           children: [

@@ -9,6 +9,7 @@ import '../../utils/deterministic_rng.dart';
 class AvatarRail extends StatelessWidget {
   final List<TunedInArtist> artists;
   final String? selfArtistUsername;
+  final String? selfAvatarUrl;
   final bool selfIsPrivate;
   final String? selectedArtistUsername;
   final ValueChanged<String> onSelectArtist;
@@ -18,6 +19,7 @@ class AvatarRail extends StatelessWidget {
     super.key,
     required this.artists,
     this.selfArtistUsername,
+    this.selfAvatarUrl,
     this.selfIsPrivate = false,
     this.selectedArtistUsername,
     required this.onSelectArtist,
@@ -51,6 +53,7 @@ class AvatarRail extends StatelessWidget {
             final isSelected = selectedArtistUsername == selfArtistUsername;
             return _AvatarItem(
               username: selfArtistUsername!,
+              avatarUrl: selfAvatarUrl,
               displayName: 'You',
               isSelected: isSelected,
               isSelf: true,
@@ -65,6 +68,7 @@ class AvatarRail extends StatelessWidget {
 
           return _AvatarItem(
             username: artist.artistUsername,
+            avatarUrl: artist.avatarUrl,
             displayName: artist.displayName ?? artist.artistUsername,
             isSelected: isSelected,
             isSelf: false,
@@ -79,6 +83,7 @@ class AvatarRail extends StatelessWidget {
 
 class _AvatarItem extends StatelessWidget {
   final String username;
+  final String? avatarUrl;
   final String displayName;
   final bool isSelected;
   final bool isSelf;
@@ -87,6 +92,7 @@ class _AvatarItem extends StatelessWidget {
 
   const _AvatarItem({
     required this.username,
+    this.avatarUrl,
     required this.displayName,
     required this.isSelected,
     required this.isSelf,
@@ -101,8 +107,8 @@ class _AvatarItem extends StatelessWidget {
     final avatarColor = HSLColor.fromAHSL(1, hue, 0.5, 0.3).toColor();
     final ringColor = HSLColor.fromAHSL(1, hue, 0.6, 0.5).toColor();
 
-    // Fixed size — selection indicated by ring color only (no size change = no overflow)
     const double avatarSize = 36;
+    final hasImage = avatarUrl != null && avatarUrl!.isNotEmpty;
 
     return GestureDetector(
       onTap: onTap,
@@ -124,11 +130,11 @@ class _AvatarItem extends StatelessWidget {
                       height: avatarSize,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: avatarColor,
-                        border: Border.all(
-                          color: isSelected ? ringColor : colorBorder,
-                          width: isSelected ? 2.5 : 1.5,
-                        ),
+                        border: isSelected
+                            ? Border.all(color: ringColor, width: 2.5)
+                            : hasImage
+                                ? null
+                                : Border.all(color: colorBorder, width: 1.5),
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
@@ -139,15 +145,22 @@ class _AvatarItem extends StatelessWidget {
                               ]
                             : null,
                       ),
-                      child: Center(
-                        child: Text(
-                          username.isNotEmpty ? username[0].toUpperCase() : '?',
-                          style: const TextStyle(
-                            color: colorTextPrimary,
-                            fontSize: 14,
-                            fontWeight: weightBold,
-                          ),
-                        ),
+                      child: ClipOval(
+                        child: hasImage
+                            ? Image.network(
+                                avatarUrl!,
+                                width: avatarSize,
+                                height: avatarSize,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => _InitialFallback(
+                                  username: username,
+                                  avatarColor: avatarColor,
+                                ),
+                              )
+                            : _InitialFallback(
+                                username: username,
+                                avatarColor: avatarColor,
+                              ),
                       ),
                     ),
                     if (isPrivate)
@@ -194,5 +207,28 @@ class _AvatarItem extends StatelessWidget {
   static String _truncate(String s, int max) {
     if (s.length <= max) return s;
     return '${s.substring(0, max)}…';
+  }
+}
+
+class _InitialFallback extends StatelessWidget {
+  final String username;
+  final Color avatarColor;
+
+  const _InitialFallback({required this.username, required this.avatarColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: avatarColor,
+      alignment: Alignment.center,
+      child: Text(
+        username.isNotEmpty ? username[0].toUpperCase() : '?',
+        style: const TextStyle(
+          color: colorTextPrimary,
+          fontSize: 14,
+          fontWeight: weightBold,
+        ),
+      ),
+    );
   }
 }

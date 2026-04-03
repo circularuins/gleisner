@@ -8,6 +8,7 @@ import '../../models/artist.dart';
 import '../../models/post.dart';
 import '../../providers/analytics_provider.dart';
 import '../../providers/artist_page_provider.dart';
+import '../../providers/discover_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/edit_artist_provider.dart';
 import '../../providers/my_artist_provider.dart';
@@ -108,18 +109,20 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                               ? () => _uploadCoverImage(context)
                               : null,
                         ),
-                        // Gradient fade at bottom
+                        // Gradient fade at bottom (IgnorePointer so taps pass through to CoverImage)
                         const Positioned(
                           left: 0,
                           right: 0,
                           bottom: 0,
                           height: 60,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [Color(0x00000000), colorSurface0],
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [Color(0x00000000), colorSurface0],
+                                ),
                               ),
                             ),
                           ),
@@ -641,6 +644,8 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
         );
     if (url == null || !context.mounted) return;
     await ref.read(editArtistProvider.notifier).updateArtist(avatarUrl: url);
+    if (!context.mounted) return;
+    _refreshAfterUpload();
   }
 
   Future<void> _uploadCoverImage(BuildContext context) async {
@@ -655,6 +660,15 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
     await ref
         .read(editArtistProvider.notifier)
         .updateArtist(coverImageUrl: url);
+    if (!context.mounted) return;
+    _refreshAfterUpload();
+  }
+
+  void _refreshAfterUpload() {
+    ref.read(artistPageProvider.notifier).loadArtist(widget.username);
+    ref.invalidate(tuneInProvider);
+    ref.read(tuneInProvider.notifier).loadMyTuneIns();
+    ref.read(discoverProvider.notifier).loadInitial();
   }
 
   void _showEditDisplayName(BuildContext context, Artist artist) {

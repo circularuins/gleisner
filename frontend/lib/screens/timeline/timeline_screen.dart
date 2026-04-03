@@ -365,6 +365,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                 AvatarRail(
                   artists: tuneIn.tunedInArtists,
                   selfArtistUsername: selfArtistUsername,
+                  selfAvatarUrl: myArtist?.avatarUrl,
                   selfIsPrivate: myArtist?.isPrivate ?? false,
                   selectedArtistUsername:
                       _viewingArtistUsername ??
