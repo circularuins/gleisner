@@ -41,7 +41,7 @@ const UPLOAD_LIMITS: Record<UploadCategory, { maxSize: number }> = {
   media: { maxSize: 50 * 1024 * 1024 }, // 50 MB
 };
 
-const ALLOWED_CONTENT_TYPES: Record<UploadCategory, string[]> = {
+export const ALLOWED_CONTENT_TYPES: Record<UploadCategory, string[]> = {
   avatars: ["image/jpeg", "image/png", "image/webp"],
   covers: ["image/jpeg", "image/png", "image/webp"],
   media: [
@@ -67,12 +67,17 @@ export interface PresignedUpload {
 /**
  * Generate a presigned PUT URL for direct R2 upload.
  * The key is structured as: {category}/{userId}/{uuid}.{ext}
+ *
+ * @param contentLength - Actual file size in bytes declared by the client.
+ *   Validated against category max size and included in the presigned signature
+ *   so R2 rejects uploads that don't match the declared size.
  */
 export async function generateUploadUrl(
   userId: string,
   category: UploadCategory,
   contentType: string,
   filename: string,
+  contentLength: number,
 ): Promise<PresignedUpload> {
   const limits = UPLOAD_LIMITS[category];
   const allowed = ALLOWED_CONTENT_TYPES[category];
@@ -80,6 +85,12 @@ export async function generateUploadUrl(
   if (!allowed.includes(contentType)) {
     throw new Error(
       `Content type ${contentType} is not allowed for ${category}. Allowed: ${allowed.join(", ")}`,
+    );
+  }
+
+  if (contentLength <= 0 || contentLength > limits.maxSize) {
+    throw new Error(
+      `File size must be between 1 byte and ${limits.maxSize} bytes for ${category}`,
     );
   }
 
@@ -92,7 +103,7 @@ export async function generateUploadUrl(
     Bucket: env.R2_BUCKET_NAME,
     Key: key,
     ContentType: contentType,
-    ContentLength: limits.maxSize,
+    ContentLength: contentLength,
   });
 
   const uploadUrl = await getSignedUrl(getS3Client(), command, {

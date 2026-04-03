@@ -31,6 +31,7 @@ builder.mutationFields((t) => ({
       category: t.arg({ type: UploadCategoryEnum, required: true }),
       contentType: t.arg.string({ required: true }),
       filename: t.arg.string({ required: true }),
+      contentLength: t.arg.int({ required: true }),
     },
     resolve: async (_parent, args, ctx) => {
       if (!ctx.authUser) {
@@ -49,12 +50,19 @@ builder.mutationFields((t) => ({
           args.category as UploadCategory,
           args.contentType,
           args.filename,
+          args.contentLength,
         );
       } catch (err) {
-        if (err instanceof Error) {
-          throw new GraphQLError(err.message);
-        }
-        throw new GraphQLError("Failed to generate upload URL");
+        // Log internal errors (may contain AWS SDK details, bucket names, etc.)
+        // but only expose safe validation messages to the client
+        const message =
+          err instanceof Error && err.message.startsWith("Content type ")
+            ? err.message
+            : err instanceof Error && err.message.startsWith("File size ")
+              ? err.message
+              : "Failed to generate upload URL";
+        console.error("getUploadUrl error:", err);
+        throw new GraphQLError(message);
       }
     },
   }),
