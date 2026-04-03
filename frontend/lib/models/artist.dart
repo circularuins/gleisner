@@ -140,8 +140,7 @@ class Artist {
           [],
       milestones:
           (json['milestones'] as List<dynamic>?)
-              ?.map(
-                  (m) => ArtistMilestone.fromJson(m as Map<String, dynamic>))
+              ?.map((m) => ArtistMilestone.fromJson(m as Map<String, dynamic>))
               .toList() ??
           [],
     );

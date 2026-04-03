@@ -28,7 +28,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SvgPicture.asset(GleisnerAssets.logoFull, height: 120, semanticsLabel: 'Gleisner logo'),
+            SvgPicture.asset(
+              GleisnerAssets.logoFull,
+              height: 120,
+              semanticsLabel: 'Gleisner logo',
+            ),
             const SizedBox(height: spaceXl),
             Text(
               'Gleisner',

@@ -548,6 +548,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         initialAvatarUrl: user.avatarUrl,
         initialProfileVisibility: user.profileVisibility,
         isChildAccount: user.isChildAccount,
+        username: user.username,
       ),
     );
   }

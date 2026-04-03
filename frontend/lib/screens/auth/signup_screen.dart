@@ -95,149 +95,149 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             key: _formKey,
             child: SingleChildScrollView(
               child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const AuthHeader(subtitle: 'Create your account'),
-                const SizedBox(height: spaceXxl),
-                if (authState.error != null) ...[
-                  ErrorBanner(message: authState.error!),
-                  const SizedBox(height: spaceLg),
-                ],
-                TextFormField(
-                  controller: _displayNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Display Name',
-                    hintText: 'How you want to be known',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: spaceLg),
-                TextFormField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Username',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: validateUsername,
-                ),
-                const SizedBox(height: spaceLg),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: validateEmail,
-                ),
-                const SizedBox(height: spaceLg),
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                  ),
-                  obscureText: true,
-                  validator: validatePassword,
-                ),
-                const SizedBox(height: spaceLg),
-                TextFormField(
-                  controller: _passwordConfirmController,
-                  decoration: const InputDecoration(
-                    labelText: 'Confirm Password',
-                    border: OutlineInputBorder(),
-                  ),
-                  obscureText: true,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please confirm your password';
-                    }
-                    if (value != _passwordController.text) {
-                      return 'Passwords do not match';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: spaceLg),
-                Text(
-                  'Birth Year & Month',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: colorTextMuted),
-                ),
-                const SizedBox(height: spaceSm),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: DropdownButtonFormField<int>(
-                        initialValue: _birthYear,
-                        decoration: const InputDecoration(
-                          labelText: 'Year',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: List.generate(DateTime.now().year - 1900 + 1, (
-                          i,
-                        ) {
-                          final year = DateTime.now().year - i;
-                          return DropdownMenuItem(
-                            value: year,
-                            child: Text('$year'),
-                          );
-                        }),
-                        onChanged: (v) => setState(() => _birthYear = v!),
-                      ),
-                    ),
-                    const SizedBox(width: spaceMd),
-                    Expanded(
-                      child: DropdownButtonFormField<int>(
-                        initialValue: _birthMonth,
-                        decoration: const InputDecoration(
-                          labelText: 'Month',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: List.generate(
-                          12,
-                          (i) => DropdownMenuItem(
-                            value: i + 1,
-                            child: Text('${i + 1}'.padLeft(2, '0')),
-                          ),
-                        ),
-                        onChanged: (v) => setState(() => _birthMonth = v!),
-                      ),
-                    ),
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const AuthHeader(subtitle: 'Create your account'),
+                  const SizedBox(height: spaceXxl),
+                  if (authState.error != null) ...[
+                    ErrorBanner(message: authState.error!),
+                    const SizedBox(height: spaceLg),
                   ],
-                ),
-                const SizedBox(height: spaceLg),
-                TextFormField(
-                  controller: _inviteCodeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Invite Code',
-                    hintText: 'Enter your invite code',
-                    border: OutlineInputBorder(),
+                  TextFormField(
+                    controller: _displayNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Display Name',
+                      hintText: 'How you want to be known',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                  maxLength: 20,
-                  validator: validateInviteCode,
-                ),
-                const SizedBox(height: spaceXl),
-                FilledButton(
-                  onPressed: _isSubmitting ? null : _handleSignup,
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Create Account'),
-                ),
-                const SizedBox(height: spaceLg),
-                TextButton(
-                  onPressed: () => context.go('/login'),
-                  child: const Text('Already have an account? Sign in'),
-                ),
-              ],
-            ),
+                  const SizedBox(height: spaceLg),
+                  TextFormField(
+                    controller: _usernameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: validateUsername,
+                  ),
+                  const SizedBox(height: spaceLg),
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: validateEmail,
+                  ),
+                  const SizedBox(height: spaceLg),
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: const InputDecoration(
+                      labelText: 'Password',
+                      border: OutlineInputBorder(),
+                    ),
+                    obscureText: true,
+                    validator: validatePassword,
+                  ),
+                  const SizedBox(height: spaceLg),
+                  TextFormField(
+                    controller: _passwordConfirmController,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm Password',
+                      border: OutlineInputBorder(),
+                    ),
+                    obscureText: true,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please confirm your password';
+                      }
+                      if (value != _passwordController.text) {
+                        return 'Passwords do not match';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: spaceLg),
+                  Text(
+                    'Birth Year & Month',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: colorTextMuted),
+                  ),
+                  const SizedBox(height: spaceSm),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: DropdownButtonFormField<int>(
+                          initialValue: _birthYear,
+                          decoration: const InputDecoration(
+                            labelText: 'Year',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: List.generate(DateTime.now().year - 1900 + 1, (
+                            i,
+                          ) {
+                            final year = DateTime.now().year - i;
+                            return DropdownMenuItem(
+                              value: year,
+                              child: Text('$year'),
+                            );
+                          }),
+                          onChanged: (v) => setState(() => _birthYear = v!),
+                        ),
+                      ),
+                      const SizedBox(width: spaceMd),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          initialValue: _birthMonth,
+                          decoration: const InputDecoration(
+                            labelText: 'Month',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: List.generate(
+                            12,
+                            (i) => DropdownMenuItem(
+                              value: i + 1,
+                              child: Text('${i + 1}'.padLeft(2, '0')),
+                            ),
+                          ),
+                          onChanged: (v) => setState(() => _birthMonth = v!),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: spaceLg),
+                  TextFormField(
+                    controller: _inviteCodeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Invite Code',
+                      hintText: 'Enter your invite code',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLength: 20,
+                    validator: validateInviteCode,
+                  ),
+                  const SizedBox(height: spaceXl),
+                  FilledButton(
+                    onPressed: _isSubmitting ? null : _handleSignup,
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Create Account'),
+                  ),
+                  const SizedBox(height: spaceLg),
+                  TextButton(
+                    onPressed: () => context.go('/login'),
+                    child: const Text('Already have an account? Sign in'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

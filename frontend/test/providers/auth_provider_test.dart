@@ -269,7 +269,9 @@ void main() {
     tearDown(() => container.dispose());
 
     test('includes inviteCode in mutation variables when provided', () async {
-      await container.read(authProvider.notifier).signup(
+      await container
+          .read(authProvider.notifier)
+          .signup(
             email: 'test@test.com',
             password: 'password123',
             username: 'testuser',
@@ -280,7 +282,9 @@ void main() {
     });
 
     test('omits inviteCode from variables when null', () async {
-      await container.read(authProvider.notifier).signup(
+      await container
+          .read(authProvider.notifier)
+          .signup(
             email: 'test@test.com',
             password: 'password123',
             username: 'testuser',
@@ -292,8 +296,7 @@ void main() {
 
   group('validateInviteCode', () {
     // Import the validator function for boundary tests
-    String? validate(String? v) =>
-        gleisner_validators.validateInviteCode(v);
+    String? validate(String? v) => gleisner_validators.validateInviteCode(v);
 
     test('accepts null (optional field)', () {
       expect(validate(null), isNull);

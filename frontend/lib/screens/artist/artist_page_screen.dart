@@ -14,7 +14,9 @@ import '../../providers/my_artist_provider.dart';
 import '../../providers/pending_artist_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../theme/gleisner_tokens.dart';
-import '../../utils/deterministic_rng.dart';
+import '../../providers/media_upload_provider.dart';
+import '../../widgets/media/avatar_image.dart';
+import '../../widgets/media/cover_image.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
 import '../unassigned_posts/unassigned_posts_screen.dart';
@@ -99,8 +101,12 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                     background: Stack(
                       fit: StackFit.expand,
                       children: [
-                        CustomPaint(
-                          painter: _CoverPainter(seed: artist.artistUsername),
+                        CoverImage(
+                          imageUrl: artist.coverImageUrl,
+                          seed: artist.artistUsername,
+                          onTap: isSelf
+                              ? () => _uploadCoverImage(context)
+                              : null,
                         ),
                         // Gradient fade at bottom
                         const Positioned(
@@ -131,9 +137,13 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                       children: [
                         const SizedBox(height: spaceLg),
                         // Avatar
-                        _GenerativeAvatar(
+                        AvatarImage(
+                          imageUrl: artist.avatarUrl,
                           seed: artist.artistUsername,
                           size: 72,
+                          onTap: isSelf
+                              ? () => _uploadAvatarImage(context)
+                              : null,
                         ),
                         const SizedBox(height: spaceMd),
 
@@ -419,18 +429,19 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                               ),
                               if (isSelf)
                                 IconButton(
-                                  icon: const Icon(Icons.edit_outlined,
-                                      size: 18, color: colorInteractive),
+                                  icon: const Icon(
+                                    Icons.edit_outlined,
+                                    size: 18,
+                                    color: colorInteractive,
+                                  ),
                                   onPressed: () =>
-                                      _showEditMilestonesSheet(
-                                          context, artist),
+                                      _showEditMilestonesSheet(context, artist),
                                   visualDensity: VisualDensity.compact,
                                 ),
                             ],
                           ),
                           if (artist.milestones.isNotEmpty)
-                            _MilestonesSection(
-                                milestones: artist.milestones),
+                            _MilestonesSection(milestones: artist.milestones),
                         ],
 
                         // Tracks section
@@ -618,6 +629,32 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
               ],
             ),
     );
+  }
+
+  Future<void> _uploadAvatarImage(BuildContext context) async {
+    final url = await ref
+        .read(mediaUploadProvider.notifier)
+        .pickAndUploadImage(
+          category: UploadCategory.avatars,
+          maxWidth: 512,
+          maxHeight: 512,
+        );
+    if (url == null || !context.mounted) return;
+    await ref.read(editArtistProvider.notifier).updateArtist(avatarUrl: url);
+  }
+
+  Future<void> _uploadCoverImage(BuildContext context) async {
+    final url = await ref
+        .read(mediaUploadProvider.notifier)
+        .pickAndUploadImage(
+          category: UploadCategory.covers,
+          maxWidth: 1920,
+          maxHeight: 1080,
+        );
+    if (url == null || !context.mounted) return;
+    await ref
+        .read(editArtistProvider.notifier)
+        .updateArtist(coverImageUrl: url);
   }
 
   void _showEditDisplayName(BuildContext context, Artist artist) {
@@ -855,9 +892,19 @@ class _LinksSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Sort: music first, then social/video, then others
-    final sorted = [...links]..sort((a, b) {
-        const order = {'music': 0, 'social': 1, 'video': 1, 'website': 2, 'store': 3, 'other': 4};
-        return (order[a.linkCategory] ?? 5).compareTo(order[b.linkCategory] ?? 5);
+    final sorted = [...links]
+      ..sort((a, b) {
+        const order = {
+          'music': 0,
+          'social': 1,
+          'video': 1,
+          'website': 2,
+          'store': 3,
+          'other': 4,
+        };
+        return (order[a.linkCategory] ?? 5).compareTo(
+          order[b.linkCategory] ?? 5,
+        );
       });
 
     return Wrap(
@@ -1089,82 +1136,6 @@ class _Chip extends StatelessWidget {
   }
 }
 
-// ── Generative Cover ──
-
-class _CoverPainter extends CustomPainter {
-  final String seed;
-
-  _CoverPainter({required this.seed});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rng = DeterministicRng(seed);
-    final hue1 = rng.next() * 360;
-    final hue2 = hue1 + 30 + rng.next() * 60;
-    final color1 = HSLColor.fromAHSL(1, hue1, 0.4, 0.15).toColor();
-    final color2 = HSLColor.fromAHSL(1, hue2 % 360, 0.5, 0.12).toColor();
-
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [color1, color2],
-        ).createShader(Offset.zero & size),
-    );
-
-    final paint = Paint()..style = PaintingStyle.fill;
-    for (var i = 0; i < 6; i++) {
-      final x = rng.next() * size.width;
-      final y = rng.next() * size.height;
-      final r = 15 + rng.next() * 40;
-      final hue = (hue1 + rng.next() * 120) % 360;
-      paint.color = HSLColor.fromAHSL(0.12, hue, 0.5, 0.4).toColor();
-      canvas.drawCircle(Offset(x, y), r, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_CoverPainter old) => old.seed != seed;
-}
-
-// ── Generative Avatar ──
-
-class _GenerativeAvatar extends StatelessWidget {
-  final String seed;
-  final double size;
-
-  const _GenerativeAvatar({required this.seed, required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    final rng = DeterministicRng(seed);
-    final hue = rng.next() * 360;
-    final color = HSLColor.fromAHSL(1, hue, 0.5, 0.3).toColor();
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-        border: Border.all(color: colorSurface0, width: 3),
-      ),
-      child: Center(
-        child: Text(
-          seed.isNotEmpty ? seed[0].toUpperCase() : '?',
-          style: TextStyle(
-            color: colorTextPrimary,
-            fontSize: size * 0.35,
-            fontWeight: weightBold,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _MilestonesSection extends StatefulWidget {
   final List<ArtistMilestone> milestones;
 
@@ -1189,65 +1160,65 @@ class _MilestonesSectionState extends State<_MilestonesSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...visible.map((m) => Padding(
-              padding: const EdgeInsets.only(bottom: spaceMd),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(_icon(m.category), size: 18, color: colorAccentGold),
-                  const SizedBox(width: spaceMd),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                m.title,
-                                style: const TextStyle(
-                                  color: colorTextPrimary,
-                                  fontSize: fontSizeSm,
-                                  fontWeight: weightMedium,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              m.date.substring(0, 7),
+        ...visible.map(
+          (m) => Padding(
+            padding: const EdgeInsets.only(bottom: spaceMd),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(_icon(m.category), size: 18, color: colorAccentGold),
+                const SizedBox(width: spaceMd),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              m.title,
                               style: const TextStyle(
-                                color: colorTextMuted,
-                                fontSize: fontSizeXs,
-                                fontFamily: 'monospace',
+                                color: colorTextPrimary,
+                                fontSize: fontSizeSm,
+                                fontWeight: weightMedium,
                               ),
                             ),
-                          ],
-                        ),
-                        if (m.description != null) ...[
-                          const SizedBox(height: spaceXxs),
+                          ),
                           Text(
-                            m.description!,
+                            m.date.substring(0, 7),
                             style: const TextStyle(
-                              color: colorTextSecondary,
+                              color: colorTextMuted,
                               fontSize: fontSizeXs,
-                              height: 1.4,
+                              fontFamily: 'monospace',
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
+                      ),
+                      if (m.description != null) ...[
+                        const SizedBox(height: spaceXxs),
+                        Text(
+                          m.description!,
+                          style: const TextStyle(
+                            color: colorTextSecondary,
+                            fontSize: fontSizeXs,
+                            height: 1.4,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            )),
+                ),
+              ],
+            ),
+          ),
+        ),
         if (hasMore)
           GestureDetector(
             onTap: () => setState(() => _expanded = !_expanded),
             child: Text(
-              _expanded
-                  ? 'Show less'
-                  : 'See all ${all.length} milestones',
+              _expanded ? 'Show less' : 'See all ${all.length} milestones',
               style: const TextStyle(
                 color: colorInteractive,
                 fontSize: fontSizeSm,

@@ -473,13 +473,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                             Positioned.fill(
                                               child: AnimatedBuilder(
                                                 animation: _dotController,
-                                                builder: (context, _) =>
-                                                    CustomPaint(
+                                                builder: (context, _) => CustomPaint(
                                                   painter: ConstellationPainter(
                                                     layout: layout,
-                                                    constellationPostIds:
-                                                        timeline
-                                                            .constellationPostIds,
+                                                    constellationPostIds: timeline
+                                                        .constellationPostIds,
                                                     animationValue:
                                                         _dotController.value,
                                                     scrollOffset: _scrollOffset,

@@ -76,14 +76,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/signup',
-        builder: (context, state) => SignupScreen(
-          inviteCode: state.uri.queryParameters['invite'],
-        ),
+        builder: (context, state) =>
+            SignupScreen(inviteCode: state.uri.queryParameters['invite']),
       ),
-      GoRoute(
-        path: '/about',
-        builder: (context, state) => const AboutScreen(),
-      ),
+      GoRoute(path: '/about', builder: (context, state) => const AboutScreen()),
 
       // Main app with bottom navigation
       StatefulShellRoute.indexedStack(

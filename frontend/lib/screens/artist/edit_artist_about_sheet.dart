@@ -201,15 +201,13 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
                     style: FilledButton.styleFrom(
                       backgroundColor: colorAccentGold,
                       foregroundColor: colorSurface0,
-                      padding:
-                          const EdgeInsets.symmetric(vertical: spaceMd),
+                      padding: const EdgeInsets.symmetric(vertical: spaceMd),
                     ),
                     child: _isSubmitting
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('Save'),
                   ),
