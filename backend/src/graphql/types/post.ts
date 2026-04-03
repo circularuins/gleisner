@@ -7,7 +7,7 @@ import { ArtistType } from "./artist.js";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 import { computeContentHash, verifySignature } from "../../auth/signing.js";
-import { validatePostVisibility, validateUrl } from "../validators.js";
+import { validatePostVisibility, validateMediaUrl } from "../validators.js";
 import { checkArtistAccess } from "../access.js";
 
 const MediaTypeEnum = builder.enumType("MediaType", {
@@ -183,7 +183,7 @@ builder.mutationFields((t) => ({
 
       // Validate mediaUrl
       if (args.mediaUrl != null) {
-        validateUrl(args.mediaUrl);
+        validateMediaUrl(args.mediaUrl);
       }
 
       // Validate duration
@@ -299,7 +299,7 @@ builder.mutationFields((t) => ({
 
       // Validate mediaUrl
       if (args.mediaUrl != null) {
-        validateUrl(args.mediaUrl);
+        validateMediaUrl(args.mediaUrl);
       }
 
       // Validate duration

@@ -19,6 +19,7 @@ import "./genre.js";
 import "./analytics.js";
 import "./invite.js";
 import "./guardian.js";
+import "./media.js";
 
 builder.queryType({
   fields: (t) => ({

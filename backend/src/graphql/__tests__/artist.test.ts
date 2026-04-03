@@ -195,8 +195,8 @@ describe("Artist GraphQL integration", () => {
           tagline: "Making music since forever",
           location: "Tokyo, Japan",
           activeSince: 2010,
-          avatarUrl: "https://example.com/avatar.jpg",
-          coverImageUrl: "https://example.com/cover.jpg",
+          avatarUrl: "http://localhost:4000/avatar.jpg",
+          coverImageUrl: "http://localhost:4000/cover.jpg",
         },
         token,
       );
@@ -208,8 +208,8 @@ describe("Artist GraphQL integration", () => {
       expect(artist.tagline).toBe("Making music since forever");
       expect(artist.location).toBe("Tokyo, Japan");
       expect(artist.activeSince).toBe(2010);
-      expect(artist.avatarUrl).toBe("https://example.com/avatar.jpg");
-      expect(artist.coverImageUrl).toBe("https://example.com/cover.jpg");
+      expect(artist.avatarUrl).toBe("http://localhost:4000/avatar.jpg");
+      expect(artist.coverImageUrl).toBe("http://localhost:4000/cover.jpg");
       expect(artist.tunedInCount).toBe(0);
     });
 
