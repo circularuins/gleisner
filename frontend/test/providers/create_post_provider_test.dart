@@ -257,14 +257,14 @@ void main() {
 
     group('addConnection / removeConnection', () {
       Post _fakePost(String id) => Post(
-            id: id,
-            mediaType: MediaType.text,
-            title: 'Post $id',
-            importance: 0.5,
-            createdAt: DateTime(2026),
-            updatedAt: DateTime(2026),
-            author: const PostAuthor(id: 'u1', username: 'test'),
-          );
+        id: id,
+        mediaType: MediaType.text,
+        title: 'Post $id',
+        importance: 0.5,
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+        author: const PostAuthor(id: 'u1', username: 'test'),
+      );
 
       test('adds a connection', () {
         final container = _createContainer(client: _clientWith());
@@ -333,10 +333,7 @@ void main() {
         notifier.addConnection(_fakePost('p1'), ConnectionType.reply);
         notifier.reset();
 
-        expect(
-          container.read(createPostProvider).selectedConnections,
-          isEmpty,
-        );
+        expect(container.read(createPostProvider).selectedConnections, isEmpty);
       });
     });
   });

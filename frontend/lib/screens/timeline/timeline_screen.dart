@@ -365,6 +365,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                 AvatarRail(
                   artists: tuneIn.tunedInArtists,
                   selfArtistUsername: selfArtistUsername,
+                  selfAvatarUrl: myArtist?.avatarUrl,
                   selfIsPrivate: myArtist?.isPrivate ?? false,
                   selectedArtistUsername:
                       _viewingArtistUsername ??
@@ -473,13 +474,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                             Positioned.fill(
                                               child: AnimatedBuilder(
                                                 animation: _dotController,
-                                                builder: (context, _) =>
-                                                    CustomPaint(
+                                                builder: (context, _) => CustomPaint(
                                                   painter: ConstellationPainter(
                                                     layout: layout,
-                                                    constellationPostIds:
-                                                        timeline
-                                                            .constellationPostIds,
+                                                    constellationPostIds: timeline
+                                                        .constellationPostIds,
                                                     animationValue:
                                                         _dotController.value,
                                                     scrollOffset: _scrollOffset,

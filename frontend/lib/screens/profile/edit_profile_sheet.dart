@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/media_upload_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../widgets/media/avatar_image.dart';
 
 class EditProfileSheet extends ConsumerStatefulWidget {
   final String? initialDisplayName;
@@ -10,6 +12,7 @@ class EditProfileSheet extends ConsumerStatefulWidget {
   final String? initialAvatarUrl;
   final String initialProfileVisibility;
   final bool isChildAccount;
+  final String username;
 
   const EditProfileSheet({
     super.key,
@@ -18,6 +21,7 @@ class EditProfileSheet extends ConsumerStatefulWidget {
     this.initialAvatarUrl,
     this.initialProfileVisibility = 'public',
     this.isChildAccount = false,
+    this.username = '',
   });
 
   @override
@@ -27,8 +31,8 @@ class EditProfileSheet extends ConsumerStatefulWidget {
 class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   late final TextEditingController _displayNameController;
   late final TextEditingController _bioController;
-  late final TextEditingController _avatarUrlController;
   late String _profileVisibility;
+  String? _avatarUrl;
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
   String? _error;
@@ -40,9 +44,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
       text: widget.initialDisplayName ?? '',
     );
     _bioController = TextEditingController(text: widget.initialBio ?? '');
-    _avatarUrlController = TextEditingController(
-      text: widget.initialAvatarUrl ?? '',
-    );
+    _avatarUrl = widget.initialAvatarUrl;
     _profileVisibility = widget.initialProfileVisibility;
   }
 
@@ -50,8 +52,20 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   void dispose() {
     _displayNameController.dispose();
     _bioController.dispose();
-    _avatarUrlController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAvatar() async {
+    final url = await ref
+        .read(mediaUploadProvider.notifier)
+        .pickAndUploadImage(
+          category: UploadCategory.avatars,
+          maxWidth: 512,
+          maxHeight: 512,
+        );
+    if (url != null && mounted) {
+      setState(() => _avatarUrl = url);
+    }
   }
 
   Future<void> _save() async {
@@ -63,14 +77,13 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
 
     final displayName = _displayNameController.text.trim();
     final bio = _bioController.text.trim();
-    final avatarUrl = _avatarUrlController.text.trim();
 
     final ok = await ref
         .read(authProvider.notifier)
         .updateProfile(
           displayName: displayName.isEmpty ? null : displayName,
           bio: bio.isEmpty ? null : bio,
-          avatarUrl: avatarUrl.isEmpty ? null : avatarUrl,
+          avatarUrl: _avatarUrl,
           profileVisibility: widget.isChildAccount ? null : _profileVisibility,
         );
 
@@ -88,6 +101,8 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final uploadState = ref.watch(mediaUploadProvider);
+
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.7,
@@ -143,6 +158,33 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                   const SizedBox(height: spaceLg),
                 ],
 
+                // Avatar picker
+                Center(
+                  child: Column(
+                    children: [
+                      AvatarImage(
+                        imageUrl: _avatarUrl,
+                        seed: widget.username,
+                        size: 80,
+                        onTap: uploadState.isUploading ? null : _pickAvatar,
+                      ),
+                      const SizedBox(height: spaceSm),
+                      if (uploadState.isUploading)
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        Text(
+                          'Tap to change',
+                          style: textCaption.copyWith(color: colorTextMuted),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: spaceLg),
+
                 // Display Name
                 TextFormField(
                   controller: _displayNameController,
@@ -160,24 +202,6 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                   minLines: 2,
                   style: const TextStyle(color: colorTextPrimary),
                   decoration: _inputDecoration('Bio'),
-                ),
-                const SizedBox(height: spaceLg),
-
-                // Avatar URL
-                TextFormField(
-                  controller: _avatarUrlController,
-                  style: const TextStyle(color: colorTextPrimary),
-                  decoration: _inputDecoration('Avatar URL'),
-                  validator: (value) {
-                    if (value != null && value.trim().isNotEmpty) {
-                      final uri = Uri.tryParse(value.trim());
-                      if (uri == null ||
-                          !['http', 'https'].contains(uri.scheme)) {
-                        return 'Enter a valid http(s) URL';
-                      }
-                    }
-                    return null;
-                  },
                 ),
                 const SizedBox(height: spaceLg),
 

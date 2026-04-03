@@ -57,8 +57,7 @@ class ConstellationPainter extends CustomPainter {
 
   /// Evaluate a cubic bezier at parameter [t].
   @visibleForTesting
-  static Offset bezierAt(
-          double t, Offset p0, Offset p1, Offset p2, Offset p3) {
+  static Offset bezierAt(double t, Offset p0, Offset p1, Offset p2, Offset p3) {
     final u = 1 - t;
     final uu = u * u;
     final uuu = uu * u;
@@ -88,25 +87,25 @@ class ConstellationPainter extends CustomPainter {
   /// Number of dots travelling along a connection.
   @visibleForTesting
   static int dotCount(ConnectionType type) => switch (type) {
-        ConnectionType.reference => 1,
-        ConnectionType.evolution => 2,
-        ConnectionType.remix => 4,
-        ConnectionType.reply => 3,
-      };
+    ConnectionType.reference => 1,
+    ConnectionType.evolution => 2,
+    ConnectionType.remix => 4,
+    ConnectionType.reply => 3,
+  };
 
   /// Apply easing per type. Returns adjusted progress (0–1).
   @visibleForTesting
   static double applyEasing(ConnectionType type, double t) => switch (type) {
-        ConnectionType.evolution => t * t,
-        _ => t,
-      };
+    ConnectionType.evolution => t * t,
+    _ => t,
+  };
 
   /// Alpha multiplier for pulsing (reply type).
   @visibleForTesting
   static double pulseAlpha(ConnectionType type, double t) => switch (type) {
-        ConnectionType.reply => 0.5 + 0.5 * sin(t * pi * 4),
-        _ => 1.0,
-      };
+    ConnectionType.reply => 0.5 + 0.5 * sin(t * pi * 4),
+    _ => 1.0,
+  };
 
   /// Whether this type has dots flowing in both directions.
   @visibleForTesting
@@ -160,8 +159,15 @@ class ConstellationPainter extends CustomPainter {
     }
 
     // Animate dots on viewport-visible connections
-    final animatable =
-        allVisible.where((c) => isInViewport(c, scrollOffset: scrollOffset, viewportHeight: viewportHeight)).toList(growable: false);
+    final animatable = allVisible
+        .where(
+          (c) => isInViewport(
+            c,
+            scrollOffset: scrollOffset,
+            viewportHeight: viewportHeight,
+          ),
+        )
+        .toList(growable: false);
     if (animatable.isEmpty) return;
 
     final activeCount = simultaneousDots < animatable.length
@@ -257,8 +263,7 @@ class ConstellationPainter extends CustomPainter {
         trailPos,
         5.0 - i * 0.8,
         Paint()
-          ..color =
-              dotColor.withValues(alpha: 0.25 * (1 - i / 5) * alphaScale)
+          ..color = dotColor.withValues(alpha: 0.25 * (1 - i / 5) * alphaScale)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
       );
     }

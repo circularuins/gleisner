@@ -39,6 +39,8 @@ dependencies:
   collection: ^1.18.0
   google_fonts: ^8.0.2
   flutter_svg: ^2.1.0
+  image_picker: ^1.2.1
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

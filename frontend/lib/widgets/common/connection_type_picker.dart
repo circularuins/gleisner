@@ -6,25 +6,25 @@ import '../../theme/gleisner_tokens.dart';
 /// Metadata for each [ConnectionType].
 extension ConnectionTypeMeta on ConnectionType {
   String get label => switch (this) {
-        ConnectionType.reference => 'Reference',
-        ConnectionType.evolution => 'Evolution',
-        ConnectionType.remix => 'Remix',
-        ConnectionType.reply => 'Reply',
-      };
+    ConnectionType.reference => 'Reference',
+    ConnectionType.evolution => 'Evolution',
+    ConnectionType.remix => 'Remix',
+    ConnectionType.reply => 'Reply',
+  };
 
   IconData get icon => switch (this) {
-        ConnectionType.reference => Icons.bookmark_outline,
-        ConnectionType.evolution => Icons.trending_up,
-        ConnectionType.remix => Icons.shuffle,
-        ConnectionType.reply => Icons.reply,
-      };
+    ConnectionType.reference => Icons.bookmark_outline,
+    ConnectionType.evolution => Icons.trending_up,
+    ConnectionType.remix => Icons.shuffle,
+    ConnectionType.reply => Icons.reply,
+  };
 
   String get description => switch (this) {
-        ConnectionType.reference => 'Inspired by or related to',
-        ConnectionType.evolution => 'Next version of this piece',
-        ConnectionType.remix => 'A remix or reinterpretation',
-        ConnectionType.reply => 'A response to this post',
-      };
+    ConnectionType.reference => 'Inspired by or related to',
+    ConnectionType.evolution => 'Next version of this piece',
+    ConnectionType.remix => 'A remix or reinterpretation',
+    ConnectionType.reply => 'A response to this post',
+  };
 }
 
 /// Shows a bottom sheet to pick a connection type.

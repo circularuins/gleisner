@@ -17,9 +17,7 @@ void main() {
       var tapped = false;
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: AppFooter(onAboutTap: () => tapped = true),
-          ),
+          home: Scaffold(body: AppFooter(onAboutTap: () => tapped = true)),
         ),
       );
 

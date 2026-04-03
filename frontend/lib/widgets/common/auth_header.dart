@@ -14,7 +14,11 @@ class AuthHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        SvgPicture.asset(GleisnerAssets.logoIcon, height: 60, semanticsLabel: 'Gleisner logo'),
+        SvgPicture.asset(
+          GleisnerAssets.logoIcon,
+          height: 60,
+          semanticsLabel: 'Gleisner logo',
+        ),
         const SizedBox(height: spaceMd),
         Text(
           'Gleisner',

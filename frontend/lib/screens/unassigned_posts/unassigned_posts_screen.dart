@@ -31,28 +31,27 @@ class UnassignedPostsScreen extends ConsumerWidget {
               child: CircularProgressIndicator(color: colorAccentGold),
             )
           : state.posts.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No unassigned posts',
-                    style: TextStyle(color: colorTextMuted),
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(spaceLg),
-                  itemCount: state.posts.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: spaceSm),
-                  itemBuilder: (context, index) {
-                    final post = state.posts[index];
-                    return _PostTile(
-                      post: post,
-                      tracks: tracks,
-                      onTap: () => _openDetail(context, ref, post),
-                      onAssign: (trackId) =>
-                          _assignToTrack(context, ref, post.id, trackId),
-                    );
-                  },
-                ),
+          ? const Center(
+              child: Text(
+                'No unassigned posts',
+                style: TextStyle(color: colorTextMuted),
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(spaceLg),
+              itemCount: state.posts.length,
+              separatorBuilder: (_, __) => const SizedBox(height: spaceSm),
+              itemBuilder: (context, index) {
+                final post = state.posts[index];
+                return _PostTile(
+                  post: post,
+                  tracks: tracks,
+                  onTap: () => _openDetail(context, ref, post),
+                  onAssign: (trackId) =>
+                      _assignToTrack(context, ref, post.id, trackId),
+                );
+              },
+            ),
     );
   }
 
@@ -67,7 +66,9 @@ class UnassignedPostsScreen extends ConsumerWidget {
         .updatePost(id: postId, trackId: trackId);
     if (result == null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to assign post. Please try again.')),
+        const SnackBar(
+          content: Text('Failed to assign post. Please try again.'),
+        ),
       );
     }
   }
@@ -162,9 +163,7 @@ class _PostTile extends StatelessWidget {
                 onPressed: () => _showTrackPicker(context),
                 style: TextButton.styleFrom(
                   foregroundColor: colorAccentGold,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: spaceSm,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: spaceSm),
                   visualDensity: VisualDensity.compact,
                 ),
                 child: const Text('Assign'),
@@ -186,9 +185,7 @@ class _PostTile extends StatelessWidget {
       context: context,
       backgroundColor: colorSurface1,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(radiusSheet),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(radiusSheet)),
       ),
       builder: (_) => Padding(
         padding: const EdgeInsets.all(spaceXl),

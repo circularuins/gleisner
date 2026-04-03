@@ -82,10 +82,12 @@ enum ConnectionType {
       'remix' => ConnectionType.remix,
       'reply' => ConnectionType.reply,
       _ => () {
-          debugPrint('[ConnectionType] Unknown value "$value", '
-              'falling back to reference');
-          return ConnectionType.reference;
-        }(),
+        debugPrint(
+          '[ConnectionType] Unknown value "$value", '
+          'falling back to reference',
+        );
+        return ConnectionType.reference;
+      }(),
     };
   }
 }
@@ -108,8 +110,9 @@ class PostConnection {
       id: json['id'] as String,
       sourceId: json['sourceId'] as String,
       targetId: json['targetId'] as String,
-      connectionType:
-          ConnectionType.fromString(json['connectionType'] as String),
+      connectionType: ConnectionType.fromString(
+        json['connectionType'] as String,
+      ),
     );
   }
 }

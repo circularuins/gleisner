@@ -99,8 +99,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colorSurface1,
-        title:
-            const Text('Delete?', style: TextStyle(color: colorTextPrimary)),
+        title: const Text('Delete?', style: TextStyle(color: colorTextPrimary)),
         content: Text(
           'Remove "${milestone.title}"?',
           style: const TextStyle(color: colorTextSecondary),
@@ -119,8 +118,9 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
     );
     if (confirm != true || !mounted) return;
 
-    final ok =
-        await ref.read(editArtistProvider.notifier).deleteMilestone(milestone.id);
+    final ok = await ref
+        .read(editArtistProvider.notifier)
+        .deleteMilestone(milestone.id);
     if (ok && mounted) {
       setState(() {
         _milestones = _milestones.where((m) => m.id != milestone.id).toList();
@@ -140,8 +140,10 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: colorSurface1,
-          title: const Text('Edit Milestone',
-              style: TextStyle(color: colorTextPrimary)),
+          title: const Text(
+            'Edit Milestone',
+            style: TextStyle(color: colorTextPrimary),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -227,8 +229,10 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                   Navigator.pop(ctx, result);
                 }
               },
-              child: const Text('Save',
-                  style: TextStyle(color: colorAccentGold)),
+              child: const Text(
+                'Save',
+                style: TextStyle(color: colorAccentGold),
+              ),
             ),
           ],
         ),
@@ -240,10 +244,9 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
 
     if (updated != null && mounted) {
       setState(() {
-        _milestones = _milestones
-            .map((m) => m.id == updated.id ? updated : m)
-            .toList()
-          ..sort((a, b) => b.date.compareTo(a.date));
+        _milestones =
+            _milestones.map((m) => m.id == updated.id ? updated : m).toList()
+              ..sort((a, b) => b.date.compareTo(a.date));
       });
       ref.read(artistPageProvider.notifier).loadArtist(widget.artistUsername);
     }
@@ -271,8 +274,9 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
       builder: (context, scrollController) => Container(
         decoration: const BoxDecoration(
           color: colorSurface1,
-          borderRadius:
-              BorderRadius.vertical(top: Radius.circular(radiusSheet)),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(radiusSheet),
+          ),
         ),
         child: Column(
           children: [
@@ -290,8 +294,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
             ),
             // Header
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: spaceLg),
+              padding: const EdgeInsets.symmetric(horizontal: spaceLg),
               child: Row(
                 children: [
                   const Text(
@@ -320,8 +323,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                     ),
                     onPressed: _milestones.length >= 200
                         ? null
-                        : () => setState(
-                            () => _showAddForm = !_showAddForm),
+                        : () => setState(() => _showAddForm = !_showAddForm),
                   ),
                 ],
               ),
@@ -332,7 +334,9 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                 child: Text(
                   _error!,
                   style: const TextStyle(
-                      color: Colors.red, fontSize: fontSizeSm),
+                    color: Colors.red,
+                    fontSize: fontSizeSm,
+                  ),
                 ),
               ),
             // Add form
@@ -394,8 +398,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                           ? const SizedBox(
                               height: 16,
                               width: 16,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Text('Add'),
                     ),
@@ -433,8 +436,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                               const SizedBox(width: spaceMd),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       m.title,
@@ -467,14 +469,20 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.edit_outlined,
-                                    size: 18, color: colorInteractive),
+                                icon: const Icon(
+                                  Icons.edit_outlined,
+                                  size: 18,
+                                  color: colorInteractive,
+                                ),
                                 onPressed: () => _editMilestone(m),
                                 visualDensity: VisualDensity.compact,
                               ),
                               IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    size: 18, color: colorTextMuted),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 18,
+                                  color: colorTextMuted,
+                                ),
                                 onPressed: () => _deleteMilestone(m),
                                 visualDensity: VisualDensity.compact,
                               ),

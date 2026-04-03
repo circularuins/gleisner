@@ -118,14 +118,29 @@ void main() {
 
   group('applyEasing', () {
     test('evolution applies ease-in (t²)', () {
-      expect(ConstellationPainter.applyEasing(ConnectionType.evolution, 0.0), 0.0);
-      expect(ConstellationPainter.applyEasing(ConnectionType.evolution, 0.5), 0.25);
-      expect(ConstellationPainter.applyEasing(ConnectionType.evolution, 1.0), 1.0);
+      expect(
+        ConstellationPainter.applyEasing(ConnectionType.evolution, 0.0),
+        0.0,
+      );
+      expect(
+        ConstellationPainter.applyEasing(ConnectionType.evolution, 0.5),
+        0.25,
+      );
+      expect(
+        ConstellationPainter.applyEasing(ConnectionType.evolution, 1.0),
+        1.0,
+      );
     });
 
     test('reference returns linear (unchanged)', () {
-      expect(ConstellationPainter.applyEasing(ConnectionType.reference, 0.5), 0.5);
-      expect(ConstellationPainter.applyEasing(ConnectionType.reference, 0.3), 0.3);
+      expect(
+        ConstellationPainter.applyEasing(ConnectionType.reference, 0.5),
+        0.5,
+      );
+      expect(
+        ConstellationPainter.applyEasing(ConnectionType.reference, 0.3),
+        0.3,
+      );
     });
 
     test('reply returns linear', () {
@@ -149,7 +164,11 @@ void main() {
 
   group('pulseAlpha', () {
     test('non-reply types always return 1.0', () {
-      for (final type in [ConnectionType.reference, ConnectionType.evolution, ConnectionType.remix]) {
+      for (final type in [
+        ConnectionType.reference,
+        ConnectionType.evolution,
+        ConnectionType.remix,
+      ]) {
         expect(ConstellationPainter.pulseAlpha(type, 0.0), 1.0);
         expect(ConstellationPainter.pulseAlpha(type, 0.5), 1.0);
         expect(ConstellationPainter.pulseAlpha(type, 1.0), 1.0);
@@ -174,7 +193,10 @@ void main() {
 
     test('reply reaches 0.0 at trough', () {
       // sin(t * pi * 4) = -1 when t * pi * 4 = 3*pi/2 → t = 0.375
-      final trough = ConstellationPainter.pulseAlpha(ConnectionType.reply, 0.375);
+      final trough = ConstellationPainter.pulseAlpha(
+        ConnectionType.reply,
+        0.375,
+      );
       expect(trough, closeTo(0.0, 0.001));
     });
 
@@ -194,11 +216,18 @@ void main() {
 
   group('isBidirectional', () {
     test('remix is bidirectional', () {
-      expect(ConstellationPainter.isBidirectional(ConnectionType.remix), isTrue);
+      expect(
+        ConstellationPainter.isBidirectional(ConnectionType.remix),
+        isTrue,
+      );
     });
 
     test('other types are not bidirectional', () {
-      for (final type in [ConnectionType.reference, ConnectionType.evolution, ConnectionType.reply]) {
+      for (final type in [
+        ConnectionType.reference,
+        ConnectionType.evolution,
+        ConnectionType.reply,
+      ]) {
         expect(ConstellationPainter.isBidirectional(type), isFalse);
       }
     });
@@ -208,37 +237,61 @@ void main() {
 
   group('isInViewport', () {
     test('infinite viewport includes everything', () {
-      final conn = _makeConn(start: const Offset(0, 5000), end: const Offset(0, 6000));
+      final conn = _makeConn(
+        start: const Offset(0, 5000),
+        end: const Offset(0, 6000),
+      );
       expect(
-        ConstellationPainter.isInViewport(conn,
-            scrollOffset: 0, viewportHeight: double.infinity),
+        ConstellationPainter.isInViewport(
+          conn,
+          scrollOffset: 0,
+          viewportHeight: double.infinity,
+        ),
         isTrue,
       );
     });
 
     test('connection fully inside viewport', () {
-      final conn = _makeConn(start: const Offset(0, 200), end: const Offset(0, 400));
+      final conn = _makeConn(
+        start: const Offset(0, 200),
+        end: const Offset(0, 400),
+      );
       expect(
-        ConstellationPainter.isInViewport(conn,
-            scrollOffset: 100, viewportHeight: 500),
+        ConstellationPainter.isInViewport(
+          conn,
+          scrollOffset: 100,
+          viewportHeight: 500,
+        ),
         isTrue,
       );
     });
 
     test('connection fully above viewport (beyond margin)', () {
-      final conn = _makeConn(start: const Offset(0, 10), end: const Offset(0, 50));
+      final conn = _makeConn(
+        start: const Offset(0, 10),
+        end: const Offset(0, 50),
+      );
       expect(
-        ConstellationPainter.isInViewport(conn,
-            scrollOffset: 500, viewportHeight: 300),
+        ConstellationPainter.isInViewport(
+          conn,
+          scrollOffset: 500,
+          viewportHeight: 300,
+        ),
         isFalse,
       );
     });
 
     test('connection fully below viewport (beyond margin)', () {
-      final conn = _makeConn(start: const Offset(0, 1500), end: const Offset(0, 1800));
+      final conn = _makeConn(
+        start: const Offset(0, 1500),
+        end: const Offset(0, 1800),
+      );
       expect(
-        ConstellationPainter.isInViewport(conn,
-            scrollOffset: 100, viewportHeight: 300),
+        ConstellationPainter.isInViewport(
+          conn,
+          scrollOffset: 100,
+          viewportHeight: 300,
+        ),
         isFalse,
       );
     });
@@ -246,10 +299,16 @@ void main() {
     test('connection partially overlapping top edge (within margin)', () {
       // viewport top = 500, margin = 100 → effective top = 400
       // connection ends at 420, which is > 400
-      final conn = _makeConn(start: const Offset(0, 350), end: const Offset(0, 420));
+      final conn = _makeConn(
+        start: const Offset(0, 350),
+        end: const Offset(0, 420),
+      );
       expect(
-        ConstellationPainter.isInViewport(conn,
-            scrollOffset: 500, viewportHeight: 300),
+        ConstellationPainter.isInViewport(
+          conn,
+          scrollOffset: 500,
+          viewportHeight: 300,
+        ),
         isTrue,
       );
     });
@@ -257,35 +316,58 @@ void main() {
     test('connection partially overlapping bottom edge (within margin)', () {
       // viewport bottom = 500 + 300 = 800, margin = 100 → effective bottom = 900
       // connection starts at 850, which is < 900
-      final conn = _makeConn(start: const Offset(0, 850), end: const Offset(0, 1000));
+      final conn = _makeConn(
+        start: const Offset(0, 850),
+        end: const Offset(0, 1000),
+      );
       expect(
-        ConstellationPainter.isInViewport(conn,
-            scrollOffset: 500, viewportHeight: 300),
+        ConstellationPainter.isInViewport(
+          conn,
+          scrollOffset: 500,
+          viewportHeight: 300,
+        ),
         isTrue,
       );
     });
 
     test('handles reversed start/end y-coordinates', () {
       // end.dy < start.dy (target above source)
-      final conn = _makeConn(start: const Offset(0, 600), end: const Offset(0, 200));
+      final conn = _makeConn(
+        start: const Offset(0, 600),
+        end: const Offset(0, 200),
+      );
       expect(
-        ConstellationPainter.isInViewport(conn,
-            scrollOffset: 300, viewportHeight: 200),
+        ConstellationPainter.isInViewport(
+          conn,
+          scrollOffset: 300,
+          viewportHeight: 200,
+        ),
         isTrue,
       );
     });
 
     test('custom margin works', () {
       // Default margin (100) would include this, custom 0 margin excludes it
-      final conn = _makeConn(start: const Offset(0, 480), end: const Offset(0, 499));
+      final conn = _makeConn(
+        start: const Offset(0, 480),
+        end: const Offset(0, 499),
+      );
       expect(
-        ConstellationPainter.isInViewport(conn,
-            scrollOffset: 500, viewportHeight: 300, margin: 0),
+        ConstellationPainter.isInViewport(
+          conn,
+          scrollOffset: 500,
+          viewportHeight: 300,
+          margin: 0,
+        ),
         isFalse,
       );
       expect(
-        ConstellationPainter.isInViewport(conn,
-            scrollOffset: 500, viewportHeight: 300, margin: 100),
+        ConstellationPainter.isInViewport(
+          conn,
+          scrollOffset: 500,
+          viewportHeight: 300,
+          margin: 100,
+        ),
         isTrue,
       );
     });
@@ -335,7 +417,10 @@ void main() {
 
     test('returns true when constellationPostIds changes', () {
       final a = ConstellationPainter(layout: layout1);
-      final b = ConstellationPainter(layout: layout1, constellationPostIds: {'p1'});
+      final b = ConstellationPainter(
+        layout: layout1,
+        constellationPostIds: {'p1'},
+      );
       expect(a.shouldRepaint(b), isTrue);
     });
   });
@@ -352,9 +437,16 @@ void main() {
     });
 
     test('non-bidirectional types are not split into reverse dots', () {
-      for (final type in [ConnectionType.reference, ConnectionType.evolution, ConnectionType.reply]) {
-        expect(ConstellationPainter.isBidirectional(type), isFalse,
-            reason: '$type should not be bidirectional');
+      for (final type in [
+        ConnectionType.reference,
+        ConnectionType.evolution,
+        ConnectionType.reply,
+      ]) {
+        expect(
+          ConstellationPainter.isBidirectional(type),
+          isFalse,
+          reason: '$type should not be bidirectional',
+        );
         // For non-bidirectional types, forward count equals total count
         // (no reverse dots are allocated)
         final total = ConstellationPainter.dotCount(type);
