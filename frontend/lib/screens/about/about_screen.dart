@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/gleisner_tokens.dart';
@@ -24,6 +25,15 @@ class AboutScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: spaceXl),
+                child: SvgPicture.asset(
+                  'assets/images/logo-full.svg',
+                  height: 100,
+                ),
+              ),
+            ),
             _section(
               'Operator',
               'This service is operated as a personal project.\n'
