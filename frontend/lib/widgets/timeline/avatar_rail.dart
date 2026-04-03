@@ -9,6 +9,7 @@ import '../../utils/deterministic_rng.dart';
 class AvatarRail extends StatelessWidget {
   final List<TunedInArtist> artists;
   final String? selfArtistUsername;
+  final bool selfIsPrivate;
   final String? selectedArtistUsername;
   final ValueChanged<String> onSelectArtist;
   final VoidCallback? onSelectSelf;
@@ -17,6 +18,7 @@ class AvatarRail extends StatelessWidget {
     super.key,
     required this.artists,
     this.selfArtistUsername,
+    this.selfIsPrivate = false,
     this.selectedArtistUsername,
     required this.onSelectArtist,
     this.onSelectSelf,
@@ -52,6 +54,7 @@ class AvatarRail extends StatelessWidget {
               displayName: 'You',
               isSelected: isSelected,
               isSelf: true,
+              isPrivate: selfIsPrivate,
               onTap: onSelectSelf ?? () => onSelectArtist(selfArtistUsername!),
             );
           }
