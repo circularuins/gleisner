@@ -67,6 +67,7 @@ class Artist {
   final String? avatarUrl;
   final String? coverImageUrl;
   final String profileVisibility;
+  bool get isPrivate => profileVisibility == 'private';
   final int tunedInCount;
   final List<Track> tracks;
   final List<ArtistGenre> genres;

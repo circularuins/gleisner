@@ -368,7 +368,7 @@ class _ArtistCard extends StatelessWidget {
                     child: _ArtistAvatar(
                       seed: artist.artistUsername,
                       size: 32,
-                      isPrivate: artist.profileVisibility == 'private',
+                      isPrivate: artist.isPrivate,
                     ),
                   ),
                 ],
