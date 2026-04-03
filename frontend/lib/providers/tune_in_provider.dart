@@ -14,6 +14,7 @@ class TunedInArtist {
   final String? displayName;
   final String? avatarUrl;
   final int tunedInCount;
+  final String profileVisibility;
   final DateTime tunedInAt;
 
   const TunedInArtist({
@@ -22,8 +23,11 @@ class TunedInArtist {
     this.displayName,
     this.avatarUrl,
     required this.tunedInCount,
+    this.profileVisibility = 'public',
     required this.tunedInAt,
   });
+
+  bool get isPrivate => profileVisibility == 'private';
 
   factory TunedInArtist.fromJson(Map<String, dynamic> json) {
     final artist = json['artist'] as Map<String, dynamic>;
@@ -33,6 +37,7 @@ class TunedInArtist {
       displayName: artist['displayName'] as String?,
       avatarUrl: artist['avatarUrl'] as String?,
       tunedInCount: artist['tunedInCount'] as int,
+      profileVisibility: artist['profileVisibility'] as String? ?? 'public',
       tunedInAt: DateTime.parse(json['createdAt'] as String),
     );
   }

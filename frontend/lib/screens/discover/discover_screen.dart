@@ -365,7 +365,11 @@ class _ArtistCard extends StatelessWidget {
                   Positioned(
                     left: spaceSm,
                     bottom: spaceXs,
-                    child: _ArtistAvatar(seed: artist.artistUsername, size: 32),
+                    child: _ArtistAvatar(
+                      seed: artist.artistUsername,
+                      size: 32,
+                      isPrivate: artist.isPrivate,
+                    ),
                   ),
                 ],
               ),
@@ -505,8 +509,13 @@ class _ArtistCoverPainter extends CustomPainter {
 class _ArtistAvatar extends StatelessWidget {
   final String seed;
   final double size;
+  final bool isPrivate;
 
-  const _ArtistAvatar({required this.seed, required this.size});
+  const _ArtistAvatar({
+    required this.seed,
+    required this.size,
+    this.isPrivate = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -514,23 +523,51 @@ class _ArtistAvatar extends StatelessWidget {
     final hue = rng.next() * 360;
     final color = HSLColor.fromAHSL(1, hue, 0.5, 0.3).toColor();
 
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-        border: Border.all(color: colorSurface1, width: 2),
-      ),
-      child: Center(
-        child: Text(
-          seed.isNotEmpty ? seed[0].toUpperCase() : '?',
-          style: TextStyle(
-            color: colorTextPrimary,
-            fontSize: size * 0.4,
-            fontWeight: weightBold,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              border: Border.all(color: colorSurface1, width: 2),
+            ),
+            child: Center(
+              child: Text(
+                seed.isNotEmpty ? seed[0].toUpperCase() : '?',
+                style: TextStyle(
+                  color: colorTextPrimary,
+                  fontSize: size * 0.4,
+                  fontWeight: weightBold,
+                ),
+              ),
+            ),
           ),
-        ),
+          if (isPrivate)
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: Container(
+                width: size * 0.42,
+                height: size * 0.42,
+                decoration: BoxDecoration(
+                  color: colorSurface1,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colorBorder, width: 1),
+                ),
+                child: Icon(
+                  Icons.lock,
+                  size: size * 0.24,
+                  color: colorTextMuted,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

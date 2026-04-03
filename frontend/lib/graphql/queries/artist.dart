@@ -97,6 +97,7 @@ const discoverArtistsQuery = r'''
       tagline
       avatarUrl
       coverImageUrl
+      profileVisibility
       tunedInCount
       genres {
         position
@@ -129,6 +130,7 @@ const myTuneInsQuery = r'''
         displayName
         avatarUrl
         tunedInCount
+        profileVisibility
       }
     }
   }

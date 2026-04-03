@@ -9,6 +9,7 @@ import '../../utils/deterministic_rng.dart';
 class AvatarRail extends StatelessWidget {
   final List<TunedInArtist> artists;
   final String? selfArtistUsername;
+  final bool selfIsPrivate;
   final String? selectedArtistUsername;
   final ValueChanged<String> onSelectArtist;
   final VoidCallback? onSelectSelf;
@@ -17,6 +18,7 @@ class AvatarRail extends StatelessWidget {
     super.key,
     required this.artists,
     this.selfArtistUsername,
+    this.selfIsPrivate = false,
     this.selectedArtistUsername,
     required this.onSelectArtist,
     this.onSelectSelf,
@@ -52,6 +54,7 @@ class AvatarRail extends StatelessWidget {
               displayName: 'You',
               isSelected: isSelected,
               isSelf: true,
+              isPrivate: selfIsPrivate,
               onTap: onSelectSelf ?? () => onSelectArtist(selfArtistUsername!),
             );
           }
@@ -65,6 +68,7 @@ class AvatarRail extends StatelessWidget {
             displayName: artist.displayName ?? artist.artistUsername,
             isSelected: isSelected,
             isSelf: false,
+            isPrivate: artist.isPrivate,
             onTap: () => onSelectArtist(artist.artistUsername),
           );
         },
@@ -78,6 +82,7 @@ class _AvatarItem extends StatelessWidget {
   final String displayName;
   final bool isSelected;
   final bool isSelf;
+  final bool isPrivate;
   final VoidCallback onTap;
 
   const _AvatarItem({
@@ -85,6 +90,7 @@ class _AvatarItem extends StatelessWidget {
     required this.displayName,
     required this.isSelected,
     required this.isSelf,
+    this.isPrivate = false,
     required this.onTap,
   });
 
@@ -107,35 +113,63 @@ class _AvatarItem extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
+              SizedBox(
                 width: avatarSize,
                 height: avatarSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: avatarColor,
-                  border: Border.all(
-                    color: isSelected ? ringColor : colorBorder,
-                    width: isSelected ? 2.5 : 1.5,
-                  ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: ringColor.withValues(alpha: 0.4),
-                            blurRadius: 6,
-                            spreadRadius: 1,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: avatarSize,
+                      height: avatarSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: avatarColor,
+                        border: Border.all(
+                          color: isSelected ? ringColor : colorBorder,
+                          width: isSelected ? 2.5 : 1.5,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: ringColor.withValues(alpha: 0.4),
+                                  blurRadius: 6,
+                                  spreadRadius: 1,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          username.isNotEmpty ? username[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                            color: colorTextPrimary,
+                            fontSize: 14,
+                            fontWeight: weightBold,
                           ),
-                        ]
-                      : null,
-                ),
-                child: Center(
-                  child: Text(
-                    username.isNotEmpty ? username[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      color: colorTextPrimary,
-                      fontSize: 14,
-                      fontWeight: weightBold,
+                        ),
+                      ),
                     ),
-                  ),
+                    if (isPrivate)
+                      Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: colorSurface0,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: colorBorder, width: 1),
+                          ),
+                          child: const Icon(
+                            Icons.lock,
+                            size: 8,
+                            color: colorTextMuted,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(height: spaceXxs),
