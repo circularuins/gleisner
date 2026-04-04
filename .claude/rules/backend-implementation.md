@@ -219,6 +219,32 @@ const command = new PutObjectCommand({
 });
 ```
 
+### メディアタイプ別 URL バリデーション
+
+**`mediaUrl` のバリデーションはメディアタイプによって使い分けること。**
+
+- **image / video / audio**: `validateMediaUrl`（R2 ドメイン限定）
+- **link**: `validateUrl`（任意の http/https URL）
+
+PR #136 で全メディアタイプに `validateMediaUrl` を適用してしまい、link タイプの外部 URL 投稿ができなくなった。
+
+```typescript
+// ✅ createPost: args.mediaType で分岐
+if (args.mediaType === "link") {
+  validateUrl(args.mediaUrl);
+} else {
+  validateMediaUrl(args.mediaUrl);
+}
+
+// ✅ updatePost: 既存の post.mediaType も考慮
+const effectiveType = (args.mediaType as string | undefined) ?? post.mediaType;
+if (effectiveType === "link") {
+  validateUrl(args.mediaUrl);
+} else {
+  validateMediaUrl(args.mediaUrl);
+}
+```
+
 ### 外部 SDK エラーのクライアント露出防止
 
 **外部 SDK（AWS SDK、AI API 等）のエラーメッセージをクライアントにそのまま返さないこと。** バケット名、エンドポイント、認証情報の断片が含まれうる。
