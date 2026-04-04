@@ -455,9 +455,15 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     String? body,
     String? mediaUrl,
     String? thumbnailUrl,
+    String? eventAt,
+    bool clearEventAt = false,
     double? importance,
     String? visibility,
   }) async {
+    assert(
+      !(eventAt != null && clearEventAt),
+      'eventAt and clearEventAt are mutually exclusive',
+    );
     try {
       // Only send trackId if it actually changed
       final currentPost = state.posts.firstWhere((p) => p.id == id);
@@ -476,6 +482,8 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
             if (body != null) 'body': body.isEmpty ? null : body,
             if (mediaUrl != null) 'mediaUrl': mediaUrl,
             if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
+            if (eventAt != null) 'eventAt': eventAt,
+            if (clearEventAt) 'eventAt': null,
             if (importance != null) 'importance': importance,
           },
         ),

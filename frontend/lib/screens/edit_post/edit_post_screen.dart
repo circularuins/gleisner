@@ -8,6 +8,7 @@ import '../../providers/media_upload_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../widgets/common/event_at_picker.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
 
@@ -45,6 +46,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   bool _isSubmitting = false;
   String? _error;
   String? _thumbnailUrl;
+  DateTime? _eventAt;
 
   @override
   void initState() {
@@ -58,6 +60,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     _visibility = widget.post.visibility;
     _selectedTrackId = widget.post.trackId;
     _thumbnailUrl = widget.post.thumbnailUrl;
+    _eventAt = widget.post.eventAt;
   }
 
   @override
@@ -100,6 +103,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             body: body,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
             thumbnailUrl: _thumbnailUrl,
+            eventAt: _eventAt?.toIso8601String(),
+            clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,
             visibility: _visibility,
           );
@@ -113,6 +118,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             body: body,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
             thumbnailUrl: _thumbnailUrl,
+            eventAt: _eventAt?.toIso8601String(),
+            clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,
             visibility: _visibility,
           );
@@ -239,6 +246,13 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
 
               // Content fields based on media type
               ..._buildContentFields(),
+
+              // Event date
+              const SizedBox(height: spaceLg),
+              EventAtPicker(
+                eventAt: _eventAt,
+                onChanged: (dt) => setState(() => _eventAt = dt),
+              ),
 
               // Importance slider
               const SizedBox(height: spaceLg),

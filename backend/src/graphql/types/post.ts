@@ -63,6 +63,7 @@ type PostShape = {
   visibility: string;
   contentHash: string | null;
   signature: string | null;
+  eventAt: Date | null;
   layoutX: number;
   layoutY: number;
   createdAt: Date;
@@ -95,6 +96,10 @@ PostType.implement({
     visibility: t.exposeString("visibility"),
     contentHash: t.exposeString("contentHash", { nullable: true }),
     signature: t.exposeString("signature", { nullable: true }),
+    eventAt: t.string({
+      nullable: true,
+      resolve: (post) => post.eventAt?.toISOString() ?? null,
+    }),
     layoutX: t.exposeInt("layoutX"),
     layoutY: t.exposeInt("layoutY"),
     createdAt: t.string({
@@ -146,6 +151,7 @@ builder.mutationFields((t) => ({
       duration: t.arg.int(),
       importance: t.arg.float(),
       visibility: t.arg.string(),
+      eventAt: t.arg.string(),
       layoutX: t.arg.int(),
       layoutY: t.arg.int(),
       signature: t.arg.string(),
@@ -255,6 +261,15 @@ builder.mutationFields((t) => ({
           mediaUrl: args.mediaUrl ?? null,
           thumbnailUrl: args.thumbnailUrl ?? null,
           duration: args.duration ?? null,
+          ...(args.eventAt != null && args.eventAt !== ""
+            ? (() => {
+                const parsed = new Date(args.eventAt as string);
+                if (isNaN(parsed.getTime())) {
+                  throw new GraphQLError("Invalid eventAt: not a valid date");
+                }
+                return { eventAt: parsed };
+              })()
+            : {}),
           contentHash,
           signature: signatureValue,
           ...(args.visibility != null ? { visibility: args.visibility } : {}),
@@ -281,6 +296,7 @@ builder.mutationFields((t) => ({
       duration: t.arg.int(),
       importance: t.arg.float(),
       visibility: t.arg.string(),
+      eventAt: t.arg.string(),
       layoutX: t.arg.int(),
       layoutY: t.arg.int(),
       signature: t.arg.string(),
@@ -376,6 +392,17 @@ builder.mutationFields((t) => ({
       if (args.thumbnailUrl !== undefined)
         updateData.thumbnailUrl = args.thumbnailUrl;
       if (args.duration !== undefined) updateData.duration = args.duration;
+      if (args.eventAt !== undefined) {
+        if (args.eventAt != null && args.eventAt !== "") {
+          const parsed = new Date(args.eventAt);
+          if (isNaN(parsed.getTime())) {
+            throw new GraphQLError("Invalid eventAt: not a valid date");
+          }
+          updateData.eventAt = parsed;
+        } else {
+          updateData.eventAt = null; // explicit clear
+        }
+      }
       if (args.importance !== undefined)
         updateData.importance = args.importance;
       if (args.visibility !== undefined)

@@ -37,6 +37,7 @@ export const posts = pgTable("posts", {
   visibility: varchar("visibility", { length: 20 }).default("public").notNull(),
   contentHash: varchar("content_hash", { length: 64 }),
   signature: text("signature"),
+  eventAt: timestamp("event_at", { withTimezone: true }),
   layoutX: integer("layout_x").default(0).notNull(),
   layoutY: integer("layout_y").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })

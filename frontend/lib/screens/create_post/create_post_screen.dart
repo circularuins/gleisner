@@ -9,6 +9,7 @@ import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/common/connection_type_picker.dart';
 import '../../widgets/common/error_banner.dart';
+import '../../widgets/common/event_at_picker.dart';
 import '../../widgets/common/related_post_picker.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../providers/media_upload_provider.dart';
@@ -26,6 +27,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   final _bodyController = TextEditingController();
   final _mediaUrlController = TextEditingController();
   String? _thumbnailUrl;
+  DateTime? _eventAt;
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -62,6 +64,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               ? null
               : _mediaUrlController.text,
           thumbnailUrl: _thumbnailUrl,
+          eventAt: _eventAt,
         );
 
     if (result != null && mounted) {
@@ -115,6 +118,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               bodyController: _bodyController,
               mediaUrlController: _mediaUrlController,
               thumbnailUrl: _thumbnailUrl,
+              eventAt: _eventAt,
+              onEventAtChanged: (dt) => setState(() => _eventAt = dt),
               onSubmit: _submit,
               onPickMedia: _pickMedia,
             ),
@@ -381,6 +386,8 @@ class _FormStep extends ConsumerWidget {
   final TextEditingController bodyController;
   final TextEditingController mediaUrlController;
   final String? thumbnailUrl;
+  final DateTime? eventAt;
+  final ValueChanged<DateTime?> onEventAtChanged;
   final VoidCallback onSubmit;
   final Future<void> Function(MediaType) onPickMedia;
 
@@ -390,6 +397,8 @@ class _FormStep extends ConsumerWidget {
     required this.bodyController,
     required this.mediaUrlController,
     this.thumbnailUrl,
+    this.eventAt,
+    required this.onEventAtChanged,
     required this.onSubmit,
     required this.onPickMedia,
   });
@@ -456,6 +465,10 @@ class _FormStep extends ConsumerWidget {
 
             // Media-type-specific fields
             ..._buildContentFields(mediaType, theme, ref),
+
+            // Event date (when did this happen?)
+            EventAtPicker(eventAt: eventAt, onChanged: onEventAtChanged),
+            const SizedBox(height: spaceLg),
 
             // Related posts (connections)
             _ConnectionsSection(
