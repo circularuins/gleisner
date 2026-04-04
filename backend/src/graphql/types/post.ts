@@ -7,7 +7,11 @@ import { ArtistType } from "./artist.js";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 import { computeContentHash, verifySignature } from "../../auth/signing.js";
-import { validatePostVisibility, validateMediaUrl } from "../validators.js";
+import {
+  validatePostVisibility,
+  validateMediaUrl,
+  validateUrl,
+} from "../validators.js";
 import { checkArtistAccess } from "../access.js";
 
 const MediaTypeEnum = builder.enumType("MediaType", {
@@ -184,9 +188,13 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Body must be 10000 characters or less");
       }
 
-      // Validate mediaUrl and thumbnailUrl
+      // Validate mediaUrl: link type accepts any URL, others require R2 domain
       if (args.mediaUrl != null) {
-        validateMediaUrl(args.mediaUrl);
+        if (args.mediaType === "link") {
+          validateUrl(args.mediaUrl);
+        } else {
+          validateMediaUrl(args.mediaUrl);
+        }
       }
       if (args.thumbnailUrl != null) {
         validateMediaUrl(args.thumbnailUrl);
@@ -305,9 +313,16 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Body must be 10000 characters or less");
       }
 
-      // Validate mediaUrl and thumbnailUrl
+      // Validate mediaUrl: link type accepts any URL, others require R2 domain.
+      // Use effective media type (args override, fallback to existing post).
       if (args.mediaUrl != null) {
-        validateMediaUrl(args.mediaUrl);
+        const effectiveType =
+          (args.mediaType as string | undefined) ?? post.mediaType;
+        if (effectiveType === "link") {
+          validateUrl(args.mediaUrl);
+        } else {
+          validateMediaUrl(args.mediaUrl);
+        }
       }
       if (args.thumbnailUrl != null) {
         validateMediaUrl(args.thumbnailUrl);

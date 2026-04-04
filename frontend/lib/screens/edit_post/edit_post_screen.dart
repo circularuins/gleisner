@@ -8,6 +8,8 @@ import '../../providers/media_upload_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../utils/constellation_layout.dart';
+import '../../widgets/timeline/seed_art_painter.dart';
 
 class EditPostScreen extends ConsumerStatefulWidget {
   final Post post;
@@ -210,11 +212,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                 const SizedBox(height: spaceLg),
               ],
 
-              // Content fields based on media type
-              ..._buildContentFields(),
-
-              // Visibility toggle
-              const SizedBox(height: spaceLg),
+              // Visibility toggle (first — matches create_post order)
               Row(
                 children: [
                   Text(
@@ -237,6 +235,10 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: spaceLg),
+
+              // Content fields based on media type
+              ..._buildContentFields(),
 
               // Importance slider
               const SizedBox(height: spaceLg),
@@ -264,6 +266,17 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                 ],
               ),
 
+              const SizedBox(height: spaceSm),
+              _ImportancePreview(
+                importance: _importance,
+                mediaType: widget.post.mediaType,
+                trackColor:
+                    allTracks
+                        .where((t) => t.id == _selectedTrackId)
+                        .firstOrNull
+                        ?.displayColor ??
+                    colorAccentGold,
+              ),
               const SizedBox(height: spaceXl),
 
               // Save button
@@ -337,14 +350,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         mediaType == MediaType.video || mediaType == MediaType.audio;
 
     return [
-      TextFormField(
-        controller: _titleController,
-        maxLength: 100,
-        style: const TextStyle(color: colorTextPrimary),
-        decoration: _inputDecoration('Title (optional)'),
-      ),
-      const SizedBox(height: spaceMd),
-      // Media preview / upload area
+      // Media preview / upload area (first — matches create_post order)
       if (isImage || isVideoOrAudio)
         GestureDetector(
           onTap: uploadState.isUploading ? null : _replaceMedia,
@@ -427,7 +433,16 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
           style: textCaption.copyWith(color: colorError),
         ),
       ],
+      const SizedBox(height: spaceLg),
+      // Title
+      TextFormField(
+        controller: _titleController,
+        maxLength: 100,
+        style: const TextStyle(color: colorTextPrimary),
+        decoration: _inputDecoration('Title (optional)'),
+      ),
       const SizedBox(height: spaceMd),
+      // Caption
       TextFormField(
         controller: _bodyController,
         maxLines: 3,
@@ -527,6 +542,54 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
       ),
       filled: true,
       fillColor: colorSurface1,
+    );
+  }
+}
+
+class _ImportancePreview extends StatelessWidget {
+  final double importance;
+  final MediaType mediaType;
+  final Color trackColor;
+
+  const _ImportancePreview({
+    required this.importance,
+    required this.mediaType,
+    required this.trackColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sz = ConstellationLayout.nodeSize(importance);
+    final mediaH = sz > 110 ? sz * 0.7 : sz * 0.85;
+    final w = sz > 110 ? sz * 1.25 : sz;
+    final glowOpacity = 0.15 + importance * 0.25;
+    final glowBlur = 8.0 + importance * 16;
+
+    return Center(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: w,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: trackColor.withValues(alpha: glowOpacity),
+              blurRadius: glowBlur,
+              spreadRadius: 4.0 + importance * 12,
+            ),
+          ],
+          border: Border.all(color: trackColor.withValues(alpha: 0.3)),
+          color: colorSurface1,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: SeedArtCanvas(
+          width: w,
+          height: mediaH,
+          trackColor: trackColor,
+          seed: 'preview',
+          mediaType: mediaType,
+        ),
+      ),
     );
   }
 }
