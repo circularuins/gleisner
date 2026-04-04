@@ -3,15 +3,19 @@ import 'dart:typed_data';
 import 'dart:js_interop';
 import 'package:web/web.dart' as web;
 
-/// Capture the first frame of a video as a JPEG thumbnail.
+/// Capture the first frame of a video as a JPEG thumbnail (Web only).
+/// [mimeType] should match the actual video format (e.g. 'video/webm').
 /// Returns the JPEG bytes, or null on failure.
-Future<Uint8List?> captureVideoThumbnail(Uint8List videoBytes) async {
+Future<Uint8List?> captureVideoThumbnail(
+  Uint8List videoBytes, {
+  String mimeType = 'video/mp4',
+}) async {
   final completer = Completer<Uint8List?>();
 
   // Create a blob URL from the video bytes
   final blob = web.Blob(
     [videoBytes.toJS].toJS,
-    web.BlobPropertyBag(type: 'video/mp4'),
+    web.BlobPropertyBag(type: mimeType),
   );
   final blobUrl = web.URL.createObjectURL(blob);
 

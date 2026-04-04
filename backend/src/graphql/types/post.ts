@@ -386,6 +386,8 @@ builder.mutationFields((t) => ({
       // Recompute contentHash if content fields changed.
       // layoutX/Y are presentation-only and intentionally excluded from the
       // content hash — moving a post on the timeline does not alter its content.
+      // thumbnailUrl is a display-optimization field (auto-generated from video),
+      // not part of the content signature — changing thumbnail does not alter content.
       const contentChanged =
         args.title !== undefined ||
         args.body !== undefined ||

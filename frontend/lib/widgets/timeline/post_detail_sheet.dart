@@ -1357,13 +1357,16 @@ class _VideoPlayerState extends State<_VideoPlayer> {
       ..initialize().then((_) {
         if (mounted) setState(() => _initialized = true);
       });
-    _controller.addListener(() {
-      if (mounted) setState(() {});
-    });
+    _controller.addListener(_onControllerUpdate);
+  }
+
+  void _onControllerUpdate() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_onControllerUpdate);
     _controller.dispose();
     super.dispose();
   }

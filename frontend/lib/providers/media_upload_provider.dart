@@ -195,7 +195,10 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       // Generate and upload thumbnail
       String? thumbnailUrl;
       try {
-        final thumbBytes = await captureVideoThumbnail(bytes);
+        final thumbBytes = await captureVideoThumbnail(
+          bytes,
+          mimeType: contentType,
+        );
         if (thumbBytes != null && !disposed) {
           thumbnailUrl = await _upload(
             category: category,

@@ -44,11 +44,12 @@ Future<(Uint8List, String)?> pickFileFromBrowser({
     });
   }
 
-  web.window.addEventListener('focus', onFocus.toJS);
+  final onFocusJs = onFocus.toJS; // single reference for add/remove
+  web.window.addEventListener('focus', onFocusJs);
 
   // Clean up focus listener after completion
   completer.future.then((_) {
-    web.window.removeEventListener('focus', onFocus.toJS);
+    web.window.removeEventListener('focus', onFocusJs);
   });
 
   return completer.future;
