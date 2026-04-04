@@ -50,6 +50,14 @@ String? mimeFromBytes(Uint8List bytes) {
       bytes[11] == 0x50) {
     return 'image/webp';
   }
+  // RIFF/WAVE (WAV audio)
+  if (_startsWith(bytes, _webpPrefix) &&
+      bytes[8] == 0x57 &&
+      bytes[9] == 0x41 &&
+      bytes[10] == 0x56 &&
+      bytes[11] == 0x45) {
+    return 'audio/wav';
+  }
   if (_startsWith(bytes, _gifMagic)) return 'image/gif';
 
   // Video/Audio: MP4/M4A (ftyp box at offset 4)

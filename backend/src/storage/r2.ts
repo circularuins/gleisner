@@ -55,6 +55,7 @@ export const ALLOWED_CONTENT_TYPES: Record<UploadCategory, string[]> = {
     "audio/mp4",
     "audio/ogg",
     "audio/webm",
+    "audio/wav",
   ],
 };
 
@@ -70,6 +71,7 @@ const CONTENT_TYPE_EXT: Record<string, string> = {
   "audio/mp4": "m4a",
   "audio/ogg": "ogg",
   "audio/webm": "weba",
+  "audio/wav": "wav",
 };
 
 export interface PresignedUpload {

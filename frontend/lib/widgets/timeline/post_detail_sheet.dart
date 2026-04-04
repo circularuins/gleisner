@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:js_interop';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
@@ -1348,6 +1349,7 @@ class _VideoPlayerState extends State<_VideoPlayer> {
   late VideoPlayerController _controller;
   bool _initialized = false;
   bool _showControls = true;
+  Timer? _hideTimer;
   final GlobalKey _videoKey = GlobalKey();
 
   @override
@@ -1366,6 +1368,7 @@ class _VideoPlayerState extends State<_VideoPlayer> {
 
   @override
   void dispose() {
+    _hideTimer?.cancel();
     _controller.removeListener(_onControllerUpdate);
     _controller.dispose();
     super.dispose();
@@ -1394,7 +1397,8 @@ class _VideoPlayerState extends State<_VideoPlayer> {
   }
 
   void _autoHideControls() {
-    Future.delayed(const Duration(seconds: 3), () {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 3), () {
       if (mounted && _controller.value.isPlaying) {
         setState(() => _showControls = false);
       }
@@ -1553,10 +1557,16 @@ class _AudioPlayerState extends State<_AudioPlayer> {
       ..initialize().then((_) {
         if (mounted) setState(() => _initialized = true);
       });
+    _controller.addListener(_onControllerUpdate);
+  }
+
+  void _onControllerUpdate() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_onControllerUpdate);
     _controller.dispose();
     super.dispose();
   }
