@@ -37,38 +37,14 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   Future<void> _pickMedia(MediaType mediaType) async {
-    final notifier = ref.read(mediaUploadProvider.notifier);
-
-    switch (mediaType) {
-      case MediaType.image:
-        final url = await notifier.pickAndUploadImage(
-          category: UploadCategory.media,
-          maxWidth: 1280,
-          maxHeight: 1280,
-          imageQuality: 75,
-        );
-        if (url != null && mounted) {
-          setState(() => _mediaUrlController.text = url);
-        }
-      case MediaType.video:
-        final result = await notifier.pickAndUploadVideo(
-          category: UploadCategory.media,
-        );
-        if (result != null && mounted) {
-          setState(() {
-            _mediaUrlController.text = result.videoUrl;
-            _thumbnailUrl = result.thumbnailUrl;
-          });
-        }
-      case MediaType.audio:
-        final url = await notifier.pickAndUploadAudio(
-          category: UploadCategory.media,
-        );
-        if (url != null && mounted) {
-          setState(() => _mediaUrlController.text = url);
-        }
-      default:
-        return;
+    final result = await ref
+        .read(mediaUploadProvider.notifier)
+        .pickByMediaType(mediaType);
+    if (result != null && mounted) {
+      setState(() {
+        _mediaUrlController.text = result.mediaUrl;
+        _thumbnailUrl = result.thumbnailUrl;
+      });
     }
   }
 

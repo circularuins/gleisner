@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../graphql/client.dart';
 import '../graphql/mutations/media.dart';
+import '../models/post.dart' show MediaType;
 import '../utils/video_thumbnail.dart';
 import '../utils/web_file_picker.dart';
 import 'disposable_notifier.dart';
@@ -234,7 +235,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       final (bytes, _) = result;
 
       final contentType = mimeFromBytes(bytes);
-      if (contentType == null) {
+      if (contentType == null || !contentType.startsWith('audio/')) {
         state = const MediaUploadState(
           error: 'Unsupported audio format. Use MP3, M4A, OGG, or WebM.',
         );
@@ -338,6 +339,35 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
   void clearError() {
     if (!disposed) {
       state = const MediaUploadState();
+    }
+  }
+
+  /// Convenience method to pick and upload based on media type.
+  /// Returns ({mediaUrl, thumbnailUrl}) for all types.
+  /// Centralizes the pick logic so create_post and edit_post don't duplicate.
+  Future<({String mediaUrl, String? thumbnailUrl})?> pickByMediaType(
+    MediaType mediaType,
+  ) async {
+    switch (mediaType) {
+      case MediaType.image:
+        final url = await pickAndUploadImage(
+          category: UploadCategory.media,
+          maxWidth: 1280,
+          maxHeight: 1280,
+          imageQuality: 75,
+        );
+        if (url == null) return null;
+        return (mediaUrl: url, thumbnailUrl: null);
+      case MediaType.video:
+        final result = await pickAndUploadVideo(category: UploadCategory.media);
+        if (result == null) return null;
+        return (mediaUrl: result.videoUrl, thumbnailUrl: result.thumbnailUrl);
+      case MediaType.audio:
+        final url = await pickAndUploadAudio(category: UploadCategory.media);
+        if (url == null) return null;
+        return (mediaUrl: url, thumbnailUrl: null);
+      default:
+        return null;
     }
   }
 

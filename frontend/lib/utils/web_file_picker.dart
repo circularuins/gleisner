@@ -3,8 +3,8 @@ import 'dart:typed_data';
 import 'dart:js_interop';
 import 'package:web/web.dart' as web;
 
-/// Pick a file using the browser's native file input.
-/// Returns (bytes, filename) or null if cancelled.
+/// Pick a file using the browser's native file input (Web only).
+/// Returns (bytes, filename) or null if cancelled or timed out.
 Future<(Uint8List, String)?> pickFileFromBrowser({
   required String accept,
 }) async {
@@ -17,7 +17,7 @@ Future<(Uint8List, String)?> pickFileFromBrowser({
   input.onChange.listen((_) {
     final files = input.files;
     if (files == null || files.length == 0) {
-      completer.complete(null);
+      if (!completer.isCompleted) completer.complete(null);
       return;
     }
     final file = files.item(0)!;
@@ -25,18 +25,31 @@ Future<(Uint8List, String)?> pickFileFromBrowser({
     reader.onLoadEnd.listen((_) {
       final result = reader.result;
       if (result == null) {
-        completer.complete(null);
+        if (!completer.isCompleted) completer.complete(null);
         return;
       }
       final bytes = (result as JSArrayBuffer).toDart.asUint8List();
-      completer.complete((bytes, file.name));
+      if (!completer.isCompleted) completer.complete((bytes, file.name));
     });
     reader.readAsArrayBuffer(file);
   });
 
-  // Also handle cancel (input loses focus without selection)
-  // Use a delayed check since there's no cancel event
   input.click();
+
+  // Cancel detection: when user dismisses the file dialog, window regains
+  // focus but onChange never fires. Use a delayed check after focus returns.
+  void onFocus(web.Event _) {
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!completer.isCompleted) completer.complete(null);
+    });
+  }
+
+  web.window.addEventListener('focus', onFocus.toJS);
+
+  // Clean up focus listener after completion
+  completer.future.then((_) {
+    web.window.removeEventListener('focus', onFocus.toJS);
+  });
 
   return completer.future;
 }
