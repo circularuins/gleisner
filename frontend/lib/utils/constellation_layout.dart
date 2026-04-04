@@ -124,7 +124,7 @@ class ConstellationLayout {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    // Convert UTC createdAt to local date for grouping
+    // Convert display date (eventAt ?? createdAt) to local date for grouping
     DateTime localDate(DateTime utc) {
       final local = utc.toLocal();
       return DateTime(local.year, local.month, local.day);
@@ -133,16 +133,16 @@ class ConstellationLayout {
     // Sort by date (most recent first in display, but group by day)
     final sorted = List<Post>.from(posts)
       ..sort((a, b) {
-        final dayA = today.difference(localDate(a.createdAt)).inDays;
-        final dayB = today.difference(localDate(b.createdAt)).inDays;
+        final dayA = today.difference(localDate(a.displayDate)).inDays;
+        final dayB = today.difference(localDate(b.displayDate)).inDays;
         if (dayA != dayB) return dayA.compareTo(dayB);
-        return b.createdAt.compareTo(a.createdAt);
+        return b.displayDate.compareTo(a.displayDate);
       });
 
     // Group by days-ago
     final dayMap = <int, List<Post>>{};
     for (final post in sorted) {
-      final daysAgo = today.difference(localDate(post.createdAt)).inDays;
+      final daysAgo = today.difference(localDate(post.displayDate)).inDays;
       dayMap.putIfAbsent(daysAgo, () => []).add(post);
     }
 
@@ -178,9 +178,9 @@ class ConstellationLayout {
     for (final dk in dayKeys) {
       final items = dayMap[dk];
       if (items == null || items.isEmpty) continue;
-      // Sort by createdAt descending (newest first)
+      // Sort by displayDate descending (newest first)
       final byCtime = List<Post>.from(items)
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        ..sort((a, b) => b.displayDate.compareTo(a.displayDate));
       for (int i = 0; i < byCtime.length; i++) {
         dayOrder[byCtime[i].id] = byCtime.length > 1
             ? i / (byCtime.length - 1)
@@ -201,7 +201,7 @@ class ConstellationLayout {
       );
 
     for (final item in bySize) {
-      final daysAgo = today.difference(localDate(item.createdAt)).inDays;
+      final daysAgo = today.difference(localDate(item.displayDate)).inDays;
       final dI = dayY[daysAgo];
       if (dI == null) continue;
 
@@ -315,10 +315,10 @@ class ConstellationLayout {
 
     // Pass 4: Enforce strict time-series order.
     // Newer posts must never have their top edge below older posts' top edge.
-    // Sort by createdAt descending (newest first) — y values must be
+    // Sort by displayDate descending (newest first) — y values must be
     // non-decreasing in this order.
     final byTime = List<_PlacedItem>.from(placedItems)
-      ..sort((a, b) => b.post.createdAt.compareTo(a.post.createdAt));
+      ..sort((a, b) => b.post.displayDate.compareTo(a.post.displayDate));
     // Small offset so closely-timed posts don't align exactly
     final nudgeRng = DeterministicRng('nudge');
     double maxTopY = -double.infinity;

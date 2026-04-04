@@ -6,6 +6,7 @@ const postFields = '''
   mediaUrl
   thumbnailUrl
   duration
+  eventAt
   importance
   visibility
   layoutX

@@ -10,7 +10,8 @@ const createPostMutation =
     \$mediaUrl: String,
     \$thumbnailUrl: String,
     \$importance: Float,
-    \$visibility: String
+    \$visibility: String,
+    \$eventAt: String
   ) {
     createPost(
       trackId: \$trackId,
@@ -20,7 +21,8 @@ const createPostMutation =
       mediaUrl: \$mediaUrl,
       thumbnailUrl: \$thumbnailUrl,
       importance: \$importance,
-      visibility: \$visibility
+      visibility: \$visibility,
+      eventAt: \$eventAt
     ) {
       $postFields
     }
@@ -37,7 +39,8 @@ const updatePostMutation =
     \$mediaUrl: String,
     \$thumbnailUrl: String,
     \$importance: Float,
-    \$visibility: String
+    \$visibility: String,
+    \$eventAt: String
   ) {
     updatePost(
       id: \$id,
@@ -47,7 +50,8 @@ const updatePostMutation =
       mediaUrl: \$mediaUrl,
       thumbnailUrl: \$thumbnailUrl,
       importance: \$importance,
-      visibility: \$visibility
+      visibility: \$visibility,
+      eventAt: \$eventAt
     ) {
       $postFields
     }

@@ -125,4 +125,21 @@ void main() {
       expect(withDuration(7200).formattedDuration, '2:00:00');
     });
   });
+
+  group('Post.displayDate', () {
+    test('returns eventAt when set', () {
+      final eventAt = DateTime(2026, 1, 15, 14, 30);
+      final post = Post.fromJson({
+        ...validJson,
+        'eventAt': eventAt.toIso8601String(),
+      });
+      expect(post.displayDate, eventAt);
+    });
+
+    test('returns createdAt when eventAt is null', () {
+      final post = Post.fromJson(validJson);
+      expect(post.eventAt, isNull);
+      expect(post.displayDate, post.createdAt);
+    });
+  });
 }

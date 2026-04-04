@@ -127,6 +127,7 @@ class Post {
   final int? duration;
   final double importance;
   final String visibility;
+  final DateTime? eventAt;
   final double? layoutX;
   final double? layoutY;
   final String? contentHash;
@@ -152,6 +153,7 @@ class Post {
     this.duration,
     required this.importance,
     this.visibility = 'public',
+    this.eventAt,
     this.layoutX,
     this.layoutY,
     this.contentHash,
@@ -176,6 +178,7 @@ class Post {
     Object? duration = sentinel,
     double? importance,
     String? visibility,
+    Object? eventAt = sentinel,
     Object? layoutX = sentinel,
     Object? layoutY = sentinel,
     Object? contentHash = sentinel,
@@ -200,6 +203,7 @@ class Post {
       duration: duration == sentinel ? this.duration : duration as int?,
       importance: importance ?? this.importance,
       visibility: visibility ?? this.visibility,
+      eventAt: eventAt == sentinel ? this.eventAt : eventAt as DateTime?,
       layoutX: layoutX == sentinel ? this.layoutX : layoutX as double?,
       layoutY: layoutY == sentinel ? this.layoutY : layoutY as double?,
       contentHash: contentHash == sentinel
@@ -228,6 +232,9 @@ class Post {
   /// Total reaction count across all emoji types.
   int get totalReactions => reactionCounts.fold(0, (sum, r) => sum + r.count);
 
+  /// The display date for timeline ordering: eventAt if set, otherwise createdAt.
+  DateTime get displayDate => eventAt ?? createdAt;
+
   /// Format duration as "m:ss" or "h:mm:ss". Returns null if no duration.
   String? get formattedDuration {
     if (duration == null) return null;
@@ -253,6 +260,9 @@ class Post {
       duration: (json['duration'] as num?)?.toInt(),
       importance: (json['importance'] as num).toDouble(),
       visibility: json['visibility'] as String? ?? 'public',
+      eventAt: json['eventAt'] != null
+          ? DateTime.parse(json['eventAt'] as String)
+          : null,
       layoutX: (json['layoutX'] as num?)?.toDouble(),
       layoutY: (json['layoutY'] as num?)?.toDouble(),
       contentHash: json['contentHash'] as String?,
