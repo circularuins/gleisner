@@ -11,6 +11,7 @@ import '../../widgets/common/connection_type_picker.dart';
 import '../../widgets/common/error_banner.dart';
 import '../../widgets/common/related_post_picker.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../providers/media_upload_provider.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
@@ -24,6 +25,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
   final _mediaUrlController = TextEditingController();
+  String? _thumbnailUrl;
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -32,6 +34,18 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     _bodyController.dispose();
     _mediaUrlController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickMedia(MediaType mediaType) async {
+    final result = await ref
+        .read(mediaUploadProvider.notifier)
+        .pickByMediaType(mediaType);
+    if (result != null && mounted) {
+      setState(() {
+        _mediaUrlController.text = result.mediaUrl;
+        _thumbnailUrl = result.thumbnailUrl;
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -47,6 +61,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           mediaUrl: _mediaUrlController.text.isEmpty
               ? null
               : _mediaUrlController.text,
+          thumbnailUrl: _thumbnailUrl,
         );
 
     if (result != null && mounted) {
@@ -99,7 +114,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               titleController: _titleController,
               bodyController: _bodyController,
               mediaUrlController: _mediaUrlController,
+              thumbnailUrl: _thumbnailUrl,
               onSubmit: _submit,
+              onPickMedia: _pickMedia,
             ),
           },
         ),
@@ -363,14 +380,18 @@ class _FormStep extends ConsumerWidget {
   final TextEditingController titleController;
   final TextEditingController bodyController;
   final TextEditingController mediaUrlController;
+  final String? thumbnailUrl;
   final VoidCallback onSubmit;
+  final Future<void> Function(MediaType) onPickMedia;
 
   const _FormStep({
     required this.formKey,
     required this.titleController,
     required this.bodyController,
     required this.mediaUrlController,
+    this.thumbnailUrl,
     required this.onSubmit,
+    required this.onPickMedia,
   });
 
   @override
@@ -407,8 +428,45 @@ class _FormStep extends ConsumerWidget {
             ),
             const SizedBox(height: spaceLg),
 
+            // Visibility toggle (important — shown before content fields)
+            Row(
+              children: [
+                Text('Visibility', style: theme.textTheme.titleSmall),
+                const SizedBox(width: spaceLg),
+                ChoiceChip(
+                  label: const Text('Public'),
+                  selected: state.visibility == 'public',
+                  onSelected: (_) => ref
+                      .read(createPostProvider.notifier)
+                      .setVisibility('public'),
+                  visualDensity: VisualDensity.compact,
+                ),
+                const SizedBox(width: spaceSm),
+                ChoiceChip(
+                  label: const Text('Draft'),
+                  selected: state.visibility == 'draft',
+                  onSelected: (_) => ref
+                      .read(createPostProvider.notifier)
+                      .setVisibility('draft'),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const SizedBox(height: spaceLg),
+
             // Media-type-specific fields
-            ..._buildContentFields(mediaType, theme),
+            ..._buildContentFields(mediaType, theme, ref),
+
+            // Related posts (connections)
+            _ConnectionsSection(
+              connections: state.selectedConnections,
+              allPosts: ref.watch(timelineProvider).posts,
+              onRemove: (postId) => ref
+                  .read(createPostProvider.notifier)
+                  .removeConnection(postId),
+              onAddRequested: () => _showAddConnection(context, ref),
+            ),
+            const SizedBox(height: spaceXl),
 
             // Importance slider + node preview
             Column(
@@ -449,43 +507,6 @@ class _FormStep extends ConsumerWidget {
                   title: titleController.text,
                   body: bodyController.text,
                   trackName: state.selectedTrack?.name ?? '',
-                ),
-              ],
-            ),
-            const SizedBox(height: spaceXl),
-
-            // Related posts (connections)
-            _ConnectionsSection(
-              connections: state.selectedConnections,
-              allPosts: ref.watch(timelineProvider).posts,
-              onRemove: (postId) => ref
-                  .read(createPostProvider.notifier)
-                  .removeConnection(postId),
-              onAddRequested: () => _showAddConnection(context, ref),
-            ),
-            const SizedBox(height: spaceXl),
-
-            // Visibility toggle
-            Row(
-              children: [
-                Text('Visibility', style: theme.textTheme.titleSmall),
-                const SizedBox(width: spaceLg),
-                ChoiceChip(
-                  label: const Text('Public'),
-                  selected: state.visibility == 'public',
-                  onSelected: (_) => ref
-                      .read(createPostProvider.notifier)
-                      .setVisibility('public'),
-                  visualDensity: VisualDensity.compact,
-                ),
-                const SizedBox(width: spaceSm),
-                ChoiceChip(
-                  label: const Text('Draft'),
-                  selected: state.visibility == 'draft',
-                  onSelected: (_) => ref
-                      .read(createPostProvider.notifier)
-                      .setVisibility('draft'),
-                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),
@@ -539,14 +560,18 @@ class _FormStep extends ConsumerWidget {
     }
   }
 
-  List<Widget> _buildContentFields(MediaType mediaType, ThemeData theme) {
+  List<Widget> _buildContentFields(
+    MediaType mediaType,
+    ThemeData theme,
+    WidgetRef ref,
+  ) {
     switch (mediaType) {
       case MediaType.text:
         return _buildTextFields(theme);
       case MediaType.image:
       case MediaType.video:
       case MediaType.audio:
-        return _buildMediaFields(mediaType, theme);
+        return _buildMediaFields(mediaType, theme, ref);
       case MediaType.link:
         return _buildLinkFields(theme);
     }
@@ -591,8 +616,12 @@ class _FormStep extends ConsumerWidget {
     ];
   }
 
-  // image/video/audio: caption + upload placeholder
-  List<Widget> _buildMediaFields(MediaType mediaType, ThemeData theme) {
+  // image/video/audio: title + upload area + caption
+  List<Widget> _buildMediaFields(
+    MediaType mediaType,
+    ThemeData theme,
+    WidgetRef ref,
+  ) {
     final (icon, label) = switch (mediaType) {
       MediaType.image => (Icons.photo_library, 'Image'),
       MediaType.video => (Icons.videocam, 'Video'),
@@ -600,7 +629,69 @@ class _FormStep extends ConsumerWidget {
       _ => (Icons.attach_file, 'Media'),
     };
 
+    final uploadState = ref.watch(mediaUploadProvider);
+    final hasMedia = mediaUrlController.text.isNotEmpty;
+
     return [
+      // Upload area (first — pick media, then name it)
+      GestureDetector(
+        onTap: uploadState.isUploading ? null : () => onPickMedia(mediaType),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: hasMedia
+                  ? colorAccentGold.withAlpha(128)
+                  : theme.colorScheme.outline.withAlpha(80),
+            ),
+            borderRadius: BorderRadius.circular(12),
+            color: theme.colorScheme.surfaceContainerHighest.withAlpha(30),
+          ),
+          child: uploadState.isUploading
+              ? Column(
+                  children: [
+                    const SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(height: spaceSm),
+                    Text(
+                      'Uploading...',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withAlpha(128),
+                      ),
+                    ),
+                  ],
+                )
+              : hasMedia
+              ? _buildMediaPreview(mediaType, theme)
+              : Column(
+                  children: [
+                    Icon(
+                      icon,
+                      size: 40,
+                      color: theme.colorScheme.onSurface.withAlpha(100),
+                    ),
+                    const SizedBox(height: spaceSm),
+                    Text(
+                      'Tap to upload $label',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withAlpha(128),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+      if (uploadState.error != null) ...[
+        const SizedBox(height: spaceSm),
+        Text(
+          uploadState.error!,
+          style: theme.textTheme.bodySmall?.copyWith(color: colorError),
+        ),
+      ],
+      const SizedBox(height: spaceLg),
       // Title (optional)
       TextFormField(
         controller: titleController,
@@ -615,35 +706,6 @@ class _FormStep extends ConsumerWidget {
         style: theme.textTheme.titleMedium,
       ),
       const SizedBox(height: spaceMd),
-      // Upload placeholder
-      Container(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: theme.colorScheme.outline.withAlpha(80),
-            style: BorderStyle.solid,
-          ),
-          borderRadius: BorderRadius.circular(12),
-          color: theme.colorScheme.surfaceContainerHighest.withAlpha(30),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 40,
-              color: theme.colorScheme.onSurface.withAlpha(100),
-            ),
-            const SizedBox(height: spaceSm),
-            Text(
-              '$label upload coming soon',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withAlpha(100),
-              ),
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: spaceLg),
       // Caption
       TextFormField(
         controller: bodyController,
@@ -657,6 +719,50 @@ class _FormStep extends ConsumerWidget {
       ),
       const SizedBox(height: spaceLg),
     ];
+  }
+
+  Widget _buildMediaPreview(MediaType mediaType, ThemeData theme) {
+    final url = mediaUrlController.text;
+    final showThumbnail =
+        (mediaType == MediaType.image) ||
+        (mediaType == MediaType.video &&
+            thumbnailUrl != null &&
+            thumbnailUrl!.isNotEmpty);
+    final displayUrl = mediaType == MediaType.image
+        ? url
+        : (thumbnailUrl ?? '');
+
+    return Column(
+      children: [
+        if (showThumbnail)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              displayUrl,
+              height: 160,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const Icon(
+                Icons.broken_image,
+                size: 40,
+                color: colorTextMuted,
+              ),
+            ),
+          )
+        else
+          Icon(
+            mediaType == MediaType.video ? Icons.videocam : Icons.audiotrack,
+            size: 40,
+            color: colorAccentGold,
+          ),
+        const SizedBox(height: spaceSm),
+        Text(
+          'Tap to replace',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withAlpha(128),
+          ),
+        ),
+      ],
+    );
   }
 
   // link: URL (required) + caption

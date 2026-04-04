@@ -41,6 +41,7 @@ dependencies:
   flutter_svg: ^2.1.0
   image_picker: ^1.2.1
   http: ^1.6.0
+  video_player: ^2.11.1
 
 dev_dependencies:
   flutter_test:

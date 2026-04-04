@@ -133,8 +133,8 @@ class _AvatarItem extends StatelessWidget {
                         border: isSelected
                             ? Border.all(color: ringColor, width: 2.5)
                             : hasImage
-                                ? null
-                                : Border.all(color: colorBorder, width: 1.5),
+                            ? null
+                            : Border.all(color: colorBorder, width: 1.5),
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(

@@ -4,9 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../models/post.dart';
 import '../../models/track.dart';
+import '../../providers/media_upload_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../utils/constellation_layout.dart';
+import '../../widgets/timeline/seed_art_painter.dart';
 
 class EditPostScreen extends ConsumerStatefulWidget {
   final Post post;
@@ -41,6 +44,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
   String? _error;
+  String? _thumbnailUrl;
 
   @override
   void initState() {
@@ -53,6 +57,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     _importance = widget.post.importance;
     _visibility = widget.post.visibility;
     _selectedTrackId = widget.post.trackId;
+    _thumbnailUrl = widget.post.thumbnailUrl;
   }
 
   @override
@@ -81,6 +86,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         .posts
         .any((p) => p.id == widget.post.id);
 
+    // Send all text fields including empty strings.
+    // Empty string = clear the field (backend stores null).
+    // This allows users to remove title/body after initial save.
     Post? updated;
     if (inTimeline) {
       updated = await ref
@@ -88,9 +96,10 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
           .updatePost(
             id: widget.post.id,
             trackId: _selectedTrackId,
-            title: title.isNotEmpty ? title : null,
-            body: body.isNotEmpty ? body : null,
+            title: title,
+            body: body,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
+            thumbnailUrl: _thumbnailUrl,
             importance: _importance,
             visibility: _visibility,
           );
@@ -100,9 +109,10 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
           .updatePost(
             id: widget.post.id,
             trackId: _selectedTrackId,
-            title: title.isNotEmpty ? title : null,
-            body: body.isNotEmpty ? body : null,
+            title: title,
+            body: body,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
+            thumbnailUrl: _thumbnailUrl,
             importance: _importance,
             visibility: _visibility,
           );
@@ -202,11 +212,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                 const SizedBox(height: spaceLg),
               ],
 
-              // Content fields based on media type
-              ..._buildContentFields(),
-
-              // Visibility toggle
-              const SizedBox(height: spaceLg),
+              // Visibility toggle (first — matches create_post order)
               Row(
                 children: [
                   Text(
@@ -229,6 +235,10 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: spaceLg),
+
+              // Content fields based on media type
+              ..._buildContentFields(),
 
               // Importance slider
               const SizedBox(height: spaceLg),
@@ -256,6 +266,17 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                 ],
               ),
 
+              const SizedBox(height: spaceSm),
+              _ImportancePreview(
+                importance: _importance,
+                mediaType: widget.post.mediaType,
+                trackColor:
+                    allTracks
+                        .where((t) => t.id == _selectedTrackId)
+                        .firstOrNull
+                        ?.displayColor ??
+                    colorAccentGold,
+              ),
               const SizedBox(height: spaceXl),
 
               // Save button
@@ -321,7 +342,99 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   }
 
   List<Widget> _buildMediaFields() {
+    final uploadState = ref.watch(mediaUploadProvider);
+    final hasMedia = _mediaUrlController.text.isNotEmpty;
+    final mediaType = widget.post.mediaType;
+    final isImage = mediaType == MediaType.image;
+    final isVideoOrAudio =
+        mediaType == MediaType.video || mediaType == MediaType.audio;
+
     return [
+      // Media preview / upload area (first — matches create_post order)
+      if (isImage || isVideoOrAudio)
+        GestureDetector(
+          onTap: uploadState.isUploading ? null : _replaceMedia,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: hasMedia ? colorAccentGold.withAlpha(128) : colorBorder,
+              ),
+              borderRadius: BorderRadius.circular(radiusMd),
+              color: colorSurface0,
+            ),
+            child: uploadState.isUploading
+                ? const Center(
+                    child: SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : hasMedia
+                ? Column(
+                    children: [
+                      if (isImage ||
+                          (mediaType == MediaType.video &&
+                              _thumbnailUrl != null &&
+                              _thumbnailUrl!.isNotEmpty))
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            isImage ? _mediaUrlController.text : _thumbnailUrl!,
+                            height: 160,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => const Icon(
+                              Icons.broken_image,
+                              size: 40,
+                              color: colorTextMuted,
+                            ),
+                          ),
+                        )
+                      else
+                        Icon(
+                          mediaType == MediaType.video
+                              ? Icons.videocam
+                              : Icons.audiotrack,
+                          size: 40,
+                          color: colorAccentGold,
+                        ),
+                      const SizedBox(height: spaceSm),
+                      Text(
+                        'Tap to replace',
+                        style: textCaption.copyWith(color: colorTextMuted),
+                      ),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      Icon(
+                        isImage
+                            ? Icons.photo_library
+                            : mediaType == MediaType.video
+                            ? Icons.videocam
+                            : Icons.audiotrack,
+                        size: 40,
+                        color: colorTextMuted,
+                      ),
+                      const SizedBox(height: spaceSm),
+                      Text(
+                        'Tap to upload',
+                        style: textCaption.copyWith(color: colorTextMuted),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      if (uploadState.error != null) ...[
+        const SizedBox(height: spaceSm),
+        Text(
+          uploadState.error!,
+          style: textCaption.copyWith(color: colorError),
+        ),
+      ],
+      const SizedBox(height: spaceLg),
+      // Title
       TextFormField(
         controller: _titleController,
         maxLength: 100,
@@ -329,6 +442,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         decoration: _inputDecoration('Title (optional)'),
       ),
       const SizedBox(height: spaceMd),
+      // Caption
       TextFormField(
         controller: _bodyController,
         maxLines: 3,
@@ -337,6 +451,18 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         decoration: _inputDecoration('Caption (optional)'),
       ),
     ];
+  }
+
+  Future<void> _replaceMedia() async {
+    final result = await ref
+        .read(mediaUploadProvider.notifier)
+        .pickByMediaType(widget.post.mediaType);
+    if (result != null && mounted) {
+      setState(() {
+        _mediaUrlController.text = result.mediaUrl;
+        _thumbnailUrl = result.thumbnailUrl;
+      });
+    }
   }
 
   List<Widget> _buildLinkFields() {
@@ -392,6 +518,54 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
       ),
       filled: true,
       fillColor: colorSurface1,
+    );
+  }
+}
+
+class _ImportancePreview extends StatelessWidget {
+  final double importance;
+  final MediaType mediaType;
+  final Color trackColor;
+
+  const _ImportancePreview({
+    required this.importance,
+    required this.mediaType,
+    required this.trackColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sz = ConstellationLayout.nodeSize(importance);
+    final mediaH = sz > 110 ? sz * 0.7 : sz * 0.85;
+    final w = sz > 110 ? sz * 1.25 : sz;
+    final glowOpacity = 0.15 + importance * 0.25;
+    final glowBlur = 8.0 + importance * 16;
+
+    return Center(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: w,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: trackColor.withValues(alpha: glowOpacity),
+              blurRadius: glowBlur,
+              spreadRadius: 4.0 + importance * 12,
+            ),
+          ],
+          border: Border.all(color: trackColor.withValues(alpha: 0.3)),
+          color: colorSurface1,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: SeedArtCanvas(
+          width: w,
+          height: mediaH,
+          trackColor: trackColor,
+          seed: 'preview',
+          mediaType: mediaType,
+        ),
+      ),
     );
   }
 }

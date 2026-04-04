@@ -31,6 +31,7 @@ export const posts = pgTable("posts", {
   title: varchar("title", { length: 100 }),
   body: text("body"),
   mediaUrl: text("media_url"),
+  thumbnailUrl: text("thumbnail_url"),
   duration: integer("duration"),
   importance: real("importance").default(0.5).notNull(),
   visibility: varchar("visibility", { length: 20 }).default("public").notNull(),

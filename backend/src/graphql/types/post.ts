@@ -7,7 +7,11 @@ import { ArtistType } from "./artist.js";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 import { computeContentHash, verifySignature } from "../../auth/signing.js";
-import { validatePostVisibility, validateMediaUrl } from "../validators.js";
+import {
+  validatePostVisibility,
+  validateMediaUrl,
+  validateUrl,
+} from "../validators.js";
 import { checkArtistAccess } from "../access.js";
 
 const MediaTypeEnum = builder.enumType("MediaType", {
@@ -53,6 +57,7 @@ type PostShape = {
   title: string | null;
   body: string | null;
   mediaUrl: string | null;
+  thumbnailUrl: string | null;
   duration: number | null;
   importance: number;
   visibility: string;
@@ -84,6 +89,7 @@ PostType.implement({
     title: t.exposeString("title", { nullable: true }),
     body: t.exposeString("body", { nullable: true }),
     mediaUrl: t.exposeString("mediaUrl", { nullable: true }),
+    thumbnailUrl: t.exposeString("thumbnailUrl", { nullable: true }),
     duration: t.exposeInt("duration", { nullable: true }),
     importance: t.exposeFloat("importance"),
     visibility: t.exposeString("visibility"),
@@ -136,6 +142,7 @@ builder.mutationFields((t) => ({
       title: t.arg.string(),
       body: t.arg.string(),
       mediaUrl: t.arg.string(),
+      thumbnailUrl: t.arg.string(),
       duration: t.arg.int(),
       importance: t.arg.float(),
       visibility: t.arg.string(),
@@ -181,9 +188,16 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Body must be 10000 characters or less");
       }
 
-      // Validate mediaUrl
+      // Validate mediaUrl: link type accepts any URL, others require R2 domain
       if (args.mediaUrl != null) {
-        validateMediaUrl(args.mediaUrl);
+        if (args.mediaType === "link") {
+          validateUrl(args.mediaUrl);
+        } else {
+          validateMediaUrl(args.mediaUrl);
+        }
+      }
+      if (args.thumbnailUrl != null) {
+        validateMediaUrl(args.thumbnailUrl);
       }
 
       // Validate duration
@@ -239,6 +253,7 @@ builder.mutationFields((t) => ({
           title: args.title ?? null,
           body: args.body ?? null,
           mediaUrl: args.mediaUrl ?? null,
+          thumbnailUrl: args.thumbnailUrl ?? null,
           duration: args.duration ?? null,
           contentHash,
           signature: signatureValue,
@@ -262,6 +277,7 @@ builder.mutationFields((t) => ({
       title: t.arg.string(),
       body: t.arg.string(),
       mediaUrl: t.arg.string(),
+      thumbnailUrl: t.arg.string(),
       duration: t.arg.int(),
       importance: t.arg.float(),
       visibility: t.arg.string(),
@@ -297,9 +313,19 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Body must be 10000 characters or less");
       }
 
-      // Validate mediaUrl
+      // Validate mediaUrl: link type accepts any URL, others require R2 domain.
+      // Use effective media type (args override, fallback to existing post).
       if (args.mediaUrl != null) {
-        validateMediaUrl(args.mediaUrl);
+        const effectiveType =
+          (args.mediaType as string | undefined) ?? post.mediaType;
+        if (effectiveType === "link") {
+          validateUrl(args.mediaUrl);
+        } else {
+          validateMediaUrl(args.mediaUrl);
+        }
+      }
+      if (args.thumbnailUrl != null) {
+        validateMediaUrl(args.thumbnailUrl);
       }
 
       // Validate duration
@@ -347,6 +373,8 @@ builder.mutationFields((t) => ({
       if (args.title !== undefined) updateData.title = args.title;
       if (args.body !== undefined) updateData.body = args.body;
       if (args.mediaUrl !== undefined) updateData.mediaUrl = args.mediaUrl;
+      if (args.thumbnailUrl !== undefined)
+        updateData.thumbnailUrl = args.thumbnailUrl;
       if (args.duration !== undefined) updateData.duration = args.duration;
       if (args.importance !== undefined)
         updateData.importance = args.importance;
@@ -358,6 +386,8 @@ builder.mutationFields((t) => ({
       // Recompute contentHash if content fields changed.
       // layoutX/Y are presentation-only and intentionally excluded from the
       // content hash — moving a post on the timeline does not alter its content.
+      // thumbnailUrl is a display-optimization field (auto-generated from video),
+      // not part of the content signature — changing thumbnail does not alter content.
       const contentChanged =
         args.title !== undefined ||
         args.body !== undefined ||

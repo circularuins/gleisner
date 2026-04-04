@@ -123,6 +123,7 @@ class Post {
   final String? title;
   final String? body;
   final String? mediaUrl;
+  final String? thumbnailUrl;
   final int? duration;
   final double importance;
   final String visibility;
@@ -147,6 +148,7 @@ class Post {
     this.title,
     this.body,
     this.mediaUrl,
+    this.thumbnailUrl,
     this.duration,
     required this.importance,
     this.visibility = 'public',
@@ -170,6 +172,7 @@ class Post {
     Object? title = sentinel,
     Object? body = sentinel,
     Object? mediaUrl = sentinel,
+    Object? thumbnailUrl = sentinel,
     Object? duration = sentinel,
     double? importance,
     String? visibility,
@@ -191,6 +194,9 @@ class Post {
       title: title == sentinel ? this.title : title as String?,
       body: body == sentinel ? this.body : body as String?,
       mediaUrl: mediaUrl == sentinel ? this.mediaUrl : mediaUrl as String?,
+      thumbnailUrl: thumbnailUrl == sentinel
+          ? this.thumbnailUrl
+          : thumbnailUrl as String?,
       duration: duration == sentinel ? this.duration : duration as int?,
       importance: importance ?? this.importance,
       visibility: visibility ?? this.visibility,
@@ -243,6 +249,7 @@ class Post {
       title: json['title'] as String?,
       body: json['body'] as String?,
       mediaUrl: json['mediaUrl'] as String?,
+      thumbnailUrl: json['thumbnailUrl'] as String?,
       duration: (json['duration'] as num?)?.toInt(),
       importance: (json['importance'] as num).toDouble(),
       visibility: json['visibility'] as String? ?? 'public',
