@@ -84,6 +84,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         .posts
         .any((p) => p.id == widget.post.id);
 
+    // Send all text fields including empty strings.
+    // Empty string = clear the field (backend stores null).
+    // This allows users to remove title/body after initial save.
     Post? updated;
     if (inTimeline) {
       updated = await ref
@@ -91,8 +94,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
           .updatePost(
             id: widget.post.id,
             trackId: _selectedTrackId,
-            title: title.isNotEmpty ? title : null,
-            body: body.isNotEmpty ? body : null,
+            title: title,
+            body: body,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
             thumbnailUrl: _thumbnailUrl,
             importance: _importance,
@@ -104,8 +107,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
           .updatePost(
             id: widget.post.id,
             trackId: _selectedTrackId,
-            title: title.isNotEmpty ? title : null,
-            body: body.isNotEmpty ? body : null,
+            title: title,
+            body: body,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
             thumbnailUrl: _thumbnailUrl,
             importance: _importance,

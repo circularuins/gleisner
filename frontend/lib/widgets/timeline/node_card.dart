@@ -498,7 +498,9 @@ class _AudioContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final post = node.post;
+    final hasTitle = post.title != null && post.title!.isNotEmpty;
     final hasBody = post.body != null && post.body!.isNotEmpty;
+    final displayText = hasTitle ? post.title! : (hasBody ? post.body! : null);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: spaceXs),
       child: Stack(
@@ -524,7 +526,9 @@ class _AudioContent extends StatelessWidget {
                 child: CustomPaint(
                   size: Size(double.infinity, node.mediaHeight * 0.5),
                   painter: _WaveBarPainter(
-                    color: trackColor.withValues(alpha: hasBody ? 0.25 : 0.5),
+                    color: trackColor.withValues(
+                      alpha: displayText != null ? 0.25 : 0.5,
+                    ),
                     seed: '${post.title ?? ''}${post.id}',
                   ),
                 ),
@@ -542,12 +546,12 @@ class _AudioContent extends StatelessWidget {
               ],
             ],
           ),
-          if (hasBody)
+          if (displayText != null)
             Positioned(
               left: 38,
               right: post.formattedDuration != null ? 36 : 10,
               child: Text(
-                post.body!,
+                displayText,
                 style: const TextStyle(
                   color: colorTextPrimary,
                   fontSize: fontSizeXs,

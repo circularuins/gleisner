@@ -452,8 +452,45 @@ class _FormStep extends ConsumerWidget {
             ),
             const SizedBox(height: spaceLg),
 
+            // Visibility toggle (important — shown before content fields)
+            Row(
+              children: [
+                Text('Visibility', style: theme.textTheme.titleSmall),
+                const SizedBox(width: spaceLg),
+                ChoiceChip(
+                  label: const Text('Public'),
+                  selected: state.visibility == 'public',
+                  onSelected: (_) => ref
+                      .read(createPostProvider.notifier)
+                      .setVisibility('public'),
+                  visualDensity: VisualDensity.compact,
+                ),
+                const SizedBox(width: spaceSm),
+                ChoiceChip(
+                  label: const Text('Draft'),
+                  selected: state.visibility == 'draft',
+                  onSelected: (_) => ref
+                      .read(createPostProvider.notifier)
+                      .setVisibility('draft'),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const SizedBox(height: spaceLg),
+
             // Media-type-specific fields
             ..._buildContentFields(mediaType, theme, ref),
+
+            // Related posts (connections)
+            _ConnectionsSection(
+              connections: state.selectedConnections,
+              allPosts: ref.watch(timelineProvider).posts,
+              onRemove: (postId) => ref
+                  .read(createPostProvider.notifier)
+                  .removeConnection(postId),
+              onAddRequested: () => _showAddConnection(context, ref),
+            ),
+            const SizedBox(height: spaceXl),
 
             // Importance slider + node preview
             Column(
@@ -494,43 +531,6 @@ class _FormStep extends ConsumerWidget {
                   title: titleController.text,
                   body: bodyController.text,
                   trackName: state.selectedTrack?.name ?? '',
-                ),
-              ],
-            ),
-            const SizedBox(height: spaceXl),
-
-            // Related posts (connections)
-            _ConnectionsSection(
-              connections: state.selectedConnections,
-              allPosts: ref.watch(timelineProvider).posts,
-              onRemove: (postId) => ref
-                  .read(createPostProvider.notifier)
-                  .removeConnection(postId),
-              onAddRequested: () => _showAddConnection(context, ref),
-            ),
-            const SizedBox(height: spaceXl),
-
-            // Visibility toggle
-            Row(
-              children: [
-                Text('Visibility', style: theme.textTheme.titleSmall),
-                const SizedBox(width: spaceLg),
-                ChoiceChip(
-                  label: const Text('Public'),
-                  selected: state.visibility == 'public',
-                  onSelected: (_) => ref
-                      .read(createPostProvider.notifier)
-                      .setVisibility('public'),
-                  visualDensity: VisualDensity.compact,
-                ),
-                const SizedBox(width: spaceSm),
-                ChoiceChip(
-                  label: const Text('Draft'),
-                  selected: state.visibility == 'draft',
-                  onSelected: (_) => ref
-                      .read(createPostProvider.notifier)
-                      .setVisibility('draft'),
-                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),
@@ -657,21 +657,7 @@ class _FormStep extends ConsumerWidget {
     final hasMedia = mediaUrlController.text.isNotEmpty;
 
     return [
-      // Title (optional)
-      TextFormField(
-        controller: titleController,
-        decoration: InputDecoration(
-          labelText: 'Title (optional)',
-          border: const OutlineInputBorder(),
-          labelStyle: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withAlpha(128),
-          ),
-        ),
-        maxLength: 100,
-        style: theme.textTheme.titleMedium,
-      ),
-      const SizedBox(height: spaceMd),
-      // Upload area
+      // Upload area (first — pick media, then name it)
       GestureDetector(
         onTap: uploadState.isUploading ? null : () => onPickMedia(mediaType),
         child: Container(
@@ -730,6 +716,20 @@ class _FormStep extends ConsumerWidget {
         ),
       ],
       const SizedBox(height: spaceLg),
+      // Title (optional)
+      TextFormField(
+        controller: titleController,
+        decoration: InputDecoration(
+          labelText: 'Title (optional)',
+          border: const OutlineInputBorder(),
+          labelStyle: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withAlpha(128),
+          ),
+        ),
+        maxLength: 100,
+        style: theme.textTheme.titleMedium,
+      ),
+      const SizedBox(height: spaceMd),
       // Caption
       TextFormField(
         controller: bodyController,
