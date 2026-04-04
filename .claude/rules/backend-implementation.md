@@ -154,6 +154,27 @@ if (cached) return cached;
 5. **認可ロジック** — nullable になった FK を経由する認可チェックが null 時にバイパスされないか確認
 6. **マイグレーション** — `pnpm db:generate` + `pnpm db:migrate`（または `db:push`）
 
+### nullable フィールドのクリアパターン
+
+**GraphQL の updateXxx mutation で nullable フィールドを「クリア（null に戻す）」する場合、以下のパターンに統一すること。**
+
+GraphQL では `undefined`（変数に含めない）= 変更なし、`null`（明示送信）= クリア、という区別がある。Dart のフロントエンドから null を送信するために、フィールドの種類ごとに以下のパターンを使う：
+
+```
+【テキストフィールド（title, body 等）】
+フロントエンド: 常に送信。空文字列 = クリアの意図
+Provider: if (title != null) 'title': title.isEmpty ? null : title
+バックエンド: args.title !== undefined → null で DB クリア
+
+【日時フィールド（eventAt 等）】
+フロントエンド: clearXxx フラグで明示。eventAt: isoString, clearEventAt: true
+Provider: if (eventAt != null) 'eventAt': eventAt / if (clearEventAt) 'eventAt': null
+バックエンド: args.eventAt !== undefined → null で DB クリア、文字列は Date 変換 + バリデーション
+⚠ assert(!(eventAt != null && clearEventAt)) で相互排他を保証
+```
+
+PR #142 の教訓: 空文字列経由で null を送ろうとすると `new Date('')` = Invalid Date が DB に入るリスクがある。日時フィールドには空文字列パターンを使わず、明示的な clear フラグを使うこと。
+
 ### 複合 mutation はトランザクション必須
 
 **複数テーブルに書き込む mutation は `db.transaction()` で包むこと。** 後からロールバック処理を追加するアプローチは CASCADE 漏れ・孤児データのリスクがある。
