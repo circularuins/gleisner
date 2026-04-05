@@ -3,11 +3,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../models/post.dart';
+import '../models/timeline_item.dart';
 import 'deterministic_rng.dart';
 
 /// A placed node in the constellation layout.
 class PlacedNode {
-  final Post post;
+  final TimelineItem item;
   final double x;
   final double y;
   final double width;
@@ -17,7 +18,7 @@ class PlacedNode {
   final bool showInfo;
 
   PlacedNode({
-    required this.post,
+    required this.item,
     required this.x,
     required this.y,
     required this.width,
@@ -29,6 +30,8 @@ class PlacedNode {
 
   double get centerX => x + width / 2;
   double get centerY => y + (mediaHeight + (showInfo ? 30 : 0)) / 2;
+
+  bool get isMilestone => item is MilestoneItem;
 }
 
 /// A day section for the spine.
@@ -106,12 +109,27 @@ class ConstellationLayout {
     return 90 + effective * 80;
   }
 
+  /// Fixed size for milestone nodes on the timeline.
+  static const double milestoneNodeSize = 80.0;
+
+  /// Compute item size. For posts, uses importance + engagement boost.
+  /// For milestones, returns fixed milestoneNodeSize.
+  static double itemSize(TimelineItem item) {
+    if (item is PostItem) {
+      return nodeSize(
+        item.post.importance,
+        reactionCount: item.post.totalReactions,
+      );
+    }
+    return milestoneNodeSize;
+  }
+
   /// Compute the full constellation layout.
   static LayoutResult compute({
-    required List<Post> posts,
+    required List<TimelineItem> items,
     required double containerWidth,
   }) {
-    if (posts.isEmpty) {
+    if (items.isEmpty) {
       return const LayoutResult(
         nodes: [],
         days: [],
@@ -131,7 +149,7 @@ class ConstellationLayout {
     }
 
     // Sort by date (most recent first in display, but group by day)
-    final sorted = List<Post>.from(posts)
+    final sorted = List<TimelineItem>.from(items)
       ..sort((a, b) {
         final dayA = today.difference(localDate(a.displayDate)).inDays;
         final dayB = today.difference(localDate(b.displayDate)).inDays;
@@ -140,10 +158,10 @@ class ConstellationLayout {
       });
 
     // Group by days-ago
-    final dayMap = <int, List<Post>>{};
-    for (final post in sorted) {
-      final daysAgo = today.difference(localDate(post.displayDate)).inDays;
-      dayMap.putIfAbsent(daysAgo, () => []).add(post);
+    final dayMap = <int, List<TimelineItem>>{};
+    for (final item in sorted) {
+      final daysAgo = today.difference(localDate(item.displayDate)).inDays;
+      dayMap.putIfAbsent(daysAgo, () => []).add(item);
     }
 
     final dayKeys = dayMap.keys.toList()..sort();
@@ -162,8 +180,10 @@ class ConstellationLayout {
       }
       double maxItemH = 0;
       for (final it in items) {
-        final sz = nodeSize(it.importance, reactionCount: it.totalReactions);
-        final h = sz > 110
+        final sz = itemSize(it);
+        final h = it is MilestoneItem
+            ? sz // Milestones are square, no extra info area
+            : sz > 110
             ? sz * 0.7 + 30 + 18
             : sz * 0.85 + 30 + (sz >= 50 ? 18 : 0);
         maxItemH = max(maxItemH, h);
@@ -173,13 +193,13 @@ class ConstellationLayout {
       y += h;
     }
 
-    // Compute per-post vertical order within each day (newest first)
+    // Compute per-item vertical order within each day (newest first)
     final dayOrder = <String, double>{};
     for (final dk in dayKeys) {
-      final items = dayMap[dk];
-      if (items == null || items.isEmpty) continue;
+      final dayItems = dayMap[dk];
+      if (dayItems == null || dayItems.isEmpty) continue;
       // Sort by displayDate descending (newest first)
-      final byCtime = List<Post>.from(items)
+      final byCtime = List<TimelineItem>.from(dayItems)
         ..sort((a, b) => b.displayDate.compareTo(a.displayDate));
       for (int i = 0; i < byCtime.length; i++) {
         dayOrder[byCtime[i].id] = byCtime.length > 1
@@ -192,56 +212,82 @@ class ConstellationLayout {
     final rng = DeterministicRng('constellation-v3');
     final placedItems = <_PlacedItem>[];
 
-    final bySize = List<Post>.from(sorted)
-      ..sort(
-        (a, b) => nodeSize(
-          b.importance,
-          reactionCount: b.totalReactions,
-        ).compareTo(nodeSize(a.importance, reactionCount: a.totalReactions)),
-      );
+    final bySize = List<TimelineItem>.from(sorted)
+      ..sort((a, b) => itemSize(b).compareTo(itemSize(a)));
 
     for (final item in bySize) {
       final daysAgo = today.difference(localDate(item.displayDate)).inDays;
       final dI = dayY[daysAgo];
       if (dI == null) continue;
 
-      final sz = nodeSize(item.importance, reactionCount: item.totalReactions);
-      final isAudio = item.mediaType == MediaType.audio;
-      final w = isAudio
+      final sz = itemSize(item);
+      final bool isMilestone = item is MilestoneItem;
+      final bool isAudio =
+          item is PostItem && item.post.mediaType == MediaType.audio;
+
+      // Milestones get extra width for the title label (diamond + text)
+      final w = isMilestone
+          ? min(sz + 140, cW - 20)
+          : isAudio
           ? min(sz * 1.8, cW - 20)
           : sz > 110
           ? min(sz * 1.25, cW - 20)
           : sz;
-      final mediaH = isAudio
+      final mediaH = isMilestone
+          ? 0.0
+          : isAudio
           ? sz * 0.45
           : sz > 110
           ? sz * 0.7
           : sz * 0.85;
-      final infoH = isAudio ? 0.0 : 30.0;
-      final totalNodeH = mediaH + infoH;
+      final infoH = (isMilestone || isAudio) ? 0.0 : 30.0;
+      final totalNodeH = isMilestone ? sz : mediaH + infoH;
 
       // Position based on creation order within day (newest = 0.0 = top)
       final orderFrac = dayOrder[item.id] ?? 0.0;
       final yBase = dI.top + orderFrac * (dI.height - totalNodeH);
       const margin = 8.0;
 
-      double bx = margin + rng.next() * (cW - w - margin * 2);
+      double bx;
       double by = yBase;
-      double bo = double.infinity;
 
-      for (int a = 0; a < 28; a++) {
-        final xC = margin + rng.next() * (cW - w - margin * 2);
-        final yN = (rng.next() - 0.5) * 60;
-        final yC = max(
-          dI.top + 4,
-          min(dI.top + dI.height - totalNodeH - 4, yBase + yN),
-        );
-        final ov = _overlapAmount(placedItems, xC, yC, w, totalNodeH);
-        if (ov < bo) {
-          bo = ov;
-          bx = xC;
-          by = yC;
-          if (ov == 0) break;
+      if (isMilestone) {
+        // Milestones are left-aligned on the timeline
+        bx = margin;
+        // Still check for overlap and nudge vertically if needed
+        double bo = _overlapAmount(placedItems, bx, by, w, totalNodeH);
+        if (bo > 0) {
+          for (int a = 0; a < 12; a++) {
+            final yN = (rng.next() - 0.5) * 60;
+            final yC = max(
+              dI.top + 4,
+              min(dI.top + dI.height - totalNodeH - 4, yBase + yN),
+            );
+            final ov = _overlapAmount(placedItems, bx, yC, w, totalNodeH);
+            if (ov < bo) {
+              bo = ov;
+              by = yC;
+              if (ov == 0) break;
+            }
+          }
+        }
+      } else {
+        bx = margin + rng.next() * (cW - w - margin * 2);
+        double bo = double.infinity;
+        for (int a = 0; a < 28; a++) {
+          final xC = margin + rng.next() * (cW - w - margin * 2);
+          final yN = (rng.next() - 0.5) * 60;
+          final yC = max(
+            dI.top + 4,
+            min(dI.top + dI.height - totalNodeH - 4, yBase + yN),
+          );
+          final ov = _overlapAmount(placedItems, xC, yC, w, totalNodeH);
+          if (ov < bo) {
+            bo = ov;
+            bx = xC;
+            by = yC;
+            if (ov == 0) break;
+          }
         }
       }
 
@@ -251,7 +297,7 @@ class ConstellationLayout {
           y: by,
           w: w,
           h: totalNodeH,
-          post: item,
+          item: item,
           day: daysAgo,
         ),
       );
@@ -318,7 +364,7 @@ class ConstellationLayout {
     // Sort by displayDate descending (newest first) — y values must be
     // non-decreasing in this order.
     final byTime = List<_PlacedItem>.from(placedItems)
-      ..sort((a, b) => b.post.displayDate.compareTo(a.post.displayDate));
+      ..sort((a, b) => b.item.displayDate.compareTo(a.item.displayDate));
     // Small offset so closely-timed posts don't align exactly
     final nudgeRng = DeterministicRng('nudge');
     double maxTopY = -double.infinity;
@@ -376,20 +422,22 @@ class ConstellationLayout {
     // Build PlacedNode list
     final nodes = <PlacedNode>[];
     for (final p in placedItems) {
-      final sz = nodeSize(
-        p.post.importance,
-        reactionCount: p.post.totalReactions,
-      );
-      final isAudio = p.post.mediaType == MediaType.audio;
-      final mediaH = isAudio
+      final sz = itemSize(p.item);
+      final bool isMilestone = p.item is MilestoneItem;
+      final bool isAudio =
+          p.item is PostItem &&
+          (p.item as PostItem).post.mediaType == MediaType.audio;
+      final mediaH = isMilestone
+          ? 0.0
+          : isAudio
           ? sz * 0.45
           : sz > 110
           ? sz * 0.7
           : sz * 0.85;
-      final showInfo = !isAudio;
+      final showInfo = !isMilestone && !isAudio;
       nodes.add(
         PlacedNode(
-          post: p.post,
+          item: p.item,
           x: p.x,
           y: p.y,
           width: p.w,
@@ -451,61 +499,64 @@ class ConstellationLayout {
 
   /// Build synapse connections from backend connection data.
   /// Uses outgoingConnections on each post to find connected pairs.
+  /// Milestones are skipped — they have no connections.
   static List<SynapseConnection> _buildSynapses(List<PlacedNode> nodes) {
     final connections = <SynapseConnection>[];
     final nodeById = <String, PlacedNode>{};
     for (final node in nodes) {
-      nodeById[node.post.id] = node;
+      if (node.item is PostItem) {
+        nodeById[(node.item as PostItem).post.id] = node;
+      }
     }
 
     final seen = <String>{};
 
     for (final node in nodes) {
-      for (final conn in node.post.outgoingConnections) {
-        // Deduplicate: skip if already drawn from the other side
+      if (node.item is! PostItem) continue;
+      final post = (node.item as PostItem).post;
+
+      for (final conn in post.outgoingConnections) {
         if (seen.contains(conn.id)) continue;
         seen.add(conn.id);
 
         final target = nodeById[conn.targetId];
         if (target == null) continue;
 
-        final a = node;
-        final b = target;
-        connections.add(_makeSynapse(a, b, conn.connectionType));
+        connections.add(_makeSynapse(node, target, conn.connectionType));
       }
 
-      // Also check incomingConnections for connections from posts
-      // not in the current view
-      for (final conn in node.post.incomingConnections) {
+      for (final conn in post.incomingConnections) {
         if (seen.contains(conn.id)) continue;
         seen.add(conn.id);
 
         final source = nodeById[conn.sourceId];
         if (source == null) continue;
 
-        final a = source;
-        final b = node;
-        connections.add(_makeSynapse(a, b, conn.connectionType));
+        connections.add(_makeSynapse(source, node, conn.connectionType));
       }
     }
 
     return connections;
   }
 
+  /// Both a and b must be PostItem nodes (enforced by caller).
   static SynapseConnection _makeSynapse(
     PlacedNode a,
     PlacedNode b,
     ConnectionType connectionType,
   ) {
+    final postA = (a.item as PostItem).post;
+    final postB = (b.item as PostItem).post;
+
     final dist = sqrt(
       pow(a.centerX - b.centerX, 2) + pow(a.centerY - b.centerY, 2),
     );
 
-    final color = a.post.trackDisplayColor;
+    final color = postA.trackDisplayColor;
     // Fade out long connections: full strength up to 300px, fading to 0.4x at 1500px+
     final distFade = dist < 300 ? 1.0 : max(0.4, 1.0 - (dist - 300) / 3000);
-    final opacity = min(0.08 + a.post.importance * 0.32, 0.4) * distFade;
-    final width = (0.8 + min(a.post.importance * 2.5, 2.5)) * distFade;
+    final opacity = min(0.08 + postA.importance * 0.32, 0.4) * distFade;
+    final width = (0.8 + min(postA.importance * 2.5, 2.5)) * distFade;
 
     final dy = b.centerY - a.centerY;
     final cx1 = a.centerX + (b.centerX - a.centerX) * 0.25 + dy * 0.15;
@@ -514,15 +565,15 @@ class ConstellationLayout {
     final cy2 = a.centerY + (b.centerY - a.centerY) * 0.75;
 
     return SynapseConnection(
-      sourcePostId: a.post.id,
-      targetPostId: b.post.id,
+      sourcePostId: postA.id,
+      targetPostId: postB.id,
       connectionType: connectionType,
       start: Offset(a.centerX, a.centerY),
       end: Offset(b.centerX, b.centerY),
       cp1: Offset(cx1, cy1),
       cp2: Offset(cx2, cy2),
       color: color,
-      endColor: b.post.trackDisplayColor,
+      endColor: postB.trackDisplayColor,
       opacity: opacity,
       strokeWidth: width,
     );
@@ -551,14 +602,14 @@ class _PlacedItem {
   double y;
   final double w;
   final double h;
-  final Post post;
+  final TimelineItem item;
   final int day;
   _PlacedItem({
     required this.x,
     required this.y,
     required this.w,
     required this.h,
-    required this.post,
+    required this.item,
     required this.day,
   });
 }

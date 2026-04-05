@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../models/post.dart';
+import '../../models/timeline_item.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/constellation_layout.dart';
 import 'post_detail_sheet.dart';
@@ -96,7 +97,7 @@ class _NodeCardState extends State<NodeCard>
   @override
   Widget build(BuildContext context) {
     final node = widget.node;
-    final post = node.post;
+    final post = (node.item as PostItem).post;
     final trackColor = post.trackDisplayColor;
     final importance = post.importance;
     final borderRadius = _borderForType(post.mediaType);
@@ -285,7 +286,7 @@ class _NodeCardState extends State<NodeCard>
   }
 
   Widget _buildContent(PlacedNode node, Color trackColor) {
-    return switch (node.post.mediaType) {
+    return switch ((node.item as PostItem).post.mediaType) {
       MediaType.text => _TextContent(node: node, trackColor: trackColor),
       MediaType.image => _ImageContent(node: node, trackColor: trackColor),
       MediaType.video => _VideoContent(node: node, trackColor: trackColor),
@@ -303,7 +304,7 @@ class _TextContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final post = node.post;
+    final post = (node.item as PostItem).post;
     final totalH = node.mediaHeight + 30;
     const headerH = 14.0;
     const titleH = 30.0;
@@ -367,7 +368,7 @@ class _ImageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final post = node.post;
+    final post = (node.item as PostItem).post;
     final seed = '${post.title ?? ''}${post.createdAt.toIso8601String()}';
     final hasImage = post.mediaUrl != null && post.mediaUrl!.isNotEmpty;
     return Column(
@@ -413,7 +414,7 @@ class _VideoContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final post = node.post;
+    final post = (node.item as PostItem).post;
     final seed = '${post.title ?? ''}${post.createdAt.toIso8601String()}';
     final hasThumbnail =
         post.thumbnailUrl != null && post.thumbnailUrl!.isNotEmpty;
@@ -497,7 +498,7 @@ class _AudioContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final post = node.post;
+    final post = (node.item as PostItem).post;
     final hasTitle = post.title != null && post.title!.isNotEmpty;
     final hasBody = post.body != null && post.body!.isNotEmpty;
     final displayText = hasTitle ? post.title! : (hasBody ? post.body! : null);
@@ -577,7 +578,7 @@ class _LinkContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final post = node.post;
+    final post = (node.item as PostItem).post;
     final domain = post.mediaUrl != null
         ? Uri.tryParse(post.mediaUrl!)?.host ?? ''
         : '';

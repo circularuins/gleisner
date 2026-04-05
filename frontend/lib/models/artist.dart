@@ -1,4 +1,5 @@
 import 'genre.dart';
+import 'post.dart' show ReactionCount;
 import 'track.dart';
 
 class ArtistLink {
@@ -34,6 +35,8 @@ class ArtistMilestone {
   final String? description;
   final String date; // YYYY-MM-DD
   final int position;
+  final List<ReactionCount> reactionCounts;
+  final List<String> myReactions;
 
   const ArtistMilestone({
     required this.id,
@@ -42,7 +45,19 @@ class ArtistMilestone {
     this.description,
     required this.date,
     required this.position,
+    this.reactionCounts = const [],
+    this.myReactions = const [],
   });
+
+  /// Parse the date string to DateTime for timeline positioning.
+  /// Uses noon (12:00) so milestones appear in the middle of the day
+  /// rather than at midnight (which would place them at the bottom).
+  DateTime get displayDate {
+    final d = DateTime.parse(date);
+    return DateTime(d.year, d.month, d.day, 12);
+  }
+
+  int get totalReactions => reactionCounts.fold(0, (sum, r) => sum + r.count);
 
   factory ArtistMilestone.fromJson(Map<String, dynamic> json) {
     return ArtistMilestone(
@@ -52,6 +67,16 @@ class ArtistMilestone {
       description: json['description'] as String?,
       date: json['date'] as String,
       position: json['position'] as int? ?? 0,
+      reactionCounts:
+          (json['reactionCounts'] as List<dynamic>?)
+              ?.map((e) => ReactionCount.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      myReactions:
+          (json['myReactions'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
     );
   }
 }
@@ -108,6 +133,24 @@ class Artist {
     genres: genres,
     links: links,
     milestones: milestones,
+  );
+
+  Artist copyWithMilestones(List<ArtistMilestone> newMilestones) => Artist(
+    id: id,
+    artistUsername: artistUsername,
+    displayName: displayName,
+    bio: bio,
+    tagline: tagline,
+    location: location,
+    activeSince: activeSince,
+    avatarUrl: avatarUrl,
+    coverImageUrl: coverImageUrl,
+    profileVisibility: profileVisibility,
+    tunedInCount: tunedInCount,
+    tracks: tracks,
+    genres: genres,
+    links: links,
+    milestones: newMilestones,
   );
 
   factory Artist.fromJson(Map<String, dynamic> json) {

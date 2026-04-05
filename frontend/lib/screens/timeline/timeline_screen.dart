@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import '../../models/artist.dart';
+import '../../models/timeline_item.dart';
 import '../../models/track.dart';
 import '../../providers/my_artist_provider.dart';
 import '../../providers/pending_artist_provider.dart';
@@ -10,6 +12,8 @@ import '../../providers/tune_in_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/avatar_rail.dart';
 import '../../widgets/timeline/constellation_painter.dart';
+import '../../widgets/timeline/milestone_detail_sheet.dart';
+import '../../widgets/timeline/milestone_node_card.dart';
 import '../../widgets/timeline/node_card.dart';
 import '../../providers/analytics_provider.dart';
 import '../../providers/tutorial_provider.dart';
@@ -601,20 +605,37 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
 
     for (int i = 0; i < layout.nodes.length; i++) {
       final node = layout.nodes[i];
-      final isFocused = node.post.id == _focusedPostId;
       final dimmed =
-          constellationIds != null && !constellationIds.contains(node.post.id);
+          constellationIds != null && !constellationIds.contains(node.item.id);
 
-      final card = NodeCard(
-        node: node,
-        index: i,
-        highlight: node.post.id == highlightPostId,
-        focused: isFocused,
-        onTap: () => _handleNodeTap(node.post.id),
-        onToggleReaction: (postId, emoji) =>
-            ref.read(timelineProvider.notifier).toggleReaction(postId, emoji),
-        onOpenDetail: () => _openDetailSheet(node.post.id),
-      );
+      final Widget card;
+      final bool isFocused;
+
+      switch (node.item) {
+        case PostItem(:final post):
+          isFocused = post.id == _focusedPostId;
+          card = NodeCard(
+            node: node,
+            index: i,
+            highlight: post.id == highlightPostId,
+            focused: isFocused,
+            onTap: () => _handleNodeTap(post.id),
+            onToggleReaction: (postId, emoji) => ref
+                .read(timelineProvider.notifier)
+                .toggleReaction(postId, emoji),
+            onOpenDetail: () => _openDetailSheet(post.id),
+          );
+        case MilestoneItem(:final milestone):
+          isFocused = false;
+          card = MilestoneNodeCard(
+            node: node,
+            milestone: milestone,
+            onTap: () => _openMilestoneDetailSheet(milestone),
+            onToggleReaction: (id, emoji) => ref
+                .read(timelineProvider.notifier)
+                .toggleMilestoneReaction(id, emoji),
+          );
+      }
 
       final positioned = Positioned(
         left: ConstellationLayout.spineWidth + node.x,
@@ -697,19 +718,29 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     );
   }
 
+  void _openMilestoneDetailSheet(ArtistMilestone milestone) {
+    showMilestoneDetailSheet(
+      context,
+      milestone,
+      onToggleReaction: (id, emoji) => ref
+          .read(timelineProvider.notifier)
+          .toggleMilestoneReaction(id, emoji),
+    );
+  }
+
   /// Check if a node is not occluded by any node rendered after it.
   bool _isTopmost(String postId) {
     final layout = ref.read(timelineProvider).layout;
     if (layout == null) return true;
 
     final nodes = layout.nodes;
-    final idx = nodes.indexWhere((n) => n.post.id == postId);
+    final idx = nodes.indexWhere((n) => n.item.id == postId);
     if (idx < 0) return true;
 
     final target = nodes[idx];
     final sw = ConstellationLayout.spineWidth;
     // Include reaction pills height (~20px) in the hit area
-    final pillH = target.post.reactionCounts.isNotEmpty ? 20.0 : 0.0;
+    final pillH = target.item.totalReactions > 0 ? 20.0 : 0.0;
     final tRect = Rect.fromLTWH(
       sw + target.x,
       target.y,
@@ -720,7 +751,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     // Check nodes rendered after this one (higher z-order in default order)
     for (int i = idx + 1; i < nodes.length; i++) {
       final other = nodes[i];
-      final otherPillH = other.post.reactionCounts.isNotEmpty ? 20.0 : 0.0;
+      final otherPillH = other.item.totalReactions > 0 ? 20.0 : 0.0;
       final oRect = Rect.fromLTWH(
         sw + other.x,
         other.y,
@@ -765,9 +796,21 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
             day: days[i],
             isHighlighted: i == highlightedIndex,
             dimToday: highlightedIndex != null,
+            showYear: _shouldShowYear(days, i),
           ),
         ),
     ];
+  }
+
+  /// Show year on the oldest (bottommost) label of each year group.
+  /// Timeline is top=newest, bottom=oldest, so "oldest" = last before
+  /// the next label switches to a different year, or the very last label.
+  static bool _shouldShowYear(List<DaySection> days, int index) {
+    final year = days[index].date.year;
+    // Last label in the list → always show year
+    if (index + 1 >= days.length) return true;
+    // Next label is a different year → this is the oldest of its group
+    return days[index + 1].date.year != year;
   }
 }
 
@@ -775,11 +818,13 @@ class _DateLabel extends StatelessWidget {
   final DaySection day;
   final bool isHighlighted;
   final bool dimToday;
+  final bool showYear;
 
   const _DateLabel({
     required this.day,
     this.isHighlighted = false,
     this.dimToday = false,
+    this.showYear = false,
   });
 
   @override
@@ -836,6 +881,21 @@ class _DateLabel extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
+          if (showYear)
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Text(
+                "'${(day.date.year % 100).toString().padLeft(2, '0')}",
+                style: TextStyle(
+                  color: monthColor,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.2,
+                  height: 1.2,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
         ],
       ),
     );

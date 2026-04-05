@@ -15,6 +15,7 @@ export { tuneIns } from "./tune-in.js";
 export { follows } from "./follow.js";
 export { artistLinks, linkCategoryEnum } from "./artist-link.js";
 export { artistMilestones, milestoneCategoryEnum } from "./artist-milestone.js";
+export { milestoneReactions } from "./milestone-reaction.js";
 export { analyticsEvents } from "./analytics-event.js";
 export { invites } from "./invite.js";
 
@@ -32,6 +33,7 @@ import { tuneIns } from "./tune-in.js";
 import { follows } from "./follow.js";
 import { artistLinks } from "./artist-link.js";
 import { artistMilestones } from "./artist-milestone.js";
+import { milestoneReactions } from "./milestone-reaction.js";
 import { constellations } from "./constellation.js";
 
 // Relations
@@ -142,10 +144,25 @@ export const artistLinksRelations = relations(artistLinks, ({ one }) => ({
 
 export const artistMilestonesRelations = relations(
   artistMilestones,
-  ({ one }) => ({
+  ({ one, many }) => ({
     artist: one(artists, {
       fields: [artistMilestones.artistId],
       references: [artists.id],
+    }),
+    milestoneReactions: many(milestoneReactions),
+  }),
+);
+
+export const milestoneReactionsRelations = relations(
+  milestoneReactions,
+  ({ one }) => ({
+    milestone: one(artistMilestones, {
+      fields: [milestoneReactions.milestoneId],
+      references: [artistMilestones.id],
+    }),
+    user: one(users, {
+      fields: [milestoneReactions.userId],
+      references: [users.id],
     }),
   }),
 );
