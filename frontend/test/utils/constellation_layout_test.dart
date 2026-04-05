@@ -650,7 +650,10 @@ void main() {
       final milestone = result.nodes.firstWhere((n) => n.isMilestone);
       expect(milestone.nodeSize, ConstellationLayout.milestoneNodeSize);
       // Width includes extra space for title label
-      expect(milestone.width, greaterThan(ConstellationLayout.milestoneNodeSize));
+      expect(
+        milestone.width,
+        greaterThan(ConstellationLayout.milestoneNodeSize),
+      );
     });
 
     test('milestone has showInfo false', () {
@@ -782,6 +785,64 @@ void main() {
       expect(result.days, hasLength(2));
       expect(result.connections, isEmpty);
       expect(result.totalHeight, greaterThan(0));
+    });
+
+    test('milestones are left-aligned', () {
+      final now = DateTime.now();
+      final items = <TimelineItem>[
+        PostItem(_makePost(id: '1', createdAt: now, importance: 0.5)),
+        MilestoneItem(
+          _makeMilestone(
+            id: 'm1',
+            date: now.toIso8601String().substring(0, 10),
+          ),
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        items: items,
+        containerWidth: 400,
+      );
+      final milestone = result.nodes.firstWhere((n) => n.isMilestone);
+      // Milestone x should be near the left margin (8px)
+      expect(milestone.x, lessThanOrEqualTo(10));
+    });
+
+    test('multiple milestones on different days avoid overlap', () {
+      final now = DateTime.now();
+      final items = <TimelineItem>[
+        MilestoneItem(
+          _makeMilestone(
+            id: 'm1',
+            date: now.toIso8601String().substring(0, 10),
+          ),
+        ),
+        MilestoneItem(
+          _makeMilestone(
+            id: 'm2',
+            date: now
+                .subtract(const Duration(days: 1))
+                .toIso8601String()
+                .substring(0, 10),
+          ),
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        items: items,
+        containerWidth: 400,
+      );
+      final nodes = result.nodes;
+      expect(nodes, hasLength(2));
+      // No vertical overlap between the two nodes
+      final a = nodes[0];
+      final b = nodes[1];
+      final aBottom = a.y + a.height;
+      final bBottom = b.y + b.height;
+      final overlap = a.y < bBottom && b.y < aBottom;
+      if (overlap) {
+        // If they vertically overlap, they must not horizontally overlap
+        final hOverlap = a.x < b.x + b.width && b.x < a.x + a.width;
+        expect(hOverlap, isFalse, reason: 'Milestones should not overlap');
+      }
     });
   });
 }

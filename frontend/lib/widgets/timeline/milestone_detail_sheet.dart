@@ -12,12 +12,6 @@ void showMilestoneDetailSheet(
   BuildContext context,
   ArtistMilestone milestone, {
   Future<bool> Function(String milestoneId, String emoji)? onToggleReaction,
-  void Function(
-    String milestoneId,
-    List<ReactionCount> counts,
-    List<String> myReactions,
-  )?
-  onReactionsChanged,
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -26,7 +20,6 @@ void showMilestoneDetailSheet(
     builder: (_) => _MilestoneDetailSheet(
       milestone: milestone,
       onToggleReaction: onToggleReaction,
-      onReactionsChanged: onReactionsChanged,
     ),
   );
 }
@@ -35,18 +28,8 @@ class _MilestoneDetailSheet extends StatefulWidget {
   final ArtistMilestone milestone;
   final Future<bool> Function(String milestoneId, String emoji)?
   onToggleReaction;
-  final void Function(
-    String milestoneId,
-    List<ReactionCount> counts,
-    List<String> myReactions,
-  )?
-  onReactionsChanged;
 
-  const _MilestoneDetailSheet({
-    required this.milestone,
-    this.onToggleReaction,
-    this.onReactionsChanged,
-  });
+  const _MilestoneDetailSheet({required this.milestone, this.onToggleReaction});
 
   @override
   State<_MilestoneDetailSheet> createState() => _MilestoneDetailSheetState();
@@ -69,20 +52,12 @@ class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
         await widget.onToggleReaction?.call(milestoneId, emoji) ?? false;
     if (!success) return;
 
+    // Determine add/remove based on current local state
+    final wasAdded = !_myReactions.contains(emoji);
+
     setState(() {
       final counts = List<ReactionCount>.from(_reactionCounts);
-      if (_myReactions.contains(emoji)) {
-        _myReactions.remove(emoji);
-        final idx = counts.indexWhere((c) => c.emoji == emoji);
-        if (idx >= 0) {
-          final n = counts[idx].count - 1;
-          if (n <= 0) {
-            counts.removeAt(idx);
-          } else {
-            counts[idx] = ReactionCount(emoji: emoji, count: n);
-          }
-        }
-      } else {
+      if (wasAdded) {
         _myReactions.add(emoji);
         final idx = counts.indexWhere((c) => c.emoji == emoji);
         if (idx >= 0) {
@@ -93,16 +68,21 @@ class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
         } else {
           counts.add(ReactionCount(emoji: emoji, count: 1));
         }
+      } else {
+        _myReactions.remove(emoji);
+        final idx = counts.indexWhere((c) => c.emoji == emoji);
+        if (idx >= 0) {
+          final n = counts[idx].count - 1;
+          if (n <= 0) {
+            counts.removeAt(idx);
+          } else {
+            counts[idx] = ReactionCount(emoji: emoji, count: n);
+          }
+        }
       }
       counts.sort((a, b) => b.count.compareTo(a.count));
       _reactionCounts = counts;
     });
-
-    widget.onReactionsChanged?.call(
-      milestoneId,
-      _reactionCounts,
-      _myReactions.toList(),
-    );
   }
 
   @override

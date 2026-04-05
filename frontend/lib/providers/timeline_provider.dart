@@ -289,7 +289,8 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     }
   }
 
-  /// Toggle a reaction on a milestone with optimistic local update.
+  /// Toggle a reaction on a milestone.
+  /// Returns true on success. Uses server response to determine add/remove.
   Future<bool> toggleMilestoneReaction(String milestoneId, String emoji) async {
     try {
       final result = await _client.mutate(
@@ -303,47 +304,14 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
       final artist = state.artist;
       if (artist == null) return true;
 
+      // Server returns null = removed, non-null = added
+      final wasAdded = result.data?['toggleMilestoneReaction'] != null;
+
       final updatedMilestones = artist.milestones.map((m) {
         if (m.id != milestoneId) return m;
-        final myR = List<String>.from(m.myReactions);
-        final counts = List<ReactionCount>.from(m.reactionCounts);
-        if (myR.contains(emoji)) {
-          myR.remove(emoji);
-          final idx = counts.indexWhere((c) => c.emoji == emoji);
-          if (idx >= 0) {
-            final n = counts[idx].count - 1;
-            if (n <= 0) {
-              counts.removeAt(idx);
-            } else {
-              counts[idx] = ReactionCount(emoji: emoji, count: n);
-            }
-          }
-        } else {
-          myR.add(emoji);
-          final idx = counts.indexWhere((c) => c.emoji == emoji);
-          if (idx >= 0) {
-            counts[idx] = ReactionCount(
-              emoji: emoji,
-              count: counts[idx].count + 1,
-            );
-          } else {
-            counts.add(ReactionCount(emoji: emoji, count: 1));
-          }
-        }
-        counts.sort((a, b) => b.count.compareTo(a.count));
-        return ArtistMilestone(
-          id: m.id,
-          category: m.category,
-          title: m.title,
-          description: m.description,
-          date: m.date,
-          position: m.position,
-          reactionCounts: counts,
-          myReactions: myR,
-        );
+        return _applyMilestoneReactionToggle(m, emoji, wasAdded);
       }).toList();
 
-      // Update artist with new milestones
       state = state.copyWith(
         artist: artist.copyWithMilestones(updatedMilestones),
       );
@@ -352,6 +320,49 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Apply a reaction toggle to a milestone's local state.
+  static ArtistMilestone _applyMilestoneReactionToggle(
+    ArtistMilestone m,
+    String emoji,
+    bool wasAdded,
+  ) {
+    final myR = List<String>.from(m.myReactions);
+    final counts = List<ReactionCount>.from(m.reactionCounts);
+
+    if (wasAdded) {
+      if (!myR.contains(emoji)) myR.add(emoji);
+      final idx = counts.indexWhere((c) => c.emoji == emoji);
+      if (idx >= 0) {
+        counts[idx] = ReactionCount(emoji: emoji, count: counts[idx].count + 1);
+      } else {
+        counts.add(ReactionCount(emoji: emoji, count: 1));
+      }
+    } else {
+      myR.remove(emoji);
+      final idx = counts.indexWhere((c) => c.emoji == emoji);
+      if (idx >= 0) {
+        final n = counts[idx].count - 1;
+        if (n <= 0) {
+          counts.removeAt(idx);
+        } else {
+          counts[idx] = ReactionCount(emoji: emoji, count: n);
+        }
+      }
+    }
+    counts.sort((a, b) => b.count.compareTo(a.count));
+
+    return ArtistMilestone(
+      id: m.id,
+      category: m.category,
+      title: m.title,
+      description: m.description,
+      date: m.date,
+      position: m.position,
+      reactionCounts: counts,
+      myReactions: myR,
+    );
   }
 
   /// Create a connection between two posts. Returns the connection on success.

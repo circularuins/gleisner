@@ -37,6 +37,9 @@ const ArtistMilestoneType = builder.objectRef<{
   date: string; // DATE column returns string
   position: number;
   createdAt: Date;
+  // Prefetched by parent resolver to avoid N+1
+  _reactionCounts?: { emoji: string; count: number }[];
+  _myReactions?: string[];
 }>("ArtistMilestone");
 
 const MilestoneReactionCountType = builder.objectRef<{
@@ -68,6 +71,9 @@ ArtistMilestoneType.implement({
     reactionCounts: t.field({
       type: [MilestoneReactionCountType],
       resolve: async (m) => {
+        // Use prefetched data from parent resolver (avoids N+1)
+        if (m._reactionCounts) return m._reactionCounts;
+        // Fallback for direct queries (e.g. after mutation)
         const rows = await db
           .select({
             emoji: milestoneReactions.emoji,
@@ -85,6 +91,9 @@ ArtistMilestoneType.implement({
       type: ["String"],
       resolve: async (m, _args, ctx) => {
         if (!ctx.authUser) return [];
+        // Use prefetched data from parent resolver (avoids N+1)
+        if (m._myReactions) return m._myReactions;
+        // Fallback for direct queries (e.g. after mutation)
         const rows = await db
           .select({ emoji: milestoneReactions.emoji })
           .from(milestoneReactions)
@@ -318,54 +327,117 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Milestone not found");
       }
 
-      // Check if reaction already exists
-      const [existing] = await db
-        .select()
-        .from(milestoneReactions)
-        .where(
-          and(
-            eq(milestoneReactions.milestoneId, args.milestoneId),
-            eq(milestoneReactions.userId, ctx.authUser.userId),
-            eq(milestoneReactions.emoji, emoji),
-          ),
-        )
-        .limit(1);
-
-      if (existing) {
-        await db
+      // Atomic toggle: try DELETE first, if nothing deleted then INSERT.
+      // This avoids TOCTOU race between SELECT and INSERT/DELETE.
+      return await db.transaction(async (tx) => {
+        const [deleted] = await tx
           .delete(milestoneReactions)
-          .where(eq(milestoneReactions.id, existing.id));
-        return null;
-      }
+          .where(
+            and(
+              eq(milestoneReactions.milestoneId, args.milestoneId),
+              eq(milestoneReactions.userId, ctx.authUser!.userId),
+              eq(milestoneReactions.emoji, emoji),
+            ),
+          )
+          .returning();
 
-      try {
-        const [reaction] = await db
+        if (deleted) {
+          // Was on → now off
+          return null;
+        }
+
+        // Enforce per-user reaction limit (max 8 distinct emoji per milestone)
+        const [{ count }] = await tx
+          .select({ count: sql<number>`count(*)::int` })
+          .from(milestoneReactions)
+          .where(
+            and(
+              eq(milestoneReactions.milestoneId, args.milestoneId),
+              eq(milestoneReactions.userId, ctx.authUser!.userId),
+            ),
+          );
+        if (count >= 8) {
+          throw new GraphQLError("Maximum 8 reactions per milestone");
+        }
+
+        // Was off → now on
+        const [reaction] = await tx
           .insert(milestoneReactions)
           .values({
             milestoneId: args.milestoneId,
-            userId: ctx.authUser.userId,
+            userId: ctx.authUser!.userId,
             emoji,
           })
           .returning();
         return reaction;
-      } catch {
-        throw new GraphQLError("Failed to create reaction");
-      }
+      });
     },
   }),
 }));
 
-// Add milestones field to ArtistType
+// Add milestones field to ArtistType — prefetches reaction data to avoid N+1
 builder.objectFields(ArtistType, (t) => ({
   milestones: t.field({
     type: [ArtistMilestoneType],
-    resolve: async (artist) => {
-      return db
+    resolve: async (artist, _args, ctx) => {
+      const rows = await db
         .select()
         .from(artistMilestones)
         .where(eq(artistMilestones.artistId, artist.id))
         .orderBy(desc(artistMilestones.date))
         .limit(MAX_MILESTONES_PER_ARTIST);
+
+      if (rows.length === 0) return [];
+
+      const milestoneIds = rows.map((r) => r.id);
+
+      // Batch fetch reaction counts (1 query instead of N)
+      const countRows = await db
+        .select({
+          milestoneId: milestoneReactions.milestoneId,
+          emoji: milestoneReactions.emoji,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(milestoneReactions)
+        .where(sql`${milestoneReactions.milestoneId} IN ${milestoneIds}`)
+        .groupBy(milestoneReactions.milestoneId, milestoneReactions.emoji)
+        .orderBy(desc(sql`count(*)`));
+
+      const countsMap = new Map<string, { emoji: string; count: number }[]>();
+      for (const row of countRows) {
+        const list = countsMap.get(row.milestoneId) ?? [];
+        if (list.length < 5) list.push({ emoji: row.emoji, count: row.count });
+        countsMap.set(row.milestoneId, list);
+      }
+
+      // Batch fetch user's own reactions (1 query instead of N)
+      const myMap = new Map<string, string[]>();
+      if (ctx.authUser) {
+        const myRows = await db
+          .select({
+            milestoneId: milestoneReactions.milestoneId,
+            emoji: milestoneReactions.emoji,
+          })
+          .from(milestoneReactions)
+          .where(
+            and(
+              sql`${milestoneReactions.milestoneId} IN ${milestoneIds}`,
+              eq(milestoneReactions.userId, ctx.authUser.userId),
+            ),
+          );
+        for (const row of myRows) {
+          const list = myMap.get(row.milestoneId) ?? [];
+          list.push(row.emoji);
+          myMap.set(row.milestoneId, list);
+        }
+      }
+
+      // Embed prefetched data into each milestone object
+      return rows.map((r) => ({
+        ...r,
+        _reactionCounts: countsMap.get(r.id) ?? [],
+        _myReactions: myMap.get(r.id) ?? [],
+      }));
     },
   }),
 }));
