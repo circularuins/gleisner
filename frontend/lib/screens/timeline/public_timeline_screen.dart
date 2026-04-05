@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import '../../models/timeline_item.dart';
 import '../../models/track.dart';
 import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -11,6 +12,8 @@ import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/constellation_painter.dart';
+import '../../widgets/timeline/milestone_detail_sheet.dart';
+import '../../widgets/timeline/milestone_node_card.dart';
 import '../../widgets/timeline/node_card.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
 import '../../theme/gleisner_assets.dart';
@@ -341,19 +344,33 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
 
     for (int i = 0; i < layout.nodes.length; i++) {
       final node = layout.nodes[i];
-      final isFocused = node.post.id == _focusedPostId;
       final dimmed =
-          constellationIds != null && !constellationIds.contains(node.post.id);
+          constellationIds != null && !constellationIds.contains(node.item.id);
 
-      final card = NodeCard(
-        node: node,
-        index: i,
-        highlight: false,
-        focused: isFocused,
-        onTap: () => _handleNodeTap(node.post.id),
-        onToggleReaction: null,
-        onOpenDetail: () => _openDetailSheet(node.post.id),
-      );
+      final Widget card;
+      final bool isFocused;
+
+      switch (node.item) {
+        case PostItem(:final post):
+          isFocused = post.id == _focusedPostId;
+          card = NodeCard(
+            node: node,
+            index: i,
+            highlight: false,
+            focused: isFocused,
+            onTap: () => _handleNodeTap(post.id),
+            onToggleReaction: null,
+            onOpenDetail: () => _openDetailSheet(post.id),
+          );
+        case MilestoneItem(:final milestone):
+          isFocused = false;
+          card = MilestoneNodeCard(
+            node: node,
+            milestone: milestone,
+            onTap: () => showMilestoneDetailSheet(context, milestone),
+            onToggleReaction: null, // no reactions for unauthenticated
+          );
+      }
 
       final positioned = Positioned(
         left: ConstellationLayout.spineWidth + node.x,
@@ -411,12 +428,12 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
     if (layout == null) return true;
 
     final nodes = layout.nodes;
-    final idx = nodes.indexWhere((n) => n.post.id == postId);
+    final idx = nodes.indexWhere((n) => n.item.id == postId);
     if (idx < 0) return true;
 
     final target = nodes[idx];
     final sw = ConstellationLayout.spineWidth;
-    final pillH = target.post.reactionCounts.isNotEmpty ? 20.0 : 0.0;
+    final pillH = target.item.totalReactions > 0 ? 20.0 : 0.0;
     final tRect = Rect.fromLTWH(
       sw + target.x,
       target.y,
@@ -426,7 +443,7 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
 
     for (int i = idx + 1; i < nodes.length; i++) {
       final other = nodes[i];
-      final otherPillH = other.post.reactionCounts.isNotEmpty ? 20.0 : 0.0;
+      final otherPillH = other.item.totalReactions > 0 ? 20.0 : 0.0;
       final oRect = Rect.fromLTWH(
         sw + other.x,
         other.y,
@@ -465,9 +482,16 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
             day: days[i],
             isHighlighted: i == highlightedIndex,
             dimToday: highlightedIndex != null,
+            showYear: _shouldShowYear(days, i),
           ),
         ),
     ];
+  }
+
+  static bool _shouldShowYear(List<DaySection> days, int index) {
+    final year = days[index].date.year;
+    if (index + 1 >= days.length) return true;
+    return days[index + 1].date.year != year;
   }
 }
 
@@ -475,11 +499,13 @@ class _DateLabel extends StatelessWidget {
   final DaySection day;
   final bool isHighlighted;
   final bool dimToday;
+  final bool showYear;
 
   const _DateLabel({
     required this.day,
     this.isHighlighted = false,
     this.dimToday = false,
+    this.showYear = false,
   });
 
   @override
@@ -535,6 +561,21 @@ class _DateLabel extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
+          if (showYear)
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Text(
+                "'${(day.date.year % 100).toString().padLeft(2, '0')}",
+                style: TextStyle(
+                  color: monthColor,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.2,
+                  height: 1.2,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
         ],
       ),
     );

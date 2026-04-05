@@ -11,11 +11,13 @@ import '../graphql/queries/artist.dart';
 import '../graphql/mutations/connection.dart';
 import '../graphql/mutations/constellation.dart';
 import '../graphql/mutations/post.dart';
+import '../graphql/mutations/artist-milestone.dart';
 import '../graphql/mutations/reaction.dart';
 import '../graphql/mutations/track.dart';
 import '../graphql/queries/post.dart';
 import '../models/artist.dart';
 import '../models/post.dart';
+import '../models/timeline_item.dart';
 import '../models/track.dart';
 import '../utils/constellation_layout.dart';
 import '../utils/sentinel.dart';
@@ -287,6 +289,71 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     }
   }
 
+  /// Toggle a reaction on a milestone with optimistic local update.
+  Future<bool> toggleMilestoneReaction(String milestoneId, String emoji) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(toggleMilestoneReactionMutation),
+          variables: {'milestoneId': milestoneId, 'emoji': emoji},
+        ),
+      );
+      if (result.hasException) return false;
+
+      final artist = state.artist;
+      if (artist == null) return true;
+
+      final updatedMilestones = artist.milestones.map((m) {
+        if (m.id != milestoneId) return m;
+        final myR = List<String>.from(m.myReactions);
+        final counts = List<ReactionCount>.from(m.reactionCounts);
+        if (myR.contains(emoji)) {
+          myR.remove(emoji);
+          final idx = counts.indexWhere((c) => c.emoji == emoji);
+          if (idx >= 0) {
+            final n = counts[idx].count - 1;
+            if (n <= 0) {
+              counts.removeAt(idx);
+            } else {
+              counts[idx] = ReactionCount(emoji: emoji, count: n);
+            }
+          }
+        } else {
+          myR.add(emoji);
+          final idx = counts.indexWhere((c) => c.emoji == emoji);
+          if (idx >= 0) {
+            counts[idx] = ReactionCount(
+              emoji: emoji,
+              count: counts[idx].count + 1,
+            );
+          } else {
+            counts.add(ReactionCount(emoji: emoji, count: 1));
+          }
+        }
+        counts.sort((a, b) => b.count.compareTo(a.count));
+        return ArtistMilestone(
+          id: m.id,
+          category: m.category,
+          title: m.title,
+          description: m.description,
+          date: m.date,
+          position: m.position,
+          reactionCounts: counts,
+          myReactions: myR,
+        );
+      }).toList();
+
+      // Update artist with new milestones
+      state = state.copyWith(
+        artist: artist.copyWithMilestones(updatedMilestones),
+      );
+      _recomputeLayout();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Create a connection between two posts. Returns the connection on success.
   Future<PostConnection?> createConnection(
     String sourceId,
@@ -403,8 +470,10 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     if (layout != null) {
       final postMap = {for (final p in posts) p.id: p};
       final patchedNodes = layout.nodes.map((n) {
-        final updated = postMap[n.post.id];
-        if (updated != null && updated != n.post) {
+        if (n.item is! PostItem) return n;
+        final currentPost = (n.item as PostItem).post;
+        final updated = postMap[currentPost.id];
+        if (updated != null && updated != currentPost) {
           // Recalculate size from updated reactions, keep position
           final sz = ConstellationLayout.nodeSize(
             updated.importance,
@@ -422,7 +491,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
               ? sz * 0.7
               : sz * 0.85;
           return PlacedNode(
-            post: updated,
+            item: PostItem(updated),
             x: n.x,
             y: n.y,
             width: w,
@@ -616,12 +685,17 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   }
 
   void _recomputeLayout() {
-    if (state.posts.isEmpty || _lastWidth == 0) {
+    final milestones = state.artist?.milestones ?? [];
+    if ((state.posts.isEmpty && milestones.isEmpty) || _lastWidth == 0) {
       state = state.copyWith(layout: null);
       return;
     }
+    final timelineItems = <TimelineItem>[
+      ...state.posts.map(PostItem.new),
+      ...milestones.map(MilestoneItem.new),
+    ];
     final result = ConstellationLayout.compute(
-      posts: state.posts,
+      items: timelineItems,
       containerWidth: _lastWidth,
     );
     state = state.copyWith(layout: result);

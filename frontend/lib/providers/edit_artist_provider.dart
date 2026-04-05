@@ -10,6 +10,7 @@ import '../graphql/mutations/track.dart';
 import '../models/artist.dart';
 import '../models/genre.dart';
 import 'my_artist_provider.dart';
+import 'timeline_provider.dart';
 
 class EditArtistNotifier extends Notifier<AsyncValue<void>> {
   late GraphQLClient _client;
@@ -313,7 +314,10 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
       if (result.hasException) return null;
       final data =
           result.data?['createArtistMilestone'] as Map<String, dynamic>?;
-      return data != null ? ArtistMilestone.fromJson(data) : null;
+      if (data == null) return null;
+      final milestone = ArtistMilestone.fromJson(data);
+      _refreshTimelineMilestones();
+      return milestone;
     } catch (e) {
       debugPrint('[EditArtistNotifier] createMilestone error: $e');
       return null;
@@ -344,7 +348,10 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
       if (result.hasException) return null;
       final data =
           result.data?['updateArtistMilestone'] as Map<String, dynamic>?;
-      return data != null ? ArtistMilestone.fromJson(data) : null;
+      if (data == null) return null;
+      final milestone = ArtistMilestone.fromJson(data);
+      _refreshTimelineMilestones();
+      return milestone;
     } catch (e) {
       debugPrint('[EditArtistNotifier] updateMilestone error: $e');
       return null;
@@ -359,10 +366,21 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
           variables: {'id': id},
         ),
       );
-      return !result.hasException;
+      if (result.hasException) return false;
+      _refreshTimelineMilestones();
+      return true;
     } catch (e) {
       debugPrint('[EditArtistNotifier] deleteMilestone error: $e');
       return false;
+    }
+  }
+
+  /// Reload the timeline provider's artist data so milestones are reflected
+  /// when the user switches back to the timeline tab.
+  void _refreshTimelineMilestones() {
+    final username = ref.read(myArtistProvider)?.artistUsername;
+    if (username != null) {
+      ref.read(timelineProvider.notifier).loadArtist(username);
     }
   }
 }

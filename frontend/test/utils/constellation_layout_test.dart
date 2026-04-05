@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gleisner_web/models/artist.dart';
 import 'package:gleisner_web/models/post.dart';
+import 'package:gleisner_web/models/timeline_item.dart';
 import 'package:gleisner_web/utils/constellation_layout.dart';
 
 Post _makePost({
@@ -59,7 +61,7 @@ void main() {
   group('ConstellationLayout.compute', () {
     test('empty posts returns empty layout', () {
       final result = ConstellationLayout.compute(
-        posts: [],
+        items: [],
         containerWidth: 400,
       );
       expect(result.nodes, isEmpty);
@@ -71,7 +73,7 @@ void main() {
     test('single post produces one node and one day section', () {
       final post = _makePost(id: '1', createdAt: DateTime.now());
       final result = ConstellationLayout.compute(
-        posts: [post],
+        items: [PostItem(post)],
         containerWidth: 400,
       );
       expect(result.nodes, hasLength(1));
@@ -87,7 +89,7 @@ void main() {
         importance: 0.3,
       );
       final result = ConstellationLayout.compute(
-        posts: [post],
+        items: [PostItem(post)],
         containerWidth: 400,
       );
       final node = result.nodes.first;
@@ -107,7 +109,7 @@ void main() {
         ),
       );
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
       for (final node in result.nodes) {
@@ -126,14 +128,14 @@ void main() {
       );
       const width = 400.0;
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: width,
       );
       for (final node in result.nodes) {
         expect(
           node.x + node.width,
           lessThanOrEqualTo(width - ConstellationLayout.spineWidth + 1),
-          reason: 'Node ${node.post.id} exceeds container width',
+          reason: 'Node ${node.item.id} exceeds container width',
         );
       }
     });
@@ -151,21 +153,21 @@ void main() {
         ),
       );
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
 
       // Sort nodes by createdAt descending (newest first)
       final sorted = List<PlacedNode>.from(result.nodes)
-        ..sort((a, b) => b.post.createdAt.compareTo(a.post.createdAt));
+        ..sort((a, b) => b.item.displayDate.compareTo(a.item.displayDate));
 
       for (int i = 1; i < sorted.length; i++) {
         expect(
           sorted[i].y,
           greaterThanOrEqualTo(sorted[i - 1].y),
           reason:
-              'Post ${sorted[i].post.id} (older) should be at or below '
-              'post ${sorted[i - 1].post.id} (newer): '
+              'Post ${sorted[i].item.id} (older) should be at or below '
+              'post ${sorted[i - 1].item.id} (newer): '
               '${sorted[i].y} vs ${sorted[i - 1].y}',
         );
       }
@@ -187,11 +189,11 @@ void main() {
         ),
       ];
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
 
-      final nodeMap = {for (final n in result.nodes) n.post.id: n};
+      final nodeMap = {for (final n in result.nodes) n.item.id: n};
       expect(nodeMap['today']!.y, lessThanOrEqualTo(nodeMap['yesterday']!.y));
       expect(nodeMap['yesterday']!.y, lessThanOrEqualTo(nodeMap['3days']!.y));
     });
@@ -207,11 +209,11 @@ void main() {
         ),
       ];
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
 
-      final nodeMap = {for (final n in result.nodes) n.post.id: n};
+      final nodeMap = {for (final n in result.nodes) n.item.id: n};
       expect(
         nodeMap['older']!.y,
         greaterThan(nodeMap['newer']!.y),
@@ -228,7 +230,7 @@ void main() {
         _makePost(id: '2', createdAt: now.subtract(const Duration(days: 3))),
       ];
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
       // Only 2 days: today and 3 days ago (not days 1 and 2)
@@ -238,7 +240,7 @@ void main() {
     test('today section is marked isToday', () {
       final post = _makePost(id: '1', createdAt: DateTime.now());
       final result = ConstellationLayout.compute(
-        posts: [post],
+        items: [PostItem(post)],
         containerWidth: 400,
       );
       expect(result.days.first.isToday, isTrue);
@@ -254,7 +256,7 @@ void main() {
         ),
       );
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
       for (int i = 1; i < result.days.length; i++) {
@@ -282,7 +284,7 @@ void main() {
         ),
       ];
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
       for (int i = 1; i < result.days.length; i++) {
@@ -322,7 +324,7 @@ void main() {
         ),
       ];
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
       expect(result.connections, isNotEmpty);
@@ -345,7 +347,7 @@ void main() {
         ),
       ];
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
       expect(result.connections, isEmpty);
@@ -358,7 +360,7 @@ void main() {
         _makePost(id: '2', createdAt: now.subtract(const Duration(hours: 2))),
       ];
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
       expect(result.connections, isEmpty);
@@ -380,11 +382,11 @@ void main() {
       );
 
       final result1 = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
       final result2 = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
 
@@ -439,11 +441,11 @@ void main() {
         ),
       ];
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
-      final popular = result.nodes.firstWhere((n) => n.post.id == 'popular');
-      final quiet = result.nodes.firstWhere((n) => n.post.id == 'quiet');
+      final popular = result.nodes.firstWhere((n) => n.item.id == 'popular');
+      final quiet = result.nodes.firstWhere((n) => n.item.id == 'quiet');
       expect(popular.nodeSize, greaterThan(quiet.nodeSize));
       expect(popular.width, greaterThan(quiet.width));
     });
@@ -467,11 +469,11 @@ void main() {
         ),
       ];
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
-      final audio = result.nodes.firstWhere((n) => n.post.id == 'audio');
-      final text = result.nodes.firstWhere((n) => n.post.id == 'text');
+      final audio = result.nodes.firstWhere((n) => n.item.id == 'audio');
+      final text = result.nodes.firstWhere((n) => n.item.id == 'text');
       expect(audio.width, greaterThan(text.width));
     });
 
@@ -492,11 +494,11 @@ void main() {
         ),
       ];
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
-      final audio = result.nodes.firstWhere((n) => n.post.id == 'audio');
-      final image = result.nodes.firstWhere((n) => n.post.id == 'image');
+      final audio = result.nodes.firstWhere((n) => n.item.id == 'audio');
+      final image = result.nodes.firstWhere((n) => n.item.id == 'image');
       expect(audio.height, lessThan(image.height));
     });
 
@@ -511,7 +513,7 @@ void main() {
         ),
       ];
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
       expect(result.nodes.first.showInfo, isFalse);
@@ -535,7 +537,7 @@ void main() {
         ),
       ];
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
 
@@ -570,13 +572,13 @@ void main() {
         ),
       ];
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
 
       // Sort by createdAt descending (newest first)
       final sorted = List<PlacedNode>.from(result.nodes)
-        ..sort((a, b) => b.post.createdAt.compareTo(a.post.createdAt));
+        ..sort((a, b) => b.item.displayDate.compareTo(a.item.displayDate));
 
       // Each older post should be at least slightly below the newer one
       for (int i = 1; i < sorted.length; i++) {
@@ -584,7 +586,7 @@ void main() {
           sorted[i].y,
           greaterThan(sorted[i - 1].y),
           reason:
-              'Post ${sorted[i].post.id} should be below ${sorted[i - 1].post.id}',
+              'Post ${sorted[i].item.id} should be below ${sorted[i - 1].item.id}',
         );
       }
     });
@@ -603,7 +605,7 @@ void main() {
         ),
       );
       final result = ConstellationLayout.compute(
-        posts: posts,
+        items: posts.map(PostItem.new).toList(),
         containerWidth: 400,
       );
 
@@ -611,6 +613,175 @@ void main() {
       // 6 small nodes at min size (~120px each with info) should fit
       // well under 1500px with compaction
       expect(result.totalHeight, lessThan(1500));
+    });
+  });
+
+  group('Milestone nodes', () {
+    ArtistMilestone _makeMilestone({
+      required String id,
+      required String date,
+      String category = 'award',
+    }) {
+      return ArtistMilestone(
+        id: id,
+        category: category,
+        title: 'Milestone $id',
+        date: date,
+        position: 0,
+      );
+    }
+
+    test('milestone has fixed size', () {
+      final now = DateTime.now();
+      final items = <TimelineItem>[
+        PostItem(_makePost(id: '1', createdAt: now, importance: 0.8)),
+        MilestoneItem(
+          _makeMilestone(
+            id: 'm1',
+            date: now.toIso8601String().substring(0, 10),
+          ),
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        items: items,
+        containerWidth: 400,
+      );
+      expect(result.nodes, hasLength(2));
+      final milestone = result.nodes.firstWhere((n) => n.isMilestone);
+      expect(milestone.nodeSize, ConstellationLayout.milestoneNodeSize);
+      // Width includes extra space for title label
+      expect(milestone.width, greaterThan(ConstellationLayout.milestoneNodeSize));
+    });
+
+    test('milestone has showInfo false', () {
+      final now = DateTime.now();
+      final items = <TimelineItem>[
+        MilestoneItem(
+          _makeMilestone(
+            id: 'm1',
+            date: now.toIso8601String().substring(0, 10),
+          ),
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        items: items,
+        containerWidth: 400,
+      );
+      expect(result.nodes.first.showInfo, isFalse);
+    });
+
+    test('milestone has mediaHeight 0', () {
+      final now = DateTime.now();
+      final items = <TimelineItem>[
+        MilestoneItem(
+          _makeMilestone(
+            id: 'm1',
+            date: now.toIso8601String().substring(0, 10),
+          ),
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        items: items,
+        containerWidth: 400,
+      );
+      expect(result.nodes.first.mediaHeight, 0.0);
+    });
+
+    test('milestones do not generate synapse connections', () {
+      final now = DateTime.now();
+      final items = <TimelineItem>[
+        PostItem(
+          _makePost(
+            id: '1',
+            createdAt: now,
+            trackId: 'track-a',
+            trackColor: '#ff0000',
+            outgoingConnections: [
+              const PostConnection(
+                id: 'conn-1',
+                sourceId: '1',
+                targetId: '2',
+                connectionType: ConnectionType.reference,
+              ),
+            ],
+          ),
+        ),
+        PostItem(
+          _makePost(
+            id: '2',
+            createdAt: now.subtract(const Duration(hours: 2)),
+            trackId: 'track-a',
+            trackColor: '#ff0000',
+          ),
+        ),
+        MilestoneItem(
+          _makeMilestone(
+            id: 'm1',
+            date: now.toIso8601String().substring(0, 10),
+          ),
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        items: items,
+        containerWidth: 400,
+      );
+      // Only post-to-post connection, milestone excluded
+      expect(result.connections, hasLength(1));
+    });
+
+    test('mixed posts and milestones maintain time ordering', () {
+      final now = DateTime.now();
+      final items = <TimelineItem>[
+        PostItem(_makePost(id: 'p1', createdAt: now)),
+        MilestoneItem(
+          _makeMilestone(
+            id: 'm1',
+            date: now
+                .subtract(const Duration(days: 2))
+                .toIso8601String()
+                .substring(0, 10),
+          ),
+        ),
+        PostItem(
+          _makePost(id: 'p2', createdAt: now.subtract(const Duration(days: 3))),
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        items: items,
+        containerWidth: 400,
+      );
+      final nodeMap = {for (final n in result.nodes) n.item.id: n};
+      expect(nodeMap['p1']!.y, lessThanOrEqualTo(nodeMap['milestone:m1']!.y));
+      expect(nodeMap['milestone:m1']!.y, lessThanOrEqualTo(nodeMap['p2']!.y));
+    });
+
+    test('milestone-only timeline produces valid layout', () {
+      final now = DateTime.now();
+      final items = <TimelineItem>[
+        MilestoneItem(
+          _makeMilestone(
+            id: 'm1',
+            date: now.toIso8601String().substring(0, 10),
+          ),
+        ),
+        MilestoneItem(
+          _makeMilestone(
+            id: 'm2',
+            date: now
+                .subtract(const Duration(days: 5))
+                .toIso8601String()
+                .substring(0, 10),
+          ),
+        ),
+      ];
+      final result = ConstellationLayout.compute(
+        items: items,
+        containerWidth: 400,
+      );
+      expect(result.nodes, hasLength(2));
+      expect(result.days, hasLength(2));
+      expect(result.connections, isEmpty);
+      expect(result.totalHeight, greaterThan(0));
     });
   });
 }

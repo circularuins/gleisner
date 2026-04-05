@@ -1,7 +1,11 @@
 import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
-import { artists, artistMilestones } from "../../db/schema/index.js";
+import {
+  artists,
+  artistMilestones,
+  milestoneReactions,
+} from "../../db/schema/index.js";
 import { and, eq, desc, sql } from "drizzle-orm";
 
 const MAX_MILESTONES_PER_ARTIST = 200;
@@ -35,6 +39,18 @@ const ArtistMilestoneType = builder.objectRef<{
   createdAt: Date;
 }>("ArtistMilestone");
 
+const MilestoneReactionCountType = builder.objectRef<{
+  emoji: string;
+  count: number;
+}>("MilestoneReactionCount");
+
+MilestoneReactionCountType.implement({
+  fields: (t) => ({
+    emoji: t.exposeString("emoji"),
+    count: t.exposeInt("count"),
+  }),
+});
+
 ArtistMilestoneType.implement({
   fields: (t) => ({
     id: t.exposeID("id"),
@@ -48,6 +64,38 @@ ArtistMilestoneType.implement({
     position: t.exposeInt("position"),
     createdAt: t.string({
       resolve: (m) => m.createdAt.toISOString(),
+    }),
+    reactionCounts: t.field({
+      type: [MilestoneReactionCountType],
+      resolve: async (m) => {
+        const rows = await db
+          .select({
+            emoji: milestoneReactions.emoji,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(milestoneReactions)
+          .where(eq(milestoneReactions.milestoneId, m.id))
+          .groupBy(milestoneReactions.emoji)
+          .orderBy(desc(sql`count(*)`))
+          .limit(5);
+        return rows;
+      },
+    }),
+    myReactions: t.field({
+      type: ["String"],
+      resolve: async (m, _args, ctx) => {
+        if (!ctx.authUser) return [];
+        const rows = await db
+          .select({ emoji: milestoneReactions.emoji })
+          .from(milestoneReactions)
+          .where(
+            and(
+              eq(milestoneReactions.milestoneId, m.id),
+              eq(milestoneReactions.userId, ctx.authUser.userId),
+            ),
+          );
+        return rows.map((r) => r.emoji);
+      },
     }),
   }),
 });
@@ -81,17 +129,6 @@ builder.mutationFields((t) => ({
 
       const artistId = await getOwnArtistId(ctx.authUser.userId);
 
-      // Enforce per-artist milestone limit
-      const [{ count }] = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(artistMilestones)
-        .where(eq(artistMilestones.artistId, artistId));
-      if (count >= MAX_MILESTONES_PER_ARTIST) {
-        throw new GraphQLError(
-          `Maximum ${MAX_MILESTONES_PER_ARTIST} milestones allowed`,
-        );
-      }
-
       const title = args.title.trim();
       if (title.length === 0 || title.length > 255) {
         throw new GraphQLError("Title must be between 1 and 255 characters");
@@ -107,20 +144,36 @@ builder.mutationFields((t) => ({
         );
       }
 
+      // SELECT FOR UPDATE on artist row to prevent TOCTOU on milestone count
       try {
-        const [milestone] = await db
-          .insert(artistMilestones)
-          .values({
-            artistId,
-            category: args.category,
-            title,
-            description: args.description?.trim() || null,
-            date: args.date,
-            ...(args.position != null ? { position: args.position } : {}),
-          })
-          .returning();
-        return milestone;
-      } catch {
+        return await db.transaction(async (tx) => {
+          await tx.execute(
+            sql`SELECT 1 FROM ${artists} WHERE id = ${artistId} FOR UPDATE`,
+          );
+          const [{ count }] = await tx
+            .select({ count: sql<number>`count(*)::int` })
+            .from(artistMilestones)
+            .where(eq(artistMilestones.artistId, artistId));
+          if (count >= MAX_MILESTONES_PER_ARTIST) {
+            throw new GraphQLError(
+              `Maximum ${MAX_MILESTONES_PER_ARTIST} milestones allowed`,
+            );
+          }
+          const [milestone] = await tx
+            .insert(artistMilestones)
+            .values({
+              artistId,
+              category: args.category,
+              title,
+              description: args.description?.trim() || null,
+              date: args.date,
+              ...(args.position != null ? { position: args.position } : {}),
+            })
+            .returning();
+          return milestone;
+        });
+      } catch (e) {
+        if (e instanceof GraphQLError) throw e;
         throw new GraphQLError("Failed to create milestone");
       }
     },
@@ -212,6 +265,92 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Milestone not found");
       }
       return deleted;
+    },
+  }),
+}));
+
+const MilestoneReactionType = builder.objectRef<{
+  id: string;
+  milestoneId: string;
+  userId: string;
+  emoji: string;
+  createdAt: Date;
+}>("MilestoneReaction");
+
+MilestoneReactionType.implement({
+  fields: (t) => ({
+    id: t.exposeID("id"),
+    emoji: t.exposeString("emoji"),
+    createdAt: t.string({
+      resolve: (r) => r.createdAt.toISOString(),
+    }),
+  }),
+});
+
+builder.mutationFields((t) => ({
+  toggleMilestoneReaction: t.field({
+    type: MilestoneReactionType,
+    nullable: true,
+    args: {
+      milestoneId: t.arg.string({ required: true }),
+      emoji: t.arg.string({ required: true }),
+    },
+    resolve: async (_parent, args, ctx) => {
+      if (!ctx.authUser) {
+        throw new GraphQLError("Authentication required");
+      }
+
+      const emoji = args.emoji.trim();
+      if (emoji.length === 0) {
+        throw new GraphQLError("Emoji is required");
+      }
+      if (emoji.length > 10) {
+        throw new GraphQLError("Emoji must be 10 characters or less");
+      }
+
+      // Verify milestone exists
+      const [milestone] = await db
+        .select({ id: artistMilestones.id })
+        .from(artistMilestones)
+        .where(eq(artistMilestones.id, args.milestoneId))
+        .limit(1);
+      if (!milestone) {
+        throw new GraphQLError("Milestone not found");
+      }
+
+      // Check if reaction already exists
+      const [existing] = await db
+        .select()
+        .from(milestoneReactions)
+        .where(
+          and(
+            eq(milestoneReactions.milestoneId, args.milestoneId),
+            eq(milestoneReactions.userId, ctx.authUser.userId),
+            eq(milestoneReactions.emoji, emoji),
+          ),
+        )
+        .limit(1);
+
+      if (existing) {
+        await db
+          .delete(milestoneReactions)
+          .where(eq(milestoneReactions.id, existing.id));
+        return null;
+      }
+
+      try {
+        const [reaction] = await db
+          .insert(milestoneReactions)
+          .values({
+            milestoneId: args.milestoneId,
+            userId: ctx.authUser.userId,
+            emoji,
+          })
+          .returning();
+        return reaction;
+      } catch {
+        throw new GraphQLError("Failed to create reaction");
+      }
     },
   }),
 }));

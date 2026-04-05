@@ -37,6 +37,11 @@ const _artistFields = '''
         description
         date
         position
+        reactionCounts {
+          emoji
+          count
+        }
+        myReactions
       }
 ''';
 

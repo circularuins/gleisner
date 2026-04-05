@@ -47,3 +47,12 @@ const deleteArtistMilestoneMutation = '''
     }
   }
 ''';
+
+const toggleMilestoneReactionMutation = '''
+  mutation ToggleMilestoneReaction(\$milestoneId: String!, \$emoji: String!) {
+    toggleMilestoneReaction(milestoneId: \$milestoneId, emoji: \$emoji) {
+      id
+      emoji
+    }
+  }
+''';

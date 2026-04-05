@@ -7,6 +7,7 @@ import '../graphql/queries/artist.dart';
 import '../graphql/queries/post.dart';
 import '../models/artist.dart';
 import '../models/post.dart';
+import '../models/timeline_item.dart';
 import '../utils/constellation_layout.dart';
 import 'disposable_notifier.dart';
 import 'timeline_provider.dart';
@@ -174,12 +175,17 @@ class PublicTimelineNotifier extends Notifier<TimelineState>
   }
 
   void _recomputeLayout() {
-    if (state.posts.isEmpty || _lastWidth == 0) {
+    final milestones = state.artist?.milestones ?? [];
+    if ((state.posts.isEmpty && milestones.isEmpty) || _lastWidth == 0) {
       state = state.copyWith(layout: null);
       return;
     }
+    final timelineItems = <TimelineItem>[
+      ...state.posts.map(PostItem.new),
+      ...milestones.map(MilestoneItem.new),
+    ];
     final result = ConstellationLayout.compute(
-      posts: state.posts,
+      items: timelineItems,
       containerWidth: _lastWidth,
     );
     state = state.copyWith(layout: result);
