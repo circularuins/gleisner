@@ -11,7 +11,9 @@ const _reactionPresets = ['🔥', '❤️', '👏', '✨', '😍', '🎵', '💪
 void showMilestoneDetailSheet(
   BuildContext context,
   ArtistMilestone milestone, {
-  Future<bool> Function(String milestoneId, String emoji)? onToggleReaction,
+
+  /// Returns `true` = added, `null` = removed, `false` = failed.
+  Future<bool?> Function(String milestoneId, String emoji)? onToggleReaction,
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -26,7 +28,7 @@ void showMilestoneDetailSheet(
 
 class _MilestoneDetailSheet extends StatefulWidget {
   final ArtistMilestone milestone;
-  final Future<bool> Function(String milestoneId, String emoji)?
+  final Future<bool?> Function(String milestoneId, String emoji)?
   onToggleReaction;
 
   const _MilestoneDetailSheet({required this.milestone, this.onToggleReaction});
@@ -48,12 +50,14 @@ class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
 
   Future<void> _toggleReaction(String emoji) async {
     final milestoneId = widget.milestone.id;
-    final success =
-        await widget.onToggleReaction?.call(milestoneId, emoji) ?? false;
-    if (!success) return;
+    // Server returns: true = added, null = removed, false = failed
+    final serverResult = await widget.onToggleReaction?.call(
+      milestoneId,
+      emoji,
+    );
+    if (serverResult == false) return; // failed
 
-    // Determine add/remove based on current local state
-    final wasAdded = !_myReactions.contains(emoji);
+    final wasAdded = serverResult == true;
 
     setState(() {
       final counts = List<ReactionCount>.from(_reactionCounts);
@@ -65,7 +69,7 @@ class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
             emoji: emoji,
             count: counts[idx].count + 1,
           );
-        } else {
+        } else if (counts.length < 5) {
           counts.add(ReactionCount(emoji: emoji, count: 1));
         }
       } else {

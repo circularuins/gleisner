@@ -15,7 +15,7 @@ class MilestoneNodeCard extends StatefulWidget {
   final PlacedNode node;
   final ArtistMilestone milestone;
   final VoidCallback? onTap;
-  final Future<bool> Function(String milestoneId, String emoji)?
+  final Future<bool?> Function(String milestoneId, String emoji)?
   onToggleReaction;
 
   const MilestoneNodeCard({

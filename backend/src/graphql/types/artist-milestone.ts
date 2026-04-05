@@ -317,19 +317,18 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Emoji must be 10 characters or less");
       }
 
-      // Verify milestone exists
-      const [milestone] = await db
-        .select({ id: artistMilestones.id })
-        .from(artistMilestones)
-        .where(eq(artistMilestones.id, args.milestoneId))
-        .limit(1);
-      if (!milestone) {
-        throw new GraphQLError("Milestone not found");
-      }
-
-      // Atomic toggle: try DELETE first, if nothing deleted then INSERT.
-      // This avoids TOCTOU race between SELECT and INSERT/DELETE.
+      // Atomic toggle inside transaction — existence check included.
       return await db.transaction(async (tx) => {
+        // Verify milestone exists (inside tx for consistency)
+        const [milestone] = await tx
+          .select({ id: artistMilestones.id })
+          .from(artistMilestones)
+          .where(eq(artistMilestones.id, args.milestoneId))
+          .limit(1);
+        if (!milestone) {
+          throw new GraphQLError("Milestone not found");
+        }
+
         const [deleted] = await tx
           .delete(milestoneReactions)
           .where(
@@ -391,23 +390,26 @@ builder.objectFields(ArtistType, (t) => ({
 
       const milestoneIds = rows.map((r) => r.id);
 
-      // Batch fetch reaction counts (1 query instead of N)
-      const countRows = await db
-        .select({
-          milestoneId: milestoneReactions.milestoneId,
-          emoji: milestoneReactions.emoji,
-          count: sql<number>`count(*)::int`,
-        })
-        .from(milestoneReactions)
-        .where(sql`${milestoneReactions.milestoneId} IN ${milestoneIds}`)
-        .groupBy(milestoneReactions.milestoneId, milestoneReactions.emoji)
-        .orderBy(desc(sql`count(*)`));
+      // Batch fetch reaction counts (1 query, top 5 per milestone via window fn)
+      const countRows = await db.execute<{
+        milestone_id: string;
+        emoji: string;
+        cnt: number;
+      }>(sql`
+        SELECT milestone_id, emoji, cnt FROM (
+          SELECT milestone_id, emoji, count(*)::int AS cnt,
+                 RANK() OVER (PARTITION BY milestone_id ORDER BY count(*) DESC) AS rnk
+          FROM milestone_reactions
+          WHERE milestone_id IN ${milestoneIds}
+          GROUP BY milestone_id, emoji
+        ) ranked WHERE rnk <= 5
+      `);
 
       const countsMap = new Map<string, { emoji: string; count: number }[]>();
       for (const row of countRows) {
-        const list = countsMap.get(row.milestoneId) ?? [];
-        if (list.length < 5) list.push({ emoji: row.emoji, count: row.count });
-        countsMap.set(row.milestoneId, list);
+        const list = countsMap.get(row.milestone_id) ?? [];
+        list.push({ emoji: row.emoji, count: row.cnt });
+        countsMap.set(row.milestone_id, list);
       }
 
       // Batch fetch user's own reactions (1 query instead of N)

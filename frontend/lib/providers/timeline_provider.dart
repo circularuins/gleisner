@@ -290,8 +290,12 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   }
 
   /// Toggle a reaction on a milestone.
-  /// Returns true on success. Uses server response to determine add/remove.
-  Future<bool> toggleMilestoneReaction(String milestoneId, String emoji) async {
+  /// Returns `true` = added, `null` = removed, `false` = failed.
+  /// Callers can use this to sync local UI state with the server result.
+  Future<bool?> toggleMilestoneReaction(
+    String milestoneId,
+    String emoji,
+  ) async {
     try {
       final result = await _client.mutate(
         MutationOptions(
@@ -302,21 +306,21 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
       if (result.hasException) return false;
 
       final artist = state.artist;
-      if (artist == null) return true;
-
       // Server returns null = removed, non-null = added
       final wasAdded = result.data?['toggleMilestoneReaction'] != null;
 
-      final updatedMilestones = artist.milestones.map((m) {
-        if (m.id != milestoneId) return m;
-        return _applyMilestoneReactionToggle(m, emoji, wasAdded);
-      }).toList();
+      if (artist != null) {
+        final updatedMilestones = artist.milestones.map((m) {
+          if (m.id != milestoneId) return m;
+          return _applyMilestoneReactionToggle(m, emoji, wasAdded);
+        }).toList();
 
-      state = state.copyWith(
-        artist: artist.copyWithMilestones(updatedMilestones),
-      );
-      _recomputeLayout();
-      return true;
+        state = state.copyWith(
+          artist: artist.copyWithMilestones(updatedMilestones),
+        );
+        _recomputeLayout();
+      }
+      return wasAdded ? true : null;
     } catch (_) {
       return false;
     }
@@ -336,7 +340,8 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
       final idx = counts.indexWhere((c) => c.emoji == emoji);
       if (idx >= 0) {
         counts[idx] = ReactionCount(emoji: emoji, count: counts[idx].count + 1);
-      } else {
+      } else if (counts.length < 5) {
+        // Only add if under display limit (server returns top 5)
         counts.add(ReactionCount(emoji: emoji, count: 1));
       }
     } else {
