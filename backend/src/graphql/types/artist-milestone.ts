@@ -102,7 +102,8 @@ ArtistMilestoneType.implement({
               eq(milestoneReactions.milestoneId, m.id),
               eq(milestoneReactions.userId, ctx.authUser.userId),
             ),
-          );
+          )
+          .limit(8);
         return rows.map((r) => r.emoji);
       },
     }),

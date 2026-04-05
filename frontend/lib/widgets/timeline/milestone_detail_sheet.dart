@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/artist.dart';
 import '../../models/post.dart' show ReactionCount;
+import '../../providers/timeline_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/milestone_category.dart';
 
 const _reactionPresets = ['🔥', '❤️', '👏', '✨', '😍', '🎵', '💪', '🎸'];
 
 /// Show the milestone detail bottom sheet.
+/// The sheet watches [timelineProvider] for live reaction state —
+/// no local state duplication.
 void showMilestoneDetailSheet(
   BuildContext context,
   ArtistMilestone milestone, {
-
-  /// Returns `true` = added, `null` = removed, `false` = failed.
   Future<bool?> Function(String milestoneId, String emoji)? onToggleReaction,
 }) {
   showModalBottomSheet<void>(
@@ -20,78 +22,37 @@ void showMilestoneDetailSheet(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (_) => _MilestoneDetailSheet(
-      milestone: milestone,
+      milestoneId: milestone.id,
       onToggleReaction: onToggleReaction,
     ),
   );
 }
 
-class _MilestoneDetailSheet extends StatefulWidget {
-  final ArtistMilestone milestone;
+class _MilestoneDetailSheet extends ConsumerWidget {
+  final String milestoneId;
   final Future<bool?> Function(String milestoneId, String emoji)?
   onToggleReaction;
 
-  const _MilestoneDetailSheet({required this.milestone, this.onToggleReaction});
+  const _MilestoneDetailSheet({
+    required this.milestoneId,
+    this.onToggleReaction,
+  });
 
   @override
-  State<_MilestoneDetailSheet> createState() => _MilestoneDetailSheetState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch provider for live updates — single source of truth
+    final artist = ref.watch(timelineProvider).artist;
+    final milestone = artist?.milestones
+        .where((m) => m.id == milestoneId)
+        .firstOrNull;
 
-class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
-  late List<ReactionCount> _reactionCounts;
-  late Set<String> _myReactions;
+    if (milestone == null) {
+      return const SizedBox.shrink();
+    }
 
-  @override
-  void initState() {
-    super.initState();
-    _reactionCounts = List.from(widget.milestone.reactionCounts);
-    _myReactions = Set.from(widget.milestone.myReactions);
-  }
+    final reactionCounts = milestone.reactionCounts;
+    final myReactions = milestone.myReactions.toSet();
 
-  Future<void> _toggleReaction(String emoji) async {
-    final milestoneId = widget.milestone.id;
-    // Server returns: true = added, null = removed, false = failed
-    final serverResult = await widget.onToggleReaction?.call(
-      milestoneId,
-      emoji,
-    );
-    if (serverResult == false) return; // failed
-
-    final wasAdded = serverResult == true;
-
-    setState(() {
-      final counts = List<ReactionCount>.from(_reactionCounts);
-      if (wasAdded) {
-        _myReactions.add(emoji);
-        final idx = counts.indexWhere((c) => c.emoji == emoji);
-        if (idx >= 0) {
-          counts[idx] = ReactionCount(
-            emoji: emoji,
-            count: counts[idx].count + 1,
-          );
-        } else if (counts.length < 5) {
-          counts.add(ReactionCount(emoji: emoji, count: 1));
-        }
-      } else {
-        _myReactions.remove(emoji);
-        final idx = counts.indexWhere((c) => c.emoji == emoji);
-        if (idx >= 0) {
-          final n = counts[idx].count - 1;
-          if (n <= 0) {
-            counts.removeAt(idx);
-          } else {
-            counts[idx] = ReactionCount(emoji: emoji, count: n);
-          }
-        }
-      }
-      counts.sort((a, b) => b.count.compareTo(a.count));
-      _reactionCounts = counts;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final milestone = widget.milestone;
     final categoryLabel = milestoneCategories
         .firstWhere(
           (c) => c.$1 == milestone.category,
@@ -172,7 +133,6 @@ class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
                         ),
                       ),
                       const Spacer(),
-                      // Milestone indicator
                       const Text(
                         'Milestone',
                         style: TextStyle(
@@ -215,46 +175,24 @@ class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
                     ),
                   ],
                   // Reactions section
-                  if (widget.onToggleReaction != null) ...[
+                  if (onToggleReaction != null) ...[
                     const SizedBox(height: spaceXl),
                     const Divider(color: colorBorder, height: 1),
                     const SizedBox(height: spaceLg),
                     // Existing reactions
-                    if (_reactionCounts.isNotEmpty) ...[
+                    if (reactionCounts.isNotEmpty) ...[
                       Wrap(
                         spacing: spaceSm,
                         runSpacing: spaceSm,
-                        children: _reactionCounts.map((r) {
-                          final isOwn = _myReactions.contains(r.emoji);
+                        children: reactionCounts.map((r) {
+                          final isOwn = myReactions.contains(r.emoji);
                           return GestureDetector(
-                            onTap: () => _toggleReaction(r.emoji),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: spaceSm,
-                                vertical: spaceXs,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isOwn
-                                    ? colorAccentGold.withValues(
-                                        alpha: opacitySubtle,
-                                      )
-                                    : colorSurface2,
-                                borderRadius: BorderRadius.circular(radiusFull),
-                                border: Border.all(
-                                  color: isOwn
-                                      ? colorAccentGold.withValues(
-                                          alpha: opacityBorder,
-                                        )
-                                      : colorBorder,
-                                ),
-                              ),
-                              child: Text(
-                                '${r.emoji} ${r.count}',
-                                style: const TextStyle(
-                                  fontSize: fontSizeSm,
-                                  color: colorTextSecondary,
-                                ),
-                              ),
+                            onTap: () =>
+                                onToggleReaction!(milestoneId, r.emoji),
+                            child: _ReactionPill(
+                              emoji: r.emoji,
+                              count: r.count,
+                              isOwn: isOwn,
                             ),
                           );
                         }).toList(),
@@ -266,9 +204,9 @@ class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
                       spacing: spaceSm,
                       runSpacing: spaceSm,
                       children: _reactionPresets.map((emoji) {
-                        final isOwn = _myReactions.contains(emoji);
+                        final isOwn = myReactions.contains(emoji);
                         return GestureDetector(
-                          onTap: () => _toggleReaction(emoji),
+                          onTap: () => onToggleReaction!(milestoneId, emoji),
                           child: Container(
                             width: 36,
                             height: 36,
@@ -307,7 +245,7 @@ class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
     );
   }
 
-  String _formatDate(String dateStr) {
+  static String _formatDate(String dateStr) {
     try {
       final date = DateTime.parse(dateStr);
       const months = [
@@ -328,5 +266,42 @@ class _MilestoneDetailSheetState extends State<_MilestoneDetailSheet> {
     } catch (_) {
       return dateStr;
     }
+  }
+}
+
+class _ReactionPill extends StatelessWidget {
+  final String emoji;
+  final int count;
+  final bool isOwn;
+
+  const _ReactionPill({
+    required this.emoji,
+    required this.count,
+    required this.isOwn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: spaceSm,
+        vertical: spaceXs,
+      ),
+      decoration: BoxDecoration(
+        color: isOwn
+            ? colorAccentGold.withValues(alpha: opacitySubtle)
+            : colorSurface2,
+        borderRadius: BorderRadius.circular(radiusFull),
+        border: Border.all(
+          color: isOwn
+              ? colorAccentGold.withValues(alpha: opacityBorder)
+              : colorBorder,
+        ),
+      ),
+      child: Text(
+        '$emoji $count',
+        style: const TextStyle(fontSize: fontSizeSm, color: colorTextSecondary),
+      ),
+    );
   }
 }
