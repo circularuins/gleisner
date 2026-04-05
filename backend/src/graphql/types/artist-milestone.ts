@@ -319,13 +319,24 @@ builder.mutationFields((t) => ({
 
       // Atomic toggle inside transaction — existence check included.
       return await db.transaction(async (tx) => {
-        // Verify milestone exists (inside tx for consistency)
+        // Verify milestone exists and artist is accessible
         const [milestone] = await tx
-          .select({ id: artistMilestones.id })
+          .select({
+            id: artistMilestones.id,
+            profileVisibility: artists.profileVisibility,
+            userId: artists.userId,
+          })
           .from(artistMilestones)
+          .innerJoin(artists, eq(artistMilestones.artistId, artists.id))
           .where(eq(artistMilestones.id, args.milestoneId))
           .limit(1);
         if (!milestone) {
+          throw new GraphQLError("Milestone not found");
+        }
+        if (
+          milestone.profileVisibility === "private" &&
+          milestone.userId !== ctx.authUser!.userId
+        ) {
           throw new GraphQLError("Milestone not found");
         }
 
@@ -398,11 +409,14 @@ builder.objectFields(ArtistType, (t) => ({
       }>(sql`
         SELECT milestone_id, emoji, cnt FROM (
           SELECT milestone_id, emoji, count(*)::int AS cnt,
-                 RANK() OVER (PARTITION BY milestone_id ORDER BY count(*) DESC) AS rnk
+                 ROW_NUMBER() OVER (
+                   PARTITION BY milestone_id
+                   ORDER BY count(*) DESC, emoji ASC
+                 ) AS rn
           FROM milestone_reactions
           WHERE milestone_id IN ${milestoneIds}
           GROUP BY milestone_id, emoji
-        ) ranked WHERE rnk <= 5
+        ) ranked WHERE rn <= 5
       `);
 
       const countsMap = new Map<string, { emoji: string; count: number }[]>();
