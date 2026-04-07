@@ -106,40 +106,6 @@ class _NodeCardState extends State<NodeCard>
     final glowBlur = 8.0 + importance * 16;
     final glowOpacity = 0.15 + importance * 0.25;
 
-    // Text posts use accent borders instead of uniform border
-    final isTextPost = post.mediaType == MediaType.text;
-    final preview = post.plainTextPreview ?? '';
-    final hasTitle = post.title != null && post.title!.isNotEmpty;
-    final isShortText = isTextPost && !hasTitle && preview.length < 100;
-
-    final BoxBorder border;
-    if (isTextPost) {
-      border = isShortText
-          ? Border(
-              bottom: BorderSide(
-                color: trackColor.withValues(alpha: 0.3),
-                width: 2,
-              ),
-              top: BorderSide(color: colorBorder.withValues(alpha: 0.3)),
-              left: BorderSide(color: colorBorder.withValues(alpha: 0.3)),
-              right: BorderSide(color: colorBorder.withValues(alpha: 0.3)),
-            )
-          : Border(
-              left: BorderSide(
-                color: trackColor.withValues(alpha: 0.5),
-                width: 3,
-              ),
-              top: BorderSide(color: colorBorder.withValues(alpha: 0.3)),
-              right: BorderSide(color: colorBorder.withValues(alpha: 0.3)),
-              bottom: BorderSide(color: colorBorder.withValues(alpha: 0.3)),
-            );
-    } else {
-      border = Border.all(
-        color: trackColor.withValues(alpha: opacityBorder),
-        width: 1,
-      );
-    }
-
     Widget card = GestureDetector(
       onTap: widget.onTap ?? () => showPostDetailSheet(context, post),
       child: Container(
@@ -152,7 +118,10 @@ class _NodeCardState extends State<NodeCard>
               spreadRadius: glowSpread,
             ),
           ],
-          border: border,
+          border: Border.all(
+            color: trackColor.withValues(alpha: opacityBorder),
+            width: 1,
+          ),
           color: colorSurface1,
         ),
         clipBehavior: Clip.antiAlias,
@@ -354,6 +323,14 @@ class _TextContent extends StatelessWidget {
   Widget _buildShortForm(Post post, String preview, double totalH) {
     return Container(
       padding: const EdgeInsets.all(spaceMd),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: trackColor.withValues(alpha: 0.4),
+            width: 2,
+          ),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -377,7 +354,6 @@ class _TextContent extends StatelessWidget {
   }
 
   /// Long form: title-driven card with body preview and reading accent.
-  /// Left border accent is on the outer container.
   Widget _buildLongForm(Post post, String preview, double totalH) {
     final bodyMaxLines = ((totalH - 50) / 14).floor().clamp(1, 8);
     final words = preview
@@ -386,7 +362,15 @@ class _TextContent extends StatelessWidget {
         .length;
     final readMin = (words / 200).ceil();
 
-    return Padding(
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: trackColor.withValues(alpha: 0.5),
+            width: 3,
+          ),
+        ),
+      ),
       padding: const EdgeInsets.fromLTRB(spaceMd, spaceSm, spaceSm, spaceSm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
