@@ -1350,8 +1350,14 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   }
 
   static String _readingTime(String text) {
-    final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
-    final minutes = (words / 200).ceil(); // ~200 wpm reading speed
+    // CJK characters (Japanese, Chinese, Korean)
+    final cjk = RegExp(r'[\u3000-\u9fff\uf900-\ufaff]');
+    final cjkCount = cjk.allMatches(text).length;
+    final nonCjk = text.replaceAll(cjk, ' ');
+    final wordCount =
+        nonCjk.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    // ~200 wpm English, ~400 cpm CJK
+    final minutes = ((wordCount / 200) + (cjkCount / 400)).ceil();
     return minutes <= 1 ? '1 min read' : '$minutes min read';
   }
 

@@ -356,11 +356,7 @@ class _TextContent extends StatelessWidget {
   /// Long form: title-driven card with body preview and reading accent.
   Widget _buildLongForm(Post post, String preview, double totalH) {
     final bodyMaxLines = ((totalH - 50) / 14).floor().clamp(1, 8);
-    final words = preview
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .length;
-    final readMin = (words / 200).ceil();
+    final readMin = _estimateReadingMinutes(preview);
 
     return Container(
       decoration: BoxDecoration(
@@ -380,7 +376,7 @@ class _TextContent extends StatelessWidget {
             children: [
               _TrackLabel(trackName: post.trackName, color: trackColor),
               const Spacer(),
-              if (words > 30)
+              if (readMin > 0)
                 Text(
                   '$readMin min',
                   style: TextStyle(
@@ -440,6 +436,22 @@ class _TextContent extends StatelessWidget {
 }
 
 // --- Image: seed art (future: real image) ---
+/// Estimate reading time in minutes. Handles both English (word-based)
+/// and CJK (character-based) text. Returns 0 for very short text.
+int _estimateReadingMinutes(String text) {
+  if (text.length < 50) return 0;
+  // Count CJK characters (Chinese, Japanese, Korean)
+  final cjk = RegExp(r'[\u3000-\u9fff\uf900-\ufaff]');
+  final cjkCount = cjk.allMatches(text).length;
+  // Count English words (non-CJK, space-separated)
+  final nonCjk = text.replaceAll(cjk, ' ');
+  final wordCount =
+      nonCjk.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+  // ~200 wpm English, ~400 cpm CJK
+  final minutes = (wordCount / 200) + (cjkCount / 400);
+  return minutes.ceil().clamp(0, 99);
+}
+
 class _ImageContent extends StatelessWidget {
   final PlacedNode node;
   final Color trackColor;
