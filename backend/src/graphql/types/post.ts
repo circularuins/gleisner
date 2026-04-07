@@ -14,6 +14,9 @@ import {
 } from "../validators.js";
 import { checkArtistAccess } from "../access.js";
 
+/** Media types that require a file upload (mediaUrl must be non-null). */
+const MEDIA_FILE_REQUIRED_TYPES = ["image", "video", "audio"];
+
 const MediaTypeEnum = builder.enumType("MediaType", {
   values: ["text", "image", "video", "audio", "link"] as const,
 });
@@ -195,7 +198,7 @@ builder.mutationFields((t) => ({
       }
 
       // Require mediaUrl for image, video, audio types (not text or link)
-      const mediaFileTypes = ["image", "video", "audio"];
+      const mediaFileTypes = MEDIA_FILE_REQUIRED_TYPES;
       if (
         mediaFileTypes.includes(args.mediaType) &&
         (args.mediaUrl == null || args.mediaUrl.trim() === "")
@@ -360,7 +363,7 @@ builder.mutationFields((t) => ({
           (args.mediaType as string | undefined) ?? post.mediaType;
         const newMediaUrl =
           args.mediaUrl !== undefined ? args.mediaUrl : post.mediaUrl;
-        const mediaFileTypes = ["image", "video", "audio"];
+        const mediaFileTypes = MEDIA_FILE_REQUIRED_TYPES;
         if (
           mediaFileTypes.includes(newType) &&
           (newMediaUrl == null || newMediaUrl.trim() === "")
