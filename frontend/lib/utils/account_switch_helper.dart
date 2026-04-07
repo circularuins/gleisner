@@ -8,22 +8,11 @@ import '../providers/unassigned_posts_provider.dart';
 
 /// Reload all user-specific providers after a JWT switch (guardian ↔ child).
 ///
-/// `invalidate` is required because each Notifier caches the GraphQL client
-/// via `ref.watch(graphqlClientProvider)` in its `build()` method. After
-/// `graphqlClientProvider` is invalidated (by guardianProvider), other
-/// Notifiers still hold the old client reference until they are themselves
-/// invalidated and rebuilt.
-///
-/// After invalidation, explicit `load()` calls are needed because
-/// StatefulShellRoute tabs don't auto-refresh on invalidate alone.
+/// Does NOT invalidate providers — each load() method re-reads the latest
+/// graphqlClientProvider to pick up the new JWT. This avoids Notifier
+/// reconstruction which would reset internal state like _lastWidth
+/// (causing empty timeline until the next LayoutBuilder callback).
 Future<void> reloadAfterAccountSwitch(WidgetRef ref) async {
-  // Invalidate to force Notifier rebuild with new GraphQL client
-  ref.invalidate(myArtistProvider);
-  ref.invalidate(timelineProvider);
-  ref.invalidate(tuneInProvider);
-  ref.invalidate(discoverProvider);
-  ref.invalidate(unassignedPostsProvider);
-
   // myArtistProvider must complete first — timeline depends on the result
   await ref.read(myArtistProvider.notifier).load();
 

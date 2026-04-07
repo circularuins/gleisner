@@ -20,6 +20,8 @@ class MyArtistNotifier extends Notifier<Artist?> with DisposableNotifier {
   }
 
   Future<void> load() async {
+    // Re-read client in case JWT was swapped (e.g. guardian ↔ child switch)
+    _client = ref.read(graphqlClientProvider);
     try {
       final result = await _client.query(
         QueryOptions(

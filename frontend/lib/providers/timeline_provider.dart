@@ -97,6 +97,9 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   void debugAddTrack(Track track) => _addTrackToState(track);
 
   Future<void> loadArtist(String username) async {
+    // Re-read client in case JWT was swapped (e.g. guardian ↔ child switch)
+    _client = ref.read(graphqlClientProvider);
+
     // Clear previous artist's posts immediately to prevent stale data
     state = state.copyWith(
       isLoading: true,
