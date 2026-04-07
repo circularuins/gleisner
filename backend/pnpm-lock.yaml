@@ -24,7 +24,7 @@ importers:
         version: 2.19.1(graphql-yoga@5.18.1(graphql@16.13.2))(graphql@16.13.2)
       '@hono/node-server':
         specifier: ^1.19.12
-        version: 1.19.12(hono@4.12.9)
+        version: 1.19.12(hono@4.12.12)
       '@pothos/core':
         specifier: ^4.12.0
         version: 4.12.0(graphql@16.13.2)
@@ -41,8 +41,8 @@ importers:
         specifier: ^5.18.1
         version: 5.18.1(graphql@16.13.2)
       hono:
-        specifier: ^4.12.9
-        version: 4.12.9
+        specifier: ^4.12.12
+        version: 4.12.12
       jose:
         specifier: ^6.2.2
         version: 6.2.2
@@ -1486,8 +1486,8 @@ packages:
     resolution: {integrity: sha512-5bJ+nf/UCpAjHM8i06fl7eLyVC9iuNAjm9qzkiu2ZGhM0VscSvS6WDPfAwkdkBuoXGM9FJSbKl6wylMwP9Ktig==}
     engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
 
-  hono@4.12.9:
-    resolution: {integrity: sha512-wy3T8Zm2bsEvxKZM5w21VdHDDcwVS1yUFFY6i8UobSsKfFceT7TOwhbhfKsDyx7tYQlmRM5FLpIuYvNFyjctiA==}
+  hono@4.12.12:
+    resolution: {integrity: sha512-p1JfQMKaceuCbpJKAPKVqyqviZdS0eUxH9v82oWo1kb9xjQ5wA6iP3FNVAPDFlz5/p7d45lO+BpSk1tuSZMF4Q==}
     engines: {node: '>=16.9.0'}
 
   ignore@5.3.2:
@@ -2653,9 +2653,9 @@ snapshots:
       '@repeaterjs/repeater': 3.0.6
       tslib: 2.8.1
 
-  '@hono/node-server@1.19.12(hono@4.12.9)':
+  '@hono/node-server@1.19.12(hono@4.12.12)':
     dependencies:
-      hono: 4.12.9
+      hono: 4.12.12
 
   '@humanfs/core@0.19.1': {}
 
@@ -3525,7 +3525,7 @@ snapshots:
 
   graphql@16.13.2: {}
 
-  hono@4.12.9: {}
+  hono@4.12.12: {}
 
   ignore@5.3.2: {}
 
