@@ -60,17 +60,26 @@ STUDIO=$(get_track_id Studio)
 
 echo "==> Track IDs: Play=$PLAY Compose=$COMPOSE Life=$LIFE English=$ENGLISH Live=$LIVE Studio=$STUDIO"
 
-# 6. Create posts: track_id title importance mediaType [duration] [mediaUrl]
+# 6. Create posts: track_id title importance mediaType [duration] [mediaUrl] [body] [bodyFormat]
+# Uses GraphQL variables to safely pass body content (avoids JSON escape issues with Delta)
 create_post() {
-  local TID="$1" TITLE="$2" IMP="$3" MTYPE="$4" DUR="${5:-}" URL="${6:-}" BODY="${7:-}"
-  local EXTRA=""
-  [ -n "$DUR" ] && EXTRA="$EXTRA, duration:$DUR"
-  [ -n "$URL" ] && EXTRA="$EXTRA, mediaUrl:\"$URL\""
+  local TID="$1" TITLE="$2" IMP="$3" MTYPE="$4" DUR="${5:-}" URL="${6:-}" BODY="${7:-}" BFMT="${8:-}"
   [ -z "$BODY" ] && BODY="Test content for $TITLE"
-  # Safely escape for JSON (handles quotes, newlines, backslashes)
-  BODY=$(printf '%s' "$BODY" | jq -Rs . | sed 's/^"//;s/"$//')
+  # Build variables JSON using jq for safe escaping
+  local VARS
+  VARS=$(jq -n \
+    --arg tid "$TID" \
+    --arg title "$TITLE" \
+    --arg body "$BODY" \
+    --arg mediaType "$MTYPE" \
+    --argjson importance "$IMP" \
+    '{trackId: $tid, title: $title, body: $body, mediaType: $mediaType, importance: $importance}')
+  [ -n "$DUR" ] && VARS=$(echo "$VARS" | jq --argjson d "$DUR" '. + {duration: $d}')
+  [ -n "$URL" ] && VARS=$(echo "$VARS" | jq --arg u "$URL" '. + {mediaUrl: $u}')
+  [ -n "$BFMT" ] && VARS=$(echo "$VARS" | jq --arg f "$BFMT" '. + {bodyFormat: $f}')
+  local QUERY='mutation CreatePost($trackId: String!, $mediaType: MediaType!, $title: String, $body: String, $bodyFormat: String, $mediaUrl: String, $importance: Float, $duration: Int) { createPost(trackId: $trackId, mediaType: $mediaType, title: $title, body: $body, bodyFormat: $bodyFormat, mediaUrl: $mediaUrl, importance: $importance, duration: $duration) { id } }'
   curl -s "$API" -X POST -H "Content-Type: application/json" -H "$AUTH" \
-    -d "{\"query\":\"mutation { createPost(trackId:\\\"$TID\\\", title:\\\"$TITLE\\\", body:\\\"$BODY\\\", mediaType:$MTYPE, importance:$IMP$EXTRA) { id } }\"}" > /dev/null
+    -d "$(jq -n --arg q "$QUERY" --argjson v "$VARS" '{query: $q, variables: $v}')" > /dev/null
   sleep 0.3
 }
 
@@ -118,7 +127,20 @@ create_post "$STUDIO" "Demo-Glass-Ocean" 0.65 audio 178
 create_post "$STUDIO" "cool-guitar-lesson" 0.45 link "" "https://www.youtube.com/watch?v=example"
 create_post "$STUDIO" "music-theory-resource" 0.2 link "" "https://musictheory.net"
 
-echo "==> 32 posts created"
+# Rich text (delta format) posts — blog/essay style
+create_post "$COMPOSE" "Why-I-Chose-Flamenco" 0.75 text "" "" \
+  '[{"insert":"Why I Chose Flamenco Over Classical\n","attributes":{"header":1}},{"insert":"\nI get asked this a lot. The short answer: "},{"insert":"flamenco chose me","attributes":{"bold":true}},{"insert":".\n\nI spent eight years studying classical guitar. Scales, arpeggios, sight-reading — the whole conservatory path. And I was good at it. But something always felt "},{"insert":"missing","attributes":{"italic":true}},{"insert":".\n\n"},{"insert":"The turning point","attributes":{"header":2}},{"insert":"\nIt was a Tuesday night in Seville. I wandered into a bar where an old man was playing. No sheet music, no fancy technique — just raw emotion flowing through six strings.\n\n"},{"insert":"That moment changed everything.","attributes":{"bold":true}},{"insert":"\n\nHe played one "},{"insert":"falseta","attributes":{"italic":true}},{"insert":" that made the whole room hold its breath. When I asked him how long he had been playing, he laughed and said:\n\n"},{"insert":"You don'\''t play flamenco. You live it.","attributes":{"blockquote":true}},{"insert":"\n\n"},{"insert":"What flamenco taught me","attributes":{"header":2}},{"insert":"\n"},{"insert":"Rhythm is a conversation, not a metronome","attributes":{"list":"bullet"}},{"insert":"\n"},{"insert":"Imperfection is part of the beauty","attributes":{"list":"bullet"}},{"insert":"\n"},{"insert":"Music exists in the silence between notes","attributes":{"list":"bullet"}},{"insert":"\n\nI still practice classical exercises for technique. But when I perform, when I "},{"insert":"create","attributes":{"italic":true}},{"insert":" — it'\''s always flamenco.\n"}]' \
+  "delta"
+
+create_post "$LIFE" "Morning-Pages" 0.1 text "" "" \
+  '[{"insert":"Morning pages — stream of consciousness\n","attributes":{"header":3}},{"insert":"\nWoke up at 5:30 again. The birds outside are getting louder as spring settles in. Made coffee, sat on the balcony.\n\nThree things I'\''m grateful for today:\n"},{"insert":"The new strings I put on yesterday — they ring so bright","attributes":{"list":"ordered"}},{"insert":"\n"},{"insert":"That message from the fan in Brazil who covered my song","attributes":{"list":"ordered"}},{"insert":"\n"},{"insert":"Simple mornings like this one","attributes":{"list":"ordered"}},{"insert":"\n\nToday'\''s plan: finish the bridge section for "},{"insert":"Digital Citizen","attributes":{"bold":true}},{"insert":", then head to the park for some fresh air. Maybe bring the ukulele.\n"}]' \
+  "delta"
+
+create_post "$ENGLISH" "Learning-Log-Week12" 0.3 text "" "" \
+  '[{"insert":"English Learning Log — Week 12\n","attributes":{"header":1}},{"insert":"\n"},{"insert":"New vocabulary","attributes":{"header":2}},{"insert":"\n"},{"insert":"resonance","attributes":{"bold":true}},{"insert":" — the quality of being deep and full (used it to describe my guitar tone in a podcast interview)\n"},{"insert":"serendipity","attributes":{"bold":true}},{"insert":" — finding something good without looking for it\n"},{"insert":"ephemeral","attributes":{"bold":true}},{"insert":" — lasting for a very short time (perfect word for live performances)\n\n"},{"insert":"Grammar note","attributes":{"header":2}},{"insert":"\nStill struggling with the present perfect vs past simple:\n\n"},{"insert":"I have played guitar for 15 years","attributes":{"code":true}},{"insert":" (correct — still playing)\n"},{"insert":"I played guitar yesterday","attributes":{"code":true}},{"insert":" (correct — specific past time)\n\nThe trick: if the time period is "},{"insert":"still ongoing","attributes":{"italic":true}},{"insert":", use present perfect.\n\n"},{"insert":"Next week'\''s goal: write a full blog post in English without checking the dictionary more than 3 times.","attributes":{"bold":true}},{"insert":"\n"}]' \
+  "delta"
+
+echo "==> 35 posts created (32 plain + 3 rich text)"
 
 # 7. Spread dates across 2 weeks
 docker exec gleisner-db psql -U gleisner -d gleisner -q -c "
@@ -160,6 +182,9 @@ UPDATE posts SET created_at = now() - (
     WHEN 'Demo-Glass-Ocean' THEN interval '7 days 15 hours'
     WHEN 'cool-guitar-lesson' THEN interval '9 days 11 hours'
     WHEN 'music-theory-resource' THEN interval '13 days 6 hours'
+    WHEN 'Why-I-Chose-Flamenco' THEN interval '6 days 2 hours'
+    WHEN 'Morning-Pages' THEN interval '12 hours'
+    WHEN 'Learning-Log-Week12' THEN interval '10 days 8 hours'
     ELSE interval '0'
   END
 )
