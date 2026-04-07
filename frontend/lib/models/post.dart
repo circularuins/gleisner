@@ -249,16 +249,37 @@ class Post {
   /// Extract plain text from body, regardless of format.
   /// For delta: extracts string inserts from ops. For plain: returns body as-is.
   String? get plainTextPreview {
-    if (bodyFormat == BodyFormat.delta && bodyDelta != null) {
-      final buffer = StringBuffer();
-      for (final op in bodyDelta!) {
-        if (op is Map && op.containsKey('insert')) {
-          final insert = op['insert'];
-          if (insert is String) buffer.write(insert);
+    if (bodyFormat == BodyFormat.delta) {
+      // Try parsed bodyDelta first
+      if (bodyDelta != null) {
+        final buffer = StringBuffer();
+        for (final op in bodyDelta!) {
+          if (op is Map && op.containsKey('insert')) {
+            final insert = op['insert'];
+            if (insert is String) buffer.write(insert);
+          }
         }
+        final text = buffer.toString().trim();
+        if (text.isNotEmpty) return text;
       }
-      final text = buffer.toString().trim();
-      return text.isEmpty ? null : text;
+      // Fallback: try parsing body string directly
+      if (body != null) {
+        try {
+          final parsed = jsonDecode(body!);
+          if (parsed is List) {
+            final buffer = StringBuffer();
+            for (final op in parsed) {
+              if (op is Map && op.containsKey('insert')) {
+                final insert = op['insert'];
+                if (insert is String) buffer.write(insert);
+              }
+            }
+            final text = buffer.toString().trim();
+            if (text.isNotEmpty) return text;
+          }
+        } catch (_) {}
+      }
+      return null;
     }
     return body;
   }
