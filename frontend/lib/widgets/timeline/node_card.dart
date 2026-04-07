@@ -306,27 +306,94 @@ class _TextContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final post = (node.item as PostItem).post;
     final totalH = node.mediaHeight + 30;
-    const headerH = 14.0;
-    const titleH = 30.0;
-    final bodyMaxH = totalH - headerH - (post.title != null ? titleH : 0) - 16;
-    final bodyMaxLines = (bodyMaxH / 14).floor().clamp(1, 12);
+    final preview = post.plainTextPreview ?? '';
+    final hasTitle = post.title != null && post.title!.isNotEmpty;
+    final isShort = !hasTitle && preview.length < 100;
 
     return SizedBox(
       height: totalH,
-      child: Container(
-        padding: const EdgeInsets.all(spaceSm),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [trackColor.withValues(alpha: 0.06), colorSurface1],
+      child: isShort
+          ? _buildShortForm(post, preview, totalH)
+          : _buildLongForm(post, preview, totalH),
+    );
+  }
+
+  /// Short form: the text IS the visual. Large font, minimal chrome.
+  /// Like a quote floating in space.
+  Widget _buildShortForm(Post post, String preview, double totalH) {
+    return Container(
+      padding: const EdgeInsets.all(spaceMd),
+      decoration: BoxDecoration(
+        color: colorSurface1,
+        border: Border(
+          bottom: BorderSide(
+            color: trackColor.withValues(alpha: 0.2),
+            width: 2,
           ),
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _TrackLabel(trackName: post.trackName, color: trackColor),
+          const Spacer(),
+          Text(
+            preview,
+            style: TextStyle(
+              color: colorTextPrimary,
+              fontSize: totalH > 120 ? fontSizeLg : fontSizeMd,
+              height: 1.5,
+              fontWeight: weightMedium,
+            ),
+            maxLines: (totalH / 24).floor().clamp(2, 6),
+            overflow: TextOverflow.ellipsis,
+          ),
+          const Spacer(),
+        ],
+      ),
+    );
+  }
+
+  /// Long form: title-driven card with body preview and reading accent.
+  /// Left border accent line (bookmark/margin aesthetic).
+  Widget _buildLongForm(Post post, String preview, double totalH) {
+    final bodyMaxLines = ((totalH - 50) / 14).floor().clamp(1, 8);
+    final words = preview
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .length;
+    final readMin = (words / 200).ceil();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colorSurface1,
+        border: Border(
+          left: BorderSide(color: trackColor.withValues(alpha: 0.4), width: 3),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(spaceMd, spaceSm, spaceSm, spaceSm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _TrackLabel(trackName: post.trackName, color: trackColor),
-            if (post.title != null) ...[
+            // Track + reading time row
+            Row(
+              children: [
+                _TrackLabel(trackName: post.trackName, color: trackColor),
+                const Spacer(),
+                if (words > 30)
+                  Text(
+                    '$readMin min',
+                    style: TextStyle(
+                      color: colorTextMuted.withValues(alpha: 0.5),
+                      fontSize: 9,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: spaceXs),
+            // Title
+            if (post.title != null && post.title!.isNotEmpty) ...[
               Text(
                 post.title!,
                 style: const TextStyle(
@@ -334,25 +401,39 @@ class _TextContent extends StatelessWidget {
                   fontSize: fontSizeSm,
                   fontWeight: weightBold,
                   height: 1.3,
+                  letterSpacing: -0.2,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: spaceXxs),
             ],
-            if (post.plainTextPreview != null)
-              Expanded(
+            // Body preview with fade
+            Expanded(
+              child: ShaderMask(
+                shaderCallback: (bounds) => LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white,
+                    Colors.white,
+                    Colors.white.withValues(alpha: 0),
+                  ],
+                  stops: const [0.0, 0.7, 1.0],
+                ).createShader(bounds),
+                blendMode: BlendMode.dstIn,
                 child: Text(
-                  post.plainTextPreview!,
+                  preview,
                   style: TextStyle(
-                    color: colorTextPrimary.withValues(alpha: 0.7),
+                    color: colorTextPrimary.withValues(alpha: 0.6),
                     fontSize: fontSizeXs,
-                    height: 1.4,
+                    height: 1.5,
                   ),
                   maxLines: bodyMaxLines,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: TextOverflow.clip,
                 ),
               ),
+            ),
           ],
         ),
       ),
