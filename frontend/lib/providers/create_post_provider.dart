@@ -114,6 +114,17 @@ class CreatePostNotifier extends Notifier<CreatePostState>
     }
   }
 
+  /// Clear form-level state (connections, importance, visibility) without
+  /// resetting track/mediaType selection. Called when going back from form step.
+  void clearFormState() {
+    state = state.copyWith(
+      importance: 0.5,
+      visibility: 'public',
+      selectedConnections: const [],
+      error: null,
+    );
+  }
+
   void reset() {
     state = const CreatePostState();
   }

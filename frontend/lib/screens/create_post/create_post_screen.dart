@@ -142,6 +142,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 _quillController.clear();
                 _thumbnailUrl = null;
                 _eventAt = null;
+                ref.read(createPostProvider.notifier).clearFormState();
               }
               ref.read(createPostProvider.notifier).goBack();
             } else {
