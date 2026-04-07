@@ -218,7 +218,7 @@ class _RichTextEditorState extends State<RichTextEditor> {
       paragraph: DefaultTextBlockStyle(
         const TextStyle(
           color: colorTextSecondary,
-          fontSize: fontSizeMd,
+          fontSize: fontSizeSm,
           height: 1.6,
         ),
         const HorizontalSpacing(0, 0),
