@@ -14,6 +14,7 @@ import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../widgets/common/event_at_picker.dart';
 import '../../widgets/editor/rich_text_editor.dart';
+import '../../widgets/editor/text_body_counter.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
 
@@ -152,6 +153,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             bodyFormat: bodyFormat,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
             thumbnailUrl: _thumbnailUrl,
+            duration: _durationSeconds,
             eventAt: _eventAt?.toIso8601String(),
             clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,
@@ -168,6 +170,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             bodyFormat: bodyFormat,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
             thumbnailUrl: _thumbnailUrl,
+            duration: _durationSeconds,
             eventAt: _eventAt?.toIso8601String(),
             clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,
@@ -421,7 +424,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
           toolbarCollapsed: true,
         ),
       ),
-      _TextBodyCounter(controller: _quillController),
+      TextBodyCounter(controller: _quillController),
     ];
   }
 
@@ -764,58 +767,6 @@ class _ImportancePreview extends StatelessWidget {
           trackColor: trackColor,
           seed: 'preview',
           mediaType: mediaType,
-        ),
-      ),
-    );
-  }
-}
-
-/// Live character counter for the Quill rich text editor.
-class _TextBodyCounter extends StatefulWidget {
-  final QuillController controller;
-  const _TextBodyCounter({required this.controller});
-
-  @override
-  State<_TextBodyCounter> createState() => _TextBodyCounterState();
-}
-
-class _TextBodyCounterState extends State<_TextBodyCounter> {
-  int _charCount = 0;
-  static const _maxChars = 10000;
-
-  @override
-  void initState() {
-    super.initState();
-    _update();
-    widget.controller.document.changes.listen((_) => _update());
-  }
-
-  void _update() {
-    final count = widget.controller.document.toPlainText().trimRight().length;
-    if (count != _charCount && mounted) {
-      setState(() => _charCount = count);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isNearLimit = _charCount > _maxChars * 0.9;
-    final isOver = _charCount > _maxChars;
-    if (_charCount < 100) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(right: spaceMd, top: spaceXs),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Text(
-          '$_charCount / $_maxChars',
-          style: TextStyle(
-            fontSize: fontSizeXs,
-            color: isOver
-                ? colorError
-                : isNearLimit
-                ? colorAccentGold
-                : colorTextMuted.withValues(alpha: 0.5),
-          ),
         ),
       ),
     );

@@ -15,6 +15,7 @@ Future<VideoMeta> captureVideoThumbnail(
   String mimeType = 'video/mp4',
 }) async {
   final completer = Completer<VideoMeta>();
+  Timer? timeout;
 
   // Create a blob URL from the video bytes
   final blob = web.Blob(
@@ -32,6 +33,7 @@ Future<VideoMeta> captureVideoThumbnail(
   int? durationSeconds;
 
   void cleanup() {
+    timeout?.cancel();
     video.pause();
     video.src = '';
     web.URL.revokeObjectURL(blobUrl);
@@ -94,8 +96,8 @@ Future<VideoMeta> captureVideoThumbnail(
     }
   });
 
-  // Timeout after 10 seconds
-  Future.delayed(const Duration(seconds: 10), () {
+  // Timeout after 10 seconds (cancellable to avoid holding references)
+  timeout = Timer(const Duration(seconds: 10), () {
     if (!completer.isCompleted) {
       cleanup();
       completer.complete((thumbnail: null, durationSeconds: durationSeconds));

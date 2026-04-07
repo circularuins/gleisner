@@ -13,6 +13,7 @@ Future<Uint8List?> convertHeicToJpeg(
   int maxDimension = 1280,
 }) async {
   final completer = Completer<Uint8List?>();
+  Timer? timeout;
 
   final blob = web.Blob(
     [heicBytes.toJS].toJS,
@@ -23,6 +24,7 @@ Future<Uint8List?> convertHeicToJpeg(
   final img = web.HTMLImageElement()..src = blobUrl;
 
   void cleanup() {
+    timeout?.cancel();
     web.URL.revokeObjectURL(blobUrl);
   }
 
@@ -77,8 +79,8 @@ Future<Uint8List?> convertHeicToJpeg(
     if (!completer.isCompleted) completer.complete(null);
   });
 
-  // Timeout after 10 seconds
-  Future.delayed(const Duration(seconds: 10), () {
+  // Timeout after 10 seconds (cancellable to avoid holding references)
+  timeout = Timer(const Duration(seconds: 10), () {
     if (!completer.isCompleted) {
       cleanup();
       completer.complete(null);

@@ -526,38 +526,7 @@ class _ImageContent extends StatelessWidget {
               left: spaceSm,
               right: spaceSm,
               bottom: spaceSm,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (post.trackName != null)
-                    Text(
-                      post.trackName!.toUpperCase(),
-                      style: TextStyle(
-                        color: trackColor.withValues(alpha: 0.9),
-                        fontSize: 9,
-                        fontWeight: weightSemibold,
-                        letterSpacing: 0.5,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  if (hasTitle) ...[
-                    const SizedBox(height: 1),
-                    Text(
-                      post.title!,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: fontSizeSm,
-                        fontWeight: weightMedium,
-                        height: 1.2,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
+              child: _OverlayInfo(post: post, trackColor: trackColor),
             ),
         ],
       ),
@@ -677,38 +646,7 @@ class _VideoContent extends StatelessWidget {
               left: spaceSm,
               right: spaceSm,
               bottom: spaceSm,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (post.trackName != null)
-                    Text(
-                      post.trackName!.toUpperCase(),
-                      style: TextStyle(
-                        color: trackColor.withValues(alpha: 0.9),
-                        fontSize: 9,
-                        fontWeight: weightSemibold,
-                        letterSpacing: 0.5,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  if (hasTitle) ...[
-                    const SizedBox(height: 1),
-                    Text(
-                      post.title!,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: fontSizeSm,
-                        fontWeight: weightMedium,
-                        height: 1.2,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
+              child: _OverlayInfo(post: post, trackColor: trackColor),
             ),
         ],
       ),
@@ -894,6 +832,50 @@ class _TrackLabel extends StatelessWidget {
       ),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+/// Shared overlay for image/video nodes: track label + title on gradient.
+class _OverlayInfo extends StatelessWidget {
+  final Post post;
+  final Color trackColor;
+  const _OverlayInfo({required this.post, required this.trackColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasTitle = post.title != null && post.title!.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (post.trackName != null)
+          Text(
+            post.trackName!.toUpperCase(),
+            style: TextStyle(
+              color: trackColor.withValues(alpha: 0.9),
+              fontSize: 9,
+              fontWeight: weightSemibold,
+              letterSpacing: 0.5,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        if (hasTitle) ...[
+          const SizedBox(height: 1),
+          Text(
+            post.title!,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: fontSizeSm,
+              fontWeight: weightMedium,
+              height: 1.2,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
     );
   }
 }

@@ -16,6 +16,7 @@ import '../../widgets/common/error_banner.dart';
 import '../../widgets/common/event_at_picker.dart';
 import '../../widgets/common/related_post_picker.dart';
 import '../../widgets/editor/rich_text_editor.dart';
+import '../../widgets/editor/text_body_counter.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../providers/media_upload_provider.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
@@ -122,7 +123,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       final notifier = ref.read(timelineProvider.notifier);
       notifier.ensureTrackSelected(postedTrack.id);
       notifier.addPost(post);
-      ref.read(createPostProvider.notifier).reset();
       if (mounted) context.go('/timeline');
     }
   }
@@ -740,7 +740,7 @@ class _FormStep extends ConsumerWidget {
         ),
       ),
       // Character count for text body
-      _TextBodyCounter(controller: quillController),
+      TextBodyCounter(controller: quillController),
       const SizedBox(height: spaceMd),
     ];
   }
@@ -1248,58 +1248,4 @@ IconData _mediaTypeIcon(MediaType type) {
     MediaType.audio => Icons.headphones_outlined,
     MediaType.link => Icons.link,
   };
-}
-
-/// Live character counter for the Quill rich text editor.
-/// Backend limit: 10,000 plain-text chars / 100KB delta JSON.
-class _TextBodyCounter extends StatefulWidget {
-  final QuillController controller;
-  const _TextBodyCounter({required this.controller});
-
-  @override
-  State<_TextBodyCounter> createState() => _TextBodyCounterState();
-}
-
-class _TextBodyCounterState extends State<_TextBodyCounter> {
-  int _charCount = 0;
-  static const _maxChars = 10000;
-
-  @override
-  void initState() {
-    super.initState();
-    _update();
-    widget.controller.document.changes.listen((_) => _update());
-  }
-
-  void _update() {
-    final count = widget.controller.document.toPlainText().trimRight().length;
-    if (count != _charCount && mounted) {
-      setState(() => _charCount = count);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isNearLimit = _charCount > _maxChars * 0.9;
-    final isOver = _charCount > _maxChars;
-    // Only show when user has written enough to care
-    if (_charCount < 100) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(right: spaceMd, top: spaceXs),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Text(
-          '$_charCount / $_maxChars',
-          style: TextStyle(
-            fontSize: fontSizeXs,
-            color: isOver
-                ? colorError
-                : isNearLimit
-                ? colorAccentGold
-                : colorTextMuted.withValues(alpha: 0.5),
-          ),
-        ),
-      ),
-    );
-  }
 }

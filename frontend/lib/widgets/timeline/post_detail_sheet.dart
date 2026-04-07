@@ -1999,7 +1999,9 @@ class _FullScreenImageState extends State<_FullScreenImage>
         onVerticalDragEnd: _isZoomed
             ? null
             : (details) {
-                if (_dragOffsetY.abs() > 100) {
+                final velocity = details.primaryVelocity?.abs() ?? 0;
+                if (_dragOffsetY.abs() > 100 || velocity > 800) {
+                  _isDragging = false;
                   Navigator.of(context).pop();
                 } else {
                   setState(() {
