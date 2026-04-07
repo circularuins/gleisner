@@ -335,19 +335,21 @@ class _TextContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _TrackLabel(trackName: post.trackName, color: trackColor),
-          const Spacer(),
-          Text(
-            preview,
-            style: TextStyle(
-              color: colorTextPrimary,
-              fontSize: totalH > 120 ? fontSizeLg : fontSizeMd,
-              height: 1.5,
-              fontWeight: weightMedium,
+          Expanded(
+            child: Center(
+              child: Text(
+                preview,
+                style: TextStyle(
+                  color: colorTextPrimary,
+                  fontSize: totalH > 120 ? fontSizeLg : fontSizeMd,
+                  height: 1.5,
+                  fontWeight: weightMedium,
+                ),
+                maxLines: ((totalH - 30) / 24).floor().clamp(2, 5),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            maxLines: (totalH / 24).floor().clamp(2, 6),
-            overflow: TextOverflow.ellipsis,
           ),
-          const Spacer(),
         ],
       ),
     );
