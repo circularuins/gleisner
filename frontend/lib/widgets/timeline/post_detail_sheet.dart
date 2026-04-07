@@ -347,10 +347,36 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                       ],
                     ),
                     const SizedBox(height: spaceMd),
-                    // Title
+                    // Title — larger for text posts (reading mode)
                     if (post.title != null) ...[
-                      Text(post.title!, style: textTitle),
-                      const SizedBox(height: spaceSm),
+                      Text(
+                        post.title!,
+                        style: post.mediaType == MediaType.text
+                            ? const TextStyle(
+                                color: colorTextPrimary,
+                                fontSize: 24,
+                                fontWeight: weightBold,
+                                height: 1.3,
+                                letterSpacing: -0.3,
+                              )
+                            : textTitle,
+                      ),
+                      if (post.mediaType == MediaType.text &&
+                          post.plainTextPreview != null) ...[
+                        const SizedBox(height: spaceSm),
+                        Text(
+                          _readingTime(post.plainTextPreview!),
+                          style: TextStyle(
+                            color: colorTextMuted.withValues(alpha: 0.6),
+                            fontSize: fontSizeSm,
+                          ),
+                        ),
+                      ],
+                      SizedBox(
+                        height: post.mediaType == MediaType.text
+                            ? spaceLg
+                            : spaceSm,
+                      ),
                     ],
                     // Body — rich text (delta) or plain text
                     if (post.bodyFormat == BodyFormat.delta &&
@@ -363,15 +389,26 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                         ),
                         focusNode: FocusNode(),
                         scrollController: ScrollController(),
-                        config: const QuillEditorConfig(
+                        config: QuillEditorConfig(
                           showCursor: false,
                           scrollable: false,
                           expands: false,
+                          padding: EdgeInsets.zero,
+                          customStyles: _readingStyles(),
                         ),
                       ),
                       const SizedBox(height: spaceLg),
                     ] else if (post.body != null) ...[
-                      Text(post.body!, style: textBody),
+                      Text(
+                        post.body!,
+                        style: post.mediaType == MediaType.text
+                            ? const TextStyle(
+                                color: colorTextSecondary,
+                                fontSize: fontSizeMd,
+                                height: 1.8,
+                              )
+                            : textBody,
+                      ),
                       const SizedBox(height: spaceLg),
                     ],
                   ],
@@ -982,42 +1019,20 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   }
 
   Widget _textMediaArea(Post post, Color trackColor) {
-    return _withBadges(
-      post,
-      trackColor,
-      Container(
-        height: 160,
-        padding: const EdgeInsets.fromLTRB(spaceLg, 40, spaceLg, spaceLg),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              trackColor.withValues(alpha: 0.1),
-              colorSurface1,
-              trackColor.withValues(alpha: 0.05),
-            ],
+    // Minimal header for text posts — no preview duplication.
+    // The body content below is the hero, not the header area.
+    return Stack(
+      children: [
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: trackColor.withValues(alpha: 0.15)),
+            ),
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Spacer(),
-            if (post.plainTextPreview != null)
-              Text(
-                post.plainTextPreview!,
-                style: const TextStyle(
-                  color: colorTextSecondary,
-                  fontSize: fontSizeLg,
-                  height: 1.5,
-                  fontStyle: FontStyle.italic,
-                ),
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-              ),
-          ],
-        ),
-      ),
+        _trackTag(post, trackColor, positioned: true),
+      ],
     );
   }
 
@@ -1334,10 +1349,111 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     return '${local.year}/${local.month.toString().padLeft(2, '0')}/${local.day.toString().padLeft(2, '0')} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
   }
 
+  static String _readingTime(String text) {
+    final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    final minutes = (words / 200).ceil(); // ~200 wpm reading speed
+    return minutes <= 1 ? '1 min read' : '$minutes min read';
+  }
+
+  static DefaultStyles _readingStyles() {
+    const lineSpacing = VerticalSpacing(0, 0);
+    return DefaultStyles(
+      paragraph: DefaultTextBlockStyle(
+        const TextStyle(
+          color: colorTextSecondary,
+          fontSize: fontSizeMd,
+          height: 1.8,
+        ),
+        const HorizontalSpacing(0, 0),
+        const VerticalSpacing(6, 6),
+        lineSpacing,
+        null,
+      ),
+      h1: DefaultTextBlockStyle(
+        const TextStyle(
+          color: colorTextPrimary,
+          fontSize: fontSizeTitle,
+          fontWeight: weightBold,
+          height: 1.4,
+        ),
+        const HorizontalSpacing(0, 0),
+        const VerticalSpacing(20, 10),
+        lineSpacing,
+        null,
+      ),
+      h2: DefaultTextBlockStyle(
+        const TextStyle(
+          color: colorTextPrimary,
+          fontSize: fontSizeXl,
+          fontWeight: weightSemibold,
+          height: 1.4,
+        ),
+        const HorizontalSpacing(0, 0),
+        const VerticalSpacing(16, 8),
+        lineSpacing,
+        null,
+      ),
+      h3: DefaultTextBlockStyle(
+        const TextStyle(
+          color: colorTextPrimary,
+          fontSize: fontSizeLg,
+          fontWeight: weightMedium,
+          height: 1.4,
+        ),
+        const HorizontalSpacing(0, 0),
+        const VerticalSpacing(12, 6),
+        lineSpacing,
+        null,
+      ),
+      quote: DefaultTextBlockStyle(
+        TextStyle(
+          color: colorTextMuted,
+          fontSize: fontSizeMd,
+          fontStyle: FontStyle.italic,
+          height: 1.7,
+        ),
+        const HorizontalSpacing(0, 0),
+        const VerticalSpacing(10, 10),
+        lineSpacing,
+        BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: colorAccentGold.withValues(alpha: 0.4),
+              width: 3,
+            ),
+          ),
+        ),
+      ),
+      code: DefaultTextBlockStyle(
+        const TextStyle(
+          color: colorTextSecondary,
+          fontSize: fontSizeSm,
+          fontFamily: 'monospace',
+          height: 1.5,
+        ),
+        const HorizontalSpacing(0, 0),
+        const VerticalSpacing(10, 10),
+        lineSpacing,
+        BoxDecoration(
+          color: colorSurface2,
+          borderRadius: BorderRadius.circular(radiusSm),
+        ),
+      ),
+      bold: const TextStyle(fontWeight: weightBold, color: colorTextPrimary),
+      italic: const TextStyle(fontStyle: FontStyle.italic),
+      link: TextStyle(
+        color: colorAccentGold,
+        decoration: TextDecoration.underline,
+        decorationColor: colorAccentGold.withValues(alpha: 0.4),
+      ),
+    );
+  }
+
   static String _connectionLabel(Post p) {
     if (p.title != null && p.title!.isNotEmpty) return p.title!;
-    if (p.body != null && p.body!.isNotEmpty) {
-      return p.body!.substring(0, p.body!.length.clamp(0, 30));
+    final preview = p.plainTextPreview;
+    if (preview != null && preview.isNotEmpty) {
+      return preview.substring(0, preview.length.clamp(0, 30));
     }
     final icon = switch (p.mediaType) {
       MediaType.image => '📷',
