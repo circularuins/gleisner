@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../graphql/client.dart';
 import '../graphql/mutations/media.dart';
 import '../models/post.dart' show MediaType;
+import '../utils/heic_converter.dart';
 import '../utils/video_thumbnail.dart';
 import '../utils/web_file_picker.dart';
 import 'disposable_notifier.dart';
@@ -60,10 +61,13 @@ String? mimeFromBytes(Uint8List bytes) {
   }
   if (_startsWith(bytes, _gifMagic)) return 'image/gif';
 
-  // Video/Audio: MP4/M4A (ftyp box at offset 4)
-  if (bytes.length >= 8 && _matchesAt(bytes, 4, _ftypMagic)) {
+  // ISO Base Media File Format: MP4/M4A/HEIC (ftyp box at offset 4)
+  if (bytes.length >= 12 && _matchesAt(bytes, 4, _ftypMagic)) {
     final brand = String.fromCharCodes(bytes.sublist(8, 12));
     if (brand.startsWith('M4A')) return 'audio/mp4';
+    // HEIC/HEIF brands (ISO 14496-12)
+    const heicBrands = {'heic', 'heix', 'mif1', 'msf1', 'heis', 'hevc', 'hevx'};
+    if (heicBrands.contains(brand)) return 'image/heic';
     return 'video/mp4';
   }
 
@@ -140,17 +144,35 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       final bytes = await picked.readAsBytes();
       if (disposed) return null;
 
-      final contentType = mimeFromBytes(bytes);
+      var uploadBytes = bytes;
+      var contentType = mimeFromBytes(bytes);
       if (contentType == null || !contentType.startsWith('image/')) {
         state = const MediaUploadState(
-          error: 'Unsupported image format. Use JPEG, PNG, or WebP.',
+          error: 'Unsupported image format. Use JPEG, PNG, WebP, or HEIC.',
         );
         return null;
       }
 
+      // HEIC/HEIF: convert to JPEG via browser Canvas API (works on Safari).
+      // On iOS/Android native, image_picker already converts to JPEG, so
+      // this branch only triggers on Web when a raw .heic file is selected.
+      if (contentType == 'image/heic' || contentType == 'image/heif') {
+        final jpegBytes = await convertHeicToJpeg(bytes);
+        if (disposed) return null;
+        if (jpegBytes == null) {
+          state = const MediaUploadState(
+            error:
+                'Could not convert HEIC image. Try using Safari, or convert to JPEG first.',
+          );
+          return null;
+        }
+        uploadBytes = jpegBytes;
+        contentType = 'image/jpeg';
+      }
+
       return await _upload(
         category: category,
-        bytes: bytes,
+        bytes: uploadBytes,
         contentType: contentType,
       );
     } catch (e) {
@@ -165,10 +187,9 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
   }
 
   /// Pick a video via image_picker and upload to R2.
-  /// Returns (videoUrl, thumbnailUrl) on success, null on failure.
-  Future<({String videoUrl, String? thumbnailUrl})?> pickAndUploadVideo({
-    required UploadCategory category,
-  }) async {
+  /// Returns (videoUrl, thumbnailUrl, durationSeconds) on success, null on failure.
+  Future<({String videoUrl, String? thumbnailUrl, int? durationSeconds})?>
+  pickAndUploadVideo({required UploadCategory category}) async {
     if (state.isUploading) return null;
 
     try {
@@ -200,26 +221,28 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       if (videoUrl == null) return null;
       if (disposed) return null;
 
-      // Generate and upload thumbnail
+      // Extract thumbnail + duration from video
       String? thumbnailUrl;
+      int? durationSeconds;
       try {
-        final thumbBytes = await captureVideoThumbnail(
-          bytes,
-          mimeType: contentType,
-        );
-        if (thumbBytes != null && !disposed) {
+        final meta = await captureVideoThumbnail(bytes, mimeType: contentType);
+        durationSeconds = meta.durationSeconds;
+        if (meta.thumbnail != null && !disposed) {
           thumbnailUrl = await _upload(
             category: category,
-            bytes: thumbBytes,
+            bytes: meta.thumbnail!,
             contentType: 'image/jpeg',
           );
         }
       } catch (e) {
-        debugPrint('[MediaUpload] thumbnail generation failed: $e');
-        // Non-fatal: video uploaded successfully, thumbnail is optional
+        debugPrint('[MediaUpload] thumbnail/duration extraction failed: $e');
       }
 
-      return (videoUrl: videoUrl, thumbnailUrl: thumbnailUrl);
+      return (
+        videoUrl: videoUrl,
+        thumbnailUrl: thumbnailUrl,
+        durationSeconds: durationSeconds,
+      );
     } catch (e) {
       debugPrint('[MediaUpload] pickAndUploadVideo error: $e');
       if (!disposed) {
@@ -354,11 +377,10 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
   }
 
   /// Convenience method to pick and upload based on media type.
-  /// Returns ({mediaUrl, thumbnailUrl}) for all types.
+  /// Returns ({mediaUrl, thumbnailUrl, durationSeconds}) for all types.
   /// Centralizes the pick logic so create_post and edit_post don't duplicate.
-  Future<({String mediaUrl, String? thumbnailUrl})?> pickByMediaType(
-    MediaType mediaType,
-  ) async {
+  Future<({String mediaUrl, String? thumbnailUrl, int? durationSeconds})?>
+  pickByMediaType(MediaType mediaType) async {
     switch (mediaType) {
       case MediaType.image:
         final url = await pickAndUploadImage(
@@ -368,15 +390,19 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
           imageQuality: 75,
         );
         if (url == null) return null;
-        return (mediaUrl: url, thumbnailUrl: null);
+        return (mediaUrl: url, thumbnailUrl: null, durationSeconds: null);
       case MediaType.video:
         final result = await pickAndUploadVideo(category: UploadCategory.media);
         if (result == null) return null;
-        return (mediaUrl: result.videoUrl, thumbnailUrl: result.thumbnailUrl);
+        return (
+          mediaUrl: result.videoUrl,
+          thumbnailUrl: result.thumbnailUrl,
+          durationSeconds: result.durationSeconds,
+        );
       case MediaType.audio:
         final url = await pickAndUploadAudio(category: UploadCategory.media);
         if (url == null) return null;
-        return (mediaUrl: url, thumbnailUrl: null);
+        return (mediaUrl: url, thumbnailUrl: null, durationSeconds: null);
       default:
         return null;
     }

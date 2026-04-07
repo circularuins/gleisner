@@ -46,9 +46,7 @@ class GleisnerApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: _gleisnerTheme,
         routerConfig: router,
-        localizationsDelegates: const [
-          FlutterQuillLocalizations.delegate,
-        ],
+        localizationsDelegates: const [FlutterQuillLocalizations.delegate],
       ),
     );
   }

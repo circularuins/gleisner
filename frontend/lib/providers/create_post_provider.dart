@@ -136,6 +136,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
     String? bodyFormat,
     required String? mediaUrl,
     String? thumbnailUrl,
+    int? duration,
     DateTime? eventAt,
   }) async {
     final track = state.selectedTrack;
@@ -156,6 +157,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
             if (bodyFormat != null) 'bodyFormat': bodyFormat,
             'mediaUrl': mediaUrl,
             if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
+            if (duration != null) 'duration': duration,
             if (eventAt != null) 'eventAt': eventAt.toIso8601String(),
             'importance': state.importance,
             'visibility': state.visibility,

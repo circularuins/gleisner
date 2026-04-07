@@ -58,8 +58,7 @@ class _RichTextEditorState extends State<RichTextEditor> {
     super.dispose();
   }
 
-  FocusNode get _effectiveFocusNode =>
-      widget.focusNode ?? _internalFocusNode!;
+  FocusNode get _effectiveFocusNode => widget.focusNode ?? _internalFocusNode!;
 
   @override
   Widget build(BuildContext context) {
@@ -90,17 +89,9 @@ class _RichTextEditorState extends State<RichTextEditor> {
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.format_bold,
-              size: 16,
-              color: colorInteractiveMuted,
-            ),
+            Icon(Icons.format_bold, size: 16, color: colorInteractiveMuted),
             const SizedBox(width: spaceXxs),
-            Icon(
-              Icons.format_italic,
-              size: 16,
-              color: colorInteractiveMuted,
-            ),
+            Icon(Icons.format_italic, size: 16, color: colorInteractiveMuted),
             const SizedBox(width: spaceXxs),
             Icon(
               Icons.format_list_bulleted,
@@ -212,18 +203,18 @@ class _RichTextEditorState extends State<RichTextEditor> {
     return Container(
       color: colorSurface1,
       child: QuillEditor(
-      controller: widget.controller,
-      focusNode: _effectiveFocusNode,
-      scrollController: _scrollController,
-      config: QuillEditorConfig(
-        autoFocus: widget.autofocus,
-        expands: true,
-        scrollable: true,
-        showCursor: !widget.controller.readOnly,
-        placeholder: widget.placeholder,
-        padding: const EdgeInsets.all(spaceLg),
-        customStyles: _editorStyles(),
-      ),
+        controller: widget.controller,
+        focusNode: _effectiveFocusNode,
+        scrollController: _scrollController,
+        config: QuillEditorConfig(
+          autoFocus: widget.autofocus,
+          expands: true,
+          scrollable: true,
+          showCursor: !widget.controller.readOnly,
+          placeholder: widget.placeholder,
+          padding: const EdgeInsets.all(spaceLg),
+          customStyles: _editorStyles(),
+        ),
       ),
     );
   }

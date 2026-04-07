@@ -1,16 +1,20 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:js_interop';
+import 'dart:typed_data';
+
 import 'package:web/web.dart' as web;
 
-/// Capture the first frame of a video as a JPEG thumbnail (Web only).
+/// Result of video metadata extraction and thumbnail capture.
+typedef VideoMeta = ({Uint8List? thumbnail, int? durationSeconds});
+
+/// Capture the first frame of a video as a JPEG thumbnail and extract
+/// its duration in seconds (Web only).
 /// [mimeType] should match the actual video format (e.g. 'video/webm').
-/// Returns the JPEG bytes, or null on failure.
-Future<Uint8List?> captureVideoThumbnail(
+Future<VideoMeta> captureVideoThumbnail(
   Uint8List videoBytes, {
   String mimeType = 'video/mp4',
 }) async {
-  final completer = Completer<Uint8List?>();
+  final completer = Completer<VideoMeta>();
 
   // Create a blob URL from the video bytes
   final blob = web.Blob(
@@ -25,6 +29,8 @@ Future<Uint8List?> captureVideoThumbnail(
     ..playsInline = true
     ..preload = 'auto';
 
+  int? durationSeconds;
+
   void cleanup() {
     video.pause();
     video.src = '';
@@ -32,6 +38,11 @@ Future<Uint8List?> captureVideoThumbnail(
   }
 
   video.onLoadedData.listen((_) {
+    // Extract duration
+    final dur = video.duration;
+    if (dur.isFinite && dur > 0) {
+      durationSeconds = dur.round();
+    }
     // Seek to 0.5s to avoid black first frames
     video.currentTime = 0.5;
   });
@@ -53,10 +64,16 @@ Future<Uint8List?> captureVideoThumbnail(
             if (result != null) {
               final bytes = (result as JSArrayBuffer).toDart.asUint8List();
               cleanup();
-              completer.complete(bytes);
+              completer.complete((
+                thumbnail: bytes,
+                durationSeconds: durationSeconds,
+              ));
             } else {
               cleanup();
-              completer.complete(null);
+              completer.complete((
+                thumbnail: null,
+                durationSeconds: durationSeconds,
+              ));
             }
           });
           reader.readAsArrayBuffer(blob);
@@ -66,20 +83,22 @@ Future<Uint8List?> captureVideoThumbnail(
       );
     } catch (_) {
       cleanup();
-      completer.complete(null);
+      completer.complete((thumbnail: null, durationSeconds: durationSeconds));
     }
   });
 
   video.onError.listen((_) {
     cleanup();
-    if (!completer.isCompleted) completer.complete(null);
+    if (!completer.isCompleted) {
+      completer.complete((thumbnail: null, durationSeconds: durationSeconds));
+    }
   });
 
   // Timeout after 10 seconds
   Future.delayed(const Duration(seconds: 10), () {
     if (!completer.isCompleted) {
       cleanup();
-      completer.complete(null);
+      completer.complete((thumbnail: null, durationSeconds: durationSeconds));
     }
   });
 

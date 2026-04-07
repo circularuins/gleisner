@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -51,6 +52,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   bool _isSubmitting = false;
   String? _error;
   String? _thumbnailUrl;
+  int? _durationSeconds;
   DateTime? _eventAt;
 
   @override
@@ -379,30 +381,47 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
 
   List<Widget> _buildTextFields() {
     return [
-      TextFormField(
-        controller: _titleController,
-        maxLength: 100,
-        style: const TextStyle(color: colorTextPrimary),
-        decoration: _inputDecoration('Title (optional)'),
-      ),
-      const SizedBox(height: spaceMd),
-      SizedBox(
-        height: 400,
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: colorBorder),
-            borderRadius: BorderRadius.circular(radiusSm),
+      Container(
+        decoration: const BoxDecoration(
+          color: colorSurface1,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(radiusMd)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: spaceLg),
+        child: TextFormField(
+          controller: _titleController,
+          maxLength: 100,
+          maxLengthEnforcement: MaxLengthEnforcement.enforced,
+          style: const TextStyle(
+            color: colorTextPrimary,
+            fontSize: fontSizeLg,
+            fontWeight: weightMedium,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(radiusSm),
-            child: RichTextEditor(
-              controller: _quillController,
-              placeholder: "What's on your mind?",
-              toolbarCollapsed: true,
+          decoration: InputDecoration(
+            hintText: 'Title',
+            hintStyle: const TextStyle(
+              color: colorTextMuted,
+              fontSize: fontSizeLg,
+              fontWeight: weightMedium,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: spaceMd),
+            counterStyle: TextStyle(
+              fontSize: fontSizeXs,
+              color: colorTextMuted.withValues(alpha: 0.5),
             ),
           ),
         ),
       ),
+      const Divider(color: colorBorder, height: 1),
+      SizedBox(
+        height: 400,
+        child: RichTextEditor(
+          controller: _quillController,
+          placeholder: "What's on your mind?",
+          toolbarCollapsed: true,
+        ),
+      ),
+      _TextBodyCounter(controller: _quillController),
     ];
   }
 
@@ -414,108 +433,223 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     final isVideoOrAudio =
         mediaType == MediaType.video || mediaType == MediaType.audio;
 
+    final emptyIcon = switch (mediaType) {
+      MediaType.image => Icons.add_photo_alternate_outlined,
+      MediaType.video => Icons.videocam_outlined,
+      MediaType.audio => Icons.audiotrack_outlined,
+      _ => Icons.attach_file,
+    };
+
     return [
       // Media preview / upload area (first — matches create_post order)
       if (isImage || isVideoOrAudio)
         GestureDetector(
           onTap: uploadState.isUploading ? null : _replaceMedia,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: hasMedia ? colorAccentGold.withAlpha(128) : colorBorder,
-              ),
-              borderRadius: BorderRadius.circular(radiusMd),
-              color: colorSurface0,
-            ),
-            child: uploadState.isUploading
-                ? const Center(
+          child: uploadState.isUploading
+              ? Container(
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: colorSurface2,
+                    borderRadius: BorderRadius.circular(radiusLg),
+                  ),
+                  child: const Center(
                     child: SizedBox(
-                      width: 32,
-                      height: 32,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : hasMedia
-                ? Column(
-                    children: [
-                      if (isImage ||
-                          (mediaType == MediaType.video &&
-                              _thumbnailUrl != null &&
-                              _thumbnailUrl!.isNotEmpty))
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            isImage ? _mediaUrlController.text : _thumbnailUrl!,
-                            height: 160,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => const Icon(
-                              Icons.broken_image,
-                              size: 40,
-                              color: colorTextMuted,
-                            ),
-                          ),
-                        )
-                      else
-                        Icon(
-                          mediaType == MediaType.video
-                              ? Icons.videocam
-                              : Icons.audiotrack,
-                          size: 40,
-                          color: colorAccentGold,
-                        ),
-                      const SizedBox(height: spaceSm),
-                      Text(
-                        'Tap to replace',
-                        style: textCaption.copyWith(color: colorTextMuted),
-                      ),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      Icon(
-                        isImage
-                            ? Icons.photo_library
-                            : mediaType == MediaType.video
-                            ? Icons.videocam
-                            : Icons.audiotrack,
-                        size: 40,
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
                         color: colorTextMuted,
                       ),
-                      const SizedBox(height: spaceSm),
-                      Text(
-                        'Tap to upload',
-                        style: textCaption.copyWith(color: colorTextMuted),
-                      ),
-                    ],
+                    ),
                   ),
-          ),
+                )
+              : hasMedia
+              ? _buildMediaPreview(mediaType)
+              : Container(
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: colorSurface2,
+                    borderRadius: BorderRadius.circular(radiusLg),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      emptyIcon,
+                      size: 48,
+                      color: colorTextMuted.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ),
         ),
       if (uploadState.error != null) ...[
         const SizedBox(height: spaceSm),
         Text(
           uploadState.error!,
-          style: textCaption.copyWith(color: colorError),
+          style: const TextStyle(color: colorError, fontSize: fontSizeSm),
         ),
       ],
-      const SizedBox(height: spaceLg),
+      const SizedBox(height: spaceMd),
       // Title
-      TextFormField(
-        controller: _titleController,
-        maxLength: 100,
-        style: const TextStyle(color: colorTextPrimary),
-        decoration: _inputDecoration('Title (optional)'),
+      Container(
+        decoration: BoxDecoration(
+          color: colorSurface1,
+          borderRadius: BorderRadius.circular(radiusMd),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: spaceMd),
+        child: TextFormField(
+          controller: _titleController,
+          maxLength: 100,
+          maxLengthEnforcement: MaxLengthEnforcement.enforced,
+          style: const TextStyle(
+            color: colorTextPrimary,
+            fontSize: fontSizeLg,
+            fontWeight: weightMedium,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Title',
+            hintStyle: const TextStyle(
+              color: colorTextMuted,
+              fontSize: fontSizeLg,
+              fontWeight: weightMedium,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: spaceMd),
+            counterStyle: TextStyle(
+              fontSize: fontSizeXs,
+              color: colorTextMuted.withValues(alpha: 0.5),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: spaceSm),
+      // Caption
+      Container(
+        decoration: BoxDecoration(
+          color: colorSurface1,
+          borderRadius: BorderRadius.circular(radiusMd),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: spaceMd),
+        child: TextFormField(
+          controller: _bodyController,
+          maxLines: 4,
+          minLines: 2,
+          maxLength: 500,
+          maxLengthEnforcement: MaxLengthEnforcement.enforced,
+          style: const TextStyle(
+            color: colorTextSecondary,
+            fontSize: fontSizeMd,
+            height: 1.5,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Write a caption...',
+            hintStyle: const TextStyle(
+              color: colorTextMuted,
+              fontSize: fontSizeMd,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: spaceSm),
+            counterStyle: TextStyle(
+              fontSize: fontSizeXs,
+              color: colorTextMuted.withValues(alpha: 0.5),
+            ),
+          ),
+        ),
       ),
       const SizedBox(height: spaceMd),
-      // Caption
-      TextFormField(
-        controller: _bodyController,
-        maxLines: 3,
-        maxLength: 500,
-        style: const TextStyle(color: colorTextPrimary),
-        decoration: _inputDecoration('Caption (optional)'),
-      ),
     ];
+  }
+
+  Widget _buildMediaPreview(MediaType mediaType) {
+    final isImage = mediaType == MediaType.image;
+    final showThumbnail =
+        isImage ||
+        (mediaType == MediaType.video &&
+            _thumbnailUrl != null &&
+            _thumbnailUrl!.isNotEmpty);
+    final displayUrl = isImage
+        ? _mediaUrlController.text
+        : (_thumbnailUrl ?? '');
+
+    return Stack(
+      children: [
+        if (showThumbnail)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(radiusLg),
+            child: Image.network(
+              displayUrl,
+              width: double.infinity,
+              height: 240,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  height: 240,
+                  decoration: BoxDecoration(
+                    color: colorSurface2,
+                    borderRadius: BorderRadius.circular(radiusLg),
+                  ),
+                );
+              },
+              errorBuilder: (_, _, _) => Container(
+                height: 240,
+                decoration: BoxDecoration(
+                  color: colorSurface2,
+                  borderRadius: BorderRadius.circular(radiusLg),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.broken_image_outlined,
+                    size: 40,
+                    color: colorTextMuted,
+                  ),
+                ),
+              ),
+            ),
+          )
+        else
+          Container(
+            height: 200,
+            decoration: BoxDecoration(
+              color: colorSurface2,
+              borderRadius: BorderRadius.circular(radiusLg),
+            ),
+            child: Center(
+              child: Icon(
+                mediaType == MediaType.video
+                    ? Icons.videocam_outlined
+                    : Icons.audiotrack_outlined,
+                size: 48,
+                color: colorAccentGold.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
+        // Replace badge
+        Positioned(
+          top: spaceSm,
+          right: spaceSm,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: spaceSm,
+              vertical: spaceXs,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(radiusSm),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
+                SizedBox(width: spaceXs),
+                Text(
+                  'Replace',
+                  style: TextStyle(color: Colors.white70, fontSize: fontSizeXs),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _replaceMedia() async {
@@ -526,6 +660,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
       setState(() {
         _mediaUrlController.text = result.mediaUrl;
         _thumbnailUrl = result.thumbnailUrl;
+        _durationSeconds = result.durationSeconds;
       });
     }
   }
@@ -629,6 +764,58 @@ class _ImportancePreview extends StatelessWidget {
           trackColor: trackColor,
           seed: 'preview',
           mediaType: mediaType,
+        ),
+      ),
+    );
+  }
+}
+
+/// Live character counter for the Quill rich text editor.
+class _TextBodyCounter extends StatefulWidget {
+  final QuillController controller;
+  const _TextBodyCounter({required this.controller});
+
+  @override
+  State<_TextBodyCounter> createState() => _TextBodyCounterState();
+}
+
+class _TextBodyCounterState extends State<_TextBodyCounter> {
+  int _charCount = 0;
+  static const _maxChars = 10000;
+
+  @override
+  void initState() {
+    super.initState();
+    _update();
+    widget.controller.document.changes.listen((_) => _update());
+  }
+
+  void _update() {
+    final count = widget.controller.document.toPlainText().trimRight().length;
+    if (count != _charCount && mounted) {
+      setState(() => _charCount = count);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isNearLimit = _charCount > _maxChars * 0.9;
+    final isOver = _charCount > _maxChars;
+    if (_charCount < 100) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(right: spaceMd, top: spaceXs),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Text(
+          '$_charCount / $_maxChars',
+          style: TextStyle(
+            fontSize: fontSizeXs,
+            color: isOver
+                ? colorError
+                : isNearLimit
+                ? colorAccentGold
+                : colorTextMuted.withValues(alpha: 0.5),
+          ),
         ),
       ),
     );

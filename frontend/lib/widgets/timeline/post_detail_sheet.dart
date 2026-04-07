@@ -310,127 +310,12 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                 ),
               ),
               _buildMediaArea(context, post, trackColor, seedString),
-              // Content
+              // Content — layout varies by media type
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, spaceLg, 20, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Date + Edit button
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Text(
-                                _formatDateTime(),
-                                style: const TextStyle(
-                                  color: colorTextMuted,
-                                  fontSize: fontSizeMd,
-                                ),
-                              ),
-                              if (post.visibility == 'draft') ...[
-                                const SizedBox(width: spaceSm),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: spaceXs,
-                                    vertical: 1,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: colorTextMuted.withValues(
-                                      alpha: 0.8,
-                                    ),
-                                    borderRadius: BorderRadius.circular(
-                                      radiusSm,
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'DRAFT',
-                                    style: TextStyle(
-                                      color: colorSurface0,
-                                      fontSize: fontSizeXs,
-                                      fontWeight: weightSemibold,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        if (widget.onEdit != null)
-                          IconButton(
-                            icon: const Icon(
-                              Icons.edit_outlined,
-                              size: 18,
-                              color: colorTextMuted,
-                            ),
-                            onPressed: widget.onEdit,
-                            tooltip: 'Edit post',
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: spaceMd),
-                    // Title — larger for text posts (reading mode)
-                    if (post.title != null) ...[
-                      Text(
-                        post.title!,
-                        style: post.mediaType == MediaType.text
-                            ? const TextStyle(
-                                color: colorTextPrimary,
-                                fontSize: 24,
-                                fontWeight: weightBold,
-                                height: 1.3,
-                                letterSpacing: -0.3,
-                              )
-                            : textTitle,
-                      ),
-                      if (post.mediaType == MediaType.text &&
-                          post.plainTextPreview != null) ...[
-                        const SizedBox(height: spaceSm),
-                        Text(
-                          _readingTime(post.plainTextPreview!),
-                          style: TextStyle(
-                            color: colorTextMuted.withValues(alpha: 0.6),
-                            fontSize: fontSizeSm,
-                          ),
-                        ),
-                      ],
-                      SizedBox(
-                        height: post.mediaType == MediaType.text
-                            ? spaceLg
-                            : spaceSm,
-                      ),
-                    ],
-                    // Body — rich text (delta) or plain text
-                    if (_quillController != null) ...[
-                      QuillEditor(
-                        controller: _quillController!,
-                        focusNode: _quillFocusNode!,
-                        scrollController: _quillScrollController!,
-                        config: QuillEditorConfig(
-                          showCursor: false,
-                          scrollable: false,
-                          expands: false,
-                          padding: EdgeInsets.zero,
-                          customStyles: _readingStyles(),
-                        ),
-                      ),
-                      const SizedBox(height: spaceLg),
-                    ] else if (post.body != null) ...[
-                      Text(
-                        post.body!,
-                        style: post.mediaType == MediaType.text
-                            ? const TextStyle(
-                                color: colorTextSecondary,
-                                fontSize: fontSizeMd,
-                                height: 1.8,
-                              )
-                            : textBody,
-                      ),
-                      const SizedBox(height: spaceLg),
-                    ],
-                  ],
+                  children: _buildContentSection(post),
                 ),
               ),
               // Reactions — subtle, no divider above
@@ -481,6 +366,166 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         );
       },
     );
+  }
+
+  /// Build content section with media-type-aware layout.
+  /// Image type: title first, then date + caption (Instagram-like).
+  /// Text type: date first, then large title + reading time + body.
+  /// Other types: date first, then title + body (default).
+  List<Widget> _buildContentSection(Post post) {
+    final isVisual =
+        post.mediaType == MediaType.image || post.mediaType == MediaType.video;
+    final isText = post.mediaType == MediaType.text;
+
+    final dateRow = _buildDateRow(post);
+    final titleWidget = post.title != null
+        ? Text(
+            post.title!,
+            style: isText
+                ? const TextStyle(
+                    color: colorTextPrimary,
+                    fontSize: 24,
+                    fontWeight: weightBold,
+                    height: 1.3,
+                    letterSpacing: -0.3,
+                  )
+                : isVisual
+                ? const TextStyle(
+                    color: colorTextPrimary,
+                    fontSize: 20,
+                    fontWeight: weightSemibold,
+                    height: 1.3,
+                  )
+                : textTitle,
+          )
+        : null;
+    final bodyWidget = _buildBodyWidget(post);
+
+    if (isVisual) {
+      // Image/Video: title → caption → date (compact, media is the hero)
+      return [
+        if (titleWidget != null) ...[
+          titleWidget,
+          const SizedBox(height: spaceSm),
+        ],
+        if (bodyWidget != null) ...[
+          bodyWidget,
+          const SizedBox(height: spaceMd),
+        ],
+        dateRow,
+        const SizedBox(height: spaceSm),
+      ];
+    }
+
+    // Text & other types: date → title → body
+    return [
+      dateRow,
+      const SizedBox(height: spaceMd),
+      if (titleWidget != null) ...[
+        titleWidget,
+        if (isText && post.plainTextPreview != null) ...[
+          const SizedBox(height: spaceSm),
+          Text(
+            _readingTime(post.plainTextPreview!),
+            style: TextStyle(
+              color: colorTextMuted.withValues(alpha: 0.6),
+              fontSize: fontSizeSm,
+            ),
+          ),
+        ],
+        SizedBox(height: isText ? spaceLg : spaceSm),
+      ],
+      if (bodyWidget != null) ...[bodyWidget, const SizedBox(height: spaceLg)],
+    ];
+  }
+
+  Widget _buildDateRow(Post post) {
+    return Row(
+      children: [
+        Expanded(
+          child: Row(
+            children: [
+              Text(
+                _formatDateTime(),
+                style: const TextStyle(
+                  color: colorTextMuted,
+                  fontSize: fontSizeSm,
+                ),
+              ),
+              if (post.visibility == 'draft') ...[
+                const SizedBox(width: spaceSm),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: spaceXs,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorTextMuted.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(radiusSm),
+                  ),
+                  child: const Text(
+                    'DRAFT',
+                    style: TextStyle(
+                      color: colorSurface0,
+                      fontSize: fontSizeXs,
+                      fontWeight: weightSemibold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (widget.onEdit != null)
+          IconButton(
+            icon: const Icon(
+              Icons.edit_outlined,
+              size: 18,
+              color: colorTextMuted,
+            ),
+            onPressed: widget.onEdit,
+            tooltip: 'Edit post',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+      ],
+    );
+  }
+
+  Widget? _buildBodyWidget(Post post) {
+    if (_quillController != null) {
+      return QuillEditor(
+        controller: _quillController!,
+        focusNode: _quillFocusNode!,
+        scrollController: _quillScrollController!,
+        config: QuillEditorConfig(
+          showCursor: false,
+          scrollable: false,
+          expands: false,
+          padding: EdgeInsets.zero,
+          customStyles: _readingStyles(),
+        ),
+      );
+    }
+    if (post.body != null) {
+      return Text(
+        post.body!,
+        style: post.mediaType == MediaType.text
+            ? const TextStyle(
+                color: colorTextSecondary,
+                fontSize: fontSizeMd,
+                height: 1.8,
+              )
+            : const TextStyle(
+                color: colorTextSecondary,
+                fontSize: fontSizeMd,
+                height: 1.5,
+              ),
+      );
+    }
+    return null;
   }
 
   Widget _buildReactionsSection(Color trackColor) {
@@ -1063,55 +1108,84 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     double width,
   ) {
     final hasImage = post.mediaUrl != null && post.mediaUrl!.isNotEmpty;
+    // Instagram-style: image takes generous vertical space
+    final imageHeight = (width * 0.85).clamp(280.0, 420.0);
     return Stack(
       children: [
+        // Image — receives tap for fullscreen
         if (hasImage)
           GestureDetector(
             onTap: () => _openImageFullScreen(context, post.mediaUrl!),
-            child: Stack(
-              alignment: Alignment.bottomRight,
-              children: [
-                Image.network(
-                  post.mediaUrl!,
+            child: Image.network(
+              post.mediaUrl!,
+              width: width,
+              height: imageHeight,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
                   width: width,
-                  height: 220,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => SeedArtCanvas(
-                    width: width,
-                    height: 220,
-                    trackColor: trackColor,
-                    seed: seedString,
-                    mediaType: MediaType.image,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(spaceSm),
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Icon(
-                      Icons.fullscreen,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                  ),
-                ),
-              ],
+                  height: imageHeight,
+                  color: colorSurface2,
+                );
+              },
+              errorBuilder: (_, _, _) => SeedArtCanvas(
+                width: width,
+                height: imageHeight,
+                trackColor: trackColor,
+                seed: seedString,
+                mediaType: MediaType.image,
+              ),
             ),
           )
         else
           SeedArtCanvas(
             width: width,
-            height: 220,
+            height: imageHeight,
             trackColor: trackColor,
             seed: seedString,
             mediaType: MediaType.image,
           ),
-        _trackTag(post, trackColor, positioned: true),
-        _typeBadge(post),
+        // Bottom gradient — don't block scroll
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 100,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    colorSurface1.withValues(alpha: 0.8),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Track tag — bottom-left
+        Positioned(
+          left: spaceMd,
+          bottom: spaceMd,
+          child: _trackTag(post, trackColor, positioned: false),
+        ),
+        // Fullscreen hint — bottom-right
+        if (hasImage)
+          Positioned(
+            right: spaceMd,
+            bottom: spaceMd,
+            child: IgnorePointer(
+              child: Icon(
+                Icons.fullscreen_rounded,
+                size: 20,
+                color: Colors.white.withValues(alpha: 0.5),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1123,16 +1197,41 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     double width,
   ) {
     final hasUrl = post.mediaUrl != null && post.mediaUrl!.isNotEmpty;
+    final videoHeight = (width * 0.56).clamp(200.0, 360.0); // 16:9 ratio
     if (hasUrl) {
       return Stack(
         children: [
           SizedBox(
             width: width,
-            height: 220,
+            height: videoHeight,
             child: _VideoPlayer(url: post.mediaUrl!),
           ),
-          _trackTag(post, trackColor, positioned: true),
-          _typeBadge(post),
+          // Bottom gradient — don't block scroll/player controls
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 60,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      colorSurface1.withValues(alpha: 0.8),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: spaceMd,
+            bottom: spaceMd,
+            child: _trackTag(post, trackColor, positioned: false),
+          ),
         ],
       );
     }
@@ -1141,7 +1240,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       children: [
         SeedArtCanvas(
           width: width,
-          height: 220,
+          height: videoHeight,
           trackColor: trackColor,
           seed: seedString,
           mediaType: MediaType.video,
@@ -1150,7 +1249,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
           width: 52,
           height: 52,
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: opacityOverlay),
+            color: Colors.black.withValues(alpha: 0.5),
             shape: BoxShape.circle,
           ),
           child: const Icon(
@@ -1159,8 +1258,11 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
             size: 32,
           ),
         ),
-        _trackTag(post, trackColor, positioned: true),
-        _typeBadge(post),
+        Positioned(
+          left: spaceMd,
+          bottom: spaceMd,
+          child: _trackTag(post, trackColor, positioned: false),
+        ),
         if (post.formattedDuration != null)
           Positioned(
             right: spaceMd,
@@ -1171,7 +1273,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                 vertical: spaceXxs,
               ),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
+                color: Colors.black.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(radiusSm),
               ),
               child: Text(
@@ -1373,8 +1475,10 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     final cjk = RegExp(r'[\u3000-\u9fff\uf900-\ufaff]');
     final cjkCount = cjk.allMatches(text).length;
     final nonCjk = text.replaceAll(cjk, ' ');
-    final wordCount =
-        nonCjk.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    final wordCount = nonCjk
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .length;
     // ~200 wpm English, ~400 cpm CJK
     final minutes = ((wordCount / 200) + (cjkCount / 400)).ceil();
     return minutes <= 1 ? '1 min read' : '$minutes min read';
@@ -1810,11 +1914,63 @@ class _FullScreenImage extends StatefulWidget {
 class _FullScreenImageState extends State<_FullScreenImage>
     with SingleTickerProviderStateMixin {
   final _transformController = TransformationController();
+  late final AnimationController _animController;
+  Animation<Matrix4>? _zoomAnimation;
+  double _dragOffsetY = 0;
+  bool _isDragging = false;
+
+  bool get _isZoomed {
+    final scale = _transformController.value.getMaxScaleOnAxis();
+    return scale > 1.05;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _animController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 250),
+        )..addListener(() {
+          if (_zoomAnimation != null) {
+            _transformController.value = _zoomAnimation!.value;
+          }
+        });
+  }
 
   @override
   void dispose() {
+    _animController.dispose();
     _transformController.dispose();
     super.dispose();
+  }
+
+  void _handleDoubleTap() {
+    if (_isZoomed) {
+      // Reset to identity
+      _zoomAnimation =
+          Matrix4Tween(
+            begin: _transformController.value,
+            end: Matrix4.identity(),
+          ).animate(
+            CurvedAnimation(parent: _animController, curve: Curves.easeOut),
+          );
+    } else {
+      // Zoom to 2x at center
+      final s = MediaQuery.of(context).size;
+      final zoomed = Matrix4.identity()
+        // ignore: deprecated_member_use
+        ..translate(-s.width / 2, -s.height / 2)
+        // ignore: deprecated_member_use
+        ..scale(2.0)
+        // ignore: deprecated_member_use
+        ..translate(s.width / 2, s.height / 2);
+      _zoomAnimation =
+          Matrix4Tween(begin: _transformController.value, end: zoomed).animate(
+            CurvedAnimation(parent: _animController, curve: Curves.easeOut),
+          );
+    }
+    _animController.forward(from: 0);
   }
 
   @override
@@ -1826,16 +1982,64 @@ class _FullScreenImageState extends State<_FullScreenImage>
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       extendBodyBehindAppBar: true,
-      body: InteractiveViewer(
-        transformationController: _transformController,
-        minScale: 0.5,
-        maxScale: 4.0,
-        child: Center(
-          child: Image.network(
-            widget.url,
-            fit: BoxFit.contain,
-            errorBuilder: (_, _, _) =>
-                const Icon(Icons.broken_image, color: Colors.white54, size: 64),
+      body: GestureDetector(
+        onDoubleTap: _handleDoubleTap,
+        onVerticalDragStart: _isZoomed
+            ? null
+            : (_) {
+                _isDragging = true;
+              },
+        onVerticalDragUpdate: _isZoomed
+            ? null
+            : (details) {
+                setState(() {
+                  _dragOffsetY += details.delta.dy;
+                });
+              },
+        onVerticalDragEnd: _isZoomed
+            ? null
+            : (details) {
+                if (_dragOffsetY.abs() > 100) {
+                  Navigator.of(context).pop();
+                } else {
+                  setState(() {
+                    _dragOffsetY = 0;
+                    _isDragging = false;
+                  });
+                }
+              },
+        child: AnimatedContainer(
+          duration: _isDragging
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
+          transform: Matrix4.translationValues(0, _dragOffsetY, 0),
+          color: Colors.black.withValues(
+            alpha: (1 - (_dragOffsetY.abs() / 300)).clamp(0.3, 1),
+          ),
+          child: InteractiveViewer(
+            transformationController: _transformController,
+            minScale: 1.0,
+            maxScale: 4.0,
+            child: Center(
+              child: Image.network(
+                widget.url,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.white54,
+                      strokeWidth: 2,
+                    ),
+                  );
+                },
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.broken_image,
+                  color: Colors.white54,
+                  size: 64,
+                ),
+              ),
+            ),
           ),
         ),
       ),
