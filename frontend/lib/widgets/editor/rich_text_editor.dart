@@ -38,12 +38,28 @@ class RichTextEditor extends StatefulWidget {
 
 class _RichTextEditorState extends State<RichTextEditor> {
   late bool _toolbarExpanded;
+  FocusNode? _internalFocusNode;
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
     _toolbarExpanded = !widget.toolbarCollapsed;
+    _scrollController = ScrollController();
+    if (widget.focusNode == null) {
+      _internalFocusNode = FocusNode();
+    }
   }
+
+  @override
+  void dispose() {
+    _internalFocusNode?.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  FocusNode get _effectiveFocusNode =>
+      widget.focusNode ?? _internalFocusNode!;
 
   @override
   Widget build(BuildContext context) {
@@ -197,8 +213,8 @@ class _RichTextEditorState extends State<RichTextEditor> {
       color: colorSurface1,
       child: QuillEditor(
       controller: widget.controller,
-      focusNode: widget.focusNode ?? FocusNode(),
-      scrollController: ScrollController(),
+      focusNode: _effectiveFocusNode,
+      scrollController: _scrollController,
       config: QuillEditorConfig(
         autoFocus: widget.autofocus,
         expands: true,

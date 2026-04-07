@@ -110,6 +110,11 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
   bool _isConnecting = false;
   List<Post>? _cachedSyncedPosts;
 
+  // Quill resources for delta body rendering (disposed in dispose())
+  QuillController? _quillController;
+  FocusNode? _quillFocusNode;
+  ScrollController? _quillScrollController;
+
   /// Returns allPosts with connections synced to local state (cached).
   ///
   /// Why this is needed: this sheet maintains optimistic local state for
@@ -201,6 +206,25 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     _myReactions = Set.from(widget.post.myReactions);
     _outgoingConnections = List.from(widget.post.outgoingConnections);
     _incomingConnections = List.from(widget.post.incomingConnections);
+    // Initialize Quill resources for delta posts
+    if (widget.post.bodyFormat == BodyFormat.delta &&
+        widget.post.bodyDelta != null) {
+      _quillController = QuillController(
+        document: Document.fromJson(widget.post.bodyDelta!),
+        selection: const TextSelection.collapsed(offset: 0),
+        readOnly: true,
+      );
+      _quillFocusNode = FocusNode();
+      _quillScrollController = ScrollController();
+    }
+  }
+
+  @override
+  void dispose() {
+    _quillController?.dispose();
+    _quillFocusNode?.dispose();
+    _quillScrollController?.dispose();
+    super.dispose();
   }
 
   Future<void> _toggleReaction(String emoji) async {
@@ -379,16 +403,11 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                       ),
                     ],
                     // Body — rich text (delta) or plain text
-                    if (post.bodyFormat == BodyFormat.delta &&
-                        post.bodyDelta != null) ...[
+                    if (_quillController != null) ...[
                       QuillEditor(
-                        controller: QuillController(
-                          document: Document.fromJson(post.bodyDelta!),
-                          selection: const TextSelection.collapsed(offset: 0),
-                          readOnly: true,
-                        ),
-                        focusNode: FocusNode(),
-                        scrollController: ScrollController(),
+                        controller: _quillController!,
+                        focusNode: _quillFocusNode!,
+                        scrollController: _quillScrollController!,
                         config: QuillEditorConfig(
                           showCursor: false,
                           scrollable: false,
