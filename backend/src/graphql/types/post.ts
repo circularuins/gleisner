@@ -14,6 +14,9 @@ import {
 } from "../validators.js";
 import { checkArtistAccess } from "../access.js";
 
+/** Media types that require a file upload (mediaUrl must be non-null). */
+const MEDIA_FILE_REQUIRED_TYPES = ["image", "video", "audio"];
+
 const MediaTypeEnum = builder.enumType("MediaType", {
   values: ["text", "image", "video", "audio", "link"] as const,
 });
@@ -194,6 +197,15 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Body must be 10000 characters or less");
       }
 
+      // Require mediaUrl for image, video, audio types (not text or link)
+      const mediaFileTypes = MEDIA_FILE_REQUIRED_TYPES;
+      if (
+        mediaFileTypes.includes(args.mediaType) &&
+        (args.mediaUrl == null || args.mediaUrl.trim() === "")
+      ) {
+        throw new GraphQLError("Media file is required for this post type");
+      }
+
       // Validate mediaUrl: link type accepts any URL, others require R2 domain
       if (args.mediaUrl != null) {
         if (args.mediaType === "link") {
@@ -342,6 +354,22 @@ builder.mutationFields((t) => ({
       }
       if (args.thumbnailUrl != null) {
         validateMediaUrl(args.thumbnailUrl);
+      }
+
+      // Ensure image/video/audio posts always have a media file.
+      // Check both explicit mediaUrl changes and mediaType changes.
+      {
+        const newType =
+          (args.mediaType as string | undefined) ?? post.mediaType;
+        const newMediaUrl =
+          args.mediaUrl !== undefined ? args.mediaUrl : post.mediaUrl;
+        const mediaFileTypes = MEDIA_FILE_REQUIRED_TYPES;
+        if (
+          mediaFileTypes.includes(newType) &&
+          (newMediaUrl == null || newMediaUrl.trim() === "")
+        ) {
+          throw new GraphQLError("Media file is required for this post type");
+        }
       }
 
       // Validate duration

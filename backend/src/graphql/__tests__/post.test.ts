@@ -1,6 +1,15 @@
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { sign } from "node:crypto";
 import "dotenv/config";
+
+// Mock R2 so media URL validation accepts localhost in all environments
+vi.mock("../../storage/r2.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../storage/r2.js")>();
+  return {
+    ...actual,
+    isR2Configured: vi.fn(() => false),
+  };
+});
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { sql } from "drizzle-orm";
@@ -312,6 +321,89 @@ describe("Post GraphQL integration", () => {
       expect(result.errors![0].message).toBe("Authentication required");
     });
 
+    it("rejects image post without mediaUrl", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "pmedia1@example.com",
+        "pmuser1",
+        "pmartist1",
+      );
+
+      const result = await gql(
+        app,
+        CREATE_POST_MUTATION,
+        { trackId, mediaType: "image", title: "No File" },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "Media file is required for this post type",
+      );
+    });
+
+    it("rejects video post without mediaUrl", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "pmedia2@example.com",
+        "pmuser2",
+        "pmartist2",
+      );
+
+      const result = await gql(
+        app,
+        CREATE_POST_MUTATION,
+        { trackId, mediaType: "video", title: "No File" },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "Media file is required for this post type",
+      );
+    });
+
+    it("allows text post without mediaUrl", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "pmedia3@example.com",
+        "pmuser3",
+        "pmartist3",
+      );
+
+      const result = await gql(
+        app,
+        CREATE_POST_MUTATION,
+        { trackId, mediaType: "text", title: "Text Only" },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+    });
+
+    it("allows link post without mediaUrl (URL is separate)", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "pmedia4@example.com",
+        "pmuser4",
+        "pmartist4",
+      );
+
+      const result = await gql(
+        app,
+        CREATE_POST_MUTATION,
+        {
+          trackId,
+          mediaType: "link",
+          title: "Link Post",
+          mediaUrl: "https://example.com/article",
+        },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+    });
+
     it("rejects if user has no artist profile", async () => {
       const token = await signupAndGetToken(app, "p3@example.com", "puser3");
 
@@ -447,6 +539,7 @@ describe("Post GraphQL integration", () => {
           mediaType: "image",
           title: "Updated",
           body: "New body",
+          mediaUrl: "http://localhost:4000/updated.jpg",
           importance: 0.9,
         },
         token,
@@ -458,6 +551,67 @@ describe("Post GraphQL integration", () => {
       expect(post.title).toBe("Updated");
       expect(post.body).toBe("New body");
       expect(post.importance).toBe(0.9);
+    });
+
+    it("rejects changing mediaType to image without mediaUrl", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "umedia1@example.com",
+        "umuser1",
+        "umartist1",
+      );
+      const createResult = await gql(
+        app,
+        CREATE_POST_MUTATION,
+        { trackId, mediaType: "text", title: "Text Post" },
+        token,
+      );
+      const postId = (createResult.data!.createPost as { id: string }).id;
+
+      const result = await gql(
+        app,
+        UPDATE_POST_MUTATION,
+        { id: postId, mediaType: "image" },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "Media file is required for this post type",
+      );
+    });
+
+    it("rejects clearing mediaUrl on image post", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "umedia2@example.com",
+        "umuser2",
+        "umartist2",
+      );
+      const createResult = await gql(
+        app,
+        CREATE_POST_MUTATION,
+        {
+          trackId,
+          mediaType: "image",
+          title: "With File",
+          mediaUrl: "http://localhost:4000/img.jpg",
+        },
+        token,
+      );
+      const postId = (createResult.data!.createPost as { id: string }).id;
+
+      const result = await gql(
+        app,
+        UPDATE_POST_MUTATION,
+        { id: postId, mediaUrl: null },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "Media file is required for this post type",
+      );
     });
 
     it("rejects update by another user", async () => {
@@ -645,7 +799,12 @@ describe("Post GraphQL integration", () => {
       const createResult = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "image", title: "QueryPost" },
+        {
+          trackId,
+          mediaType: "image",
+          title: "QueryPost",
+          mediaUrl: "http://localhost:4000/query.jpg",
+        },
         token,
       );
       const postId = (createResult.data!.createPost as { id: string }).id;
@@ -686,7 +845,12 @@ describe("Post GraphQL integration", () => {
       await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "image", title: "Post B" },
+        {
+          trackId,
+          mediaType: "image",
+          title: "Post B",
+          mediaUrl: "http://localhost:4000/b.jpg",
+        },
         token,
       );
 
@@ -813,7 +977,12 @@ describe("Post GraphQL integration", () => {
       await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "image", title: "Orphan B" },
+        {
+          trackId,
+          mediaType: "image",
+          title: "Orphan B",
+          mediaUrl: "http://localhost:4000/orphan.jpg",
+        },
         token,
       );
 
