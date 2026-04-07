@@ -41,6 +41,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     _bodyController.dispose();
     _mediaUrlController.dispose();
     _quillController.dispose();
+    // Reset provider state when leaving the screen
+    ref.read(createPostProvider.notifier).reset();
     super.dispose();
   }
 
@@ -132,9 +134,17 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
             if (state.step > 0) {
+              // Clear form inputs when going back from form step
+              if (state.step == 2) {
+                _titleController.clear();
+                _bodyController.clear();
+                _mediaUrlController.clear();
+                _quillController.clear();
+                _thumbnailUrl = null;
+                _eventAt = null;
+              }
               ref.read(createPostProvider.notifier).goBack();
             } else {
-              ref.read(createPostProvider.notifier).reset();
               context.go('/timeline');
             }
           },
