@@ -1,5 +1,14 @@
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import "dotenv/config";
+
+// Mock R2 so media URL validation accepts localhost in all environments
+vi.mock("../../storage/r2.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../storage/r2.js")>();
+  return {
+    ...actual,
+    isR2Configured: vi.fn(() => false),
+  };
+});
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { sql } from "drizzle-orm";

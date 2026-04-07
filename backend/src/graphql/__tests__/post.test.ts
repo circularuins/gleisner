@@ -1,6 +1,15 @@
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { sign } from "node:crypto";
 import "dotenv/config";
+
+// Mock R2 so media URL validation accepts localhost in all environments
+vi.mock("../../storage/r2.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../storage/r2.js")>();
+  return {
+    ...actual,
+    isR2Configured: vi.fn(() => false),
+  };
+});
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { sql } from "drizzle-orm";
@@ -645,7 +654,12 @@ describe("Post GraphQL integration", () => {
       const createResult = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "image", title: "QueryPost" },
+        {
+          trackId,
+          mediaType: "image",
+          title: "QueryPost",
+          mediaUrl: "http://localhost:4000/query.jpg",
+        },
         token,
       );
       const postId = (createResult.data!.createPost as { id: string }).id;
@@ -686,7 +700,12 @@ describe("Post GraphQL integration", () => {
       await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "image", title: "Post B" },
+        {
+          trackId,
+          mediaType: "image",
+          title: "Post B",
+          mediaUrl: "http://localhost:4000/b.jpg",
+        },
         token,
       );
 
@@ -813,7 +832,12 @@ describe("Post GraphQL integration", () => {
       await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "image", title: "Orphan B" },
+        {
+          trackId,
+          mediaType: "image",
+          title: "Orphan B",
+          mediaUrl: "http://localhost:4000/orphan.jpg",
+        },
         token,
       );
 

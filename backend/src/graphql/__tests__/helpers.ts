@@ -103,12 +103,16 @@ export const CREATE_TRACK_MUTATION = `
 `;
 
 export const CREATE_POST_MUTATION = `
-  mutation CreatePost($trackId: String!, $mediaType: MediaType!) {
-    createPost(trackId: $trackId, mediaType: $mediaType) {
-      id
+  mutation CreatePost($trackId: String!, $mediaType: MediaType!, $title: String, $body: String, $mediaUrl: String, $thumbnailUrl: String, $importance: Float, $layoutX: Int, $layoutY: Int, $eventAt: String, $visibility: String) {
+    createPost(trackId: $trackId, mediaType: $mediaType, title: $title, body: $body, mediaUrl: $mediaUrl, thumbnailUrl: $thumbnailUrl, importance: $importance, layoutX: $layoutX, layoutY: $layoutY, eventAt: $eventAt, visibility: $visibility) {
+      id mediaType title body mediaUrl thumbnailUrl importance layoutX layoutY visibility createdAt
     }
   }
 `;
+
+/// Test media URL for image/video/audio posts. Accepted by both localhost
+/// validation (R2 unconfigured) and test environments.
+export const TEST_MEDIA_URL = "http://localhost:4000/test-media.jpg";
 
 export async function signupAndGetTokenAndId(
   testApp: ReturnType<typeof createTestApp>,
