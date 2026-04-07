@@ -194,9 +194,10 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Body must be 10000 characters or less");
       }
 
-      // Require mediaUrl for image, video, audio, and link types
+      // Require mediaUrl for image, video, audio types (not text or link)
+      const mediaFileTypes = ["image", "video", "audio"];
       if (
-        args.mediaType !== "text" &&
+        mediaFileTypes.includes(args.mediaType) &&
         (args.mediaUrl == null || args.mediaUrl.trim() === "")
       ) {
         throw new GraphQLError("Media file is required for this post type");
@@ -352,13 +353,17 @@ builder.mutationFields((t) => ({
         validateMediaUrl(args.thumbnailUrl);
       }
 
-      // Prevent clearing mediaUrl for non-text types
-      if (args.mediaUrl !== undefined) {
-        const effectiveType =
+      // Ensure image/video/audio posts always have a media file.
+      // Check both explicit mediaUrl changes and mediaType changes.
+      {
+        const newType =
           (args.mediaType as string | undefined) ?? post.mediaType;
+        const newMediaUrl =
+          args.mediaUrl !== undefined ? args.mediaUrl : post.mediaUrl;
+        const mediaFileTypes = ["image", "video", "audio"];
         if (
-          effectiveType !== "text" &&
-          (args.mediaUrl == null || args.mediaUrl.trim() === "")
+          mediaFileTypes.includes(newType) &&
+          (newMediaUrl == null || newMediaUrl.trim() === "")
         ) {
           throw new GraphQLError("Media file is required for this post type");
         }
