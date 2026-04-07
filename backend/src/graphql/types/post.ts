@@ -451,9 +451,7 @@ builder.mutationFields((t) => ({
               updateBodyValue = ops;
             } else {
               if (args.body.length > 10000) {
-                throw new GraphQLError(
-                  "Body must be 10000 characters or less",
-                );
+                throw new GraphQLError("Body must be 10000 characters or less");
               }
               updateBodyValue = args.body;
             }
