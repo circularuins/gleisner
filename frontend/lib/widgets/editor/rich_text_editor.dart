@@ -201,7 +201,7 @@ class _RichTextEditorState extends State<RichTextEditor> {
       scrollController: ScrollController(),
       config: QuillEditorConfig(
         autoFocus: widget.autofocus,
-        expands: false,
+        expands: true,
         scrollable: true,
         showCursor: !widget.controller.readOnly,
         placeholder: widget.placeholder,
