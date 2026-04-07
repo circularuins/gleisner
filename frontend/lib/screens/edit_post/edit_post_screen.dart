@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,6 +12,7 @@ import '../../providers/timeline_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../widgets/common/event_at_picker.dart';
+import '../../widgets/editor/rich_text_editor.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
 
@@ -39,6 +43,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   late final TextEditingController _titleController;
   late final TextEditingController _bodyController;
   late final TextEditingController _mediaUrlController;
+  late final QuillController _quillController;
   late double _importance;
   late String _visibility;
   late String? _selectedTrackId;
@@ -56,6 +61,23 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     _mediaUrlController = TextEditingController(
       text: widget.post.mediaUrl ?? '',
     );
+    // Initialize Quill controller from existing content
+    if (widget.post.bodyFormat == BodyFormat.delta &&
+        widget.post.bodyDelta != null) {
+      _quillController = QuillController(
+        document: Document.fromJson(widget.post.bodyDelta!),
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    } else if (widget.post.mediaType == MediaType.text &&
+        widget.post.body != null) {
+      // Convert plain text to Delta for editing
+      _quillController = QuillController(
+        document: Document()..insert(0, widget.post.body!),
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    } else {
+      _quillController = QuillController.basic();
+    }
     _importance = widget.post.importance;
     _visibility = widget.post.visibility;
     _selectedTrackId = widget.post.trackId;
@@ -68,6 +90,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     _titleController.dispose();
     _bodyController.dispose();
     _mediaUrlController.dispose();
+    _quillController.dispose();
     super.dispose();
   }
 
@@ -92,8 +115,18 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     });
 
     final title = _titleController.text.trim();
-    final body = _bodyController.text.trim();
     final mediaUrl = _mediaUrlController.text.trim();
+
+    // For text type, use Quill Delta; for others, use plain body
+    String body;
+    String? bodyFormat;
+    if (widget.post.mediaType == MediaType.text) {
+      final delta = _quillController.document.toDelta().toJson();
+      body = jsonEncode(delta);
+      bodyFormat = 'delta';
+    } else {
+      body = _bodyController.text.trim();
+    }
 
     // Timeline posts use the timeline notifier (with optimistic updates).
     // Unassigned posts use the dedicated notifier.
@@ -114,6 +147,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             trackId: _selectedTrackId,
             title: title,
             body: body,
+            bodyFormat: bodyFormat,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
             thumbnailUrl: _thumbnailUrl,
             eventAt: _eventAt?.toIso8601String(),
@@ -129,6 +163,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             trackId: _selectedTrackId,
             title: title,
             body: body,
+            bodyFormat: bodyFormat,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
             thumbnailUrl: _thumbnailUrl,
             eventAt: _eventAt?.toIso8601String(),
@@ -351,19 +386,22 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         decoration: _inputDecoration('Title (optional)'),
       ),
       const SizedBox(height: spaceMd),
-      TextFormField(
-        controller: _bodyController,
-        minLines: 6,
-        maxLines: null,
-        maxLength: 10000,
-        style: const TextStyle(color: colorTextPrimary),
-        decoration: _inputDecoration('Content'),
-        validator: (value) {
-          if (value == null || value.trim().isEmpty) {
-            return 'Content is required';
-          }
-          return null;
-        },
+      SizedBox(
+        height: 400,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: colorBorder),
+            borderRadius: BorderRadius.circular(radiusSm),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(radiusSm),
+            child: RichTextEditor(
+              controller: _quillController,
+              placeholder: "What's on your mind?",
+              toolbarCollapsed: true,
+            ),
+          ),
+        ),
       ),
     ];
   }

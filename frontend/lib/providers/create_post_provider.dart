@@ -114,6 +114,17 @@ class CreatePostNotifier extends Notifier<CreatePostState>
     }
   }
 
+  /// Clear form-level state (connections, importance, visibility) without
+  /// resetting track/mediaType selection. Called when going back from form step.
+  void clearFormState() {
+    state = state.copyWith(
+      importance: 0.5,
+      visibility: 'public',
+      selectedConnections: const [],
+      error: null,
+    );
+  }
+
   void reset() {
     state = const CreatePostState();
   }
@@ -122,6 +133,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
   Future<(Track, Post)?> submit({
     required String? title,
     required String? body,
+    String? bodyFormat,
     required String? mediaUrl,
     String? thumbnailUrl,
     DateTime? eventAt,
@@ -141,6 +153,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
             'mediaType': mediaType.name,
             'title': title,
             'body': body,
+            if (bodyFormat != null) 'bodyFormat': bodyFormat,
             'mediaUrl': mediaUrl,
             if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
             if (eventAt != null) 'eventAt': eventAt.toIso8601String(),

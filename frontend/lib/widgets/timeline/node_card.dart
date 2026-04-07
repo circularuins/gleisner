@@ -306,61 +306,154 @@ class _TextContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final post = (node.item as PostItem).post;
     final totalH = node.mediaHeight + 30;
-    const headerH = 14.0;
-    const titleH = 30.0;
-    final bodyMaxH = totalH - headerH - (post.title != null ? titleH : 0) - 16;
-    final bodyMaxLines = (bodyMaxH / 14).floor().clamp(1, 12);
+    final preview = post.plainTextPreview ?? '';
+    final hasTitle = post.title != null && post.title!.isNotEmpty;
+    final isShort = !hasTitle && preview.length < 100;
 
     return SizedBox(
       height: totalH,
-      child: Container(
-        padding: const EdgeInsets.all(spaceSm),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [trackColor.withValues(alpha: 0.06), colorSurface1],
+      child: isShort
+          ? _buildShortForm(post, preview, totalH)
+          : _buildLongForm(post, preview, totalH),
+    );
+  }
+
+  /// Short form: the text IS the visual. Large font, minimal chrome.
+  /// Like a quote floating in space.
+  Widget _buildShortForm(Post post, String preview, double totalH) {
+    return Container(
+      padding: const EdgeInsets.all(spaceMd),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: trackColor.withValues(alpha: 0.4),
+            width: 2,
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _TrackLabel(trackName: post.trackName, color: trackColor),
-            if (post.title != null) ...[
-              Text(
-                post.title!,
-                style: const TextStyle(
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _TrackLabel(trackName: post.trackName, color: trackColor),
+          Expanded(
+            child: Center(
+              child: Text(
+                preview,
+                style: TextStyle(
                   color: colorTextPrimary,
-                  fontSize: fontSizeSm,
-                  fontWeight: weightBold,
-                  height: 1.3,
+                  fontSize: totalH > 120 ? fontSizeLg : fontSizeMd,
+                  height: 1.5,
+                  fontWeight: weightMedium,
                 ),
-                maxLines: 2,
+                maxLines: ((totalH - 30) / 24).floor().clamp(2, 5),
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: spaceXxs),
-            ],
-            if (post.body != null)
-              Expanded(
-                child: Text(
-                  post.body!,
-                  style: TextStyle(
-                    color: colorTextPrimary.withValues(alpha: 0.7),
-                    fontSize: fontSizeXs,
-                    height: 1.4,
-                  ),
-                  maxLines: bodyMaxLines,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-          ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Long form: title-driven card with body preview and reading accent.
+  Widget _buildLongForm(Post post, String preview, double totalH) {
+    final bodyMaxLines = ((totalH - 50) / 14).floor().clamp(1, 8);
+    final readMin = _estimateReadingMinutes(preview);
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: trackColor.withValues(alpha: 0.5),
+            width: 3,
+          ),
         ),
+      ),
+      padding: const EdgeInsets.fromLTRB(spaceMd, spaceSm, spaceSm, spaceSm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Track + reading time row
+          Row(
+            children: [
+              _TrackLabel(trackName: post.trackName, color: trackColor),
+              const Spacer(),
+              if (readMin > 0)
+                Text(
+                  '$readMin min',
+                  style: TextStyle(
+                    color: colorTextMuted.withValues(alpha: 0.5),
+                    fontSize: 9,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: spaceXs),
+          // Title
+          if (post.title != null && post.title!.isNotEmpty) ...[
+            Text(
+              post.title!,
+              style: const TextStyle(
+                color: colorTextPrimary,
+                fontSize: fontSizeSm,
+                fontWeight: weightBold,
+                height: 1.3,
+                letterSpacing: -0.2,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: spaceXxs),
+          ],
+          // Body preview with fade
+          Expanded(
+            child: ShaderMask(
+              shaderCallback: (bounds) => LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.white,
+                  Colors.white,
+                  Colors.white.withValues(alpha: 0),
+                ],
+                stops: const [0.0, 0.7, 1.0],
+              ).createShader(bounds),
+              blendMode: BlendMode.dstIn,
+              child: Text(
+                preview,
+                style: TextStyle(
+                  color: colorTextPrimary.withValues(alpha: 0.6),
+                  fontSize: fontSizeXs,
+                  height: 1.5,
+                ),
+                maxLines: bodyMaxLines,
+                overflow: TextOverflow.clip,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 // --- Image: seed art (future: real image) ---
+/// Estimate reading time in minutes. Handles both English (word-based)
+/// and CJK (character-based) text. Returns 0 for very short text.
+int _estimateReadingMinutes(String text) {
+  if (text.length < 50) return 0;
+  // Count CJK characters (Chinese, Japanese, Korean)
+  final cjk = RegExp(r'[\u3000-\u9fff\uf900-\ufaff]');
+  final cjkCount = cjk.allMatches(text).length;
+  // Count English words (non-CJK, space-separated)
+  final nonCjk = text.replaceAll(cjk, ' ');
+  final wordCount =
+      nonCjk.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+  // ~200 wpm English, ~400 cpm CJK
+  final minutes = (wordCount / 200) + (cjkCount / 400);
+  return minutes.ceil().clamp(0, 99);
+}
+
 class _ImageContent extends StatelessWidget {
   final PlacedNode node;
   final Color trackColor;
@@ -500,8 +593,9 @@ class _AudioContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final post = (node.item as PostItem).post;
     final hasTitle = post.title != null && post.title!.isNotEmpty;
-    final hasBody = post.body != null && post.body!.isNotEmpty;
-    final displayText = hasTitle ? post.title! : (hasBody ? post.body! : null);
+    final bodyPreview = post.plainTextPreview;
+    final hasBody = bodyPreview != null && bodyPreview.isNotEmpty;
+    final displayText = hasTitle ? post.title! : (hasBody ? bodyPreview : null);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: spaceXs),
       child: Stack(
@@ -616,10 +710,11 @@ class _LinkContent extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-          if (post.body != null && post.body!.isNotEmpty) ...[
+          if (post.plainTextPreview != null &&
+              post.plainTextPreview!.isNotEmpty) ...[
             const SizedBox(height: 3),
             Text(
-              post.body!,
+              post.plainTextPreview!,
               style: TextStyle(
                 color: colorTextPrimary.withValues(alpha: 0.6),
                 fontSize: fontSizeXs,
@@ -698,9 +793,10 @@ class _InfoBar extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             )
-          else if (post.body != null && post.body!.isNotEmpty)
+          else if (post.plainTextPreview != null &&
+              post.plainTextPreview!.isNotEmpty)
             Text(
-              post.body!,
+              post.plainTextPreview!,
               style: TextStyle(
                 color: colorTextPrimary.withValues(alpha: 0.6),
                 fontSize: fontSizeXs,

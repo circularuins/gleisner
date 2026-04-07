@@ -3,6 +3,7 @@ const postFields = '''
   mediaType
   title
   body
+  bodyFormat
   mediaUrl
   thumbnailUrl
   duration
@@ -65,6 +66,7 @@ const myUnassignedPostsQuery = '''
       mediaType
       title
       body
+      bodyFormat
       mediaUrl
       importance
       visibility

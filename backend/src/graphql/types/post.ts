@@ -58,7 +58,8 @@ type PostShape = {
   authorId: string;
   mediaType: "text" | "image" | "video" | "audio" | "link";
   title: string | null;
-  body: string | null;
+  body: unknown; // jsonb: string (plain) or Delta ops array (delta)
+  bodyFormat: string;
   mediaUrl: string | null;
   thumbnailUrl: string | null;
   duration: number | null;
@@ -91,7 +92,17 @@ PostType.implement({
       resolve: (post) => post.mediaType,
     }),
     title: t.exposeString("title", { nullable: true }),
-    body: t.exposeString("body", { nullable: true }),
+    body: t.string({
+      nullable: true,
+      resolve: (post) => {
+        if (post.body == null) return null;
+        // Delta format: serialize JSON to string for client
+        if (post.bodyFormat === "delta") return JSON.stringify(post.body);
+        // Plain format: return as-is (string)
+        return typeof post.body === "string" ? post.body : null;
+      },
+    }),
+    bodyFormat: t.exposeString("bodyFormat"),
     mediaUrl: t.exposeString("mediaUrl", { nullable: true }),
     thumbnailUrl: t.exposeString("thumbnailUrl", { nullable: true }),
     duration: t.exposeInt("duration", { nullable: true }),
@@ -149,6 +160,7 @@ builder.mutationFields((t) => ({
       mediaType: t.arg({ type: MediaTypeEnum, required: true }),
       title: t.arg.string(),
       body: t.arg.string(),
+      bodyFormat: t.arg.string(), // 'plain' (default) or 'delta'
       mediaUrl: t.arg.string(),
       thumbnailUrl: t.arg.string(),
       duration: t.arg.int(),
@@ -192,9 +204,56 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Title must be 100 characters or less");
       }
 
-      // Validate body
-      if (args.body != null && args.body.length > 10000) {
-        throw new GraphQLError("Body must be 10000 characters or less");
+      // Validate body + bodyFormat
+      const bodyFormat = args.bodyFormat ?? "plain";
+      if (bodyFormat !== "plain" && bodyFormat !== "delta") {
+        throw new GraphQLError("bodyFormat must be 'plain' or 'delta'");
+      }
+
+      let bodyValue: unknown = null;
+      if (args.body != null) {
+        if (bodyFormat === "delta") {
+          // Size check before parse to prevent DoS via large payload
+          if (args.body.length > 102400) {
+            throw new GraphQLError("Body must be 100KB or less");
+          }
+          // Parse and validate Delta JSON
+          let ops: unknown[];
+          try {
+            ops = JSON.parse(args.body);
+          } catch {
+            throw new GraphQLError("Invalid Delta JSON");
+          }
+          if (!Array.isArray(ops)) {
+            throw new GraphQLError("Delta must be a JSON array");
+          }
+          if (ops.length > 10000) {
+            throw new GraphQLError("Delta ops limit exceeded");
+          }
+          // Validate image URLs in embeds
+          for (const op of ops) {
+            if (
+              typeof op === "object" &&
+              op !== null &&
+              "insert" in op &&
+              typeof (op as Record<string, unknown>).insert === "object"
+            ) {
+              const embed = (op as Record<string, unknown>).insert as Record<
+                string,
+                unknown
+              >;
+              if (typeof embed.image === "string") {
+                validateMediaUrl(embed.image);
+              }
+            }
+          }
+          bodyValue = ops;
+        } else {
+          if (args.body.length > 10000) {
+            throw new GraphQLError("Body must be 10000 characters or less");
+          }
+          bodyValue = args.body;
+        }
       }
 
       // Require mediaUrl for image, video, audio types (not text or link)
@@ -242,7 +301,8 @@ builder.mutationFields((t) => ({
       // 2. Future signature addition without re-processing existing posts
       const contentHash = computeContentHash({
         title: args.title ?? null,
-        body: args.body ?? null,
+        body: bodyValue,
+        bodyFormat,
         mediaUrl: args.mediaUrl ?? null,
         mediaType: args.mediaType,
         importance: args.importance ?? 0.5,
@@ -269,7 +329,8 @@ builder.mutationFields((t) => ({
           authorId: ctx.authUser.userId,
           mediaType: args.mediaType,
           title: args.title ?? null,
-          body: args.body ?? null,
+          body: bodyValue,
+          bodyFormat,
           mediaUrl: args.mediaUrl ?? null,
           thumbnailUrl: args.thumbnailUrl ?? null,
           duration: args.duration ?? null,
@@ -303,6 +364,7 @@ builder.mutationFields((t) => ({
       mediaType: t.arg({ type: MediaTypeEnum }),
       title: t.arg.string(),
       body: t.arg.string(),
+      bodyFormat: t.arg.string(),
       mediaUrl: t.arg.string(),
       thumbnailUrl: t.arg.string(),
       duration: t.arg.int(),
@@ -336,9 +398,71 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Title must be 100 characters or less");
       }
 
-      // Validate body
-      if (args.body != null && args.body.length > 10000) {
-        throw new GraphQLError("Body must be 10000 characters or less");
+      // Validate body + bodyFormat
+      let updateBodyValue: unknown | undefined;
+      let updateBodyFormat: string | undefined;
+      if (args.body !== undefined || args.bodyFormat !== undefined) {
+        const effectiveFormat = args.bodyFormat ?? post.bodyFormat ?? "plain";
+        if (effectiveFormat !== "plain" && effectiveFormat !== "delta") {
+          throw new GraphQLError("bodyFormat must be 'plain' or 'delta'");
+        }
+        // Changing bodyFormat without body would leave DB in inconsistent state
+        if (
+          args.bodyFormat !== undefined &&
+          args.bodyFormat !== (post.bodyFormat ?? "plain") &&
+          args.body === undefined
+        ) {
+          throw new GraphQLError(
+            "body must be provided when changing bodyFormat",
+          );
+        }
+        if (args.body !== undefined) {
+          if (args.body != null) {
+            if (effectiveFormat === "delta") {
+              if (args.body.length > 102400) {
+                throw new GraphQLError("Body must be 100KB or less");
+              }
+              let ops: unknown[];
+              try {
+                ops = JSON.parse(args.body);
+              } catch {
+                throw new GraphQLError("Invalid Delta JSON");
+              }
+              if (!Array.isArray(ops)) {
+                throw new GraphQLError("Delta must be a JSON array");
+              }
+              if (ops.length > 10000) {
+                throw new GraphQLError("Delta ops limit exceeded");
+              }
+              for (const op of ops) {
+                if (
+                  typeof op === "object" &&
+                  op !== null &&
+                  "insert" in op &&
+                  typeof (op as Record<string, unknown>).insert === "object"
+                ) {
+                  const embed = (op as Record<string, unknown>)
+                    .insert as Record<string, unknown>;
+                  if (typeof embed.image === "string") {
+                    validateMediaUrl(embed.image);
+                  }
+                }
+              }
+              updateBodyValue = ops;
+            } else {
+              if (args.body.length > 10000) {
+                throw new GraphQLError("Body must be 10000 characters or less");
+              }
+              updateBodyValue = args.body;
+            }
+          } else {
+            updateBodyValue = null; // explicit clear
+          }
+        }
+        // Only update bodyFormat if explicitly sent
+        if (args.bodyFormat !== undefined) {
+          updateBodyFormat = effectiveFormat;
+        }
       }
 
       // Validate mediaUrl: link type accepts any URL, others require R2 domain.
@@ -415,7 +539,9 @@ builder.mutationFields((t) => ({
       if (args.trackId !== undefined) updateData.trackId = args.trackId;
       if (args.mediaType !== undefined) updateData.mediaType = args.mediaType;
       if (args.title !== undefined) updateData.title = args.title;
-      if (args.body !== undefined) updateData.body = args.body;
+      if (updateBodyValue !== undefined) updateData.body = updateBodyValue;
+      if (updateBodyFormat !== undefined)
+        updateData.bodyFormat = updateBodyFormat;
       if (args.mediaUrl !== undefined) updateData.mediaUrl = args.mediaUrl;
       if (args.thumbnailUrl !== undefined)
         updateData.thumbnailUrl = args.thumbnailUrl;
@@ -446,6 +572,7 @@ builder.mutationFields((t) => ({
       const contentChanged =
         args.title !== undefined ||
         args.body !== undefined ||
+        args.bodyFormat !== undefined ||
         args.mediaUrl !== undefined ||
         args.mediaType !== undefined ||
         args.importance !== undefined ||
@@ -471,9 +598,14 @@ builder.mutationFields((t) => ({
           );
         }
 
+        const effectiveBody =
+          updateBodyValue !== undefined ? updateBodyValue : post.body;
+        const effectiveBodyFormat =
+          updateBodyFormat ?? (post.bodyFormat as string) ?? "plain";
         const newHash = computeContentHash({
           title: args.title !== undefined ? args.title : post.title,
-          body: args.body !== undefined ? args.body : post.body,
+          body: effectiveBody,
+          bodyFormat: effectiveBodyFormat,
           mediaUrl: args.mediaUrl !== undefined ? args.mediaUrl : post.mediaUrl,
           mediaType: args.mediaType != null ? args.mediaType : post.mediaType,
           importance:

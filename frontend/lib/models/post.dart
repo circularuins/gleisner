@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
 import '../utils/sentinel.dart';
 import 'track.dart';
+
+enum BodyFormat { plain, delta }
 
 class PostAuthor {
   final String id;
@@ -121,7 +124,10 @@ class Post {
   final String id;
   final MediaType mediaType;
   final String? title;
-  final String? body;
+  final String? body; // Plain text (plain) or JSON string of Delta ops (delta)
+  final BodyFormat bodyFormat;
+  final List<dynamic>?
+  bodyDelta; // Parsed Delta ops (only when bodyFormat == delta)
   final String? mediaUrl;
   final String? thumbnailUrl;
   final int? duration;
@@ -148,6 +154,8 @@ class Post {
     required this.mediaType,
     this.title,
     this.body,
+    this.bodyFormat = BodyFormat.plain,
+    this.bodyDelta,
     this.mediaUrl,
     this.thumbnailUrl,
     this.duration,
@@ -173,6 +181,8 @@ class Post {
   Post copyWith({
     Object? title = sentinel,
     Object? body = sentinel,
+    BodyFormat? bodyFormat,
+    Object? bodyDelta = sentinel,
     Object? mediaUrl = sentinel,
     Object? thumbnailUrl = sentinel,
     Object? duration = sentinel,
@@ -196,6 +206,10 @@ class Post {
       mediaType: mediaType,
       title: title == sentinel ? this.title : title as String?,
       body: body == sentinel ? this.body : body as String?,
+      bodyFormat: bodyFormat ?? this.bodyFormat,
+      bodyDelta: bodyDelta == sentinel
+          ? this.bodyDelta
+          : bodyDelta as List<dynamic>?,
       mediaUrl: mediaUrl == sentinel ? this.mediaUrl : mediaUrl as String?,
       thumbnailUrl: thumbnailUrl == sentinel
           ? this.thumbnailUrl
@@ -232,6 +246,44 @@ class Post {
   /// Total reaction count across all emoji types.
   int get totalReactions => reactionCounts.fold(0, (sum, r) => sum + r.count);
 
+  /// Extract plain text from body, regardless of format.
+  /// For delta: extracts string inserts from ops. For plain: returns body as-is.
+  String? get plainTextPreview {
+    if (bodyFormat == BodyFormat.delta) {
+      // Try parsed bodyDelta first
+      if (bodyDelta != null) {
+        final buffer = StringBuffer();
+        for (final op in bodyDelta!) {
+          if (op is Map && op.containsKey('insert')) {
+            final insert = op['insert'];
+            if (insert is String) buffer.write(insert);
+          }
+        }
+        final text = buffer.toString().trim();
+        if (text.isNotEmpty) return text;
+      }
+      // Fallback: try parsing body string directly
+      if (body != null) {
+        try {
+          final parsed = jsonDecode(body!);
+          if (parsed is List) {
+            final buffer = StringBuffer();
+            for (final op in parsed) {
+              if (op is Map && op.containsKey('insert')) {
+                final insert = op['insert'];
+                if (insert is String) buffer.write(insert);
+              }
+            }
+            final text = buffer.toString().trim();
+            if (text.isNotEmpty) return text;
+          }
+        } catch (_) {}
+      }
+      return null;
+    }
+    return body;
+  }
+
   /// The display date for timeline ordering: eventAt if set, otherwise createdAt.
   DateTime get displayDate => eventAt ?? createdAt;
 
@@ -255,6 +307,13 @@ class Post {
       mediaType: _parseMediaType(json['mediaType'] as String),
       title: json['title'] as String?,
       body: json['body'] as String?,
+      bodyFormat: (json['bodyFormat'] as String?) == 'delta'
+          ? BodyFormat.delta
+          : BodyFormat.plain,
+      bodyDelta: _parseDelta(
+        json['body'] as String?,
+        json['bodyFormat'] as String?,
+      ),
       mediaUrl: json['mediaUrl'] as String?,
       thumbnailUrl: json['thumbnailUrl'] as String?,
       duration: (json['duration'] as num?)?.toInt(),
@@ -306,4 +365,16 @@ MediaType _parseMediaType(String value) {
     if (type.name == value) return type;
   }
   return MediaType.text;
+}
+
+/// Parse Delta ops from body string when bodyFormat is 'delta'.
+/// Returns null for plain format or parse errors.
+List<dynamic>? _parseDelta(String? body, String? bodyFormat) {
+  if (bodyFormat != 'delta' || body == null) return null;
+  try {
+    final parsed = jsonDecode(body);
+    return parsed is List ? parsed : null;
+  } catch (_) {
+    return null;
+  }
 }
