@@ -340,10 +340,10 @@ class _TextContent extends StatelessWidget {
               ),
               const SizedBox(height: spaceXxs),
             ],
-            if (post.body != null)
+            if (post.plainTextPreview != null)
               Expanded(
                 child: Text(
-                  post.body!,
+                  post.plainTextPreview!,
                   style: TextStyle(
                     color: colorTextPrimary.withValues(alpha: 0.7),
                     fontSize: fontSizeXs,
@@ -500,8 +500,9 @@ class _AudioContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final post = (node.item as PostItem).post;
     final hasTitle = post.title != null && post.title!.isNotEmpty;
-    final hasBody = post.body != null && post.body!.isNotEmpty;
-    final displayText = hasTitle ? post.title! : (hasBody ? post.body! : null);
+    final bodyPreview = post.plainTextPreview;
+    final hasBody = bodyPreview != null && bodyPreview.isNotEmpty;
+    final displayText = hasTitle ? post.title! : (hasBody ? bodyPreview : null);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: spaceXs),
       child: Stack(
@@ -616,10 +617,11 @@ class _LinkContent extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-          if (post.body != null && post.body!.isNotEmpty) ...[
+          if (post.plainTextPreview != null &&
+              post.plainTextPreview!.isNotEmpty) ...[
             const SizedBox(height: 3),
             Text(
-              post.body!,
+              post.plainTextPreview!,
               style: TextStyle(
                 color: colorTextPrimary.withValues(alpha: 0.6),
                 fontSize: fontSizeXs,
@@ -698,9 +700,10 @@ class _InfoBar extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             )
-          else if (post.body != null && post.body!.isNotEmpty)
+          else if (post.plainTextPreview != null &&
+              post.plainTextPreview!.isNotEmpty)
             Text(
-              post.body!,
+              post.plainTextPreview!,
               style: TextStyle(
                 color: colorTextPrimary.withValues(alpha: 0.6),
                 fontSize: fontSizeXs,

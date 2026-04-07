@@ -7,6 +7,7 @@ import {
   integer,
   timestamp,
   pgEnum,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { tracks } from "./track.js";
 import { users } from "./user.js";
@@ -29,7 +30,8 @@ export const posts = pgTable("posts", {
     .notNull(),
   mediaType: mediaTypeEnum("media_type").notNull(),
   title: varchar("title", { length: 100 }),
-  body: text("body"),
+  body: jsonb("body"),
+  bodyFormat: varchar("body_format", { length: 10 }).default("plain").notNull(),
   mediaUrl: text("media_url"),
   thumbnailUrl: text("thumbnail_url"),
   duration: integer("duration"),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:js_interop';
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:video_player/video_player.dart';
 import 'package:web/web.dart' as web;
 import '../../models/post.dart';
@@ -351,8 +352,25 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                       Text(post.title!, style: textTitle),
                       const SizedBox(height: spaceSm),
                     ],
-                    // Body
-                    if (post.body != null) ...[
+                    // Body — rich text (delta) or plain text
+                    if (post.bodyFormat == BodyFormat.delta &&
+                        post.bodyDelta != null) ...[
+                      QuillEditor(
+                        controller: QuillController(
+                          document: Document.fromJson(post.bodyDelta!),
+                          selection: const TextSelection.collapsed(offset: 0),
+                          readOnly: true,
+                        ),
+                        focusNode: FocusNode(),
+                        scrollController: ScrollController(),
+                        config: const QuillEditorConfig(
+                          showCursor: false,
+                          scrollable: false,
+                          expands: false,
+                        ),
+                      ),
+                      const SizedBox(height: spaceLg),
+                    ] else if (post.body != null) ...[
                       Text(post.body!, style: textBody),
                       const SizedBox(height: spaceLg),
                     ],

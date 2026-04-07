@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -11,6 +14,7 @@ import '../../widgets/common/connection_type_picker.dart';
 import '../../widgets/common/error_banner.dart';
 import '../../widgets/common/event_at_picker.dart';
 import '../../widgets/common/related_post_picker.dart';
+import '../../widgets/editor/rich_text_editor.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../providers/media_upload_provider.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
@@ -26,6 +30,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
   final _mediaUrlController = TextEditingController();
+  final _quillController = QuillController.basic();
   String? _thumbnailUrl;
   DateTime? _eventAt;
   final _formKey = GlobalKey<FormState>();
@@ -35,6 +40,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     _titleController.dispose();
     _bodyController.dispose();
     _mediaUrlController.dispose();
+    _quillController.dispose();
     super.dispose();
   }
 
@@ -67,13 +73,37 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       return;
     }
 
+    // For text type, use Quill Delta; for others, use plain body
+    final isTextType =
+        ref.read(createPostProvider).selectedMediaType == MediaType.text;
+    String? bodyValue;
+    String? bodyFormat;
+    if (isTextType) {
+      final delta = _quillController.document.toDelta().toJson();
+      bodyValue = jsonEncode(delta);
+      bodyFormat = 'delta';
+      // Validate non-empty
+      if (_quillController.document.isEmpty()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Text is required'),
+            backgroundColor: colorError,
+          ),
+        );
+        return;
+      }
+    } else {
+      bodyValue = _bodyController.text.isEmpty ? null : _bodyController.text;
+    }
+
     final result = await ref
         .read(createPostProvider.notifier)
         .submit(
           title: _titleController.text.isNotEmpty
               ? _titleController.text
               : null,
-          body: _bodyController.text.isEmpty ? null : _bodyController.text,
+          body: bodyValue,
+          bodyFormat: bodyFormat,
           mediaUrl: _mediaUrlController.text.isEmpty
               ? null
               : _mediaUrlController.text,
@@ -130,6 +160,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               formKey: _formKey,
               titleController: _titleController,
               bodyController: _bodyController,
+              quillController: _quillController,
               mediaUrlController: _mediaUrlController,
               thumbnailUrl: _thumbnailUrl,
               eventAt: _eventAt,
@@ -398,6 +429,7 @@ class _FormStep extends ConsumerWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController titleController;
   final TextEditingController bodyController;
+  final QuillController quillController;
   final TextEditingController mediaUrlController;
   final String? thumbnailUrl;
   final DateTime? eventAt;
@@ -409,6 +441,7 @@ class _FormStep extends ConsumerWidget {
     required this.formKey,
     required this.titleController,
     required this.bodyController,
+    required this.quillController,
     required this.mediaUrlController,
     this.thumbnailUrl,
     this.eventAt,
@@ -604,7 +637,7 @@ class _FormStep extends ConsumerWidget {
     }
   }
 
-  // text: body (main) + title (optional, small)
+  // text: title (optional) + rich text editor
   List<Widget> _buildTextFields(ThemeData theme) {
     return [
       TextFormField(
@@ -620,24 +653,23 @@ class _FormStep extends ConsumerWidget {
         style: theme.textTheme.titleMedium,
       ),
       const SizedBox(height: spaceMd),
-      TextFormField(
-        controller: bodyController,
-        decoration: const InputDecoration(
-          hintText: 'Write something...',
-          border: OutlineInputBorder(),
-          alignLabelWithHint: true,
+      // Rich text editor for the body
+      SizedBox(
+        height: 300,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: colorBorder),
+            borderRadius: BorderRadius.circular(radiusSm),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(radiusSm),
+            child: RichTextEditor(
+              controller: quillController,
+              placeholder: 'Write something...',
+              autofocus: true,
+            ),
+          ),
         ),
-        minLines: 8,
-        maxLines: null,
-        maxLength: 10000,
-        autofocus: true,
-        style: theme.textTheme.bodyLarge,
-        validator: (value) {
-          if (value == null || value.trim().isEmpty) {
-            return 'Text is required';
-          }
-          return null;
-        },
       ),
       const SizedBox(height: spaceLg),
     ];

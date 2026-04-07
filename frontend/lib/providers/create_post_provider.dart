@@ -122,6 +122,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
   Future<(Track, Post)?> submit({
     required String? title,
     required String? body,
+    String? bodyFormat,
     required String? mediaUrl,
     String? thumbnailUrl,
     DateTime? eventAt,
@@ -141,6 +142,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
             'mediaType': mediaType.name,
             'title': title,
             'body': body,
+            if (bodyFormat != null) 'bodyFormat': bodyFormat,
             'mediaUrl': mediaUrl,
             if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
             if (eventAt != null) 'eventAt': eventAt.toIso8601String(),
