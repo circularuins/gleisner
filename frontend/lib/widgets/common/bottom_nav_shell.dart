@@ -41,7 +41,7 @@ class BottomNavShell extends ConsumerWidget {
                     .switchBackToGuardian();
                 if (!success) return;
                 await reloadAfterAccountSwitch(ref);
-                ref
+                await ref
                     .read(guardianProvider.notifier)
                     .loadChildren(forceReload: true);
               },

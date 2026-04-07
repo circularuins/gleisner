@@ -429,7 +429,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         .read(guardianProvider.notifier)
         .switchToChild(childId);
     if (!success || !mounted) return;
-    await _reloadAfterSwitch();
+    await reloadAfterAccountSwitch(ref);
   }
 
   Future<void> _switchBackToGuardian() async {
@@ -437,13 +437,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         .read(guardianProvider.notifier)
         .switchBackToGuardian();
     if (!success || !mounted) return;
-    await _reloadAfterSwitch();
-    // Reload children list for guardian view (force because provider was invalidated)
-    ref.read(guardianProvider.notifier).loadChildren(forceReload: true);
-  }
-
-  Future<void> _reloadAfterSwitch() async {
     await reloadAfterAccountSwitch(ref);
+    if (!mounted) return;
+    await ref.read(guardianProvider.notifier).loadChildren(forceReload: true);
   }
 
   static String _formatJoinDate(DateTime date) {
