@@ -61,31 +61,52 @@ class _RichTextEditorState extends State<RichTextEditor> {
   }
 
   Widget _buildToolbarToggle() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: colorSurface2,
-        border: Border(bottom: BorderSide(color: colorBorder)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: spaceSm, vertical: 2),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => setState(() => _toolbarExpanded = true),
-            icon: const Icon(Icons.text_format, size: 20),
-            color: colorInteractiveMuted,
-            tooltip: 'Show formatting',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
-          const SizedBox(width: spaceXs),
-          Text(
-            'Aa',
-            style: TextStyle(
+    return GestureDetector(
+      onTap: () => setState(() => _toolbarExpanded = true),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: colorSurface2,
+          border: Border(bottom: BorderSide(color: colorBorder)),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: spaceMd,
+          vertical: spaceSm,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.format_bold,
+              size: 16,
               color: colorInteractiveMuted,
-              fontSize: fontSizeSm,
             ),
-          ),
-        ],
+            const SizedBox(width: spaceXxs),
+            Icon(
+              Icons.format_italic,
+              size: 16,
+              color: colorInteractiveMuted,
+            ),
+            const SizedBox(width: spaceXxs),
+            Icon(
+              Icons.format_list_bulleted,
+              size: 16,
+              color: colorInteractiveMuted,
+            ),
+            const SizedBox(width: spaceSm),
+            Text(
+              'Formatting',
+              style: TextStyle(
+                color: colorInteractiveMuted,
+                fontSize: fontSizeSm,
+              ),
+            ),
+            const SizedBox(width: spaceXs),
+            Icon(
+              Icons.keyboard_arrow_down,
+              size: 16,
+              color: colorInteractiveMuted,
+            ),
+          ],
+        ),
       ),
     );
   }
