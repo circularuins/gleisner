@@ -13,6 +13,7 @@ import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../providers/tutorial_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
+import '../../utils/account_switch_helper.dart';
 import '../../theme/gleisner_tokens.dart';
 import 'create_child_sheet.dart';
 import 'edit_profile_sheet.dart';
@@ -70,63 +71,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.all(spaceXl),
         children: [
-          // Child mode banner
-          if (isChild) ...[
-            Container(
-              padding: const EdgeInsets.all(spaceLg),
-              decoration: BoxDecoration(
-                color: colorAccentGold.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(radiusMd),
-                border: Border.all(
-                  color: colorAccentGold.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.child_care,
-                        size: 18,
-                        color: colorAccentGold,
-                      ),
-                      const SizedBox(width: spaceSm),
-                      Text(
-                        'Child Account Mode',
-                        style: textLabel.copyWith(color: colorAccentGold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: spaceSm),
-                  Text(
-                    'You are viewing as ${user.displayName ?? user.username}. '
-                    'All actions are performed on behalf of this child account.',
-                    style: textCaption.copyWith(
-                      color: colorAccentGold.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  const SizedBox(height: spaceMd),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _switchBackToGuardian,
-                      icon: const Icon(Icons.swap_horiz, size: 16),
-                      label: const Text('Return to My Account'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: colorAccentGold,
-                        side: BorderSide(
-                          color: colorAccentGold.withValues(alpha: 0.3),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: spaceLg),
-          ],
-
           // User info
           Row(
             children: [
@@ -485,7 +429,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         .read(guardianProvider.notifier)
         .switchToChild(childId);
     if (!success || !mounted) return;
-    await _reloadAfterSwitch();
+    await reloadAfterAccountSwitch(ref);
   }
 
   Future<void> _switchBackToGuardian() async {
@@ -493,25 +437,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         .read(guardianProvider.notifier)
         .switchBackToGuardian();
     if (!success || !mounted) return;
-    await _reloadAfterSwitch();
-    // Reload children list for guardian view (force because provider was invalidated)
-    ref.read(guardianProvider.notifier).loadChildren(forceReload: true);
-  }
-
-  /// Invalidate all user-specific providers and reload data after JWT switch.
-  /// Similar to the artist registration flow — explicit reload is needed
-  /// because StatefulShellRoute tabs don't auto-refresh on invalidate.
-  Future<void> _reloadAfterSwitch() async {
-    ref.invalidate(myArtistProvider);
-    ref.invalidate(timelineProvider);
-    ref.invalidate(tuneInProvider);
-    ref.invalidate(discoverProvider);
-    ref.invalidate(unassignedPostsProvider);
-    // Explicitly reload data with new JWT
-    await ref.read(myArtistProvider.notifier).load();
+    await reloadAfterAccountSwitch(ref);
     if (!mounted) return;
-    ref.read(discoverProvider.notifier).loadInitial();
-    ref.read(tuneInProvider.notifier).loadMyTuneIns();
+    await ref.read(guardianProvider.notifier).loadChildren(forceReload: true);
   }
 
   static String _formatJoinDate(DateTime date) {
