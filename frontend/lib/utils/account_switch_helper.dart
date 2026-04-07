@@ -8,15 +8,11 @@ import '../providers/unassigned_posts_provider.dart';
 
 /// Reload all user-specific providers after a JWT switch (guardian ↔ child).
 ///
-/// StatefulShellRoute tabs don't auto-refresh on invalidate alone,
-/// so each provider must be explicitly reloaded.
+/// Each provider's load() method resets state internally and fetches with
+/// networkOnly, so explicit invalidate is not needed (and would cause
+/// redundant state resets).
 Future<void> reloadAfterAccountSwitch(WidgetRef ref) async {
-  ref.invalidate(myArtistProvider);
-  ref.invalidate(timelineProvider);
-  ref.invalidate(tuneInProvider);
-  ref.invalidate(discoverProvider);
-  ref.invalidate(unassignedPostsProvider);
-
+  // myArtistProvider must complete first — timeline depends on the result
   await ref.read(myArtistProvider.notifier).load();
 
   final myArtist = ref.read(myArtistProvider);
@@ -25,4 +21,5 @@ Future<void> reloadAfterAccountSwitch(WidgetRef ref) async {
   }
   ref.read(discoverProvider.notifier).loadInitial();
   ref.read(tuneInProvider.notifier).loadMyTuneIns();
+  ref.read(unassignedPostsProvider.notifier).load();
 }
