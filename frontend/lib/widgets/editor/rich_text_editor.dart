@@ -215,6 +215,17 @@ class _RichTextEditorState extends State<RichTextEditor> {
   DefaultStyles _editorStyles() {
     const lineSpacing = VerticalSpacing(0, 0);
     return DefaultStyles(
+      placeHolder: DefaultTextBlockStyle(
+        TextStyle(
+          color: colorTextMuted.withValues(alpha: 0.5),
+          fontSize: fontSizeSm,
+          height: 1.6,
+        ),
+        const HorizontalSpacing(0, 0),
+        const VerticalSpacing(4, 4),
+        lineSpacing,
+        null,
+      ),
       paragraph: DefaultTextBlockStyle(
         const TextStyle(
           color: colorTextSecondary,
