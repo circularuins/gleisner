@@ -416,50 +416,55 @@ builder.mutationFields((t) => ({
             "body must be provided when changing bodyFormat",
           );
         }
-        if (args.body != null) {
-          if (effectiveFormat === "delta") {
-            if (args.body.length > 102400) {
-              throw new GraphQLError("Body must be 100KB or less");
-            }
-            let ops: unknown[];
-            try {
-              ops = JSON.parse(args.body);
-            } catch {
-              throw new GraphQLError("Invalid Delta JSON");
-            }
-            if (!Array.isArray(ops)) {
-              throw new GraphQLError("Delta must be a JSON array");
-            }
-            if (ops.length > 10000) {
-              throw new GraphQLError("Delta ops limit exceeded");
-            }
-            for (const op of ops) {
-              if (
-                typeof op === "object" &&
-                op !== null &&
-                "insert" in op &&
-                typeof (op as Record<string, unknown>).insert === "object"
-              ) {
-                const embed = (op as Record<string, unknown>).insert as Record<
-                  string,
-                  unknown
-                >;
-                if (typeof embed.image === "string") {
-                  validateMediaUrl(embed.image);
+        if (args.body !== undefined) {
+          if (args.body != null) {
+            if (effectiveFormat === "delta") {
+              if (args.body.length > 102400) {
+                throw new GraphQLError("Body must be 100KB or less");
+              }
+              let ops: unknown[];
+              try {
+                ops = JSON.parse(args.body);
+              } catch {
+                throw new GraphQLError("Invalid Delta JSON");
+              }
+              if (!Array.isArray(ops)) {
+                throw new GraphQLError("Delta must be a JSON array");
+              }
+              if (ops.length > 10000) {
+                throw new GraphQLError("Delta ops limit exceeded");
+              }
+              for (const op of ops) {
+                if (
+                  typeof op === "object" &&
+                  op !== null &&
+                  "insert" in op &&
+                  typeof (op as Record<string, unknown>).insert === "object"
+                ) {
+                  const embed = (op as Record<string, unknown>)
+                    .insert as Record<string, unknown>;
+                  if (typeof embed.image === "string") {
+                    validateMediaUrl(embed.image);
+                  }
                 }
               }
+              updateBodyValue = ops;
+            } else {
+              if (args.body.length > 10000) {
+                throw new GraphQLError(
+                  "Body must be 10000 characters or less",
+                );
+              }
+              updateBodyValue = args.body;
             }
-            updateBodyValue = ops;
           } else {
-            if (args.body.length > 10000) {
-              throw new GraphQLError("Body must be 10000 characters or less");
-            }
-            updateBodyValue = args.body;
+            updateBodyValue = null; // explicit clear
           }
-        } else {
-          updateBodyValue = null;
         }
-        updateBodyFormat = effectiveFormat;
+        // Only update bodyFormat if explicitly sent
+        if (args.bodyFormat !== undefined) {
+          updateBodyFormat = effectiveFormat;
+        }
       }
 
       // Validate mediaUrl: link type accepts any URL, others require R2 domain.
