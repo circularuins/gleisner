@@ -106,6 +106,40 @@ class _NodeCardState extends State<NodeCard>
     final glowBlur = 8.0 + importance * 16;
     final glowOpacity = 0.15 + importance * 0.25;
 
+    // Text posts use accent borders instead of uniform border
+    final isTextPost = post.mediaType == MediaType.text;
+    final preview = post.plainTextPreview ?? '';
+    final hasTitle = post.title != null && post.title!.isNotEmpty;
+    final isShortText = isTextPost && !hasTitle && preview.length < 100;
+
+    final BoxBorder border;
+    if (isTextPost) {
+      border = isShortText
+          ? Border(
+              bottom: BorderSide(
+                color: trackColor.withValues(alpha: 0.3),
+                width: 2,
+              ),
+              top: BorderSide(color: colorBorder.withValues(alpha: 0.3)),
+              left: BorderSide(color: colorBorder.withValues(alpha: 0.3)),
+              right: BorderSide(color: colorBorder.withValues(alpha: 0.3)),
+            )
+          : Border(
+              left: BorderSide(
+                color: trackColor.withValues(alpha: 0.5),
+                width: 3,
+              ),
+              top: BorderSide(color: colorBorder.withValues(alpha: 0.3)),
+              right: BorderSide(color: colorBorder.withValues(alpha: 0.3)),
+              bottom: BorderSide(color: colorBorder.withValues(alpha: 0.3)),
+            );
+    } else {
+      border = Border.all(
+        color: trackColor.withValues(alpha: opacityBorder),
+        width: 1,
+      );
+    }
+
     Widget card = GestureDetector(
       onTap: widget.onTap ?? () => showPostDetailSheet(context, post),
       child: Container(
@@ -118,10 +152,7 @@ class _NodeCardState extends State<NodeCard>
               spreadRadius: glowSpread,
             ),
           ],
-          border: Border.all(
-            color: trackColor.withValues(alpha: opacityBorder),
-            width: 1,
-          ),
+          border: border,
           color: colorSurface1,
         ),
         clipBehavior: Clip.antiAlias,
@@ -323,15 +354,6 @@ class _TextContent extends StatelessWidget {
   Widget _buildShortForm(Post post, String preview, double totalH) {
     return Container(
       padding: const EdgeInsets.all(spaceMd),
-      decoration: BoxDecoration(
-        color: colorSurface1,
-        border: Border(
-          bottom: BorderSide(
-            color: trackColor.withValues(alpha: 0.2),
-            width: 2,
-          ),
-        ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -355,7 +377,7 @@ class _TextContent extends StatelessWidget {
   }
 
   /// Long form: title-driven card with body preview and reading accent.
-  /// Left border accent line (bookmark/margin aesthetic).
+  /// Left border accent is on the outer container.
   Widget _buildLongForm(Post post, String preview, double totalH) {
     final bodyMaxLines = ((totalH - 50) / 14).floor().clamp(1, 8);
     final words = preview
@@ -364,78 +386,70 @@ class _TextContent extends StatelessWidget {
         .length;
     final readMin = (words / 200).ceil();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorSurface1,
-        border: Border(
-          left: BorderSide(color: trackColor.withValues(alpha: 0.4), width: 3),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(spaceMd, spaceSm, spaceSm, spaceSm),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Track + reading time row
-            Row(
-              children: [
-                _TrackLabel(trackName: post.trackName, color: trackColor),
-                const Spacer(),
-                if (words > 30)
-                  Text(
-                    '$readMin min',
-                    style: TextStyle(
-                      color: colorTextMuted.withValues(alpha: 0.5),
-                      fontSize: 9,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: spaceXs),
-            // Title
-            if (post.title != null && post.title!.isNotEmpty) ...[
-              Text(
-                post.title!,
-                style: const TextStyle(
-                  color: colorTextPrimary,
-                  fontSize: fontSizeSm,
-                  fontWeight: weightBold,
-                  height: 1.3,
-                  letterSpacing: -0.2,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: spaceXxs),
-            ],
-            // Body preview with fade
-            Expanded(
-              child: ShaderMask(
-                shaderCallback: (bounds) => LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.white,
-                    Colors.white,
-                    Colors.white.withValues(alpha: 0),
-                  ],
-                  stops: const [0.0, 0.7, 1.0],
-                ).createShader(bounds),
-                blendMode: BlendMode.dstIn,
-                child: Text(
-                  preview,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(spaceMd, spaceSm, spaceSm, spaceSm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Track + reading time row
+          Row(
+            children: [
+              _TrackLabel(trackName: post.trackName, color: trackColor),
+              const Spacer(),
+              if (words > 30)
+                Text(
+                  '$readMin min',
                   style: TextStyle(
-                    color: colorTextPrimary.withValues(alpha: 0.6),
-                    fontSize: fontSizeXs,
-                    height: 1.5,
+                    color: colorTextMuted.withValues(alpha: 0.5),
+                    fontSize: 9,
                   ),
-                  maxLines: bodyMaxLines,
-                  overflow: TextOverflow.clip,
                 ),
+            ],
+          ),
+          const SizedBox(height: spaceXs),
+          // Title
+          if (post.title != null && post.title!.isNotEmpty) ...[
+            Text(
+              post.title!,
+              style: const TextStyle(
+                color: colorTextPrimary,
+                fontSize: fontSizeSm,
+                fontWeight: weightBold,
+                height: 1.3,
+                letterSpacing: -0.2,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: spaceXxs),
+          ],
+          // Body preview with fade
+          Expanded(
+            child: ShaderMask(
+              shaderCallback: (bounds) => LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.white,
+                  Colors.white,
+                  Colors.white.withValues(alpha: 0),
+                ],
+                stops: const [0.0, 0.7, 1.0],
+              ).createShader(bounds),
+              blendMode: BlendMode.dstIn,
+              child: Text(
+                preview,
+                style: TextStyle(
+                  color: colorTextPrimary.withValues(alpha: 0.6),
+                  fontSize: fontSizeXs,
+                  height: 1.5,
+                ),
+                maxLines: bodyMaxLines,
+                overflow: TextOverflow.clip,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
