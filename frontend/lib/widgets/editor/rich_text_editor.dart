@@ -7,9 +7,15 @@ import '../../theme/gleisner_tokens.dart';
 ///
 /// Used for text-type posts: blog, diary, essay, tech writing.
 /// Provides formatting toolbar and renders Quill Delta content.
-class RichTextEditor extends StatelessWidget {
+///
+/// When [toolbarCollapsed] is true, the toolbar starts hidden and a
+/// small format toggle button appears. Tapping it reveals the full
+/// toolbar. This keeps the editor lightweight for quick posts while
+/// supporting rich formatting on demand.
+class RichTextEditor extends StatefulWidget {
   final QuillController controller;
   final bool showToolbar;
+  final bool toolbarCollapsed;
   final String? placeholder;
   final FocusNode? focusNode;
   final VoidCallback? onImageInsert;
@@ -19,6 +25,7 @@ class RichTextEditor extends StatelessWidget {
     super.key,
     required this.controller,
     this.showToolbar = true,
+    this.toolbarCollapsed = false,
     this.placeholder,
     this.focusNode,
     this.onImageInsert,
@@ -26,13 +33,60 @@ class RichTextEditor extends StatelessWidget {
   });
 
   @override
+  State<RichTextEditor> createState() => _RichTextEditorState();
+}
+
+class _RichTextEditorState extends State<RichTextEditor> {
+  late bool _toolbarExpanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _toolbarExpanded = !widget.toolbarCollapsed;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final showToolbarArea = widget.showToolbar && !widget.controller.readOnly;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (showToolbar && !controller.readOnly) _buildToolbar(),
+        if (showToolbarArea) ...[
+          if (_toolbarExpanded) _buildToolbar() else _buildToolbarToggle(),
+        ],
         Flexible(child: _buildEditor()),
       ],
+    );
+  }
+
+  Widget _buildToolbarToggle() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: colorSurface2,
+        border: Border(bottom: BorderSide(color: colorBorder)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: spaceSm, vertical: 2),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => setState(() => _toolbarExpanded = true),
+            icon: const Icon(Icons.text_format, size: 20),
+            color: colorInteractiveMuted,
+            tooltip: 'Show formatting',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+          const SizedBox(width: spaceXs),
+          Text(
+            'Aa',
+            style: TextStyle(
+              color: colorInteractiveMuted,
+              fontSize: fontSizeSm,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -42,76 +96,92 @@ class RichTextEditor extends StatelessWidget {
         color: colorSurface2,
         border: Border(bottom: BorderSide(color: colorBorder)),
       ),
-      child: QuillSimpleToolbar(
-        controller: controller,
-        config: QuillSimpleToolbarConfig(
-          showAlignmentButtons: false,
-          showBackgroundColorButton: false,
-          showCenterAlignment: false,
-          showClearFormat: false,
-          showColorButton: false,
-          showDirection: false,
-          showDividers: false,
-          showFontFamily: false,
-          showFontSize: false,
-          showIndent: false,
-          showJustifyAlignment: false,
-          showLeftAlignment: false,
-          showRightAlignment: false,
-          showSearchButton: false,
-          showSmallButton: false,
-          showStrikeThrough: false,
-          showSubscript: false,
-          showSuperscript: false,
-          showUndo: false,
-          showRedo: false,
-          showBoldButton: true,
-          showItalicButton: true,
-          showUnderLineButton: false,
-          showHeaderStyle: true,
-          showListBullets: true,
-          showListNumbers: true,
-          showCodeBlock: true,
-          showInlineCode: true,
-          showQuote: true,
-          showLink: true,
-          showClipboardCut: false,
-          showClipboardCopy: false,
-          showClipboardPaste: false,
-          customButtons: [
-            if (onImageInsert != null)
-              QuillToolbarCustomButtonOptions(
-                icon: const Icon(
-                  Icons.image_outlined,
-                  size: 18,
-                  color: colorInteractive,
+      child: Row(
+        children: [
+          Expanded(
+            child: QuillSimpleToolbar(
+              controller: widget.controller,
+              config: QuillSimpleToolbarConfig(
+                showAlignmentButtons: false,
+                showBackgroundColorButton: false,
+                showCenterAlignment: false,
+                showClearFormat: false,
+                showColorButton: false,
+                showDirection: false,
+                showDividers: false,
+                showFontFamily: false,
+                showFontSize: false,
+                showIndent: false,
+                showJustifyAlignment: false,
+                showLeftAlignment: false,
+                showRightAlignment: false,
+                showSearchButton: false,
+                showSmallButton: false,
+                showStrikeThrough: false,
+                showSubscript: false,
+                showSuperscript: false,
+                showUndo: false,
+                showRedo: false,
+                showBoldButton: true,
+                showItalicButton: true,
+                showUnderLineButton: false,
+                showHeaderStyle: true,
+                showListBullets: true,
+                showListNumbers: true,
+                showCodeBlock: true,
+                showInlineCode: true,
+                showQuote: true,
+                showLink: true,
+                showClipboardCut: false,
+                showClipboardCopy: false,
+                showClipboardPaste: false,
+                customButtons: [
+                  if (widget.onImageInsert != null)
+                    QuillToolbarCustomButtonOptions(
+                      icon: const Icon(
+                        Icons.image_outlined,
+                        size: 18,
+                        color: colorInteractive,
+                      ),
+                      tooltip: 'Insert image',
+                      onPressed: widget.onImageInsert!,
+                    ),
+                ],
+                buttonOptions: const QuillSimpleToolbarButtonOptions(
+                  base: QuillToolbarBaseButtonOptions(
+                    iconSize: 18,
+                    iconButtonFactor: 1.2,
+                  ),
                 ),
-                tooltip: 'Insert image',
-                onPressed: onImageInsert!,
               ),
-          ],
-          buttonOptions: const QuillSimpleToolbarButtonOptions(
-            base: QuillToolbarBaseButtonOptions(
-              iconSize: 18,
-              iconButtonFactor: 1.2,
             ),
           ),
-        ),
+          // Collapse button
+          if (widget.toolbarCollapsed)
+            IconButton(
+              onPressed: () => setState(() => _toolbarExpanded = false),
+              icon: const Icon(Icons.keyboard_arrow_up, size: 18),
+              color: colorInteractiveMuted,
+              tooltip: 'Hide formatting',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+        ],
       ),
     );
   }
 
   Widget _buildEditor() {
     return QuillEditor(
-      controller: controller,
-      focusNode: focusNode ?? FocusNode(),
+      controller: widget.controller,
+      focusNode: widget.focusNode ?? FocusNode(),
       scrollController: ScrollController(),
       config: QuillEditorConfig(
-        autoFocus: autofocus,
+        autoFocus: widget.autofocus,
         expands: false,
         scrollable: true,
-        showCursor: !controller.readOnly,
-        placeholder: placeholder,
+        showCursor: !widget.controller.readOnly,
+        placeholder: widget.placeholder,
         padding: const EdgeInsets.all(spaceLg),
         customStyles: _editorStyles(),
       ),

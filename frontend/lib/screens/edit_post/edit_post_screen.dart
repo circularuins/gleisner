@@ -387,7 +387,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
       ),
       const SizedBox(height: spaceMd),
       SizedBox(
-        height: 300,
+        height: 400,
         child: Container(
           decoration: BoxDecoration(
             border: Border.all(color: colorBorder),
@@ -397,7 +397,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             borderRadius: BorderRadius.circular(radiusSm),
             child: RichTextEditor(
               controller: _quillController,
-              placeholder: 'Content',
+              placeholder: "What's on your mind?",
+              toolbarCollapsed: true,
             ),
           ),
         ),

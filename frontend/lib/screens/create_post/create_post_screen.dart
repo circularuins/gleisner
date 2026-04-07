@@ -655,7 +655,7 @@ class _FormStep extends ConsumerWidget {
       const SizedBox(height: spaceMd),
       // Rich text editor for the body
       SizedBox(
-        height: 300,
+        height: 400,
         child: Container(
           decoration: BoxDecoration(
             border: Border.all(color: colorBorder),
@@ -665,8 +665,9 @@ class _FormStep extends ConsumerWidget {
             borderRadius: BorderRadius.circular(radiusSm),
             child: RichTextEditor(
               controller: quillController,
-              placeholder: 'Write something...',
+              placeholder: "What's on your mind?",
               autofocus: true,
+              toolbarCollapsed: true,
             ),
           ),
         ),
