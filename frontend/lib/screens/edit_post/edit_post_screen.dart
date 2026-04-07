@@ -73,6 +73,19 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Prevent clearing media file for non-text types
+    if (widget.post.mediaType != MediaType.text &&
+        _mediaUrlController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Media file is required for this post type'),
+          backgroundColor: colorError,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
       _error = null;

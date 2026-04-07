@@ -53,6 +53,20 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Require media file for non-text types
+    final mediaType = ref.read(createPostProvider).selectedMediaType;
+    if (mediaType != null &&
+        mediaType != MediaType.text &&
+        _mediaUrlController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please upload a file before posting'),
+          backgroundColor: colorError,
+        ),
+      );
+      return;
+    }
+
     final result = await ref
         .read(createPostProvider.notifier)
         .submit(

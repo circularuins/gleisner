@@ -194,6 +194,14 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Body must be 10000 characters or less");
       }
 
+      // Require mediaUrl for image, video, audio, and link types
+      if (
+        args.mediaType !== "text" &&
+        (args.mediaUrl == null || args.mediaUrl.trim() === "")
+      ) {
+        throw new GraphQLError("Media file is required for this post type");
+      }
+
       // Validate mediaUrl: link type accepts any URL, others require R2 domain
       if (args.mediaUrl != null) {
         if (args.mediaType === "link") {
@@ -342,6 +350,18 @@ builder.mutationFields((t) => ({
       }
       if (args.thumbnailUrl != null) {
         validateMediaUrl(args.thumbnailUrl);
+      }
+
+      // Prevent clearing mediaUrl for non-text types
+      if (args.mediaUrl !== undefined) {
+        const effectiveType =
+          (args.mediaType as string | undefined) ?? post.mediaType;
+        if (
+          effectiveType !== "text" &&
+          (args.mediaUrl == null || args.mediaUrl.trim() === "")
+        ) {
+          throw new GraphQLError("Media file is required for this post type");
+        }
       }
 
       // Validate duration
