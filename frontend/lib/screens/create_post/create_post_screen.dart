@@ -463,52 +463,73 @@ class _FormStep extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Track + MediaType indicator
+            // Track + MediaType + Visibility — compact header row
             Row(
               children: [
                 if (state.selectedTrack != null)
-                  Chip(
-                    avatar: CircleAvatar(
-                      backgroundColor: state.selectedTrack!.displayColor,
-                      radius: 6,
-                    ),
-                    label: Text(state.selectedTrack!.name),
-                    visualDensity: VisualDensity.compact,
+                  _TagPill(
+                    color: state.selectedTrack!.displayColor,
+                    label: state.selectedTrack!.name,
                   ),
                 const SizedBox(width: spaceSm),
-                Chip(
-                  label: Text(mediaType.name),
-                  visualDensity: VisualDensity.compact,
+                _TagPill(
+                  icon: _mediaTypeIcon(mediaType),
+                  label: mediaType.name,
+                ),
+                const Spacer(),
+                // Visibility toggle
+                GestureDetector(
+                  onTap: () {
+                    final next = state.visibility == 'public'
+                        ? 'draft'
+                        : 'public';
+                    ref.read(createPostProvider.notifier).setVisibility(next);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: spaceSm,
+                      vertical: spaceXs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: state.visibility == 'public'
+                          ? colorAccentGold.withValues(alpha: opacitySubtle)
+                          : colorSurface2,
+                      borderRadius: BorderRadius.circular(radiusFull),
+                      border: Border.all(
+                        color: state.visibility == 'public'
+                            ? colorAccentGold.withValues(alpha: opacityBorder)
+                            : colorBorder,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          state.visibility == 'public'
+                              ? Icons.public
+                              : Icons.edit_note,
+                          size: 14,
+                          color: state.visibility == 'public'
+                              ? colorAccentGold
+                              : colorTextMuted,
+                        ),
+                        const SizedBox(width: spaceXs),
+                        Text(
+                          state.visibility == 'public' ? 'Public' : 'Draft',
+                          style: TextStyle(
+                            fontSize: fontSizeSm,
+                            color: state.visibility == 'public'
+                                ? colorAccentGold
+                                : colorTextMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: spaceLg),
-
-            // Visibility toggle (important — shown before content fields)
-            Row(
-              children: [
-                Text('Visibility', style: theme.textTheme.titleSmall),
-                const SizedBox(width: spaceLg),
-                ChoiceChip(
-                  label: const Text('Public'),
-                  selected: state.visibility == 'public',
-                  onSelected: (_) => ref
-                      .read(createPostProvider.notifier)
-                      .setVisibility('public'),
-                  visualDensity: VisualDensity.compact,
-                ),
-                const SizedBox(width: spaceSm),
-                ChoiceChip(
-                  label: const Text('Draft'),
-                  selected: state.visibility == 'draft',
-                  onSelected: (_) => ref
-                      .read(createPostProvider.notifier)
-                      .setVisibility('draft'),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-            const SizedBox(height: spaceLg),
+            const SizedBox(height: spaceMd),
 
             // Media-type-specific fields
             ..._buildContentFields(mediaType, theme, ref),
@@ -579,15 +600,35 @@ class _FormStep extends ConsumerWidget {
             ],
 
             // Submit
-            FilledButton(
-              onPressed: state.isSubmitting ? null : onSubmit,
-              child: state.isSubmitting
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Post'),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: FilledButton(
+                onPressed: state.isSubmitting ? null : onSubmit,
+                style: FilledButton.styleFrom(
+                  backgroundColor: colorAccentGold,
+                  foregroundColor: colorSurface0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(radiusMd),
+                  ),
+                ),
+                child: state.isSubmitting
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colorSurface0,
+                        ),
+                      )
+                    : const Text(
+                        'Post',
+                        style: TextStyle(
+                          fontWeight: weightSemibold,
+                          fontSize: fontSizeMd,
+                        ),
+                      ),
+              ),
             ),
           ],
         ),
@@ -642,37 +683,39 @@ class _FormStep extends ConsumerWidget {
     return [
       TextFormField(
         controller: titleController,
-        decoration: InputDecoration(
-          labelText: 'Title (optional)',
-          border: const OutlineInputBorder(),
-          labelStyle: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withAlpha(128),
+        decoration: const InputDecoration(
+          hintText: 'Title',
+          hintStyle: TextStyle(
+            color: colorTextMuted,
+            fontSize: fontSizeLg,
+            fontWeight: weightMedium,
           ),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: spaceLg,
+            vertical: spaceSm,
+          ),
+          counterText: '',
         ),
         maxLength: 100,
-        style: theme.textTheme.titleMedium,
+        style: const TextStyle(
+          color: colorTextPrimary,
+          fontSize: fontSizeLg,
+          fontWeight: weightMedium,
+        ),
       ),
-      const SizedBox(height: spaceMd),
+      const Divider(color: colorBorder, height: 1),
       // Rich text editor for the body
       SizedBox(
         height: 400,
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: colorBorder),
-            borderRadius: BorderRadius.circular(radiusSm),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(radiusSm),
-            child: RichTextEditor(
-              controller: quillController,
-              placeholder: "What's on your mind?",
-              autofocus: true,
-              toolbarCollapsed: true,
-            ),
-          ),
+        child: RichTextEditor(
+          controller: quillController,
+          placeholder: "What's on your mind?",
+          autofocus: true,
+          toolbarCollapsed: true,
         ),
       ),
-      const SizedBox(height: spaceLg),
+      const SizedBox(height: spaceMd),
     ];
   }
 
@@ -1044,4 +1087,61 @@ class _ConnectionsSection extends StatelessWidget {
       ],
     );
   }
+}
+
+class _TagPill extends StatelessWidget {
+  final Color? color;
+  final IconData? icon;
+  final String label;
+
+  const _TagPill({this.color, this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: spaceSm,
+        vertical: spaceXs,
+      ),
+      decoration: BoxDecoration(
+        color: colorSurface2,
+        borderRadius: BorderRadius.circular(radiusFull),
+        border: Border.all(color: colorBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (color != null)
+            Container(
+              width: 10,
+              height: 10,
+              margin: const EdgeInsets.only(right: spaceXs),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+          if (icon != null)
+            Padding(
+              padding: const EdgeInsets.only(right: spaceXs),
+              child: Icon(icon, size: 14, color: colorTextMuted),
+            ),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: fontSizeSm,
+              color: colorTextSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+IconData _mediaTypeIcon(MediaType type) {
+  return switch (type) {
+    MediaType.text => Icons.text_fields,
+    MediaType.image => Icons.image_outlined,
+    MediaType.video => Icons.videocam_outlined,
+    MediaType.audio => Icons.headphones_outlined,
+    MediaType.link => Icons.link,
+  };
 }
