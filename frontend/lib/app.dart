@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -45,6 +46,9 @@ class GleisnerApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: _gleisnerTheme,
         routerConfig: router,
+        localizationsDelegates: const [
+          FlutterQuillLocalizations.delegate,
+        ],
       ),
     );
   }

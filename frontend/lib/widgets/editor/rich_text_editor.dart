@@ -28,9 +28,10 @@ class RichTextEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         if (showToolbar && !controller.readOnly) _buildToolbar(),
-        Expanded(child: _buildEditor()),
+        Flexible(child: _buildEditor()),
       ],
     );
   }
