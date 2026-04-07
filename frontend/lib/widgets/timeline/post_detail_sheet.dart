@@ -1003,9 +1003,9 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Spacer(),
-            if (post.body != null)
+            if (post.plainTextPreview != null)
               Text(
-                post.body!,
+                post.plainTextPreview!,
                 style: const TextStyle(
                   color: colorTextSecondary,
                   fontSize: fontSizeLg,
