@@ -193,7 +193,9 @@ class _RichTextEditorState extends State<RichTextEditor> {
   }
 
   Widget _buildEditor() {
-    return QuillEditor(
+    return Container(
+      color: colorSurface1,
+      child: QuillEditor(
       controller: widget.controller,
       focusNode: widget.focusNode ?? FocusNode(),
       scrollController: ScrollController(),
@@ -205,6 +207,7 @@ class _RichTextEditorState extends State<RichTextEditor> {
         placeholder: widget.placeholder,
         padding: const EdgeInsets.all(spaceLg),
         customStyles: _editorStyles(),
+      ),
       ),
     );
   }
