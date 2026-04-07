@@ -250,6 +250,80 @@ ref.invalidate(discoverProvider);
 
 invalidate を忘れると、次にログインしたユーザーに前ユーザーのデータが表示される。
 
+### build() 内でリソースオブジェクトを生成しない
+
+**`build()` メソッド内で `FocusNode()`、`ScrollController()`、`QuillController(...)` 等の Disposable オブジェクトを new しないこと。** リビルドのたびに古いインスタンスがリークし、メモリ消費が増え続ける。
+
+```dart
+// ❌ build() 内で毎回生成 — dispose されない
+Widget build(BuildContext context) {
+  return QuillEditor(
+    controller: QuillController(...),  // リーク
+    focusNode: FocusNode(),            // リーク
+    scrollController: ScrollController(), // リーク
+  );
+}
+
+// ✅ State フィールドに保持、initState/dispose で管理
+late final QuillController _quillController;
+late final FocusNode _focusNode;
+late final ScrollController _scrollController;
+
+@override
+void initState() {
+  super.initState();
+  _quillController = QuillController(...);
+  _focusNode = FocusNode();
+  _scrollController = ScrollController();
+}
+
+@override
+void dispose() {
+  _quillController.dispose();
+  _focusNode.dispose();
+  _scrollController.dispose();
+  super.dispose();
+}
+```
+
+対象: `AnimationController`, `TextEditingController`, `FocusNode`, `ScrollController`, `QuillController` 等の `dispose()` を持つ全クラス。
+
+PR #163 の教訓: detail sheet の build() 内で3種類のリソースを毎回 new し、レビューで Critical 指摘を受けた。
+
+### 非対称 Border と BorderRadius は同時に使えない
+
+**Flutter の `BoxDecoration` で `borderRadius` と非対称 `Border`（辺ごとに太さ/色が異なる）を組み合わせると、レンダリングが壊れる（真っ黒になる）。**
+
+```dart
+// ❌ 非対称 Border + borderRadius → 真っ黒
+Container(
+  decoration: BoxDecoration(
+    borderRadius: BorderRadius.circular(8),
+    border: Border(
+      left: BorderSide(color: Colors.gold, width: 3), // 非対称
+      top: BorderSide(color: Colors.grey),
+    ),
+  ),
+)
+
+// ✅ 外側は均一 Border + borderRadius、内側で非対称アクセント
+Container(
+  decoration: BoxDecoration(
+    borderRadius: BorderRadius.circular(8),
+    border: Border.all(color: Colors.grey),  // 均一
+  ),
+  clipBehavior: Clip.antiAlias,
+  child: Container(
+    decoration: BoxDecoration(
+      border: Border(left: BorderSide(color: Colors.gold, width: 3)),
+    ),
+    child: content,
+  ),
+)
+```
+
+PR #163 の教訓: テキストノードの左ボーダーアクセントを外側コンテナに設定したところ全ノードが真っ黒に。
+
 ### ボトムシートからボトムシートを開く場合
 
 **`onSelected` コールバック内で `Navigator.pop(context, value)` を呼ばないこと。** picker 系ウィジェット（`RelatedPostPicker` 等）は内部で `Navigator.pop(context)` を呼ぶため、外から追加で pop すると二重 pop になり、親のボトムシートまで閉じてしまう。
