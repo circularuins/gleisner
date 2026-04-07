@@ -213,6 +213,10 @@ builder.mutationFields((t) => ({
       let bodyValue: unknown = null;
       if (args.body != null) {
         if (bodyFormat === "delta") {
+          // Size check before parse to prevent DoS via large payload
+          if (args.body.length > 102400) {
+            throw new GraphQLError("Body must be 100KB or less");
+          }
           // Parse and validate Delta JSON
           let ops: unknown[];
           try {
@@ -223,8 +227,8 @@ builder.mutationFields((t) => ({
           if (!Array.isArray(ops)) {
             throw new GraphQLError("Delta must be a JSON array");
           }
-          if (args.body.length > 102400) {
-            throw new GraphQLError("Body must be 100KB or less");
+          if (ops.length > 10000) {
+            throw new GraphQLError("Delta ops limit exceeded");
           }
           // Validate image URLs in embeds
           for (const op of ops) {
@@ -402,8 +406,21 @@ builder.mutationFields((t) => ({
         if (effectiveFormat !== "plain" && effectiveFormat !== "delta") {
           throw new GraphQLError("bodyFormat must be 'plain' or 'delta'");
         }
+        // Changing bodyFormat without body would leave DB in inconsistent state
+        if (
+          args.bodyFormat !== undefined &&
+          args.bodyFormat !== (post.bodyFormat ?? "plain") &&
+          args.body === undefined
+        ) {
+          throw new GraphQLError(
+            "body must be provided when changing bodyFormat",
+          );
+        }
         if (args.body != null) {
           if (effectiveFormat === "delta") {
+            if (args.body.length > 102400) {
+              throw new GraphQLError("Body must be 100KB or less");
+            }
             let ops: unknown[];
             try {
               ops = JSON.parse(args.body);
@@ -413,8 +430,8 @@ builder.mutationFields((t) => ({
             if (!Array.isArray(ops)) {
               throw new GraphQLError("Delta must be a JSON array");
             }
-            if (args.body.length > 102400) {
-              throw new GraphQLError("Body must be 100KB or less");
+            if (ops.length > 10000) {
+              throw new GraphQLError("Delta ops limit exceeded");
             }
             for (const op of ops) {
               if (
