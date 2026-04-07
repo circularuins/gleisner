@@ -3,13 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
-import '../../providers/discover_provider.dart';
 import '../../providers/guardian_provider.dart';
-import '../../providers/my_artist_provider.dart';
-import '../../providers/timeline_provider.dart';
-import '../../providers/tune_in_provider.dart';
-import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../utils/account_switch_helper.dart';
 
 /// Shell wrapper providing bottom navigation for the main app tabs.
 ///
@@ -44,22 +40,7 @@ class BottomNavShell extends ConsumerWidget {
                     .read(guardianProvider.notifier)
                     .switchBackToGuardian();
                 if (!success) return;
-                // Reload all user-specific providers after JWT switch
-                // (same pattern as profile_screen._reloadAfterSwitch)
-                ref.invalidate(myArtistProvider);
-                ref.invalidate(timelineProvider);
-                ref.invalidate(tuneInProvider);
-                ref.invalidate(discoverProvider);
-                ref.invalidate(unassignedPostsProvider);
-                await ref.read(myArtistProvider.notifier).load();
-                final myArtist = ref.read(myArtistProvider);
-                if (myArtist != null) {
-                  ref
-                      .read(timelineProvider.notifier)
-                      .loadArtist(myArtist.artistUsername);
-                }
-                ref.read(discoverProvider.notifier).loadInitial();
-                ref.read(tuneInProvider.notifier).loadMyTuneIns();
+                await reloadAfterAccountSwitch(ref);
                 ref
                     .read(guardianProvider.notifier)
                     .loadChildren(forceReload: true);

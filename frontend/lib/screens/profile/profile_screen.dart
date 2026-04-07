@@ -13,6 +13,7 @@ import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../providers/tutorial_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
+import '../../utils/account_switch_helper.dart';
 import '../../theme/gleisner_tokens.dart';
 import 'create_child_sheet.dart';
 import 'edit_profile_sheet.dart';
@@ -441,25 +442,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ref.read(guardianProvider.notifier).loadChildren(forceReload: true);
   }
 
-  /// Invalidate all user-specific providers and reload data after JWT switch.
-  /// Similar to the artist registration flow — explicit reload is needed
-  /// because StatefulShellRoute tabs don't auto-refresh on invalidate.
   Future<void> _reloadAfterSwitch() async {
-    ref.invalidate(myArtistProvider);
-    ref.invalidate(timelineProvider);
-    ref.invalidate(tuneInProvider);
-    ref.invalidate(discoverProvider);
-    ref.invalidate(unassignedPostsProvider);
-    // Explicitly reload data with new JWT
-    await ref.read(myArtistProvider.notifier).load();
-    if (!mounted) return;
-    // Reload timeline for the new user's artist (if registered)
-    final myArtist = ref.read(myArtistProvider);
-    if (myArtist != null) {
-      ref.read(timelineProvider.notifier).loadArtist(myArtist.artistUsername);
-    }
-    ref.read(discoverProvider.notifier).loadInitial();
-    ref.read(tuneInProvider.notifier).loadMyTuneIns();
+    await reloadAfterAccountSwitch(ref);
   }
 
   static String _formatJoinDate(DateTime date) {
