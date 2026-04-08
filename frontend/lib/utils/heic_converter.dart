@@ -14,6 +14,8 @@ Future<Uint8List?> convertHeicToJpeg(
 }) async {
   final completer = Completer<Uint8List?>();
   Timer? timeout;
+  StreamSubscription<web.Event>? onLoadSub;
+  StreamSubscription<web.Event>? onErrorSub;
 
   final blob = web.Blob(
     [heicBytes.toJS].toJS,
@@ -23,12 +25,16 @@ Future<Uint8List?> convertHeicToJpeg(
 
   final img = web.HTMLImageElement()..src = blobUrl;
 
-  void cleanup() {
+  void finish(Uint8List? result) {
+    if (completer.isCompleted) return;
     timeout?.cancel();
+    onLoadSub?.cancel();
+    onErrorSub?.cancel();
     web.URL.revokeObjectURL(blobUrl);
+    completer.complete(result);
   }
 
-  img.onLoad.listen((_) {
+  onLoadSub = img.onLoad.listen((_) {
     try {
       // Compute scaled dimensions (preserve aspect ratio, cap at maxDimension)
       var w = img.naturalWidth;
@@ -55,12 +61,9 @@ Future<Uint8List?> convertHeicToJpeg(
           reader.onLoadEnd.listen((_) {
             final result = reader.result;
             if (result != null) {
-              final bytes = (result as JSArrayBuffer).toDart.asUint8List();
-              cleanup();
-              completer.complete(bytes);
+              finish((result as JSArrayBuffer).toDart.asUint8List());
             } else {
-              cleanup();
-              completer.complete(null);
+              finish(null);
             }
           });
           reader.readAsArrayBuffer(jpegBlob);
@@ -69,22 +72,17 @@ Future<Uint8List?> convertHeicToJpeg(
         quality.toJS,
       );
     } catch (_) {
-      cleanup();
-      completer.complete(null);
+      finish(null);
     }
   });
 
-  img.onError.listen((_) {
-    cleanup();
-    if (!completer.isCompleted) completer.complete(null);
+  onErrorSub = img.onError.listen((_) {
+    finish(null);
   });
 
   // Timeout after 10 seconds (cancellable to avoid holding references)
   timeout = Timer(const Duration(seconds: 10), () {
-    if (!completer.isCompleted) {
-      cleanup();
-      completer.complete(null);
-    }
+    finish(null);
   });
 
   return completer.future;

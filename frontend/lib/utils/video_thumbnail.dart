@@ -16,6 +16,9 @@ Future<VideoMeta> captureVideoThumbnail(
 }) async {
   final completer = Completer<VideoMeta>();
   Timer? timeout;
+  StreamSubscription<web.Event>? onLoadedDataSub;
+  StreamSubscription<web.Event>? onSeekedSub;
+  StreamSubscription<web.Event>? onErrorSub;
 
   // Create a blob URL from the video bytes
   final blob = web.Blob(
@@ -32,14 +35,22 @@ Future<VideoMeta> captureVideoThumbnail(
 
   int? durationSeconds;
 
-  void cleanup() {
+  void finish(Uint8List? thumbnail) {
+    if (completer.isCompleted) return;
     timeout?.cancel();
+    onLoadedDataSub?.cancel();
+    onSeekedSub?.cancel();
+    onErrorSub?.cancel();
     video.pause();
     video.src = '';
     web.URL.revokeObjectURL(blobUrl);
+    completer.complete((
+      thumbnail: thumbnail,
+      durationSeconds: durationSeconds,
+    ));
   }
 
-  video.onLoadedData.listen((_) {
+  onLoadedDataSub = video.onLoadedData.listen((_) {
     // Extract duration
     final dur = video.duration;
     if (dur.isFinite && dur > 0) {
@@ -49,7 +60,7 @@ Future<VideoMeta> captureVideoThumbnail(
     video.currentTime = 0.5;
   });
 
-  video.onSeeked.listen((_) {
+  onSeekedSub = video.onSeeked.listen((_) {
     try {
       final canvas = web.HTMLCanvasElement()
         ..width = video.videoWidth
@@ -64,18 +75,9 @@ Future<VideoMeta> captureVideoThumbnail(
           reader.onLoadEnd.listen((_) {
             final result = reader.result;
             if (result != null) {
-              final bytes = (result as JSArrayBuffer).toDart.asUint8List();
-              cleanup();
-              completer.complete((
-                thumbnail: bytes,
-                durationSeconds: durationSeconds,
-              ));
+              finish((result as JSArrayBuffer).toDart.asUint8List());
             } else {
-              cleanup();
-              completer.complete((
-                thumbnail: null,
-                durationSeconds: durationSeconds,
-              ));
+              finish(null);
             }
           });
           reader.readAsArrayBuffer(blob);
@@ -84,24 +86,17 @@ Future<VideoMeta> captureVideoThumbnail(
         0.75.toJS,
       );
     } catch (_) {
-      cleanup();
-      completer.complete((thumbnail: null, durationSeconds: durationSeconds));
+      finish(null);
     }
   });
 
-  video.onError.listen((_) {
-    cleanup();
-    if (!completer.isCompleted) {
-      completer.complete((thumbnail: null, durationSeconds: durationSeconds));
-    }
+  onErrorSub = video.onError.listen((_) {
+    finish(null);
   });
 
   // Timeout after 10 seconds (cancellable to avoid holding references)
   timeout = Timer(const Duration(seconds: 10), () {
-    if (!completer.isCompleted) {
-      cleanup();
-      completer.complete((thumbnail: null, durationSeconds: durationSeconds));
-    }
+    finish(null);
   });
 
   // Trigger load

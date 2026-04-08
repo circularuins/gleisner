@@ -146,6 +146,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 _mediaUrlController.clear();
                 _quillController.clear();
                 _thumbnailUrl = null;
+                _durationSeconds = null;
                 _eventAt = null;
                 ref.read(createPostProvider.notifier).clearFormState();
               }
