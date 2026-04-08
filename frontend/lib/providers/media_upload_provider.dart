@@ -65,19 +65,16 @@ String? mimeFromBytes(Uint8List bytes) {
   if (bytes.length >= 12 && _matchesAt(bytes, 4, _ftypMagic)) {
     final brand = String.fromCharCodes(bytes.sublist(8, 12));
     // Audio brands: M4A (audio), M4B (audiobook), M4P (protected audio)
-    const audioBrands = {'M4A ', 'M4B ', 'M4P '};
-    if (audioBrands.any((b) => brand.startsWith(b.trimRight()))) {
+    if (brand.startsWith('M4A') ||
+        brand.startsWith('M4B') ||
+        brand.startsWith('M4P')) {
       return 'audio/mp4';
     }
     // HEIC/HEIF brands (ISO 14496-12)
     const heicBrands = {'heic', 'heix', 'mif1', 'msf1', 'heis', 'hevc', 'hevx'};
     if (heicBrands.contains(brand)) return 'image/heic';
-    // Known video brands; unknown brands return null to avoid misclassification
-    const videoBrands = {'isom', 'iso2', 'mp41', 'mp42', 'avc1', 'qt  '};
-    if (videoBrands.any((b) => brand.startsWith(b.trimRight()))) {
-      return 'video/mp4';
-    }
-    return null;
+    // Default: treat remaining ftyp brands (isom, mp41, M4V, f4v, etc.) as video
+    return 'video/mp4';
   }
 
   // WebM (EBML header)
@@ -166,6 +163,16 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       // On iOS/Android native, image_picker already converts to JPEG, so
       // this branch only triggers on Web when a raw .heic file is selected.
       if (contentType == 'image/heic' || contentType == 'image/heif') {
+        if (!kIsWeb) {
+          // convertHeicToJpeg uses dart:js_interop (Web-only).
+          // On native platforms, image_picker should already return JPEG.
+          // If HEIC bytes reach here on native, reject rather than upload raw HEIC.
+          state = const MediaUploadState(
+            error:
+                'HEIC format is not supported. Please select a JPEG or PNG image.',
+          );
+          return null;
+        }
         final jpegBytes = await convertHeicToJpeg(bytes);
         if (disposed) return null;
         if (jpegBytes == null) {
