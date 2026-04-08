@@ -46,8 +46,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     _bodyController.dispose();
     _mediaUrlController.dispose();
     _quillController.dispose();
-    // Reset provider state when leaving the screen
-    ref.read(createPostProvider.notifier).reset();
+    // Provider reset is handled in _submit() success path.
+    // autoDispose cleans up when no watchers remain.
     super.dispose();
   }
 
@@ -128,6 +128,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       final notifier = ref.read(timelineProvider.notifier);
       notifier.ensureTrackSelected(postedTrack.id);
       notifier.addPost(post);
+      // Reset provider state before navigating away.
+      // dispose() also calls reset(), but autoDispose + ref.read in dispose
+      // can race — explicit reset here ensures clean state for next visit.
+      ref.read(createPostProvider.notifier).reset();
       if (mounted) context.go('/timeline');
     }
   }

@@ -374,9 +374,14 @@ class _TextContent extends StatelessWidget {
           // Track + reading time row
           Row(
             children: [
-              _TrackLabel(trackName: post.trackName, color: trackColor),
-              const Spacer(),
-              if (readMin > 0)
+              Flexible(
+                child: _TrackLabel(
+                  trackName: post.trackName,
+                  color: trackColor,
+                ),
+              ),
+              if (readMin > 0) ...[
+                const SizedBox(width: spaceXs),
                 Text(
                   '$readMin min',
                   style: TextStyle(
@@ -384,6 +389,7 @@ class _TextContent extends StatelessWidget {
                     fontSize: 9,
                   ),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: spaceXs),
