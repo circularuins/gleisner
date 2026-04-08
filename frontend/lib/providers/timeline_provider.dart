@@ -552,6 +552,12 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     double? importance,
     String? visibility,
   }) async {
+    if (thumbnailUrl != null && clearThumbnail) {
+      debugPrint(
+        '[updatePost] thumbnailUrl and clearThumbnail are mutually exclusive',
+      );
+      return null;
+    }
     if (duration != null && clearDuration) {
       debugPrint(
         '[updatePost] duration and clearDuration are mutually exclusive',
