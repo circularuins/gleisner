@@ -552,10 +552,12 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     String? visibility,
   }) async {
     if (duration != null && clearDuration) {
-      throw ArgumentError('duration and clearDuration are mutually exclusive');
+      assert(false, 'duration and clearDuration are mutually exclusive');
+      return null;
     }
     if (eventAt != null && clearEventAt) {
-      throw ArgumentError('eventAt and clearEventAt are mutually exclusive');
+      assert(false, 'eventAt and clearEventAt are mutually exclusive');
+      return null;
     }
     try {
       // Only send trackId if it actually changed

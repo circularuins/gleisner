@@ -139,6 +139,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
     int? duration,
     DateTime? eventAt,
   }) async {
+    if (state.isSubmitting) return null;
     final track = state.selectedTrack;
     final mediaType = state.selectedMediaType;
     if (track == null || mediaType == null) return null;
