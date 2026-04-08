@@ -418,6 +418,22 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       ];
     }
 
+    // Audio with URL: title is in media overlay, skip it here
+    final isAudioWithUrl =
+        post.mediaType == MediaType.audio &&
+        post.mediaUrl != null &&
+        post.mediaUrl!.isNotEmpty;
+    if (isAudioWithUrl) {
+      return [
+        dateRow,
+        const SizedBox(height: spaceMd),
+        if (bodyWidget != null) ...[
+          bodyWidget,
+          const SizedBox(height: spaceLg),
+        ],
+      ];
+    }
+
     // Text & other types: date → title → body
     return [
       dateRow,
@@ -1299,71 +1315,145 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         post,
         trackColor,
         Container(
-          height: 160,
+          height: 220,
           clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(color: colorSurface1),
+          decoration: const BoxDecoration(color: colorSurface1),
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // SeedArt background (audio style already uses low alpha)
+              // SeedArt background
               LayoutBuilder(
                 builder: (context, constraints) => SeedArtCanvas(
                   width: constraints.maxWidth,
-                  height: 160,
+                  height: 220,
                   trackColor: trackColor,
                   seed: seed,
                   mediaType: MediaType.audio,
                 ),
               ),
-              // Player overlay
-              _AudioPlayer(url: post.mediaUrl!, trackColor: trackColor),
+              // Bottom gradient for text legibility
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 160,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          colorSurface1.withValues(alpha: 0.6),
+                          colorSurface1.withValues(alpha: 0.92),
+                        ],
+                        stops: const [0.0, 0.5, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Title overlay
+              if (post.title != null && post.title!.isNotEmpty)
+                Positioned(
+                  left: spaceLg,
+                  right: 56,
+                  bottom: 76,
+                  child: Text(
+                    post.title!,
+                    style: TextStyle(
+                      color: colorTextPrimary,
+                      fontSize: 18,
+                      fontWeight: weightSemibold,
+                      height: 1.3,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          blurRadius: 8,
+                        ),
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          blurRadius: 16,
+                        ),
+                      ],
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              // Player controls at bottom
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: _AudioPlayer(
+                  url: post.mediaUrl!,
+                  trackColor: trackColor,
+                  seed: seed,
+                ),
+              ),
             ],
           ),
         ),
       );
     }
+    // No URL: compact placeholder
     return _withBadges(
       post,
       trackColor,
       Container(
-        height: 120,
-        padding: const EdgeInsets.fromLTRB(spaceLg, 40, spaceLg, spaceLg),
+        height: 100,
+        padding: const EdgeInsets.fromLTRB(spaceLg, 0, spaceLg, spaceMd),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [trackColor.withValues(alpha: 0.08), colorSurface1],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [trackColor.withValues(alpha: 0.1), colorSurface1],
           ),
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Spacer(),
             Row(
               children: [
                 Container(
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: trackColor.withValues(alpha: 0.2),
+                    color: trackColor,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.play_arrow_rounded,
-                    color: trackColor,
-                    size: spaceXl,
+                    color: colorSurface1,
+                    size: 22,
                   ),
                 ),
                 const SizedBox(width: spaceMd),
-                if (post.formattedDuration != null)
+                Expanded(
+                  child: CustomPaint(
+                    size: const Size(double.infinity, 32),
+                    painter: _WaveProgressPainter(
+                      seed: seed,
+                      playedColor: trackColor.withValues(alpha: 0.3),
+                      unplayedColor: trackColor.withValues(alpha: 0.12),
+                      progress: 0,
+                    ),
+                  ),
+                ),
+                if (post.formattedDuration != null) ...[
+                  const SizedBox(width: spaceSm),
                   Text(
                     post.formattedDuration!,
                     style: TextStyle(
-                      color: trackColor,
-                      fontSize: fontSizeMd,
+                      color: trackColor.withValues(alpha: 0.8),
+                      fontSize: fontSizeSm,
                       fontWeight: weightSemibold,
                     ),
                   ),
+                ],
               ],
             ),
           ],
@@ -1802,7 +1892,12 @@ class _VideoPlayerState extends State<_VideoPlayer> {
 class _AudioPlayer extends StatefulWidget {
   final String url;
   final Color trackColor;
-  const _AudioPlayer({required this.url, required this.trackColor});
+  final String seed;
+  const _AudioPlayer({
+    required this.url,
+    required this.trackColor,
+    required this.seed,
+  });
 
   @override
   State<_AudioPlayer> createState() => _AudioPlayerState();
@@ -1811,6 +1906,7 @@ class _AudioPlayer extends StatefulWidget {
 class _AudioPlayerState extends State<_AudioPlayer> {
   late VideoPlayerController _controller;
   bool _initialized = false;
+  final _waveformKey = GlobalKey();
 
   @override
   void initState() {
@@ -1833,6 +1929,17 @@ class _AudioPlayerState extends State<_AudioPlayer> {
     super.dispose();
   }
 
+  void _seekToPosition(double localX) {
+    if (!_initialized) return;
+    final box = _waveformKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final progress = (localX / box.size.width).clamp(0.0, 1.0);
+    final total = _controller.value.duration;
+    _controller.seekTo(
+      Duration(milliseconds: (total.inMilliseconds * progress).round()),
+    );
+  }
+
   static String _formatDuration(Duration d) {
     final minutes = d.inMinutes;
     final seconds = d.inSeconds % 60;
@@ -1843,81 +1950,152 @@ class _AudioPlayerState extends State<_AudioPlayer> {
   Widget build(BuildContext context) {
     final position = _initialized ? _controller.value.position : Duration.zero;
     final total = _initialized ? _controller.value.duration : Duration.zero;
+    final progress = _initialized && total.inMilliseconds > 0
+        ? position.inMilliseconds / total.inMilliseconds
+        : 0.0;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(spaceLg, spaceLg, spaceLg, spaceLg),
+      padding: const EdgeInsets.fromLTRB(spaceLg, spaceXs, spaceLg, spaceMd),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Spacer(),
-          // Play/pause button — larger, centered
-          GestureDetector(
-            onTap: () {
-              if (!_initialized) return;
-              setState(() {
-                _controller.value.isPlaying
-                    ? _controller.pause()
-                    : _controller.play();
-              });
-            },
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: widget.trackColor.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: widget.trackColor.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Icon(
-                _initialized && _controller.value.isPlaying
-                    ? Icons.pause_rounded
-                    : Icons.play_arrow_rounded,
-                color: widget.trackColor,
-                size: 32,
-              ),
-            ),
-          ),
-          const SizedBox(height: spaceMd),
-          // Progress bar
-          if (_initialized)
-            VideoProgressIndicator(
-              _controller,
-              allowScrubbing: true,
-              colors: VideoProgressColors(
-                playedColor: widget.trackColor,
-                bufferedColor: widget.trackColor.withValues(alpha: 0.3),
-                backgroundColor: colorBorder,
-              ),
-            )
-          else
-            const LinearProgressIndicator(),
-          const SizedBox(height: spaceXs),
-          // Time labels
+          // Play button + waveform progress
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                _initialized ? _formatDuration(position) : '0:00',
-                style: TextStyle(
-                  color: colorTextMuted.withValues(alpha: 0.6),
-                  fontSize: fontSizeXs,
+              GestureDetector(
+                onTap: () {
+                  if (!_initialized) return;
+                  setState(() {
+                    _controller.value.isPlaying
+                        ? _controller.pause()
+                        : _controller.play();
+                  });
+                },
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: widget.trackColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _initialized && _controller.value.isPlaying
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    color: colorSurface1,
+                    size: 22,
+                  ),
                 ),
               ),
-              Text(
-                _initialized ? _formatDuration(total) : '0:00',
-                style: TextStyle(
-                  color: colorTextMuted.withValues(alpha: 0.6),
-                  fontSize: fontSizeXs,
+              const SizedBox(width: spaceMd),
+              Expanded(
+                child: GestureDetector(
+                  onTapDown: (d) => _seekToPosition(d.localPosition.dx),
+                  onHorizontalDragUpdate: (d) =>
+                      _seekToPosition(d.localPosition.dx),
+                  child: CustomPaint(
+                    key: _waveformKey,
+                    size: const Size(double.infinity, 36),
+                    painter: _WaveProgressPainter(
+                      seed: widget.seed,
+                      playedColor: widget.trackColor,
+                      unplayedColor: widget.trackColor.withValues(alpha: 0.2),
+                      progress: progress,
+                    ),
+                  ),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: spaceXs),
+          // Time labels — indented past play button
+          Padding(
+            padding: const EdgeInsets.only(left: 52),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _initialized ? _formatDuration(position) : '0:00',
+                  style: const TextStyle(
+                    color: colorTextMuted,
+                    fontSize: fontSizeSm,
+                  ),
+                ),
+                Text(
+                  _initialized ? _formatDuration(total) : '0:00',
+                  style: const TextStyle(
+                    color: colorTextMuted,
+                    fontSize: fontSizeSm,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+/// Wave bar progress painter — seed-deterministic bars colored by playback progress.
+class _WaveProgressPainter extends CustomPainter {
+  final String seed;
+  final Color playedColor;
+  final Color unplayedColor;
+  final double progress;
+
+  _WaveProgressPainter({
+    required this.seed,
+    required this.playedColor,
+    required this.unplayedColor,
+    required this.progress,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    var h = 0;
+    for (int i = 0; i < seed.length; i++) {
+      h = ((h << 5) - h + seed.codeUnitAt(i)) & 0xFFFFFF;
+    }
+
+    final barCount = (size.width / 3).floor().clamp(8, 200);
+    final gap = size.width / barCount;
+    final barWidth = gap * 0.65;
+    final playedPaint = Paint()..color = playedColor;
+    final unplayedPaint = Paint()..color = unplayedColor;
+    final progressX = size.width * progress;
+
+    for (int i = 0; i < barCount; i++) {
+      h = (h * 16807) % 2147483647;
+      final frac = (h & 0x7FFFFFFF) / 0x7FFFFFFF;
+      final barH = size.height * (0.15 + frac * 0.85);
+      final x = i * gap;
+      final y = (size.height - barH) / 2;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(x, y, barWidth, barH),
+          const Radius.circular(1.5),
+        ),
+        x < progressX ? playedPaint : unplayedPaint,
+      );
+    }
+
+    // Playback position marker
+    if (progress > 0 && progress < 1) {
+      canvas.drawRect(
+        Rect.fromLTWH(progressX - 0.5, 0, 1, size.height),
+        Paint()..color = playedColor.withValues(alpha: 0.8),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WaveProgressPainter old) =>
+      seed != old.seed ||
+      playedColor != old.playedColor ||
+      unplayedColor != old.unplayedColor ||
+      progress != old.progress;
 }
 
 // ── Image Full Screen ──
