@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +16,7 @@ import '../../widgets/common/error_banner.dart';
 import '../../widgets/common/event_at_picker.dart';
 import '../../widgets/common/related_post_picker.dart';
 import '../../widgets/editor/rich_text_editor.dart';
+import '../../widgets/editor/text_body_counter.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../providers/media_upload_provider.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
@@ -32,11 +34,14 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   final _mediaUrlController = TextEditingController();
   final _quillController = QuillController.basic();
   String? _thumbnailUrl;
+  int? _durationSeconds;
   DateTime? _eventAt;
   final _formKey = GlobalKey<FormState>();
+  int _pickMediaGeneration = 0;
 
   @override
   void dispose() {
+    _pickMediaGeneration++; // invalidate any in-flight upload
     _titleController.dispose();
     _bodyController.dispose();
     _mediaUrlController.dispose();
@@ -47,19 +52,23 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   Future<void> _pickMedia(MediaType mediaType) async {
+    final generation = ++_pickMediaGeneration;
     final result = await ref
         .read(mediaUploadProvider.notifier)
         .pickByMediaType(mediaType);
-    if (result != null && mounted) {
+    // Discard result if user navigated away or switched media type
+    if (result != null && mounted && generation == _pickMediaGeneration) {
       setState(() {
         _mediaUrlController.text = result.mediaUrl;
         _thumbnailUrl = result.thumbnailUrl;
+        _durationSeconds = result.durationSeconds;
       });
     }
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (ref.read(mediaUploadProvider).isUploading) return;
 
     // Require media file for non-text types
     final mediaType = ref.read(createPostProvider).selectedMediaType;
@@ -110,6 +119,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               ? null
               : _mediaUrlController.text,
           thumbnailUrl: _thumbnailUrl,
+          duration: _durationSeconds,
           eventAt: _eventAt,
         );
 
@@ -136,11 +146,13 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             if (state.step > 0) {
               // Clear form inputs when going back from form step
               if (state.step == 2) {
+                _pickMediaGeneration++; // invalidate any in-flight upload
                 _titleController.clear();
                 _bodyController.clear();
                 _mediaUrlController.clear();
                 _quillController.clear();
                 _thumbnailUrl = null;
+                _durationSeconds = null;
                 _eventAt = null;
                 ref.read(createPostProvider.notifier).clearFormState();
               }
@@ -615,7 +627,11 @@ class _FormStep extends ConsumerWidget {
               width: double.infinity,
               height: 44,
               child: FilledButton(
-                onPressed: state.isSubmitting ? null : onSubmit,
+                onPressed:
+                    state.isSubmitting ||
+                        ref.watch(mediaUploadProvider).isUploading
+                    ? null
+                    : onSubmit,
                 style: FilledButton.styleFrom(
                   backgroundColor: colorAccentGold,
                   foregroundColor: colorSurface0,
@@ -692,30 +708,38 @@ class _FormStep extends ConsumerWidget {
   // text: title (optional) + rich text editor
   List<Widget> _buildTextFields(ThemeData theme) {
     return [
-      TextFormField(
-        controller: titleController,
-        decoration: const InputDecoration(
-          hintText: 'Title',
-          hintStyle: TextStyle(
-            color: colorTextMuted,
+      Container(
+        decoration: const BoxDecoration(
+          color: colorSurface1,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(radiusMd)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: spaceLg),
+        child: TextFormField(
+          controller: titleController,
+          maxLength: 100,
+          maxLengthEnforcement: MaxLengthEnforcement.enforced,
+          decoration: InputDecoration(
+            hintText: 'Title',
+            hintStyle: const TextStyle(
+              color: colorTextMuted,
+              fontSize: fontSizeLg,
+              fontWeight: weightMedium,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: spaceMd),
+            counterStyle: TextStyle(
+              fontSize: fontSizeXs,
+              color: colorTextMuted.withValues(alpha: 0.5),
+            ),
+          ),
+          style: const TextStyle(
+            color: colorTextPrimary,
             fontSize: fontSizeLg,
             fontWeight: weightMedium,
           ),
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: spaceLg,
-            vertical: spaceSm,
-          ),
-          counterText: '',
-        ),
-        maxLength: 100,
-        style: const TextStyle(
-          color: colorTextPrimary,
-          fontSize: fontSizeLg,
-          fontWeight: weightMedium,
         ),
       ),
-      const Divider(color: colorBorder, height: 1),
+      const Divider(color: colorBorder, height: 1, indent: 0),
       // Rich text editor for the body
       SizedBox(
         height: 400,
@@ -726,20 +750,22 @@ class _FormStep extends ConsumerWidget {
           toolbarCollapsed: true,
         ),
       ),
+      // Character count for text body
+      TextBodyCounter(controller: quillController),
       const SizedBox(height: spaceMd),
     ];
   }
 
-  // image/video/audio: title + upload area + caption
+  // image/video/audio: upload area (hero) + title + caption
   List<Widget> _buildMediaFields(
     MediaType mediaType,
     ThemeData theme,
     WidgetRef ref,
   ) {
-    final (icon, label) = switch (mediaType) {
-      MediaType.image => (Icons.photo_library, 'Image'),
-      MediaType.video => (Icons.videocam, 'Video'),
-      MediaType.audio => (Icons.audiotrack, 'Audio'),
+    final (icon, _) = switch (mediaType) {
+      MediaType.image => (Icons.add_photo_alternate_outlined, 'Image'),
+      MediaType.video => (Icons.videocam_outlined, 'Video'),
+      MediaType.audio => (Icons.audiotrack_outlined, 'Audio'),
       _ => (Icons.attach_file, 'Media'),
     };
 
@@ -747,95 +773,123 @@ class _FormStep extends ConsumerWidget {
     final hasMedia = mediaUrlController.text.isNotEmpty;
 
     return [
-      // Upload area (first — pick media, then name it)
+      // Upload area — the hero of the form
       GestureDetector(
         onTap: uploadState.isUploading ? null : () => onPickMedia(mediaType),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 24),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: hasMedia
-                  ? colorAccentGold.withAlpha(128)
-                  : theme.colorScheme.outline.withAlpha(80),
-            ),
-            borderRadius: BorderRadius.circular(12),
-            color: theme.colorScheme.surfaceContainerHighest.withAlpha(30),
-          ),
-          child: uploadState.isUploading
-              ? Column(
-                  children: [
-                    const SizedBox(
-                      width: 32,
-                      height: 32,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    const SizedBox(height: spaceSm),
-                    Text(
-                      'Uploading...',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withAlpha(128),
-                      ),
-                    ),
-                  ],
-                )
-              : hasMedia
-              ? _buildMediaPreview(mediaType, theme)
-              : Column(
-                  children: [
-                    Icon(
-                      icon,
-                      size: 40,
-                      color: theme.colorScheme.onSurface.withAlpha(100),
-                    ),
-                    const SizedBox(height: spaceSm),
-                    Text(
-                      'Tap to upload $label',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withAlpha(128),
-                      ),
-                    ),
-                  ],
+        child: uploadState.isUploading
+            ? Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  color: colorSurface2,
+                  borderRadius: BorderRadius.circular(radiusLg),
                 ),
-        ),
+                child: const Center(
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colorTextMuted,
+                    ),
+                  ),
+                ),
+              )
+            : hasMedia
+            ? _buildMediaPreview(mediaType)
+            : Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  color: colorSurface2,
+                  borderRadius: BorderRadius.circular(radiusLg),
+                ),
+                child: Center(
+                  child: Icon(
+                    icon,
+                    size: 48,
+                    color: colorTextMuted.withValues(alpha: 0.4),
+                  ),
+                ),
+              ),
       ),
       if (uploadState.error != null) ...[
         const SizedBox(height: spaceSm),
         Text(
           uploadState.error!,
-          style: theme.textTheme.bodySmall?.copyWith(color: colorError),
+          style: const TextStyle(color: colorError, fontSize: fontSizeSm),
         ),
       ],
-      const SizedBox(height: spaceLg),
-      // Title (optional)
-      TextFormField(
-        controller: titleController,
-        decoration: InputDecoration(
-          labelText: 'Title (optional)',
-          border: const OutlineInputBorder(),
-          labelStyle: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withAlpha(128),
+      const SizedBox(height: spaceMd),
+      // Title
+      Container(
+        decoration: BoxDecoration(
+          color: colorSurface1,
+          borderRadius: BorderRadius.circular(radiusMd),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: spaceMd),
+        child: TextFormField(
+          controller: titleController,
+          maxLength: 100,
+          maxLengthEnforcement: MaxLengthEnforcement.enforced,
+          decoration: InputDecoration(
+            hintText: 'Title',
+            hintStyle: const TextStyle(
+              color: colorTextMuted,
+              fontSize: fontSizeLg,
+              fontWeight: weightMedium,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: spaceMd),
+            counterStyle: TextStyle(
+              fontSize: fontSizeXs,
+              color: colorTextMuted.withValues(alpha: 0.5),
+            ),
+          ),
+          style: const TextStyle(
+            color: colorTextPrimary,
+            fontSize: fontSizeLg,
+            fontWeight: weightMedium,
           ),
         ),
-        maxLength: 100,
-        style: theme.textTheme.titleMedium,
+      ),
+      const SizedBox(height: spaceSm),
+      // Caption
+      Container(
+        decoration: BoxDecoration(
+          color: colorSurface1,
+          borderRadius: BorderRadius.circular(radiusMd),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: spaceMd),
+        child: TextFormField(
+          controller: bodyController,
+          maxLines: 4,
+          minLines: 2,
+          maxLength: 500,
+          maxLengthEnforcement: MaxLengthEnforcement.enforced,
+          decoration: InputDecoration(
+            hintText: 'Write a caption...',
+            hintStyle: const TextStyle(
+              color: colorTextMuted,
+              fontSize: fontSizeMd,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: spaceSm),
+            counterStyle: TextStyle(
+              fontSize: fontSizeXs,
+              color: colorTextMuted.withValues(alpha: 0.5),
+            ),
+          ),
+          style: const TextStyle(
+            color: colorTextSecondary,
+            fontSize: fontSizeMd,
+            height: 1.5,
+          ),
+        ),
       ),
       const SizedBox(height: spaceMd),
-      // Caption
-      TextFormField(
-        controller: bodyController,
-        decoration: const InputDecoration(
-          labelText: 'Caption (optional)',
-          border: OutlineInputBorder(),
-          alignLabelWithHint: true,
-        ),
-        maxLines: 3,
-        maxLength: 500,
-      ),
-      const SizedBox(height: spaceLg),
     ];
   }
 
-  Widget _buildMediaPreview(MediaType mediaType, ThemeData theme) {
+  Widget _buildMediaPreview(MediaType mediaType) {
     final url = mediaUrlController.text;
     final showThumbnail =
         (mediaType == MediaType.image) ||
@@ -846,33 +900,83 @@ class _FormStep extends ConsumerWidget {
         ? url
         : (thumbnailUrl ?? '');
 
-    return Column(
+    return Stack(
       children: [
         if (showThumbnail)
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(radiusLg),
             child: Image.network(
               displayUrl,
-              height: 160,
+              width: double.infinity,
+              height: 240,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const Icon(
-                Icons.broken_image,
-                size: 40,
-                color: colorTextMuted,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  height: 240,
+                  decoration: BoxDecoration(
+                    color: colorSurface2,
+                    borderRadius: BorderRadius.circular(radiusLg),
+                  ),
+                );
+              },
+              errorBuilder: (_, _, _) => Container(
+                height: 240,
+                decoration: BoxDecoration(
+                  color: colorSurface2,
+                  borderRadius: BorderRadius.circular(radiusLg),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.broken_image_outlined,
+                    size: 40,
+                    color: colorTextMuted,
+                  ),
+                ),
               ),
             ),
           )
         else
-          Icon(
-            mediaType == MediaType.video ? Icons.videocam : Icons.audiotrack,
-            size: 40,
-            color: colorAccentGold,
+          Container(
+            height: 200,
+            decoration: BoxDecoration(
+              color: colorSurface2,
+              borderRadius: BorderRadius.circular(radiusLg),
+            ),
+            child: Center(
+              child: Icon(
+                mediaType == MediaType.video
+                    ? Icons.videocam_outlined
+                    : Icons.audiotrack_outlined,
+                size: 48,
+                color: colorAccentGold.withValues(alpha: 0.6),
+              ),
+            ),
           ),
-        const SizedBox(height: spaceSm),
-        Text(
-          'Tap to replace',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withAlpha(128),
+        // Replace badge
+        Positioned(
+          top: spaceSm,
+          right: spaceSm,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: spaceSm,
+              vertical: spaceXs,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(radiusSm),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
+                SizedBox(width: spaceXs),
+                Text(
+                  'Replace',
+                  style: TextStyle(color: Colors.white70, fontSize: fontSizeXs),
+                ),
+              ],
+            ),
           ),
         ),
       ],

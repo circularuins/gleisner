@@ -1,16 +1,25 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:js_interop';
+import 'dart:typed_data';
+
 import 'package:web/web.dart' as web;
 
-/// Capture the first frame of a video as a JPEG thumbnail (Web only).
+/// Result of video metadata extraction and thumbnail capture.
+typedef VideoMeta = ({Uint8List? thumbnail, int? durationSeconds});
+
+/// Capture the first frame of a video as a JPEG thumbnail and extract
+/// its duration in seconds (Web only).
 /// [mimeType] should match the actual video format (e.g. 'video/webm').
-/// Returns the JPEG bytes, or null on failure.
-Future<Uint8List?> captureVideoThumbnail(
+Future<VideoMeta> captureVideoThumbnail(
   Uint8List videoBytes, {
   String mimeType = 'video/mp4',
 }) async {
-  final completer = Completer<Uint8List?>();
+  final completer = Completer<VideoMeta>();
+  Timer? timeout;
+  StreamSubscription<web.Event>? onLoadedDataSub;
+  StreamSubscription<web.Event>? onSeekedSub;
+  StreamSubscription<web.Event>? onErrorSub;
+  StreamSubscription<web.Event>? readerSub;
 
   // Create a blob URL from the video bytes
   final blob = web.Blob(
@@ -25,18 +34,40 @@ Future<Uint8List?> captureVideoThumbnail(
     ..playsInline = true
     ..preload = 'auto';
 
-  void cleanup() {
+  int? durationSeconds;
+
+  void finish(Uint8List? thumbnail) {
+    if (completer.isCompleted) return;
+    timeout?.cancel();
+    onLoadedDataSub?.cancel();
+    onSeekedSub?.cancel();
+    onErrorSub?.cancel();
+    readerSub?.cancel();
     video.pause();
     video.src = '';
     web.URL.revokeObjectURL(blobUrl);
+    completer.complete((
+      thumbnail: thumbnail,
+      durationSeconds: durationSeconds,
+    ));
   }
 
-  video.onLoadedData.listen((_) {
-    // Seek to 0.5s to avoid black first frames
-    video.currentTime = 0.5;
+  onLoadedDataSub = video.onLoadedData.listen((_) {
+    // Extract duration
+    final dur = video.duration;
+    if (dur.isFinite && dur > 0) {
+      durationSeconds = dur.round().clamp(1, 86400);
+    }
+    // Seek to avoid black first frames; clamp to actual duration for short videos
+    try {
+      final seekTarget = (dur.isFinite && dur > 0) ? dur.clamp(0, 0.5) : 0;
+      video.currentTime = seekTarget.toDouble();
+    } catch (_) {
+      finish(null);
+    }
   });
 
-  video.onSeeked.listen((_) {
+  onSeekedSub = video.onSeeked.listen((_) {
     try {
       final canvas = web.HTMLCanvasElement()
         ..width = video.videoWidth
@@ -46,17 +77,19 @@ Future<Uint8List?> captureVideoThumbnail(
 
       // Convert canvas to JPEG blob
       canvas.toBlob(
-        ((web.Blob blob) {
+        ((web.Blob? blob) {
+          if (completer.isCompleted) return;
+          if (blob == null) {
+            finish(null);
+            return;
+          }
           final reader = web.FileReader();
-          reader.onLoadEnd.listen((_) {
+          readerSub = reader.onLoadEnd.listen((_) {
             final result = reader.result;
             if (result != null) {
-              final bytes = (result as JSArrayBuffer).toDart.asUint8List();
-              cleanup();
-              completer.complete(bytes);
+              finish((result as JSArrayBuffer).toDart.asUint8List());
             } else {
-              cleanup();
-              completer.complete(null);
+              finish(null);
             }
           });
           reader.readAsArrayBuffer(blob);
@@ -65,22 +98,17 @@ Future<Uint8List?> captureVideoThumbnail(
         0.75.toJS,
       );
     } catch (_) {
-      cleanup();
-      completer.complete(null);
+      finish(null);
     }
   });
 
-  video.onError.listen((_) {
-    cleanup();
-    if (!completer.isCompleted) completer.complete(null);
+  onErrorSub = video.onError.listen((_) {
+    finish(null);
   });
 
-  // Timeout after 10 seconds
-  Future.delayed(const Duration(seconds: 10), () {
-    if (!completer.isCompleted) {
-      cleanup();
-      completer.complete(null);
-    }
+  // Timeout after 10 seconds (cancellable to avoid holding references)
+  timeout = Timer(const Duration(seconds: 10), () {
+    finish(null);
   });
 
   // Trigger load

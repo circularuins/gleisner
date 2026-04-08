@@ -6,6 +6,7 @@ import '../../models/post.dart';
 import '../../models/timeline_item.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/constellation_layout.dart';
+import '../../utils/reading_time.dart';
 import 'post_detail_sheet.dart';
 import 'seed_art_painter.dart';
 
@@ -358,15 +359,12 @@ class _TextContent extends StatelessWidget {
   /// Long form: title-driven card with body preview and reading accent.
   Widget _buildLongForm(Post post, String preview, double totalH) {
     final bodyMaxLines = ((totalH - 50) / 14).floor().clamp(1, 8);
-    final readMin = _estimateReadingMinutes(preview);
+    final readMin = estimateReadingMinutes(preview);
 
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          left: BorderSide(
-            color: trackColor.withValues(alpha: 0.5),
-            width: 3,
-          ),
+          left: BorderSide(color: trackColor.withValues(alpha: 0.5), width: 3),
         ),
       ),
       padding: const EdgeInsets.fromLTRB(spaceMd, spaceSm, spaceSm, spaceSm),
@@ -438,22 +436,6 @@ class _TextContent extends StatelessWidget {
 }
 
 // --- Image: seed art (future: real image) ---
-/// Estimate reading time in minutes. Handles both English (word-based)
-/// and CJK (character-based) text. Returns 0 for very short text.
-int _estimateReadingMinutes(String text) {
-  if (text.length < 50) return 0;
-  // Count CJK characters (Chinese, Japanese, Korean)
-  final cjk = RegExp(r'[\u3000-\u9fff\uf900-\ufaff]');
-  final cjkCount = cjk.allMatches(text).length;
-  // Count English words (non-CJK, space-separated)
-  final nonCjk = text.replaceAll(cjk, ' ');
-  final wordCount =
-      nonCjk.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
-  // ~200 wpm English, ~400 cpm CJK
-  final minutes = (wordCount / 200) + (cjkCount / 400);
-  return minutes.ceil().clamp(0, 99);
-}
-
 class _ImageContent extends StatelessWidget {
   final PlacedNode node;
   final Color trackColor;
@@ -464,42 +446,78 @@ class _ImageContent extends StatelessWidget {
     final post = (node.item as PostItem).post;
     final seed = '${post.title ?? ''}${post.createdAt.toIso8601String()}';
     final hasImage = post.mediaUrl != null && post.mediaUrl!.isNotEmpty;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (hasImage)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: Image.network(
+    final showInfo = node.showInfo;
+    final totalH = node.mediaHeight + (showInfo ? 30 : 0);
+    final hasTitle = post.title != null && post.title!.isNotEmpty;
+
+    // The image fills the entire node — text overlays on top
+    return SizedBox(
+      width: node.width,
+      height: totalH,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background: image or seed art
+          if (hasImage)
+            Image.network(
               post.mediaUrl!,
               width: node.width,
-              height: node.mediaHeight,
+              height: totalH,
               fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(color: colorSurface2);
+              },
               errorBuilder: (_, _, _) => SeedArtCanvas(
                 width: node.width,
-                height: node.mediaHeight,
+                height: totalH,
                 trackColor: trackColor,
                 seed: seed,
                 mediaType: MediaType.image,
               ),
+            )
+          else
+            SeedArtCanvas(
+              width: node.width,
+              height: totalH,
+              trackColor: trackColor,
+              seed: seed,
+              mediaType: MediaType.image,
             ),
-          )
-        else
-          SeedArtCanvas(
-            width: node.width,
-            height: node.mediaHeight,
-            trackColor: trackColor,
-            seed: seed,
-            mediaType: MediaType.image,
-          ),
-        if (node.showInfo) _InfoBar(post: post, trackColor: trackColor),
-      ],
+
+          // Bottom gradient for text legibility
+          if (showInfo && (hasTitle || post.trackName != null))
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: totalH * 0.5,
+              child: const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x00000000), Color(0xAA000000)],
+                  ),
+                ),
+              ),
+            ),
+
+          // Overlay text: track label + title at bottom
+          if (showInfo)
+            Positioned(
+              left: spaceSm,
+              right: spaceSm,
+              bottom: spaceSm,
+              child: _OverlayInfo(post: post, trackColor: trackColor),
+            ),
+        ],
+      ),
     );
   }
 }
 
-// --- Video: seed art + play button + duration ---
+// --- Video: thumbnail fills node, play button + duration + overlay info ---
 class _VideoContent extends StatelessWidget {
   final PlacedNode node;
   final Color trackColor;
@@ -511,43 +529,51 @@ class _VideoContent extends StatelessWidget {
     final seed = '${post.title ?? ''}${post.createdAt.toIso8601String()}';
     final hasThumbnail =
         post.thumbnailUrl != null && post.thumbnailUrl!.isNotEmpty;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            if (hasThumbnail)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Image.network(
-                  post.thumbnailUrl!,
-                  width: node.width,
-                  height: node.mediaHeight,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => SeedArtCanvas(
-                    width: node.width,
-                    height: node.mediaHeight,
-                    trackColor: trackColor,
-                    seed: seed,
-                    mediaType: MediaType.video,
-                  ),
-                ),
-              )
-            else
-              SeedArtCanvas(
+    final showInfo = node.showInfo;
+    final totalH = node.mediaHeight + (showInfo ? 30 : 0);
+    final hasTitle = post.title != null && post.title!.isNotEmpty;
+
+    return SizedBox(
+      width: node.width,
+      height: totalH,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Thumbnail or seed art
+          if (hasThumbnail)
+            Image.network(
+              post.thumbnailUrl!,
+              width: node.width,
+              height: totalH,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(color: colorSurface2);
+              },
+              errorBuilder: (_, _, _) => SeedArtCanvas(
                 width: node.width,
-                height: node.mediaHeight,
+                height: totalH,
                 trackColor: trackColor,
                 seed: seed,
                 mediaType: MediaType.video,
               ),
-            Container(
+            )
+          else
+            SeedArtCanvas(
+              width: node.width,
+              height: totalH,
+              trackColor: trackColor,
+              seed: seed,
+              mediaType: MediaType.video,
+            ),
+
+          // Play button — center
+          Center(
+            child: Container(
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: opacityOverlay),
+                color: Colors.black.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -556,29 +582,57 @@ class _VideoContent extends StatelessWidget {
                 size: 20,
               ),
             ),
-            if (post.formattedDuration != null)
-              Positioned(
-                right: spaceXs,
-                bottom: spaceXs,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: spaceXs,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(radiusSm),
-                  ),
-                  child: Text(
-                    post.formattedDuration!,
-                    style: textMicro.copyWith(color: Colors.white),
+          ),
+
+          // Bottom gradient for overlay text
+          if (showInfo && (hasTitle || post.trackName != null))
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: totalH * 0.5,
+              child: const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x00000000), Color(0xAA000000)],
                   ),
                 ),
               ),
-          ],
-        ),
-        if (node.showInfo) _InfoBar(post: post, trackColor: trackColor),
-      ],
+            ),
+
+          // Duration badge — top-right
+          if (post.formattedDuration != null)
+            Positioned(
+              right: spaceXs,
+              top: spaceXs,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: spaceXs,
+                  vertical: 1,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(radiusSm),
+                ),
+                child: Text(
+                  post.formattedDuration!,
+                  style: textMicro.copyWith(color: Colors.white),
+                ),
+              ),
+            ),
+
+          // Overlay text: track label + title at bottom
+          if (showInfo)
+            Positioned(
+              left: spaceSm,
+              right: spaceSm,
+              bottom: spaceSm,
+              child: _OverlayInfo(post: post, trackColor: trackColor),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -765,48 +819,46 @@ class _TrackLabel extends StatelessWidget {
   }
 }
 
-class _InfoBar extends StatelessWidget {
+/// Shared overlay for image/video nodes: track label + title on gradient.
+class _OverlayInfo extends StatelessWidget {
   final Post post;
   final Color trackColor;
-  const _InfoBar({required this.post, required this.trackColor});
+  const _OverlayInfo({required this.post, required this.trackColor});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: spaceXs,
-        vertical: spaceXs,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _TrackLabel(trackName: post.trackName, color: trackColor),
-          if (post.title != null)
-            Text(
-              post.title!,
-              style: const TextStyle(
-                color: colorTextPrimary,
-                fontSize: fontSizeSm,
-                fontWeight: weightMedium,
-                height: 1.3,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            )
-          else if (post.plainTextPreview != null &&
-              post.plainTextPreview!.isNotEmpty)
-            Text(
-              post.plainTextPreview!,
-              style: TextStyle(
-                color: colorTextPrimary.withValues(alpha: 0.6),
-                fontSize: fontSizeXs,
-                height: 1.3,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    final hasTitle = post.title != null && post.title!.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (post.trackName != null)
+          Text(
+            post.trackName!.toUpperCase(),
+            style: TextStyle(
+              color: trackColor.withValues(alpha: 0.9),
+              fontSize: 9,
+              fontWeight: weightSemibold,
+              letterSpacing: 0.5,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        if (hasTitle) ...[
+          const SizedBox(height: 1),
+          Text(
+            post.title!,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: fontSizeSm,
+              fontWeight: weightMedium,
+              height: 1.2,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
-      ),
+      ],
     );
   }
 }

@@ -136,8 +136,10 @@ class CreatePostNotifier extends Notifier<CreatePostState>
     String? bodyFormat,
     required String? mediaUrl,
     String? thumbnailUrl,
+    int? duration,
     DateTime? eventAt,
   }) async {
+    if (state.isSubmitting) return null;
     final track = state.selectedTrack;
     final mediaType = state.selectedMediaType;
     if (track == null || mediaType == null) return null;
@@ -156,6 +158,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
             if (bodyFormat != null) 'bodyFormat': bodyFormat,
             'mediaUrl': mediaUrl,
             if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
+            if (duration != null) 'duration': duration,
             if (eventAt != null) 'eventAt': eventAt.toIso8601String(),
             'importance': state.importance,
             'visibility': state.visibility,
@@ -194,6 +197,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
           ),
         ),
       );
+      if (disposed) return null;
       final connections = results.whereType<PostConnection>().toList();
       if (connections.isNotEmpty) {
         enrichedPost = post.copyWith(outgoingConnections: connections);

@@ -59,25 +59,11 @@ const postsQuery =
   }
 ''';
 
-const myUnassignedPostsQuery = '''
+const myUnassignedPostsQuery =
+    '''
   query {
     myUnassignedPosts {
-      id
-      mediaType
-      title
-      body
-      bodyFormat
-      mediaUrl
-      importance
-      visibility
-      createdAt
-      updatedAt
-      author {
-        id
-        username
-        displayName
-        avatarUrl
-      }
+      $postFields
     }
   }
 ''';

@@ -10,6 +10,7 @@ const createPostMutation =
     \$bodyFormat: String,
     \$mediaUrl: String,
     \$thumbnailUrl: String,
+    \$duration: Int,
     \$importance: Float,
     \$visibility: String,
     \$eventAt: String
@@ -22,6 +23,7 @@ const createPostMutation =
       bodyFormat: \$bodyFormat,
       mediaUrl: \$mediaUrl,
       thumbnailUrl: \$thumbnailUrl,
+      duration: \$duration,
       importance: \$importance,
       visibility: \$visibility,
       eventAt: \$eventAt
@@ -41,6 +43,7 @@ const updatePostMutation =
     \$bodyFormat: String,
     \$mediaUrl: String,
     \$thumbnailUrl: String,
+    \$duration: Int,
     \$importance: Float,
     \$visibility: String,
     \$eventAt: String
@@ -53,6 +56,7 @@ const updatePostMutation =
       bodyFormat: \$bodyFormat,
       mediaUrl: \$mediaUrl,
       thumbnailUrl: \$thumbnailUrl,
+      duration: \$duration,
       importance: \$importance,
       visibility: \$visibility,
       eventAt: \$eventAt

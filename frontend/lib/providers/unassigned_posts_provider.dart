@@ -59,15 +59,32 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
     String? bodyFormat,
     String? mediaUrl,
     String? thumbnailUrl,
+    bool clearThumbnail = false,
+    int? duration,
+    bool clearDuration = false,
     String? eventAt,
     bool clearEventAt = false,
     double? importance,
     String? visibility,
   }) async {
-    assert(
-      !(eventAt != null && clearEventAt),
-      'eventAt and clearEventAt are mutually exclusive',
-    );
+    if (thumbnailUrl != null && clearThumbnail) {
+      debugPrint(
+        '[updatePost] thumbnailUrl and clearThumbnail are mutually exclusive',
+      );
+      return null;
+    }
+    if (duration != null && clearDuration) {
+      debugPrint(
+        '[updatePost] duration and clearDuration are mutually exclusive',
+      );
+      return null;
+    }
+    if (eventAt != null && clearEventAt) {
+      debugPrint(
+        '[updatePost] eventAt and clearEventAt are mutually exclusive',
+      );
+      return null;
+    }
     try {
       final result = await _client.mutate(
         MutationOptions(
@@ -80,6 +97,9 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
             if (bodyFormat != null) 'bodyFormat': bodyFormat,
             if (mediaUrl != null) 'mediaUrl': mediaUrl,
             if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
+            if (clearThumbnail) 'thumbnailUrl': null,
+            if (duration != null) 'duration': duration,
+            if (clearDuration) 'duration': null,
             if (eventAt != null) 'eventAt': eventAt,
             if (clearEventAt) 'eventAt': null,
             if (importance != null) 'importance': importance,
