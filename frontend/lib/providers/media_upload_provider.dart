@@ -64,11 +64,20 @@ String? mimeFromBytes(Uint8List bytes) {
   // ISO Base Media File Format: MP4/M4A/HEIC (ftyp box at offset 4)
   if (bytes.length >= 12 && _matchesAt(bytes, 4, _ftypMagic)) {
     final brand = String.fromCharCodes(bytes.sublist(8, 12));
-    if (brand.startsWith('M4A')) return 'audio/mp4';
+    // Audio brands: M4A (audio), M4B (audiobook), M4P (protected audio)
+    const audioBrands = {'M4A ', 'M4B ', 'M4P '};
+    if (audioBrands.any((b) => brand.startsWith(b.trimRight()))) {
+      return 'audio/mp4';
+    }
     // HEIC/HEIF brands (ISO 14496-12)
     const heicBrands = {'heic', 'heix', 'mif1', 'msf1', 'heis', 'hevc', 'hevx'};
     if (heicBrands.contains(brand)) return 'image/heic';
-    return 'video/mp4';
+    // Known video brands; unknown brands return null to avoid misclassification
+    const videoBrands = {'isom', 'iso2', 'mp41', 'mp42', 'avc1', 'qt  '};
+    if (videoBrands.any((b) => brand.startsWith(b.trimRight()))) {
+      return 'video/mp4';
+    }
+    return null;
   }
 
   // WebM (EBML header)

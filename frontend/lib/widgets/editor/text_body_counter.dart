@@ -30,7 +30,17 @@ class _TextBodyCounterState extends State<TextBodyCounter> {
   void initState() {
     super.initState();
     _update();
-    _subscription = widget.controller.document.changes.listen((_) => _update());
+    _subscribe();
+  }
+
+  @override
+  void didUpdateWidget(TextBodyCounter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      _subscription?.cancel();
+      _subscribe();
+      _update();
+    }
   }
 
   @override
@@ -39,8 +49,14 @@ class _TextBodyCounterState extends State<TextBodyCounter> {
     super.dispose();
   }
 
+  void _subscribe() {
+    _subscription = widget.controller.document.changes.listen((_) => _update());
+  }
+
   void _update() {
-    final count = widget.controller.document.toPlainText().trimRight().length;
+    // document.length is O(1) vs toPlainText().length which is O(n).
+    // Subtract 1 for the trailing newline that Quill always appends.
+    final count = (widget.controller.document.length - 1).clamp(0, 999999);
     if (count != _charCount && mounted) {
       setState(() => _charCount = count);
     }

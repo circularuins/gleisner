@@ -8,6 +8,7 @@ import '../../models/post.dart';
 import '../../models/track.dart' show parseHexColor;
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/constellation_graph.dart';
+import '../../utils/reading_time.dart';
 import '../common/connection_type_picker.dart';
 import '../common/related_post_picker.dart';
 import 'seed_art_painter.dart';
@@ -426,7 +427,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         if (isText && post.plainTextPreview != null) ...[
           const SizedBox(height: spaceSm),
           Text(
-            _readingTime(post.plainTextPreview!),
+            '${estimateReadingMinutes(post.plainTextPreview!).clamp(1, 99)} min read',
             style: TextStyle(
               color: colorTextMuted.withValues(alpha: 0.6),
               fontSize: fontSizeSm,
@@ -1470,20 +1471,6 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     return '${local.year}/${local.month.toString().padLeft(2, '0')}/${local.day.toString().padLeft(2, '0')} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
   }
 
-  static String _readingTime(String text) {
-    // CJK characters (Japanese, Chinese, Korean)
-    final cjk = RegExp(r'[\u3000-\u9fff\uf900-\ufaff]');
-    final cjkCount = cjk.allMatches(text).length;
-    final nonCjk = text.replaceAll(cjk, ' ');
-    final wordCount = nonCjk
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .length;
-    // ~200 wpm English, ~400 cpm CJK
-    final minutes = ((wordCount / 200) + (cjkCount / 400)).ceil();
-    return minutes <= 1 ? '1 min read' : '$minutes min read';
-  }
-
   static DefaultStyles _readingStyles() {
     const lineSpacing = VerticalSpacing(0, 0);
     return DefaultStyles(
@@ -1958,6 +1945,8 @@ class _FullScreenImageState extends State<_FullScreenImage>
     } else {
       // Zoom to 2x at center
       final s = MediaQuery.of(context).size;
+      // TODO(migration): Replace Matrix4.translate/scale with vector_math
+      // typed API when Flutter drops the deprecated overloads.
       final zoomed = Matrix4.identity()
         // ignore: deprecated_member_use
         ..translate(-s.width / 2, -s.height / 2)
