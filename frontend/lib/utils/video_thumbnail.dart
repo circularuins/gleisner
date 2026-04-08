@@ -58,8 +58,13 @@ Future<VideoMeta> captureVideoThumbnail(
     if (dur.isFinite && dur > 0) {
       durationSeconds = dur.round().clamp(1, 86400);
     }
-    // Seek to 0.5s to avoid black first frames
-    video.currentTime = 0.5;
+    // Seek to avoid black first frames; clamp to actual duration for short videos
+    try {
+      final seekTarget = (dur.isFinite && dur > 0) ? dur.clamp(0, 0.5) : 0;
+      video.currentTime = seekTarget.toDouble();
+    } catch (_) {
+      finish(null);
+    }
   });
 
   onSeekedSub = video.onSeeked.listen((_) {
@@ -72,8 +77,12 @@ Future<VideoMeta> captureVideoThumbnail(
 
       // Convert canvas to JPEG blob
       canvas.toBlob(
-        ((web.Blob blob) {
+        ((web.Blob? blob) {
           if (completer.isCompleted) return;
+          if (blob == null) {
+            finish(null);
+            return;
+          }
           final reader = web.FileReader();
           readerSub = reader.onLoadEnd.listen((_) {
             final result = reader.result;
