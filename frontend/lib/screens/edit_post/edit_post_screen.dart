@@ -85,6 +85,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     _visibility = widget.post.visibility;
     _selectedTrackId = widget.post.trackId;
     _thumbnailUrl = widget.post.thumbnailUrl;
+    _durationSeconds = widget.post.duration;
     _eventAt = widget.post.eventAt;
   }
 
