@@ -163,40 +163,64 @@ class SeedArtPainter extends CustomPainter {
     final primary = _seedColor(rng);
     final secondary = _seedColor(rng);
 
-    canvas.drawRect(Offset.zero & size, Paint()..color = colorSurface1);
-
-    // Subtle gradient base
-    final gradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        primary.withValues(alpha: 0.06),
-        secondary.withValues(alpha: 0.04),
-      ],
-    );
+    // Dark background
     canvas.drawRect(
       Offset.zero & size,
-      Paint()..shader = gradient.createShader(Offset.zero & size),
+      Paint()
+        ..color = Color.fromARGB(
+          255,
+          (10 + rng.next() * 8).toInt(),
+          (8 + rng.next() * 6).toInt(),
+          (14 + rng.next() * 10).toInt(),
+        ),
     );
 
-    // Horizontal wave lines
-    final lineCount = 8 + (rng.next() * 6).toInt();
+    // Soft radial glow — gives depth like a vinyl record under stage light
+    for (int i = 0; i < 2; i++) {
+      final cx = size.width * (0.3 + rng.next() * 0.4);
+      final cy = size.height * (0.3 + rng.next() * 0.4);
+      final color = i == 0 ? primary : secondary;
+      final gradient = RadialGradient(
+        center: Alignment(
+          (cx / size.width) * 2 - 1,
+          (cy / size.height) * 2 - 1,
+        ),
+        radius: 0.8 + rng.next() * 0.4,
+        colors: [
+          color.withValues(alpha: 0.18 + rng.next() * 0.08),
+          color.withValues(alpha: 0),
+        ],
+      );
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()..shader = gradient.createShader(Offset.zero & size),
+      );
+    }
+
+    // Broad, smooth wave lines — like sound waves / EQ curves
+    final lineCount = 3 + (rng.next() * 2).toInt();
     for (int i = 0; i < lineCount; i++) {
-      final y = size.height * (0.1 + (i / lineCount) * 0.8);
-      final amplitude = 2 + rng.next() * 8;
-      final alpha = 0.06 + rng.next() * 0.1;
+      final y = size.height * (0.25 + (i / lineCount) * 0.5);
+      final amplitude = 12 + rng.next() * 20;
+      final frequency = 1.0 + rng.next() * 1.5;
+      final phase = rng.next() * pi * 2;
+      final alpha = 0.12 + rng.next() * 0.12;
+      final width = 1.5 + rng.next() * 1.5;
+      final color = i.isEven ? primary : secondary;
+
       final path = Path()..moveTo(0, y);
-      for (double x = 0; x < size.width; x += 4) {
-        final dy =
-            sin((x / size.width) * pi * (2 + rng.next() * 4) + i) * amplitude;
+      for (double x = 0; x <= size.width; x += 2) {
+        final t = x / size.width;
+        final dy = sin(t * pi * 2 * frequency + phase) * amplitude;
         path.lineTo(x, y + dy);
       }
       canvas.drawPath(
         path,
         Paint()
-          ..color = primary.withValues(alpha: alpha)
+          ..color = color.withValues(alpha: alpha)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1,
+          ..strokeWidth = width
+          ..strokeCap = StrokeCap.round,
       );
     }
   }

@@ -573,7 +573,18 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     ];
   }
 
+  String _formatDuration(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
   Widget _buildMediaPreview(MediaType mediaType) {
+    // Audio: dedicated preview card
+    if (mediaType == MediaType.audio) {
+      return _buildAudioPreview();
+    }
+
     final isImage = mediaType == MediaType.image;
     final showThumbnail =
         isImage ||
@@ -627,16 +638,99 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
               color: colorSurface2,
               borderRadius: BorderRadius.circular(radiusLg),
             ),
-            child: Center(
+            child: const Center(
               child: Icon(
-                mediaType == MediaType.video
-                    ? Icons.videocam_outlined
-                    : Icons.audiotrack_outlined,
+                Icons.videocam_outlined,
                 size: 48,
-                color: colorAccentGold.withValues(alpha: 0.6),
+                color: colorAccentGold,
               ),
             ),
           ),
+        // Replace badge
+        Positioned(
+          top: spaceSm,
+          right: spaceSm,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: spaceSm,
+              vertical: spaceXs,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(radiusSm),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
+                SizedBox(width: spaceXs),
+                Text(
+                  'Replace',
+                  style: TextStyle(color: Colors.white70, fontSize: fontSizeXs),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAudioPreview() {
+    return Stack(
+      children: [
+        Container(
+          height: 120,
+          decoration: BoxDecoration(
+            color: colorSurface2,
+            borderRadius: BorderRadius.circular(radiusLg),
+          ),
+          padding: const EdgeInsets.all(spaceMd),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: colorAccentGold.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.audiotrack_rounded,
+                  color: colorAccentGold,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: spaceMd),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Audio uploaded',
+                      style: TextStyle(
+                        color: colorTextPrimary,
+                        fontSize: fontSizeSm,
+                        fontWeight: weightMedium,
+                      ),
+                    ),
+                    if (_durationSeconds != null) ...[
+                      const SizedBox(height: spaceXs),
+                      Text(
+                        _formatDuration(_durationSeconds!),
+                        style: TextStyle(
+                          color: colorTextMuted.withValues(alpha: 0.6),
+                          fontSize: fontSizeXs,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
         // Replace badge
         Positioned(
           top: spaceSm,

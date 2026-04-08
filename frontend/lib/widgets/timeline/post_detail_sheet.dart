@@ -1293,20 +1293,32 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
 
   Widget _audioMediaArea(Post post, Color trackColor) {
     final hasUrl = post.mediaUrl != null && post.mediaUrl!.isNotEmpty;
+    final seed = '${post.title ?? ''}${post.createdAt.toIso8601String()}';
     if (hasUrl) {
       return _withBadges(
         post,
         trackColor,
         Container(
-          height: 120,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [trackColor.withValues(alpha: 0.08), colorSurface1],
-            ),
+          height: 160,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(color: colorSurface1),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // SeedArt background (audio style already uses low alpha)
+              LayoutBuilder(
+                builder: (context, constraints) => SeedArtCanvas(
+                  width: constraints.maxWidth,
+                  height: 160,
+                  trackColor: trackColor,
+                  seed: seed,
+                  mediaType: MediaType.audio,
+                ),
+              ),
+              // Player overlay
+              _AudioPlayer(url: post.mediaUrl!, trackColor: trackColor),
+            ],
           ),
-          child: _AudioPlayer(url: post.mediaUrl!, trackColor: trackColor),
         ),
       );
     }
@@ -1821,56 +1833,85 @@ class _AudioPlayerState extends State<_AudioPlayer> {
     super.dispose();
   }
 
+  static String _formatDuration(Duration d) {
+    final minutes = d.inMinutes;
+    final seconds = d.inSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final position = _initialized ? _controller.value.position : Duration.zero;
+    final total = _initialized ? _controller.value.duration : Duration.zero;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(spaceLg, 40, spaceLg, spaceLg),
+      padding: const EdgeInsets.fromLTRB(spaceLg, spaceLg, spaceLg, spaceLg),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
           const Spacer(),
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  if (!_initialized) return;
-                  setState(() {
-                    _controller.value.isPlaying
-                        ? _controller.pause()
-                        : _controller.play();
-                  });
-                },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: widget.trackColor.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    _initialized && _controller.value.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    color: widget.trackColor,
-                    size: spaceXl,
-                  ),
+          // Play/pause button — larger, centered
+          GestureDetector(
+            onTap: () {
+              if (!_initialized) return;
+              setState(() {
+                _controller.value.isPlaying
+                    ? _controller.pause()
+                    : _controller.play();
+              });
+            },
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: widget.trackColor.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: widget.trackColor.withValues(alpha: 0.3),
                 ),
               ),
-              const SizedBox(width: spaceMd),
-              if (_initialized)
-                Expanded(
-                  child: VideoProgressIndicator(
-                    _controller,
-                    allowScrubbing: true,
-                    colors: VideoProgressColors(
-                      playedColor: widget.trackColor,
-                      bufferedColor: widget.trackColor.withValues(alpha: 0.3),
-                      backgroundColor: colorBorder,
-                    ),
-                  ),
-                )
-              else
-                const Expanded(child: LinearProgressIndicator()),
+              child: Icon(
+                _initialized && _controller.value.isPlaying
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
+                color: widget.trackColor,
+                size: 32,
+              ),
+            ),
+          ),
+          const SizedBox(height: spaceMd),
+          // Progress bar
+          if (_initialized)
+            VideoProgressIndicator(
+              _controller,
+              allowScrubbing: true,
+              colors: VideoProgressColors(
+                playedColor: widget.trackColor,
+                bufferedColor: widget.trackColor.withValues(alpha: 0.3),
+                backgroundColor: colorBorder,
+              ),
+            )
+          else
+            const LinearProgressIndicator(),
+          const SizedBox(height: spaceXs),
+          // Time labels
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _initialized ? _formatDuration(position) : '0:00',
+                style: TextStyle(
+                  color: colorTextMuted.withValues(alpha: 0.6),
+                  fontSize: fontSizeXs,
+                ),
+              ),
+              Text(
+                _initialized ? _formatDuration(total) : '0:00',
+                style: TextStyle(
+                  color: colorTextMuted.withValues(alpha: 0.6),
+                  fontSize: fontSizeXs,
+                ),
+              ),
             ],
           ),
         ],

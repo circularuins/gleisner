@@ -11,6 +11,7 @@ import '../graphql/mutations/media.dart';
 import '../models/post.dart' show MediaType;
 import '../utils/heic_converter.dart';
 import '../utils/video_thumbnail.dart';
+import '../utils/audio_duration.dart';
 import '../utils/web_file_picker.dart';
 import 'disposable_notifier.dart';
 
@@ -272,7 +273,10 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
   }
 
   /// Pick an audio file using the browser's native file input.
-  Future<String?> pickAndUploadAudio({required UploadCategory category}) async {
+  /// Returns (audioUrl, durationSeconds) on success, null on failure.
+  Future<({String audioUrl, int? durationSeconds})?> pickAndUploadAudio({
+    required UploadCategory category,
+  }) async {
     if (state.isUploading) return null;
 
     try {
@@ -293,11 +297,21 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         return null;
       }
 
-      return await _upload(
+      // Extract duration before upload (best-effort)
+      final durationSeconds = await extractAudioDuration(
+        bytes,
+        mimeType: contentType,
+      );
+      if (disposed) return null;
+
+      final url = await _upload(
         category: category,
         bytes: bytes,
         contentType: contentType,
       );
+      if (url == null) return null;
+
+      return (audioUrl: url, durationSeconds: durationSeconds);
     } catch (e) {
       debugPrint('[MediaUpload] pickAndUploadAudio error: $e');
       if (!disposed) {
@@ -417,9 +431,13 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
           durationSeconds: result.durationSeconds,
         );
       case MediaType.audio:
-        final url = await pickAndUploadAudio(category: UploadCategory.media);
-        if (url == null) return null;
-        return (mediaUrl: url, thumbnailUrl: null, durationSeconds: null);
+        final result = await pickAndUploadAudio(category: UploadCategory.media);
+        if (result == null) return null;
+        return (
+          mediaUrl: result.audioUrl,
+          thumbnailUrl: null,
+          durationSeconds: result.durationSeconds,
+        );
       default:
         return null;
     }
