@@ -16,6 +16,7 @@ Future<Uint8List?> convertHeicToJpeg(
   Timer? timeout;
   StreamSubscription<web.Event>? onLoadSub;
   StreamSubscription<web.Event>? onErrorSub;
+  StreamSubscription<web.Event>? readerSub;
 
   final blob = web.Blob(
     [heicBytes.toJS].toJS,
@@ -30,6 +31,7 @@ Future<Uint8List?> convertHeicToJpeg(
     timeout?.cancel();
     onLoadSub?.cancel();
     onErrorSub?.cancel();
+    readerSub?.cancel();
     web.URL.revokeObjectURL(blobUrl);
     completer.complete(result);
   }
@@ -58,7 +60,7 @@ Future<Uint8List?> convertHeicToJpeg(
       canvas.toBlob(
         ((web.Blob jpegBlob) {
           final reader = web.FileReader();
-          reader.onLoadEnd.listen((_) {
+          readerSub = reader.onLoadEnd.listen((_) {
             final result = reader.result;
             if (result != null) {
               finish((result as JSArrayBuffer).toDart.asUint8List());

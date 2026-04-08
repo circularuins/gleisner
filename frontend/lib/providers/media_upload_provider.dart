@@ -70,8 +70,9 @@ String? mimeFromBytes(Uint8List bytes) {
         brand.startsWith('M4P')) {
       return 'audio/mp4';
     }
-    // HEIC/HEIF brands (ISO 14496-12)
-    const heicBrands = {'heic', 'heix', 'mif1', 'msf1', 'heis', 'hevc', 'hevx'};
+    // HEIC/HEIF still-image brands (ISO 14496-12).
+    // Note: hevc/hevx are HEVC video sequences (ISO 23008-12), not still images.
+    const heicBrands = {'heic', 'heix', 'mif1', 'msf1', 'heis'};
     if (heicBrands.contains(brand)) return 'image/heic';
     // Default: treat remaining ftyp brands (isom, mp41, M4V, f4v, etc.) as video
     return 'video/mp4';

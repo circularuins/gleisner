@@ -19,6 +19,7 @@ Future<VideoMeta> captureVideoThumbnail(
   StreamSubscription<web.Event>? onLoadedDataSub;
   StreamSubscription<web.Event>? onSeekedSub;
   StreamSubscription<web.Event>? onErrorSub;
+  StreamSubscription<web.Event>? readerSub;
 
   // Create a blob URL from the video bytes
   final blob = web.Blob(
@@ -41,6 +42,7 @@ Future<VideoMeta> captureVideoThumbnail(
     onLoadedDataSub?.cancel();
     onSeekedSub?.cancel();
     onErrorSub?.cancel();
+    readerSub?.cancel();
     video.pause();
     video.src = '';
     web.URL.revokeObjectURL(blobUrl);
@@ -72,7 +74,7 @@ Future<VideoMeta> captureVideoThumbnail(
       canvas.toBlob(
         ((web.Blob blob) {
           final reader = web.FileReader();
-          reader.onLoadEnd.listen((_) {
+          readerSub = reader.onLoadEnd.listen((_) {
             final result = reader.result;
             if (result != null) {
               finish((result as JSArrayBuffer).toDart.asUint8List());
