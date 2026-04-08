@@ -72,7 +72,7 @@ String? mimeFromBytes(Uint8List bytes) {
     }
     // HEIC/HEIF still-image brands (ISO 14496-12).
     // Note: hevc/hevx are HEVC video sequences (ISO 23008-12), not still images.
-    const heicBrands = {'heic', 'heix', 'mif1', 'msf1', 'heis'};
+    const heicBrands = {'heic', 'heif', 'heix', 'mif1', 'msf1', 'heis'};
     if (heicBrands.contains(brand)) return 'image/heic';
     // Default: treat remaining ftyp brands (isom, mp41, M4V, f4v, etc.) as video
     return 'video/mp4';

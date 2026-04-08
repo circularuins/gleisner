@@ -60,11 +60,16 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
     String? mediaUrl,
     String? thumbnailUrl,
     int? duration,
+    bool clearDuration = false,
     String? eventAt,
     bool clearEventAt = false,
     double? importance,
     String? visibility,
   }) async {
+    assert(
+      !(duration != null && clearDuration),
+      'duration and clearDuration are mutually exclusive',
+    );
     assert(
       !(eventAt != null && clearEventAt),
       'eventAt and clearEventAt are mutually exclusive',
@@ -82,6 +87,7 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
             if (mediaUrl != null) 'mediaUrl': mediaUrl,
             if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
             if (duration != null) 'duration': duration,
+            if (clearDuration) 'duration': null,
             if (eventAt != null) 'eventAt': eventAt,
             if (clearEventAt) 'eventAt': null,
             if (importance != null) 'importance': importance,

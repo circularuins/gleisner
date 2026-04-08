@@ -155,6 +155,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
             thumbnailUrl: _thumbnailUrl,
             duration: _durationSeconds,
+            clearDuration:
+                _durationSeconds == null && widget.post.duration != null,
             eventAt: _eventAt?.toIso8601String(),
             clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,
@@ -172,6 +174,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
             thumbnailUrl: _thumbnailUrl,
             duration: _durationSeconds,
+            clearDuration:
+                _durationSeconds == null && widget.post.duration != null,
             eventAt: _eventAt?.toIso8601String(),
             clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,

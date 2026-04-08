@@ -56,7 +56,7 @@ Future<VideoMeta> captureVideoThumbnail(
     // Extract duration
     final dur = video.duration;
     if (dur.isFinite && dur > 0) {
-      durationSeconds = dur.round();
+      durationSeconds = dur.round().clamp(1, 86400);
     }
     // Seek to 0.5s to avoid black first frames
     video.currentTime = 0.5;
