@@ -154,6 +154,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             bodyFormat: bodyFormat,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
             thumbnailUrl: _thumbnailUrl,
+            clearThumbnail:
+                _thumbnailUrl == null && widget.post.thumbnailUrl != null,
             duration: _durationSeconds,
             clearDuration:
                 _durationSeconds == null && widget.post.duration != null,
@@ -173,6 +175,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             bodyFormat: bodyFormat,
             mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
             thumbnailUrl: _thumbnailUrl,
+            clearThumbnail:
+                _thumbnailUrl == null && widget.post.thumbnailUrl != null,
             duration: _durationSeconds,
             clearDuration:
                 _durationSeconds == null && widget.post.duration != null,
@@ -353,7 +357,10 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
 
               // Save button
               FilledButton(
-                onPressed: _isSubmitting ? null : _save,
+                onPressed:
+                    _isSubmitting || ref.watch(mediaUploadProvider).isUploading
+                    ? null
+                    : _save,
                 style: FilledButton.styleFrom(
                   backgroundColor: colorAccentGold,
                   foregroundColor: colorSurface0,
