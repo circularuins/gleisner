@@ -197,6 +197,7 @@ class CreatePostNotifier extends Notifier<CreatePostState>
           ),
         ),
       );
+      if (disposed) return null;
       final connections = results.whereType<PostConnection>().toList();
       if (connections.isNotEmpty) {
         enrichedPost = post.copyWith(outgoingConnections: connections);

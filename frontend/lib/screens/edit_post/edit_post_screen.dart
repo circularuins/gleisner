@@ -668,9 +668,11 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
       setState(() {
         _mediaUrlController.text = result.mediaUrl;
         _thumbnailUrl = result.thumbnailUrl;
-        // Reset duration before applying new value — prevents stale duration
-        // from persisting if the new media has no duration (e.g. image).
-        _durationSeconds = result.durationSeconds;
+        // Use new duration if extracted, otherwise keep existing value.
+        // This prevents extraction failure from clearing a valid duration.
+        if (result.durationSeconds != null) {
+          _durationSeconds = result.durationSeconds;
+        }
       });
     }
   }
