@@ -1907,6 +1907,7 @@ class _AudioPlayerState extends State<_AudioPlayer> {
   late VideoPlayerController _controller;
   bool _initialized = false;
   final _waveformKey = GlobalKey();
+  Duration _lastRenderedPosition = Duration.zero;
 
   @override
   void initState() {
@@ -1919,7 +1920,16 @@ class _AudioPlayerState extends State<_AudioPlayer> {
   }
 
   void _onControllerUpdate() {
-    if (mounted) setState(() {});
+    if (!mounted || !_initialized) return;
+    final pos = _controller.value.position;
+    // Throttle rebuilds: skip if position changed < 200ms (unless play state changed)
+    if ((pos - _lastRenderedPosition).abs() <
+            const Duration(milliseconds: 200) &&
+        _controller.value.isPlaying) {
+      return;
+    }
+    _lastRenderedPosition = pos;
+    setState(() {});
   }
 
   @override

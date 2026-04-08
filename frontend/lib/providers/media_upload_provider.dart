@@ -297,19 +297,17 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         return null;
       }
 
-      // Extract duration before upload (best-effort)
-      final durationSeconds = await extractAudioDuration(
-        bytes,
-        mimeType: contentType,
-      );
+      // Upload and extract duration in parallel.
+      // _upload() sets isUploading immediately, preventing double execution.
+      final results = await Future.wait([
+        _upload(category: category, bytes: bytes, contentType: contentType),
+        extractAudioDuration(bytes, mimeType: contentType),
+      ]);
       if (disposed) return null;
 
-      final url = await _upload(
-        category: category,
-        bytes: bytes,
-        contentType: contentType,
-      );
+      final url = results[0] as String?;
       if (url == null) return null;
+      final durationSeconds = results[1] as int?;
 
       return (audioUrl: url, durationSeconds: durationSeconds);
     } catch (e) {
