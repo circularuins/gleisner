@@ -73,6 +73,7 @@ Future<VideoMeta> captureVideoThumbnail(
       // Convert canvas to JPEG blob
       canvas.toBlob(
         ((web.Blob blob) {
+          if (completer.isCompleted) return;
           final reader = web.FileReader();
           readerSub = reader.onLoadEnd.listen((_) {
             final result = reader.result;

@@ -59,6 +59,7 @@ Future<Uint8List?> convertHeicToJpeg(
 
       canvas.toBlob(
         ((web.Blob jpegBlob) {
+          if (completer.isCompleted) return;
           final reader = web.FileReader();
           readerSub = reader.onLoadEnd.listen((_) {
             final result = reader.result;

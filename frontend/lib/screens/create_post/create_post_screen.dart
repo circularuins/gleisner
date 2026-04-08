@@ -37,6 +37,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   int? _durationSeconds;
   DateTime? _eventAt;
   final _formKey = GlobalKey<FormState>();
+  int _pickMediaGeneration = 0;
 
   @override
   void dispose() {
@@ -50,10 +51,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   Future<void> _pickMedia(MediaType mediaType) async {
+    final generation = ++_pickMediaGeneration;
     final result = await ref
         .read(mediaUploadProvider.notifier)
         .pickByMediaType(mediaType);
-    if (result != null && mounted) {
+    // Discard result if user navigated away or switched media type
+    if (result != null && mounted && generation == _pickMediaGeneration) {
       setState(() {
         _mediaUrlController.text = result.mediaUrl;
         _thumbnailUrl = result.thumbnailUrl;
