@@ -66,14 +66,12 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
     double? importance,
     String? visibility,
   }) async {
-    assert(
-      !(duration != null && clearDuration),
-      'duration and clearDuration are mutually exclusive',
-    );
-    assert(
-      !(eventAt != null && clearEventAt),
-      'eventAt and clearEventAt are mutually exclusive',
-    );
+    if (duration != null && clearDuration) {
+      throw ArgumentError('duration and clearDuration are mutually exclusive');
+    }
+    if (eventAt != null && clearEventAt) {
+      throw ArgumentError('eventAt and clearEventAt are mutually exclusive');
+    }
     try {
       final result = await _client.mutate(
         MutationOptions(

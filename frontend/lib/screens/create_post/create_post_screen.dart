@@ -41,6 +41,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   @override
   void dispose() {
+    _pickMediaGeneration++; // invalidate any in-flight upload
     _titleController.dispose();
     _bodyController.dispose();
     _mediaUrlController.dispose();
@@ -67,6 +68,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (ref.read(mediaUploadProvider).isUploading) return;
 
     // Require media file for non-text types
     final mediaType = ref.read(createPostProvider).selectedMediaType;
@@ -144,6 +146,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             if (state.step > 0) {
               // Clear form inputs when going back from form step
               if (state.step == 2) {
+                _pickMediaGeneration++; // invalidate any in-flight upload
                 _titleController.clear();
                 _bodyController.clear();
                 _mediaUrlController.clear();
@@ -624,7 +627,11 @@ class _FormStep extends ConsumerWidget {
               width: double.infinity,
               height: 44,
               child: FilledButton(
-                onPressed: state.isSubmitting ? null : onSubmit,
+                onPressed:
+                    state.isSubmitting ||
+                        ref.watch(mediaUploadProvider).isUploading
+                    ? null
+                    : onSubmit,
                 style: FilledButton.styleFrom(
                   backgroundColor: colorAccentGold,
                   foregroundColor: colorSurface0,

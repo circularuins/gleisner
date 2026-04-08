@@ -551,14 +551,12 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     double? importance,
     String? visibility,
   }) async {
-    assert(
-      !(duration != null && clearDuration),
-      'duration and clearDuration are mutually exclusive',
-    );
-    assert(
-      !(eventAt != null && clearEventAt),
-      'eventAt and clearEventAt are mutually exclusive',
-    );
+    if (duration != null && clearDuration) {
+      throw ArgumentError('duration and clearDuration are mutually exclusive');
+    }
+    if (eventAt != null && clearEventAt) {
+      throw ArgumentError('eventAt and clearEventAt are mutually exclusive');
+    }
     try {
       // Only send trackId if it actually changed
       final currentPost = state.posts.firstWhere((p) => p.id == id);
