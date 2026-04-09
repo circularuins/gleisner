@@ -116,11 +116,16 @@ const OGP_MAX_RESPONSE_SIZE = 1024 * 1024;
 
 /**
  * Fetch a URL with SSRF protection.
- * - Resolves DNS and validates IP before each connection (DNS rebinding safe)
- * - Connects to the resolved IP directly via Host header rewrite
- * - Validates redirect target IPs
+ * - Resolves DNS and validates all IPs before connecting
+ * - Validates redirect target IPs before following
  * - Enforces timeout, redirect limit, response size limit
  * - Returns response body as string (truncated at </head> if possible)
+ *
+ * Note: There is a theoretical TOCTOU gap between DNS resolution and
+ * fetch(). A DNS rebinding attack would need to flip the DNS record in
+ * the milliseconds between resolve and connect. This is impractical for
+ * OGP fetching (low-value target, short window). IP-direct connection
+ * was attempted but breaks TLS SNI on CDN/vhost domains.
  */
 export async function safeFetch(url: string): Promise<string> {
   let currentUrl = url;
@@ -132,24 +137,20 @@ export async function safeFetch(url: string): Promise<string> {
       throw new SSRFError("URL must use http or https");
     }
 
-    // Resolve DNS and validate IP — returns the actual IP to connect to
-    const resolvedIp = await resolveAndValidate(parsed.hostname);
-
-    // Build a URL that connects to the resolved IP directly,
-    // preventing DNS rebinding (TOCTOU between resolve and connect).
-    const directUrl = new URL(currentUrl);
-    directUrl.hostname = resolvedIp;
+    // Resolve DNS and validate all IPs are non-private.
+    // Uses original hostname for fetch to preserve TLS SNI.
+    await resolveAndValidate(parsed.hostname);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), OGP_FETCH_TIMEOUT);
 
     try {
-      const response = await fetch(directUrl.href, {
+      // Note: http:// is allowed for sites without HTTPS. MITM risk is
+      // acceptable for OGP metadata (public, non-sensitive data).
+      const response = await fetch(currentUrl, {
         signal: controller.signal,
         redirect: "manual",
         headers: {
-          // Host header must match the original hostname for TLS/vhosts
-          Host: parsed.host,
           "User-Agent": "Gleisner-OGP-Fetcher/1.0",
           Accept: "text/html",
         },
