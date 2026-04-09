@@ -39,6 +39,12 @@ export const posts = pgTable("posts", {
   visibility: varchar("visibility", { length: 20 }).default("public").notNull(),
   contentHash: varchar("content_hash", { length: 64 }),
   signature: text("signature"),
+  // OGP metadata (auto-fetched for link-type posts, not part of contentHash)
+  ogTitle: varchar("og_title", { length: 200 }),
+  ogDescription: text("og_description"),
+  ogImage: text("og_image"),
+  ogSiteName: varchar("og_site_name", { length: 100 }),
+  ogFetchedAt: timestamp("og_fetched_at", { withTimezone: true }),
   eventAt: timestamp("event_at", { withTimezone: true }),
   layoutX: integer("layout_x").default(0).notNull(),
   layoutY: integer("layout_y").default(0).notNull(),

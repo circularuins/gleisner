@@ -13,6 +13,7 @@ import {
   validateUrl,
 } from "../validators.js";
 import { checkArtistAccess } from "../access.js";
+import { fetchOgpMetadata } from "../../ogp/fetcher.js";
 
 /** Media types that require a file upload (mediaUrl must be non-null). */
 const MEDIA_FILE_REQUIRED_TYPES = ["image", "video", "audio"];
@@ -67,6 +68,11 @@ type PostShape = {
   visibility: string;
   contentHash: string | null;
   signature: string | null;
+  ogTitle: string | null;
+  ogDescription: string | null;
+  ogImage: string | null;
+  ogSiteName: string | null;
+  ogFetchedAt: Date | null;
   eventAt: Date | null;
   layoutX: number;
   layoutY: number;
@@ -110,6 +116,10 @@ PostType.implement({
     visibility: t.exposeString("visibility"),
     contentHash: t.exposeString("contentHash", { nullable: true }),
     signature: t.exposeString("signature", { nullable: true }),
+    ogTitle: t.exposeString("ogTitle", { nullable: true }),
+    ogDescription: t.exposeString("ogDescription", { nullable: true }),
+    ogImage: t.exposeString("ogImage", { nullable: true }),
+    ogSiteName: t.exposeString("ogSiteName", { nullable: true }),
     eventAt: t.string({
       nullable: true,
       resolve: (post) => post.eventAt?.toISOString() ?? null,
@@ -351,6 +361,29 @@ builder.mutationFields((t) => ({
           ...(args.layoutY != null ? { layoutY: args.layoutY } : {}),
         })
         .returning();
+
+      // Fire-and-forget OGP fetch for link-type posts
+      if (args.mediaType === "link" && args.mediaUrl) {
+        const postId = post.id;
+        const mediaUrl = args.mediaUrl;
+        fetchOgpMetadata(mediaUrl)
+          .then(async (ogp) => {
+            if (!ogp) return;
+            await db
+              .update(posts)
+              .set({
+                ogTitle: ogp.ogTitle,
+                ogDescription: ogp.ogDescription,
+                ogImage: ogp.ogImage,
+                ogSiteName: ogp.ogSiteName,
+                ogFetchedAt: new Date(),
+              })
+              .where(eq(posts.id, postId));
+          })
+          .catch(() => {
+            /* OGP fetch is best-effort */
+          });
+      }
 
       return post;
     },
@@ -668,6 +701,104 @@ builder.mutationFields((t) => ({
         .returning();
 
       return deleted;
+    },
+  }),
+
+  fetchOgp: t.field({
+    type: PostType,
+    nullable: true,
+    args: {
+      postId: t.arg.string({ required: true }),
+    },
+    resolve: async (_parent, args, ctx) => {
+      if (!ctx.authUser) {
+        throw new GraphQLError("Authentication required");
+      }
+
+      const [post] = await db
+        .select()
+        .from(posts)
+        .where(eq(posts.id, args.postId))
+        .limit(1);
+      if (!post) {
+        throw new GraphQLError("Post not found");
+      }
+
+      // Only the author can trigger OGP fetch (prevents SSRF via other users' posts)
+      if (post.authorId !== ctx.authUser.userId) {
+        throw new GraphQLError("Not authorized");
+      }
+
+      if (post.mediaType !== "link" || !post.mediaUrl) {
+        throw new GraphQLError(
+          "OGP fetch is only available for link-type posts with a URL",
+        );
+      }
+
+      // Rate limit: skip if fetched within 24 hours
+      if (
+        post.ogFetchedAt &&
+        Date.now() - post.ogFetchedAt.getTime() < 24 * 60 * 60 * 1000
+      ) {
+        return post;
+      }
+
+      // Rate limit: max 10 fetches per user per minute (DB-based)
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(posts)
+        .where(
+          and(
+            eq(posts.authorId, ctx.authUser.userId),
+            sql`${posts.ogFetchedAt} > NOW() - INTERVAL '1 minute'`,
+          ),
+        );
+      if (count >= 10) {
+        throw new GraphQLError("Rate limit exceeded. Please try again later.");
+      }
+
+      // Check for existing OGP data for same URL (reuse from other posts)
+      const [existing] = await db
+        .select()
+        .from(posts)
+        .where(
+          and(
+            eq(posts.mediaUrl, post.mediaUrl!),
+            sql`${posts.ogFetchedAt} > NOW() - INTERVAL '24 hours'`,
+            sql`${posts.ogTitle} IS NOT NULL OR ${posts.ogImage} IS NOT NULL`,
+          ),
+        )
+        .limit(1);
+
+      let ogData;
+      if (existing) {
+        ogData = {
+          ogTitle: existing.ogTitle,
+          ogDescription: existing.ogDescription,
+          ogImage: existing.ogImage,
+          ogSiteName: existing.ogSiteName,
+        };
+      } else {
+        ogData = await fetchOgpMetadata(post.mediaUrl!);
+      }
+
+      const [updated] = await db
+        .update(posts)
+        .set({
+          ...(ogData
+            ? {
+                ogTitle: ogData.ogTitle,
+                ogDescription: ogData.ogDescription,
+                ogImage: ogData.ogImage,
+                ogSiteName: ogData.ogSiteName,
+              }
+            : {}),
+          ogFetchedAt: new Date(),
+        })
+        .where(eq(posts.id, args.postId))
+        .returning();
+
+      return updated;
     },
   }),
 }));
