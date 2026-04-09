@@ -30,9 +30,20 @@ function isPrivateIPv6(ip: string): boolean {
   // Loopback
   if (normalized === "::1") return true;
 
-  // IPv4-mapped IPv6 (::ffff:x.x.x.x)
+  // IPv4-mapped IPv6 — dotted decimal (::ffff:192.168.1.1)
   const v4Mapped = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
   if (v4Mapped) return isPrivateIPv4(v4Mapped[1]);
+
+  // IPv4-mapped IPv6 — hex colon (::ffff:c0a8:0101)
+  const v4MappedHex = normalized.match(
+    /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/,
+  );
+  if (v4MappedHex) {
+    const hi = parseInt(v4MappedHex[1], 16);
+    const lo = parseInt(v4MappedHex[2], 16);
+    const dotted = `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`;
+    return isPrivateIPv4(dotted);
+  }
 
   // Unique local (fc00::/7)
   if (normalized.startsWith("fc") || normalized.startsWith("fd")) return true;
@@ -61,16 +72,16 @@ export function isPrivateIP(ip: string): boolean {
 }
 
 /**
- * Resolve hostname and verify the IP is not private.
- * Throws if the resolved IP is in a private/reserved range.
+ * Resolve hostname and return a validated (non-private) IP address.
+ * Throws if all resolved IPs are private/reserved.
  */
-export async function validateHostIP(hostname: string): Promise<void> {
+export async function resolveAndValidate(hostname: string): Promise<string> {
   // If hostname is already an IP, check directly
   if (isIP(hostname)) {
     if (isPrivateIP(hostname)) {
       throw new SSRFError(`Blocked: private IP address`);
     }
-    return;
+    return hostname;
   }
 
   try {
@@ -80,6 +91,8 @@ export async function validateHostIP(hostname: string): Promise<void> {
         throw new SSRFError(`Blocked: hostname resolves to private IP`);
       }
     }
+    // Return the first resolved address for direct connection
+    return result[0].address;
   } catch (err) {
     if (err instanceof SSRFError) throw err;
     throw new SSRFError(`DNS resolution failed for ${hostname}`);
@@ -94,13 +107,17 @@ export class SSRFError extends Error {
   }
 }
 
-const OGP_FETCH_TIMEOUT = 5000; // 5 seconds
+// 5 seconds — generous enough for slow sites, strict enough to prevent abuse
+const OGP_FETCH_TIMEOUT = 5000;
+// 3 redirects — covers most URL shorteners (t.co, bit.ly)
 const OGP_MAX_REDIRECTS = 3;
-const OGP_MAX_RESPONSE_SIZE = 1024 * 1024; // 1 MB
+// 1 MB — more than enough for any <head> section
+const OGP_MAX_RESPONSE_SIZE = 1024 * 1024;
 
 /**
  * Fetch a URL with SSRF protection.
- * - Validates hostname IP before connecting
+ * - Resolves DNS and validates IP before each connection (DNS rebinding safe)
+ * - Connects to the resolved IP directly via Host header rewrite
  * - Validates redirect target IPs
  * - Enforces timeout, redirect limit, response size limit
  * - Returns response body as string (truncated at </head> if possible)
@@ -115,17 +132,24 @@ export async function safeFetch(url: string): Promise<string> {
       throw new SSRFError("URL must use http or https");
     }
 
-    // Validate resolved IP before connecting
-    await validateHostIP(parsed.hostname);
+    // Resolve DNS and validate IP — returns the actual IP to connect to
+    const resolvedIp = await resolveAndValidate(parsed.hostname);
+
+    // Build a URL that connects to the resolved IP directly,
+    // preventing DNS rebinding (TOCTOU between resolve and connect).
+    const directUrl = new URL(currentUrl);
+    directUrl.hostname = resolvedIp;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), OGP_FETCH_TIMEOUT);
 
     try {
-      const response = await fetch(currentUrl, {
+      const response = await fetch(directUrl.href, {
         signal: controller.signal,
         redirect: "manual",
         headers: {
+          // Host header must match the original hostname for TLS/vhosts
+          Host: parsed.host,
           "User-Agent": "Gleisner-OGP-Fetcher/1.0",
           Accept: "text/html",
         },
@@ -144,11 +168,10 @@ export async function safeFetch(url: string): Promise<string> {
         throw new SSRFError(`HTTP ${response.status}`);
       }
 
-      // Read response with size limit
+      // Read response with size limit — stream to avoid loading full body
       const reader = response.body?.getReader();
       if (!reader) throw new SSRFError("Empty response");
 
-      const chunks: Uint8Array[] = [];
       let totalSize = 0;
       const decoder = new TextDecoder();
       let html = "";
@@ -163,7 +186,6 @@ export async function safeFetch(url: string): Promise<string> {
           break;
         }
 
-        chunks.push(value);
         html += decoder.decode(value, { stream: true });
 
         // Stop reading after </head> — we only need meta tags

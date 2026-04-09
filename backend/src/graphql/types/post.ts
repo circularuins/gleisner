@@ -362,26 +362,30 @@ builder.mutationFields((t) => ({
         })
         .returning();
 
-      // Fire-and-forget OGP fetch for link-type posts
+      // Fire-and-forget OGP fetch for link-type posts.
+      // Always update ogFetchedAt (even on null) to prevent repeated fetches.
       if (args.mediaType === "link" && args.mediaUrl) {
         const postId = post.id;
         const mediaUrl = args.mediaUrl;
         fetchOgpMetadata(mediaUrl)
           .then(async (ogp) => {
-            if (!ogp) return;
             await db
               .update(posts)
               .set({
-                ogTitle: ogp.ogTitle,
-                ogDescription: ogp.ogDescription,
-                ogImage: ogp.ogImage,
-                ogSiteName: ogp.ogSiteName,
+                ...(ogp
+                  ? {
+                      ogTitle: ogp.ogTitle,
+                      ogDescription: ogp.ogDescription,
+                      ogImage: ogp.ogImage,
+                      ogSiteName: ogp.ogSiteName,
+                    }
+                  : {}),
                 ogFetchedAt: new Date(),
               })
               .where(eq(posts.id, postId));
           })
-          .catch(() => {
-            /* OGP fetch is best-effort */
+          .catch((err) => {
+            console.error(`[OGP] fire-and-forget failed for ${mediaUrl}:`, err);
           });
       }
 
