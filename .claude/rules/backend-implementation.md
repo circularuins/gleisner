@@ -323,3 +323,64 @@ vi.mock("../../storage/r2.js", async (importOriginal) => {
   };
 });
 ```
+
+### 外部 URL フェッチの SSRF 対策
+
+**バックエンドから外部 URL にリクエストを送る場合（OGP 取得等）、以下の SSRF 対策を必ず実施すること。**
+
+```typescript
+// 1. DNS 解決 → 全 IP がプライベートでないことを検証
+await resolveAndValidate(hostname);
+// 2. 元の hostname で fetch（IP 直接接続は TLS SNI を壊す）
+const response = await fetch(url, { redirect: "manual" });
+// 3. リダイレクト先も同じ検証を適用
+```
+
+チェックリスト:
+- [ ] プライベート IP 拒否: IPv4（10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x）+ IPv6（::1, fc00::/7, fe80::/10, ::ffff:mapped）
+- [ ] タイムアウト設定（5秒推奨）
+- [ ] リダイレクト手動追跡（各ホップで IP 検証、最大 3 回）
+- [ ] レスポンスサイズ制限（1MB 推奨、`</head>` で打ち切り可）
+- [ ] **IP 直接接続は使わない** — TLS SNI が壊れ CDN/vhost で証明書不一致エラーになる
+- [ ] TOCTOU リスク（DNS resolve → fetch 間のギャップ）はコメントで明記し許容判断を記録
+
+PR #186 の教訓: IP 直接接続で DNS rebinding を防ごうとしたが TLS SNI 破壊 → hostname ベースに戻す往復が発生。
+
+### Drizzle マイグレーションの型変更時の USING 句
+
+**`pnpm db:generate` は `ALTER COLUMN SET DATA TYPE` を生成するが、`USING` 句は自動追加されない。** 暗黙キャスト不可な型変更（text → jsonb 等）では手動で `USING` 句を追記すること。
+
+```sql
+-- ❌ 自動生成のまま — 既存データでエラー
+ALTER TABLE "posts" ALTER COLUMN "body" SET DATA TYPE jsonb;
+
+-- ✅ USING 句を手動追記
+ALTER TABLE "posts" ALTER COLUMN "body" SET DATA TYPE jsonb USING to_jsonb(body);
+```
+
+チェック手順:
+1. `pnpm db:generate` 実行
+2. 生成された SQL ファイルを Read して `SET DATA TYPE` を検索
+3. 暗黙キャスト不可な変更には `USING` 句を追記
+4. テスト環境で `pnpm db:migrate` を実行して成功を確認
+
+PR #186 の教訓: text → jsonb の自動生成 SQL にUSING 句がなく、レビューで Critical 指摘。
+
+### 新規クエリ追加時のインデックス
+
+**WHERE 句で使われるカラムの組み合わせに対し、同じ PR 内でインデックスを追加すること。** 「テーブルが小さいから後で」は3回連続でレビュー指摘されて Critical に昇格する。
+
+```typescript
+// ❌ クエリだけ追加してインデックスを忘れる
+const [{ count }] = await db
+  .select({ count: sql`count(*)::int` })
+  .from(posts)
+  .where(and(eq(posts.authorId, userId), sql`${posts.ogFetchedAt} > ...`));
+
+// ✅ Drizzle スキーマにインデックスを同時追加
+export const posts = pgTable("posts", { ... }, (table) => [
+  index("posts_author_og_fetched_idx").on(table.authorId, table.ogFetchedAt),
+]);
+```
+
+PR #186 の教訓: OGP レートリミットと URL 再利用クエリにインデックスがなく、3回のレビューで Critical に昇格。初回で追加していれば2回分のレビューサイクルを節約できた。
