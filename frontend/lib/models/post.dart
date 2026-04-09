@@ -148,6 +148,11 @@ class Post {
   final List<PostConnection> outgoingConnections;
   final List<PostConnection> incomingConnections;
   final PostConstellation? constellation;
+  // OGP metadata (link-type posts only)
+  final String? ogTitle;
+  final String? ogDescription;
+  final String? ogImage;
+  final String? ogSiteName;
 
   const Post({
     required this.id,
@@ -176,6 +181,10 @@ class Post {
     this.outgoingConnections = const [],
     this.incomingConnections = const [],
     this.constellation,
+    this.ogTitle,
+    this.ogDescription,
+    this.ogImage,
+    this.ogSiteName,
   });
 
   Post copyWith({
@@ -200,6 +209,10 @@ class Post {
     List<PostConnection>? outgoingConnections,
     List<PostConnection>? incomingConnections,
     Object? constellation = sentinel,
+    Object? ogTitle = sentinel,
+    Object? ogDescription = sentinel,
+    Object? ogImage = sentinel,
+    Object? ogSiteName = sentinel,
   }) {
     return Post(
       id: id,
@@ -238,6 +251,14 @@ class Post {
       constellation: constellation == sentinel
           ? this.constellation
           : constellation as PostConstellation?,
+      ogTitle: ogTitle == sentinel ? this.ogTitle : ogTitle as String?,
+      ogDescription: ogDescription == sentinel
+          ? this.ogDescription
+          : ogDescription as String?,
+      ogImage: ogImage == sentinel ? this.ogImage : ogImage as String?,
+      ogSiteName: ogSiteName == sentinel
+          ? this.ogSiteName
+          : ogSiteName as String?,
     );
   }
 
@@ -356,6 +377,10 @@ class Post {
               json['constellation'] as Map<String, dynamic>,
             )
           : null,
+      ogTitle: json['ogTitle'] as String?,
+      ogDescription: json['ogDescription'] as String?,
+      ogImage: json['ogImage'] as String?,
+      ogSiteName: json['ogSiteName'] as String?,
     );
   }
 }

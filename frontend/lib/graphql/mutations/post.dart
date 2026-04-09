@@ -65,3 +65,12 @@ const updatePostMutation =
     }
   }
 ''';
+
+const fetchOgpMutation =
+    '''
+  mutation FetchOgp(\$postId: String!) {
+    fetchOgp(postId: \$postId) {
+      $postFields
+    }
+  }
+''';

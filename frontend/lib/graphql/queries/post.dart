@@ -13,6 +13,10 @@ const postFields = '''
   layoutX
   layoutY
   contentHash
+  ogTitle
+  ogDescription
+  ogImage
+  ogSiteName
   createdAt
   updatedAt
   author {
