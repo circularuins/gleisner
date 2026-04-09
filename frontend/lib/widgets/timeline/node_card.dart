@@ -724,7 +724,7 @@ class _AudioContent extends StatelessWidget {
   }
 }
 
-// --- Link: icon + domain ---
+// --- Link: OGP thumbnail or icon + domain ---
 class _LinkContent extends StatelessWidget {
   final PlacedNode node;
   final Color trackColor;
@@ -733,10 +733,103 @@ class _LinkContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final post = (node.item as PostItem).post;
+    final hasOgImage = post.ogImage != null && post.ogImage!.isNotEmpty;
     final domain = post.mediaUrl != null
         ? Uri.tryParse(post.mediaUrl!)?.host ?? ''
         : '';
+    final displayTitle = post.ogTitle ?? post.title;
+    final showInfo = node.showInfo;
+    final totalH = node.mediaHeight + (showInfo ? 30 : 0);
 
+    // OGP image available: full-bleed thumbnail (like image nodes)
+    if (hasOgImage) {
+      return SizedBox(
+        width: node.width,
+        height: totalH,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.network(
+              post.ogImage!,
+              width: node.width,
+              height: totalH,
+              fit: BoxFit.cover,
+              cacheWidth: (node.width * 2).toInt(),
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(color: colorSurface2);
+              },
+              errorBuilder: (_, _, _) => _LinkFallback(
+                post: post,
+                trackColor: trackColor,
+                domain: domain,
+              ),
+            ),
+            // Bottom gradient
+            if (showInfo)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: totalH * 0.5,
+                child: const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0x00000000), Color(0xAA000000)],
+                    ),
+                  ),
+                ),
+              ),
+            // Link icon badge
+            Positioned(
+              top: spaceXs,
+              left: spaceXs,
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(radiusSm),
+                ),
+                child: const Icon(
+                  Icons.link_rounded,
+                  size: 12,
+                  color: Colors.white70,
+                ),
+              ),
+            ),
+            // Overlay info
+            if (showInfo)
+              Positioned(
+                left: spaceSm,
+                right: spaceSm,
+                bottom: spaceSm,
+                child: _OverlayInfo(post: post, trackColor: trackColor),
+              ),
+          ],
+        ),
+      );
+    }
+
+    // No OGP image: text-based card
+    return _LinkFallback(post: post, trackColor: trackColor, domain: domain);
+  }
+}
+
+class _LinkFallback extends StatelessWidget {
+  final Post post;
+  final Color trackColor;
+  final String domain;
+  const _LinkFallback({
+    required this.post,
+    required this.trackColor,
+    required this.domain,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final displayTitle = post.ogTitle ?? post.title;
     return Container(
       padding: const EdgeInsets.all(spaceSm),
       decoration: BoxDecoration(
@@ -754,13 +847,18 @@ class _LinkContent extends StatelessWidget {
             children: [
               Icon(Icons.link_rounded, size: fontSizeMd, color: trackColor),
               const SizedBox(width: spaceXs),
-              _TrackLabel(trackName: post.trackName, color: trackColor),
+              Flexible(
+                child: _TrackLabel(
+                  trackName: post.trackName,
+                  color: trackColor,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: spaceXs),
-          if (post.title != null)
+          if (displayTitle != null)
             Text(
-              post.title!,
+              displayTitle,
               style: const TextStyle(
                 color: colorTextPrimary,
                 fontSize: fontSizeSm,
@@ -770,7 +868,19 @@ class _LinkContent extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-          if (post.plainTextPreview != null &&
+          if (post.ogDescription != null && post.ogDescription!.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text(
+              post.ogDescription!,
+              style: TextStyle(
+                color: colorTextPrimary.withValues(alpha: 0.6),
+                fontSize: fontSizeXs,
+                height: 1.3,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ] else if (post.plainTextPreview != null &&
               post.plainTextPreview!.isNotEmpty) ...[
             const SizedBox(height: 3),
             Text(
@@ -833,7 +943,11 @@ class _OverlayInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasTitle = post.title != null && post.title!.isNotEmpty;
+    // For link posts, prefer ogTitle over post.title
+    final displayTitle = post.mediaType == MediaType.link
+        ? (post.ogTitle ?? post.title)
+        : post.title;
+    final hasTitle = displayTitle != null && displayTitle.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -853,7 +967,7 @@ class _OverlayInfo extends StatelessWidget {
         if (hasTitle) ...[
           const SizedBox(height: 1),
           Text(
-            post.title!,
+            displayTitle!,
             style: const TextStyle(
               color: Colors.white,
               fontSize: fontSizeSm,

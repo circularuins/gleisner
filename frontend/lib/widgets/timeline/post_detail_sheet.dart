@@ -8,6 +8,7 @@ import '../../models/post.dart';
 import '../../models/track.dart' show parseHexColor;
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/constellation_graph.dart';
+import '../../utils/open_url.dart';
 import '../../utils/reading_time.dart';
 import '../common/connection_type_picker.dart';
 import '../common/related_post_picker.dart';
@@ -418,12 +419,17 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       ];
     }
 
-    // Audio with URL: title is in media overlay, skip it here
-    final isAudioWithUrl =
-        post.mediaType == MediaType.audio &&
-        post.mediaUrl != null &&
-        post.mediaUrl!.isNotEmpty;
-    if (isAudioWithUrl) {
+    // Audio/Link: title is in media overlay only when visual overlay exists.
+    // Audio: always has overlay when URL present.
+    // Link: only when ogImage is present (fallback card has no overlay).
+    final isMediaOverlay =
+        (post.mediaType == MediaType.audio &&
+            post.mediaUrl != null &&
+            post.mediaUrl!.isNotEmpty) ||
+        (post.mediaType == MediaType.link &&
+            post.ogImage != null &&
+            post.ogImage!.isNotEmpty);
+    if (isMediaOverlay) {
       return [
         dateRow,
         const SizedBox(height: spaceMd),
@@ -1466,53 +1472,197 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     final domain = post.mediaUrl != null
         ? Uri.tryParse(post.mediaUrl!)?.host ?? ''
         : '';
-    return _withBadges(
-      post,
-      trackColor,
-      Container(
-        height: 120,
-        padding: const EdgeInsets.fromLTRB(spaceLg, 40, spaceLg, spaceLg),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [trackColor.withValues(alpha: 0.06), colorSurface1],
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Spacer(),
-            Row(
+    final hasOgImage = post.ogImage != null && post.ogImage!.isNotEmpty;
+    final displayTitle = post.ogTitle ?? post.title;
+
+    if (hasOgImage) {
+      // Rich OGP card: large image + overlay info
+      return _withBadges(
+        post,
+        trackColor,
+        GestureDetector(
+          onTap: post.mediaUrl != null
+              ? () => openUrlImpl(post.mediaUrl!)
+              : null,
+          child: Container(
+            height: 240,
+            clipBehavior: Clip.antiAlias,
+            decoration: const BoxDecoration(color: colorSurface1),
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                Icon(Icons.link_rounded, size: 20, color: trackColor),
-                const SizedBox(width: spaceSm),
-                Expanded(
-                  child: Text(
-                    post.mediaUrl ?? '',
-                    style: TextStyle(
-                      color: trackColor.withValues(alpha: 0.8),
-                      fontSize: fontSizeMd,
-                      decoration: TextDecoration.underline,
+                Image.network(
+                  post.ogImage!,
+                  fit: BoxFit.cover,
+                  cacheWidth: 800,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(color: colorSurface2);
+                  },
+                  errorBuilder: (_, _, _) => Container(
+                    color: colorSurface2,
+                    child: const Center(
+                      child: Icon(
+                        Icons.link_rounded,
+                        size: 40,
+                        color: colorTextMuted,
+                      ),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                // Bottom gradient
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: 120,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            colorSurface1.withValues(alpha: 0.8),
+                            colorSurface1,
+                          ],
+                          stops: const [0.0, 0.6, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // OGP info overlay
+                Positioned(
+                  left: spaceLg,
+                  right: spaceLg,
+                  bottom: spaceMd,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (displayTitle != null)
+                        Text(
+                          displayTitle,
+                          style: const TextStyle(
+                            color: colorTextPrimary,
+                            fontSize: fontSizeLg,
+                            fontWeight: weightSemibold,
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      if (post.ogDescription != null) ...[
+                        const SizedBox(height: spaceXs),
+                        Text(
+                          post.ogDescription!,
+                          style: TextStyle(
+                            color: colorTextSecondary.withValues(alpha: 0.8),
+                            fontSize: fontSizeSm,
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: spaceXs),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.link_rounded,
+                            size: 14,
+                            color: trackColor.withValues(alpha: 0.7),
+                          ),
+                          const SizedBox(width: spaceXs),
+                          Flexible(
+                            child: Text(
+                              post.ogSiteName ?? domain,
+                              style: TextStyle(
+                                color: trackColor.withValues(alpha: 0.7),
+                                fontSize: fontSizeXs,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            if (domain.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: spaceXs, left: 28),
-                child: Text(
-                  domain,
-                  style: TextStyle(
-                    color: trackColor.withValues(alpha: opacityOverlay),
-                    fontSize: fontSizeXs,
+          ),
+        ),
+      );
+    }
+
+    // Fallback: compact link card (no OGP image)
+    return _withBadges(
+      post,
+      trackColor,
+      GestureDetector(
+        onTap: post.mediaUrl != null ? () => openUrlImpl(post.mediaUrl!) : null,
+        child: Container(
+          height: 120,
+          padding: const EdgeInsets.fromLTRB(
+            spaceLg,
+            spaceLg,
+            spaceLg,
+            spaceMd,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [trackColor.withValues(alpha: 0.06), colorSurface1],
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (displayTitle != null) ...[
+                Text(
+                  displayTitle,
+                  style: const TextStyle(
+                    color: colorTextPrimary,
+                    fontSize: fontSizeMd,
+                    fontWeight: weightSemibold,
+                    height: 1.3,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: spaceSm),
+              ],
+              Row(
+                children: [
+                  Icon(Icons.link_rounded, size: 16, color: trackColor),
+                  const SizedBox(width: spaceXs),
+                  Flexible(
+                    child: Text(
+                      post.ogSiteName ?? domain,
+                      style: TextStyle(
+                        color: trackColor.withValues(alpha: 0.7),
+                        fontSize: fontSizeSm,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: spaceSm),
+                  Icon(
+                    Icons.open_in_new_rounded,
+                    size: 14,
+                    color: colorTextMuted.withValues(alpha: 0.5),
+                  ),
+                ],
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );
