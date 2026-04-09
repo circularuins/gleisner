@@ -1,0 +1,2 @@
+CREATE INDEX "posts_author_og_fetched_idx" ON "posts" USING btree ("author_id","og_fetched_at");--> statement-breakpoint
+CREATE INDEX "posts_media_url_og_fetched_idx" ON "posts" USING btree ("media_url","og_fetched_at");
