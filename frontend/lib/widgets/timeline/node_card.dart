@@ -754,6 +754,7 @@ class _LinkContent extends StatelessWidget {
               width: node.width,
               height: totalH,
               fit: BoxFit.cover,
+              cacheWidth: (node.width * 2).toInt(),
               loadingBuilder: (context, child, loadingProgress) {
                 if (loadingProgress == null) return child;
                 return Container(color: colorSurface2);
