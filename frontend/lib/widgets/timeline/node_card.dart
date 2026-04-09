@@ -942,7 +942,11 @@ class _OverlayInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasTitle = post.title != null && post.title!.isNotEmpty;
+    // For link posts, prefer ogTitle over post.title
+    final displayTitle = post.mediaType == MediaType.link
+        ? (post.ogTitle ?? post.title)
+        : post.title;
+    final hasTitle = displayTitle != null && displayTitle.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -962,7 +966,7 @@ class _OverlayInfo extends StatelessWidget {
         if (hasTitle) ...[
           const SizedBox(height: 1),
           Text(
-            post.title!,
+            displayTitle!,
             style: const TextStyle(
               color: Colors.white,
               fontSize: fontSizeSm,

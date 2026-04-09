@@ -419,13 +419,16 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       ];
     }
 
-    // Audio with URL: title is in media overlay, skip it here
-    // Audio/Link with media: title is in media overlay, skip it here
+    // Audio/Link: title is in media overlay only when visual overlay exists.
+    // Audio: always has overlay when URL present.
+    // Link: only when ogImage is present (fallback card has no overlay).
     final isMediaOverlay =
-        (post.mediaType == MediaType.audio ||
-            post.mediaType == MediaType.link) &&
-        post.mediaUrl != null &&
-        post.mediaUrl!.isNotEmpty;
+        (post.mediaType == MediaType.audio &&
+            post.mediaUrl != null &&
+            post.mediaUrl!.isNotEmpty) ||
+        (post.mediaType == MediaType.link &&
+            post.ogImage != null &&
+            post.ogImage!.isNotEmpty);
     if (isMediaOverlay) {
       return [
         dateRow,
