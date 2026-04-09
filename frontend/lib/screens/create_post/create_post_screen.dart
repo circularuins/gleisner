@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,7 @@ import '../../models/track.dart' show Track, parseHexColor;
 import '../../providers/create_post_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
+import '../../utils/ime_safe_focus.dart';
 import '../../widgets/common/connection_type_picker.dart';
 import '../../widgets/common/error_banner.dart';
 import '../../widgets/common/event_at_picker.dart';
@@ -33,6 +35,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   final _bodyController = TextEditingController();
   final _mediaUrlController = TextEditingController();
   final _quillController = QuillController.basic();
+  // FocusNodes that block Tab during IME composition to prevent
+  // Flutter Web assertion "Range end N is out of text of length 0".
+  late final _urlFocusNode = createImeSafeFocusNode(_mediaUrlController);
+  late final _linkTitleFocusNode = createImeSafeFocusNode(_titleController);
+  late final _linkCaptionFocusNode = createImeSafeFocusNode(_bodyController);
   String? _thumbnailUrl;
   int? _durationSeconds;
   DateTime? _eventAt;
@@ -46,6 +53,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     _bodyController.dispose();
     _mediaUrlController.dispose();
     _quillController.dispose();
+    _urlFocusNode.dispose();
+    _linkTitleFocusNode.dispose();
+    _linkCaptionFocusNode.dispose();
     // Provider reset is handled in _submit() success path.
     // autoDispose cleans up when no watchers remain.
     super.dispose();
@@ -191,6 +201,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               mediaUrlController: _mediaUrlController,
               thumbnailUrl: _thumbnailUrl,
               durationSeconds: _durationSeconds,
+              urlFocusNode: _urlFocusNode,
+              linkTitleFocusNode: _linkTitleFocusNode,
+              linkCaptionFocusNode: _linkCaptionFocusNode,
               eventAt: _eventAt,
               onEventAtChanged: (dt) => setState(() => _eventAt = dt),
               onSubmit: _submit,
@@ -461,6 +474,9 @@ class _FormStep extends ConsumerWidget {
   final TextEditingController mediaUrlController;
   final String? thumbnailUrl;
   final int? durationSeconds;
+  final FocusNode? urlFocusNode;
+  final FocusNode? linkTitleFocusNode;
+  final FocusNode? linkCaptionFocusNode;
   final DateTime? eventAt;
   final ValueChanged<DateTime?> onEventAtChanged;
   final VoidCallback onSubmit;
@@ -474,6 +490,9 @@ class _FormStep extends ConsumerWidget {
     required this.mediaUrlController,
     this.thumbnailUrl,
     this.durationSeconds,
+    this.urlFocusNode,
+    this.linkTitleFocusNode,
+    this.linkCaptionFocusNode,
     this.eventAt,
     required this.onEventAtChanged,
     required this.onSubmit,
@@ -835,6 +854,7 @@ class _FormStep extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: spaceMd),
         child: TextFormField(
           controller: titleController,
+          focusNode: linkTitleFocusNode,
           maxLength: 100,
           maxLengthEnforcement: MaxLengthEnforcement.enforced,
           decoration: InputDecoration(
@@ -868,6 +888,7 @@ class _FormStep extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: spaceMd),
         child: TextFormField(
           controller: bodyController,
+          focusNode: linkCaptionFocusNode,
           maxLines: 4,
           minLines: 2,
           maxLength: 500,
@@ -1084,42 +1105,135 @@ class _FormStep extends ConsumerWidget {
     );
   }
 
-  // link: URL (required) + caption
+  // link: URL (required) + title + caption
   List<Widget> _buildLinkFields(ThemeData theme) {
     return [
-      TextFormField(
-        controller: mediaUrlController,
-        decoration: const InputDecoration(
-          labelText: 'URL',
-          border: OutlineInputBorder(),
-          hintText: 'https://',
-          prefixIcon: Icon(Icons.link),
+      // Wrap in FocusTraversalGroup to keep Tab navigation within these fields
+      // and prevent Flutter Web IME assertion on focus change.
+      FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
+        child: Column(
+          children: [
+            // URL field
+            Container(
+              decoration: BoxDecoration(
+                color: colorSurface1,
+                borderRadius: BorderRadius.circular(radiusMd),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: spaceMd),
+              child: TextFormField(
+                controller: mediaUrlController,
+                focusNode: urlFocusNode,
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.next,
+                autofocus: true,
+                style: TextStyle(
+                  color: colorTextPrimary,
+                  fontSize: fontSizeMd,
+                  fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'https://',
+                  hintStyle: TextStyle(
+                    color: colorTextMuted.withValues(alpha: 0.4),
+                    fontSize: fontSizeMd,
+                    fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
+                  ),
+                  icon: Icon(
+                    Icons.link_rounded,
+                    color: colorTextMuted,
+                    size: 20,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: spaceMd),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'URL is required';
+                  }
+                  final uri = Uri.tryParse(value);
+                  if (uri == null || !['http', 'https'].contains(uri.scheme)) {
+                    return 'Enter a valid http(s) URL';
+                  }
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(height: spaceSm),
+            // Title
+            Container(
+              decoration: BoxDecoration(
+                color: colorSurface1,
+                borderRadius: BorderRadius.circular(radiusMd),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: spaceMd),
+              child: TextFormField(
+                controller: titleController,
+                focusNode: linkTitleFocusNode,
+                textInputAction: TextInputAction.next,
+                maxLength: 100,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                style: const TextStyle(
+                  color: colorTextPrimary,
+                  fontSize: fontSizeLg,
+                  fontWeight: weightMedium,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Title (auto-filled from link if empty)',
+                  hintStyle: const TextStyle(
+                    color: colorTextMuted,
+                    fontSize: fontSizeLg,
+                    fontWeight: weightMedium,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: spaceMd),
+                  counterStyle: TextStyle(
+                    fontSize: fontSizeXs,
+                    color: colorTextMuted.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: spaceSm),
+            // Caption
+            Container(
+              decoration: BoxDecoration(
+                color: colorSurface1,
+                borderRadius: BorderRadius.circular(radiusMd),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: spaceMd),
+              child: TextFormField(
+                controller: bodyController,
+                focusNode: linkCaptionFocusNode,
+                textInputAction: TextInputAction.done,
+                maxLines: 3,
+                minLines: 2,
+                maxLength: 500,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                style: const TextStyle(
+                  color: colorTextSecondary,
+                  fontSize: fontSizeMd,
+                  height: 1.5,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Add a note...',
+                  hintStyle: const TextStyle(
+                    color: colorTextMuted,
+                    fontSize: fontSizeMd,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: spaceSm),
+                  counterStyle: TextStyle(
+                    fontSize: fontSizeXs,
+                    color: colorTextMuted.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: spaceMd),
+          ],
         ),
-        keyboardType: TextInputType.url,
-        autofocus: true,
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'URL is required';
-          }
-          final uri = Uri.tryParse(value);
-          if (uri == null || !['http', 'https'].contains(uri.scheme)) {
-            return 'Enter a valid http(s) URL';
-          }
-          return null;
-        },
       ),
-      const SizedBox(height: spaceLg),
-      TextFormField(
-        controller: bodyController,
-        decoration: const InputDecoration(
-          labelText: 'Caption (optional)',
-          border: OutlineInputBorder(),
-          alignLabelWithHint: true,
-        ),
-        maxLines: 3,
-        maxLength: 500,
-      ),
-      const SizedBox(height: spaceLg),
     ];
   }
 }
