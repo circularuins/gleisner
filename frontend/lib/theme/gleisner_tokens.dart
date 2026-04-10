@@ -150,3 +150,6 @@ final textLabel = GoogleFonts.plusJakartaSans(
   fontSize: fontSizeSm,
   fontWeight: weightMedium,
 );
+
+/// Monospace font family for URLs and code.
+final monoFontFamily = GoogleFonts.jetBrainsMono().fontFamily;

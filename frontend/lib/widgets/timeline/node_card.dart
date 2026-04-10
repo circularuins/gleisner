@@ -737,7 +737,7 @@ class _LinkContent extends StatelessWidget {
     final domain = post.mediaUrl != null
         ? Uri.tryParse(post.mediaUrl!)?.host ?? ''
         : '';
-    final displayTitle = post.ogTitle ?? post.title;
+    final displayTitle = post.title ?? post.ogTitle;
     final showInfo = node.showInfo;
     final totalH = node.mediaHeight + (showInfo ? 30 : 0);
 
@@ -759,11 +759,7 @@ class _LinkContent extends StatelessWidget {
                 if (loadingProgress == null) return child;
                 return Container(color: colorSurface2);
               },
-              errorBuilder: (_, _, _) => _LinkFallback(
-                post: post,
-                trackColor: trackColor,
-                domain: domain,
-              ),
+              errorBuilder: (_, _, _) => Container(color: colorSurface2),
             ),
             // Bottom gradient
             if (showInfo)
@@ -829,83 +825,60 @@ class _LinkFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayTitle = post.ogTitle ?? post.title;
+    final displayTitle = post.title ?? post.ogTitle;
     return Container(
-      padding: const EdgeInsets.all(spaceSm),
       decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: trackColor.withValues(alpha: 0.5), width: 3),
+        ),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [trackColor.withValues(alpha: 0.04), colorSurface1],
+          colors: [trackColor.withValues(alpha: 0.08), colorSurface1],
         ),
       ),
+      padding: const EdgeInsets.fromLTRB(spaceSm, spaceSm, spaceSm, spaceSm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(Icons.link_rounded, size: fontSizeMd, color: trackColor),
-              const SizedBox(width: spaceXs),
-              Flexible(
-                child: _TrackLabel(
-                  trackName: post.trackName,
-                  color: trackColor,
+          // Domain row
+          if (domain.isNotEmpty) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.link_rounded,
+                  size: 10,
+                  color: trackColor.withValues(alpha: 0.5),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: spaceXs),
+                const SizedBox(width: spaceXs),
+                Flexible(
+                  child: Text(
+                    domain,
+                    style: TextStyle(
+                      color: trackColor.withValues(alpha: 0.5),
+                      fontSize: 9,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: spaceXs),
+          ],
           if (displayTitle != null)
             Text(
               displayTitle,
               style: const TextStyle(
                 color: colorTextPrimary,
-                fontSize: fontSizeSm,
+                fontSize: fontSizeMd,
                 fontWeight: weightSemibold,
                 height: 1.3,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-          if (post.ogDescription != null && post.ogDescription!.isNotEmpty) ...[
-            const SizedBox(height: 3),
-            Text(
-              post.ogDescription!,
-              style: TextStyle(
-                color: colorTextPrimary.withValues(alpha: 0.6),
-                fontSize: fontSizeXs,
-                height: 1.3,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ] else if (post.plainTextPreview != null &&
-              post.plainTextPreview!.isNotEmpty) ...[
-            const SizedBox(height: 3),
-            Text(
-              post.plainTextPreview!,
-              style: TextStyle(
-                color: colorTextPrimary.withValues(alpha: 0.6),
-                fontSize: fontSizeXs,
-                height: 1.3,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-          if (domain.isNotEmpty) ...[
-            const SizedBox(height: spaceXxs),
-            Text(
-              domain,
-              style: TextStyle(
-                color: trackColor.withValues(alpha: 0.6),
-                fontSize: fontSizeXs,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
         ],
       ),
     );
@@ -945,24 +918,47 @@ class _OverlayInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     // For link posts, prefer ogTitle over post.title
     final displayTitle = post.mediaType == MediaType.link
-        ? (post.ogTitle ?? post.title)
+        ? (post.title ?? post.ogTitle)
         : post.title;
     final hasTitle = displayTitle != null && displayTitle.isNotEmpty;
+    final isLink = post.mediaType == MediaType.link;
+    final domain = isLink && post.mediaUrl != null
+        ? Uri.tryParse(post.mediaUrl!)?.host
+        : null;
+    // For links: show domain instead of track name (track color already visible via glow)
+    final label = isLink ? domain : post.trackName?.toUpperCase();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (post.trackName != null)
-          Text(
-            post.trackName!.toUpperCase(),
-            style: TextStyle(
-              color: trackColor.withValues(alpha: 0.9),
-              fontSize: 9,
-              fontWeight: weightSemibold,
-              letterSpacing: 0.5,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        if (label != null)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isLink)
+                Padding(
+                  padding: const EdgeInsets.only(right: spaceXxs),
+                  child: Icon(
+                    Icons.link_rounded,
+                    size: 9,
+                    color: trackColor.withValues(alpha: 0.8),
+                  ),
+                ),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: trackColor.withValues(alpha: 0.9),
+                    fontSize: 9,
+                    fontWeight: weightSemibold,
+                    letterSpacing: isLink ? 0 : 0.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         if (hasTitle) ...[
           const SizedBox(height: 1),

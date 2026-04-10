@@ -1473,7 +1473,7 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
         ? Uri.tryParse(post.mediaUrl!)?.host ?? ''
         : '';
     final hasOgImage = post.ogImage != null && post.ogImage!.isNotEmpty;
-    final displayTitle = post.ogTitle ?? post.title;
+    final displayTitle = post.title ?? post.ogTitle;
 
     if (hasOgImage) {
       // Rich OGP card: large image + overlay info
@@ -1530,6 +1530,23 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
                           stops: const [0.0, 0.6, 1.0],
                         ),
                       ),
+                    ),
+                  ),
+                ),
+                // External link badge — top right
+                Positioned(
+                  top: spaceSm,
+                  right: spaceSm,
+                  child: Container(
+                    padding: const EdgeInsets.all(spaceXs),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(radiusSm),
+                    ),
+                    child: const Icon(
+                      Icons.open_in_new_rounded,
+                      size: 14,
+                      color: Colors.white70,
                     ),
                   ),
                 ),
@@ -1599,70 +1616,97 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
       );
     }
 
-    // Fallback: compact link card (no OGP image)
+    // Fallback: link card without OGP image
     return _withBadges(
       post,
       trackColor,
-      GestureDetector(
-        onTap: post.mediaUrl != null ? () => openUrlImpl(post.mediaUrl!) : null,
-        child: Container(
-          height: 120,
-          padding: const EdgeInsets.fromLTRB(
-            spaceLg,
-            spaceLg,
-            spaceLg,
-            spaceMd,
-          ),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [trackColor.withValues(alpha: 0.06), colorSurface1],
+      Container(
+        padding: const EdgeInsets.fromLTRB(spaceLg, spaceLg, spaceLg, spaceMd),
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: trackColor.withValues(alpha: 0.4),
+              width: 3,
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (displayTitle != null) ...[
-                Text(
-                  displayTitle,
-                  style: const TextStyle(
-                    color: colorTextPrimary,
-                    fontSize: fontSizeMd,
-                    fontWeight: weightSemibold,
-                    height: 1.3,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: spaceSm),
-              ],
-              Row(
-                children: [
-                  Icon(Icons.link_rounded, size: 16, color: trackColor),
-                  const SizedBox(width: spaceXs),
-                  Flexible(
-                    child: Text(
-                      post.ogSiteName ?? domain,
-                      style: TextStyle(
-                        color: trackColor.withValues(alpha: 0.7),
-                        fontSize: fontSizeSm,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: spaceSm),
-                  Icon(
-                    Icons.open_in_new_rounded,
-                    size: 14,
-                    color: colorTextMuted.withValues(alpha: 0.5),
-                  ),
-                ],
-              ),
-            ],
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [trackColor.withValues(alpha: 0.06), colorSurface1],
           ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (displayTitle != null) ...[
+              Text(
+                displayTitle,
+                style: const TextStyle(
+                  color: colorTextPrimary,
+                  fontSize: fontSizeLg,
+                  fontWeight: weightSemibold,
+                  height: 1.3,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: spaceSm),
+            ],
+            if (post.ogDescription != null &&
+                post.ogDescription!.isNotEmpty) ...[
+              Text(
+                post.ogDescription!,
+                style: TextStyle(
+                  color: colorTextSecondary.withValues(alpha: 0.7),
+                  fontSize: fontSizeSm,
+                  height: 1.4,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: spaceSm),
+            ],
+            // URL + open button
+            GestureDetector(
+              onTap: post.mediaUrl != null
+                  ? () => openUrlImpl(post.mediaUrl!)
+                  : null,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: spaceSm,
+                  vertical: spaceXs,
+                ),
+                decoration: BoxDecoration(
+                  color: trackColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(radiusSm),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.open_in_new_rounded,
+                      size: 14,
+                      color: trackColor.withValues(alpha: 0.8),
+                    ),
+                    const SizedBox(width: spaceXs),
+                    Flexible(
+                      child: Text(
+                        post.ogSiteName ?? domain,
+                        style: TextStyle(
+                          color: trackColor.withValues(alpha: 0.8),
+                          fontSize: fontSizeSm,
+                          fontWeight: weightMedium,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -16,6 +16,7 @@ import '../../widgets/common/event_at_picker.dart';
 import '../../widgets/editor/rich_text_editor.dart';
 import '../../widgets/editor/text_body_counter.dart';
 import '../../utils/constellation_layout.dart';
+import '../../utils/ime_safe_focus.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
 
 class EditPostScreen extends ConsumerStatefulWidget {
@@ -55,6 +56,10 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   String? _thumbnailUrl;
   int? _durationSeconds;
   DateTime? _eventAt;
+  // IME-safe FocusNodes — block Tab during composition
+  late final FocusNode _titleFocusNode;
+  late final FocusNode _bodyFocusNode;
+  late final FocusNode _urlFocusNode;
 
   @override
   void initState() {
@@ -81,6 +86,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     } else {
       _quillController = QuillController.basic();
     }
+    _titleFocusNode = createImeSafeFocusNode(_titleController);
+    _bodyFocusNode = createImeSafeFocusNode(_bodyController);
+    _urlFocusNode = createImeSafeFocusNode(_mediaUrlController);
     _importance = widget.post.importance;
     _visibility = widget.post.visibility;
     _selectedTrackId = widget.post.trackId;
@@ -95,6 +103,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     _bodyController.dispose();
     _mediaUrlController.dispose();
     _quillController.dispose();
+    _titleFocusNode.dispose();
+    _bodyFocusNode.dispose();
+    _urlFocusNode.dispose();
     super.dispose();
   }
 
@@ -512,6 +523,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         padding: const EdgeInsets.symmetric(horizontal: spaceMd),
         child: TextFormField(
           controller: _titleController,
+          focusNode: _titleFocusNode,
           maxLength: 100,
           maxLengthEnforcement: MaxLengthEnforcement.enforced,
           style: const TextStyle(
@@ -545,6 +557,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         padding: const EdgeInsets.symmetric(horizontal: spaceMd),
         child: TextFormField(
           controller: _bodyController,
+          focusNode: _bodyFocusNode,
           maxLines: 4,
           minLines: 2,
           maxLength: 500,
@@ -780,31 +793,127 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
 
   List<Widget> _buildLinkFields() {
     return [
-      TextFormField(
-        controller: _mediaUrlController,
-        style: const TextStyle(color: colorTextPrimary),
-        decoration: _inputDecoration(
-          'URL',
-        ).copyWith(prefixIcon: const Icon(Icons.link, color: colorTextMuted)),
-        keyboardType: TextInputType.url,
-        validator: (value) {
-          if (value == null || value.trim().isEmpty) {
-            return 'URL is required';
-          }
-          final uri = Uri.tryParse(value.trim());
-          if (uri == null || !['http', 'https'].contains(uri.scheme)) {
-            return 'Enter a valid http(s) URL';
-          }
-          return null;
-        },
-      ),
-      const SizedBox(height: spaceLg),
-      TextFormField(
-        controller: _bodyController,
-        maxLines: 3,
-        maxLength: 500,
-        style: const TextStyle(color: colorTextPrimary),
-        decoration: _inputDecoration('Caption (optional)'),
+      FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
+        child: Column(
+          children: [
+            // URL field
+            Container(
+              decoration: BoxDecoration(
+                color: colorSurface1,
+                borderRadius: BorderRadius.circular(radiusMd),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: spaceMd),
+              child: TextFormField(
+                controller: _mediaUrlController,
+                focusNode: _urlFocusNode,
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.next,
+                style: TextStyle(
+                  color: colorTextPrimary,
+                  fontSize: fontSizeMd,
+                  fontFamily: monoFontFamily,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'https://',
+                  hintStyle: TextStyle(
+                    color: colorTextMuted.withValues(alpha: 0.4),
+                    fontSize: fontSizeMd,
+                    fontFamily: monoFontFamily,
+                  ),
+                  icon: const Icon(
+                    Icons.link_rounded,
+                    color: colorTextMuted,
+                    size: 20,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: spaceMd),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'URL is required';
+                  }
+                  final uri = Uri.tryParse(value.trim());
+                  if (uri == null || !['http', 'https'].contains(uri.scheme)) {
+                    return 'Enter a valid http(s) URL';
+                  }
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(height: spaceSm),
+            // Title
+            Container(
+              decoration: BoxDecoration(
+                color: colorSurface1,
+                borderRadius: BorderRadius.circular(radiusMd),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: spaceMd),
+              child: TextFormField(
+                controller: _titleController,
+                focusNode: _titleFocusNode,
+                textInputAction: TextInputAction.next,
+                maxLength: 100,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                style: const TextStyle(
+                  color: colorTextPrimary,
+                  fontSize: fontSizeLg,
+                  fontWeight: weightMedium,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Title (auto-filled from link if empty)',
+                  hintStyle: const TextStyle(
+                    color: colorTextMuted,
+                    fontSize: fontSizeLg,
+                    fontWeight: weightMedium,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: spaceMd),
+                  counterStyle: TextStyle(
+                    fontSize: fontSizeXs,
+                    color: colorTextMuted.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: spaceSm),
+            // Caption
+            Container(
+              decoration: BoxDecoration(
+                color: colorSurface1,
+                borderRadius: BorderRadius.circular(radiusMd),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: spaceMd),
+              child: TextFormField(
+                controller: _bodyController,
+                focusNode: _bodyFocusNode,
+                textInputAction: TextInputAction.done,
+                maxLines: 3,
+                minLines: 2,
+                maxLength: 500,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                style: const TextStyle(
+                  color: colorTextSecondary,
+                  fontSize: fontSizeMd,
+                  height: 1.5,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Add a note...',
+                  hintStyle: const TextStyle(
+                    color: colorTextMuted,
+                    fontSize: fontSizeMd,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: spaceSm),
+                  counterStyle: TextStyle(
+                    fontSize: fontSizeXs,
+                    color: colorTextMuted.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     ];
   }
