@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -813,14 +812,14 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                 style: TextStyle(
                   color: colorTextPrimary,
                   fontSize: fontSizeMd,
-                  fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
+                  fontFamily: monoFontFamily,
                 ),
                 decoration: InputDecoration(
                   hintText: 'https://',
                   hintStyle: TextStyle(
                     color: colorTextMuted.withValues(alpha: 0.4),
                     fontSize: fontSizeMd,
-                    fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
+                    fontFamily: monoFontFamily,
                   ),
                   icon: const Icon(
                     Icons.link_rounded,

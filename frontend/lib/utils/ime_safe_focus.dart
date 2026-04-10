@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 
 /// Create a FocusNode that blocks Tab key during IME composition.
 ///
+/// IMPORTANT: [controller] must outlive the returned [FocusNode].
+/// Dispose the FocusNode before disposing [controller].
+///
 /// On Flutter Web, pressing Tab while the IME has uncommitted text
 /// (e.g. Japanese kanji candidates) causes the composition to commit
 /// AND focus to move simultaneously. This corrupts the text editing
