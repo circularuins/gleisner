@@ -231,33 +231,19 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         return null;
       }
 
-      // Upload video
-      final videoUrl = await _upload(
-        category: category,
-        bytes: bytes,
-        contentType: contentType,
-      );
-      if (videoUrl == null) return null;
-      if (disposed) return null;
-
-      // Extract thumbnail + duration from video
-      String? thumbnailUrl;
+      // Extract thumbnail + duration before upload to avoid R2 orphans
       int? durationSeconds;
+      Uint8List? thumbnailBytes;
       try {
         final meta = await captureVideoThumbnail(bytes, mimeType: contentType);
         durationSeconds = meta.durationSeconds;
-        if (meta.thumbnail != null && !disposed) {
-          thumbnailUrl = await _upload(
-            category: category,
-            bytes: meta.thumbnail!,
-            contentType: 'image/jpeg',
-          );
-        }
+        thumbnailBytes = meta.thumbnail;
       } catch (e) {
         debugPrint('[MediaUpload] thumbnail/duration extraction failed: $e');
       }
+      if (disposed) return null;
 
-      // Enforce video duration limit (ADR 025)
+      // Enforce video duration limit (ADR 025) — reject before upload
       if (durationSeconds != null &&
           durationSeconds > maxVideoDurationSeconds) {
         if (!disposed) {
@@ -267,6 +253,25 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
           );
         }
         return null;
+      }
+
+      // Upload video
+      final videoUrl = await _upload(
+        category: category,
+        bytes: bytes,
+        contentType: contentType,
+      );
+      if (videoUrl == null) return null;
+      if (disposed) return null;
+
+      // Upload thumbnail
+      String? thumbnailUrl;
+      if (thumbnailBytes != null && !disposed) {
+        thumbnailUrl = await _upload(
+          category: category,
+          bytes: thumbnailBytes,
+          contentType: 'image/jpeg',
+        );
       }
 
       return (
@@ -310,23 +315,14 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         return null;
       }
 
-      // Upload first (sets isUploading immediately), then extract duration.
-      // Serial order avoids race where isUploading resets before Future.wait completes.
-      final url = await _upload(
-        category: category,
-        bytes: bytes,
-        contentType: contentType,
-      );
-      if (disposed || url == null) return null;
-
-      // Duration extraction is best-effort; typically completes instantly.
+      // Extract duration before upload to avoid R2 orphans
       final durationSeconds = await extractAudioDuration(
         bytes,
         mimeType: contentType,
       );
       if (disposed) return null;
 
-      // Enforce audio duration limit (ADR 025)
+      // Enforce audio duration limit (ADR 025) — reject before upload
       if (durationSeconds != null &&
           durationSeconds > maxAudioDurationSeconds) {
         if (!disposed) {
@@ -337,6 +333,14 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         }
         return null;
       }
+
+      // Upload after duration check passes
+      final url = await _upload(
+        category: category,
+        bytes: bytes,
+        contentType: contentType,
+      );
+      if (disposed || url == null) return null;
 
       return (audioUrl: url, durationSeconds: durationSeconds);
     } catch (e) {

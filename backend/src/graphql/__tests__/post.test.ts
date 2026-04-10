@@ -1441,5 +1441,103 @@ describe("Post GraphQL integration", () => {
       );
       expect(result.errors).toBeUndefined();
     });
+
+    // updatePost tests — effectiveType logic (args.mediaType ?? post.mediaType)
+    const UPDATE_POST_WITH_DURATION = `
+      mutation UpdatePost($id: String!, $mediaType: MediaType, $duration: Int, $mediaUrl: String) {
+        updatePost(id: $id, mediaType: $mediaType, duration: $duration, mediaUrl: $mediaUrl) {
+          id duration mediaType
+        }
+      }
+    `;
+
+    it("rejects updatePost with duration exceeding video limit", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "dur6@test.com",
+        "dur6",
+        "durart6",
+      );
+      const createResult = await gql(
+        app,
+        CREATE_POST_WITH_DURATION,
+        {
+          trackId,
+          mediaType: "video",
+          duration: 30,
+          mediaUrl: "http://localhost:4000/test-video.mp4",
+        },
+        token,
+      );
+      const postId = (createResult.data!.createPost as { id: string }).id;
+
+      const result = await gql(
+        app,
+        UPDATE_POST_WITH_DURATION,
+        { id: postId, duration: 61 },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("60-second limit");
+    });
+
+    it("rejects updatePost changing text to video with over-limit duration", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "dur7@test.com",
+        "dur7",
+        "durart7",
+      );
+      const createResult = await gql(
+        app,
+        CREATE_POST_WITH_DURATION,
+        { trackId, mediaType: "text", duration: 120 },
+        token,
+      );
+      const postId = (createResult.data!.createPost as { id: string }).id;
+
+      const result = await gql(
+        app,
+        UPDATE_POST_WITH_DURATION,
+        {
+          id: postId,
+          mediaType: "video",
+          duration: 61,
+          mediaUrl: "http://localhost:4000/test-video.mp4",
+        },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("60-second limit");
+    });
+
+    it("accepts updatePost with duration within video limit", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "dur8@test.com",
+        "dur8",
+        "durart8",
+      );
+      const createResult = await gql(
+        app,
+        CREATE_POST_WITH_DURATION,
+        {
+          trackId,
+          mediaType: "video",
+          duration: 30,
+          mediaUrl: "http://localhost:4000/test-video.mp4",
+        },
+        token,
+      );
+      const postId = (createResult.data!.createPost as { id: string }).id;
+
+      const result = await gql(
+        app,
+        UPDATE_POST_WITH_DURATION,
+        { id: postId, duration: 60 },
+        token,
+      );
+      expect(result.errors).toBeUndefined();
+    });
   });
 });
