@@ -83,6 +83,35 @@ const radiusSheet = 20.0;
 const radiusFull = 999.0;
 
 // ---------------------------------------------------------------------------
+// Responsive breakpoints (Idea 030)
+// ---------------------------------------------------------------------------
+
+const breakpointTablet = 600.0;
+const breakpointDesktop = 1024.0;
+
+/// Content max-width on large screens (centered with padding)
+const maxContentWidth = 1200.0;
+
+/// Side panel width on desktop (detail sheet replacement)
+const sidePanelWidth = 420.0;
+
+/// Navigation rail width on desktop/tablet
+const navRailWidth = 72.0;
+
+/// True if the width is tablet or wider (>= 600px).
+bool isTabletOrWider(double width) => width >= breakpointTablet;
+
+/// True if the width is desktop (>= 1024px).
+bool isDesktop(double width) => width >= breakpointDesktop;
+
+/// Responsive grid column count for card grids (Discover, etc.).
+int responsiveGridColumns(double width) {
+  if (width >= breakpointDesktop) return 4;
+  if (width >= breakpointTablet) return 3;
+  return 2;
+}
+
+// ---------------------------------------------------------------------------
 // Track color presets (for auto-assignment)
 // ---------------------------------------------------------------------------
 

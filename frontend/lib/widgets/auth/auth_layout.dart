@@ -5,8 +5,8 @@ import '../common/app_footer.dart';
 import 'gleisner_hero.dart';
 
 /// Responsive layout shared by login and signup screens.
-/// Wide (>= 800px): hero left + form right, side by side.
-/// Narrow (< 800px): form on top, compact hero below.
+/// Wide (tablet+): hero left + form right, side by side.
+/// Narrow (mobile): form on top, compact hero below.
 class AuthLayout extends StatelessWidget {
   final Widget form;
 
@@ -31,7 +31,7 @@ class AuthLayout extends StatelessWidget {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 800;
+            final isWide = isTabletOrWider(constraints.maxWidth);
 
             if (isWide) {
               return Column(

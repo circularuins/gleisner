@@ -169,27 +169,34 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   ),
                 ),
               )
-            // Artist grid
+            // Artist grid (responsive columns: 2 mobile / 3 tablet / 4 desktop)
             else
-              SliverPadding(
-                padding: const EdgeInsets.all(spaceLg),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: spaceMd,
-                    crossAxisSpacing: spaceMd,
-                    childAspectRatio: 0.72,
-                  ),
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final artist = state.artists[index];
-                    return _ArtistCard(
-                      artist: artist,
-                      onTap: () {
-                        context.push('/artist/${artist.artistUsername}');
-                      },
-                    );
-                  }, childCount: state.artists.length),
-                ),
+              SliverLayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = responsiveGridColumns(
+                    constraints.crossAxisExtent,
+                  );
+                  return SliverPadding(
+                    padding: const EdgeInsets.all(spaceLg),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        mainAxisSpacing: spaceMd,
+                        crossAxisSpacing: spaceMd,
+                        childAspectRatio: 0.72,
+                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final artist = state.artists[index];
+                        return _ArtistCard(
+                          artist: artist,
+                          onTap: () {
+                            context.push('/artist/${artist.artistUsername}');
+                          },
+                        );
+                      }, childCount: state.artists.length),
+                    ),
+                  );
+                },
               ),
           ],
         ),

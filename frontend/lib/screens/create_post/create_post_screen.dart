@@ -23,7 +23,11 @@ import '../../providers/media_upload_provider.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
-  const CreatePostScreen({super.key});
+  /// Optional callback invoked after successful post creation (e.g. from Dialog).
+  /// When null, defaults to `context.go('/timeline')`.
+  final VoidCallback? onSuccess;
+
+  const CreatePostScreen({super.key, this.onSuccess});
 
   @override
   ConsumerState<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -141,7 +145,13 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       // dispose() also calls reset(), but autoDispose + ref.read in dispose
       // can race — explicit reset here ensures clean state for next visit.
       ref.read(createPostProvider.notifier).reset();
-      if (mounted) context.go('/timeline');
+      if (mounted) {
+        if (widget.onSuccess != null) {
+          widget.onSuccess!();
+        } else {
+          context.go('/timeline');
+        }
+      }
     }
   }
 

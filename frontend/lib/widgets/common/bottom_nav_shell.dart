@@ -7,10 +7,10 @@ import '../../providers/guardian_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/account_switch_helper.dart';
 
-/// Shell wrapper providing bottom navigation for the main app tabs.
+/// Responsive shell: NavigationRail on tablet+, BottomNavigationBar on mobile.
 ///
 /// Each branch (Timeline, Discover, Profile) has its own Scaffold with AppBar.
-/// This outer Scaffold holds only the NavigationBar — the nested Scaffold
+/// This outer Scaffold holds only the navigation — the nested Scaffold
 /// pattern is intentional and standard for StatefulShellRoute with per-tab
 /// AppBars (see go_router docs).
 ///
@@ -22,43 +22,109 @@ class BottomNavShell extends ConsumerWidget {
 
   const BottomNavShell({super.key, required this.navigationShell});
 
+  void _onDestinationSelected(int index) {
+    navigationShell.goBranch(
+      index,
+      initialLocation: index == navigationShell.currentIndex,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).user;
     final isChild = user?.isChildAccount ?? false;
     final guardianLoading = ref.watch(guardianProvider).isLoading;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final useRail = isTabletOrWider(screenWidth);
+
+    Widget body = Column(
+      children: [
+        if (isChild)
+          _ChildModeBanner(
+            childName: user?.displayName ?? user?.username ?? '',
+            isLoading: guardianLoading,
+            onReturn: () async {
+              final success = await ref
+                  .read(guardianProvider.notifier)
+                  .switchBackToGuardian();
+              if (!success) return;
+              await reloadAfterAccountSwitch(ref);
+              await ref
+                  .read(guardianProvider.notifier)
+                  .loadChildren(forceReload: true);
+            },
+          ),
+        Expanded(child: navigationShell),
+      ],
+    );
+
+    if (useRail) {
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              backgroundColor: colorSurface1,
+              selectedIndex: navigationShell.currentIndex,
+              onDestinationSelected: _onDestinationSelected,
+              labelType: NavigationRailLabelType.all,
+              indicatorColor: Colors.transparent,
+              minWidth: navRailWidth,
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(
+                    Icons.grid_view_outlined,
+                    color: colorInteractiveMuted,
+                  ),
+                  selectedIcon: Icon(Icons.grid_view, color: colorTextPrimary),
+                  label: Text(
+                    'Timeline',
+                    style: TextStyle(
+                      fontSize: fontSizeXs,
+                      color: colorTextMuted,
+                    ),
+                  ),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.search, color: colorInteractiveMuted),
+                  selectedIcon: Icon(Icons.search, color: colorTextPrimary),
+                  label: Text(
+                    'Discover',
+                    style: TextStyle(
+                      fontSize: fontSizeXs,
+                      color: colorTextMuted,
+                    ),
+                  ),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(
+                    Icons.person_outline,
+                    color: colorInteractiveMuted,
+                  ),
+                  selectedIcon: Icon(Icons.person, color: colorTextPrimary),
+                  label: Text(
+                    'Profile',
+                    style: TextStyle(
+                      fontSize: fontSizeXs,
+                      color: colorTextMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            VerticalDivider(width: 1, thickness: 1, color: colorBorder),
+            Expanded(child: body),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
-      body: Column(
-        children: [
-          if (isChild)
-            _ChildModeBanner(
-              childName: user?.displayName ?? user?.username ?? '',
-              isLoading: guardianLoading,
-              onReturn: () async {
-                final success = await ref
-                    .read(guardianProvider.notifier)
-                    .switchBackToGuardian();
-                if (!success) return;
-                await reloadAfterAccountSwitch(ref);
-                await ref
-                    .read(guardianProvider.notifier)
-                    .loadChildren(forceReload: true);
-              },
-            ),
-          Expanded(child: navigationShell),
-        ],
-      ),
+      body: body,
       bottomNavigationBar: NavigationBar(
         backgroundColor: colorSurface1,
         indicatorColor: Colors.transparent,
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) {
-          navigationShell.goBranch(
-            index,
-            initialLocation: index == navigationShell.currentIndex,
-          );
-        },
+        onDestinationSelected: _onDestinationSelected,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.grid_view_outlined, color: colorInteractiveMuted),
