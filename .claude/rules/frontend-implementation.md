@@ -698,3 +698,43 @@ void _onControllerUpdate() {
 ```
 
 波形プログレスバー等の `CustomPainter.shouldRepaint` は最適化されていても、Widget ツリー構築コストは毎フレームかかる。
+
+### Flutter Web IME + Tab キーの assertion 対策
+
+**Flutter Web でテキスト入力フォームを実装する場合、`createImeSafeFocusNode(controller)` を使うこと。**
+
+IME で漢字変換候補が表示されている状態で Tab キーを押すと、composing 範囲とテキスト長が不整合になり `Range end N is out of text of length 0` assertion が発生する。`FocusNode.onKeyEvent` で composition 中の Tab を消費して防止する。
+
+```dart
+// ❌ 通常の FocusNode — IME 変換中に Tab でエラー
+final focusNode = FocusNode();
+
+// ✅ IME-safe FocusNode — composition 中は Tab を消費
+final focusNode = createImeSafeFocusNode(controller);
+```
+
+ユーティリティ: `lib/utils/ime_safe_focus.dart`。controller は FocusNode より長く生存する必要がある（FocusNode を先に dispose）。
+
+PR #192 の教訓: FocusNode の管理、FocusTraversalGroup、textInputAction の変更では解決せず、onKeyEvent での Tab 消費が唯一の有効な対策だった。
+
+### Stack 内 Image.network の errorBuilder に複合 UI を返さない
+
+**Stack 内で `Image.network` の `errorBuilder` にタイトル等を含む複合ウィジェットを返すと、Stack の他の Positioned 子要素（オーバーレイ等）と表示が重複する。**
+
+```dart
+// ❌ errorBuilder に _LinkFallback（タイトル含む）を返す → OverlayInfo のタイトルと重複
+Image.network(
+  url,
+  errorBuilder: (_, _, _) => _LinkFallback(post: post, ...),  // タイトルあり
+),
+Positioned(bottom: 8, child: _OverlayInfo(post: post, ...)),   // タイトルあり → 重複！
+
+// ✅ errorBuilder はプレーン背景のみ → 情報表示は Positioned に一元化
+Image.network(
+  url,
+  errorBuilder: (_, _, _) => Container(color: colorSurface2),  // 背景のみ
+),
+Positioned(bottom: 8, child: _OverlayInfo(post: post, ...)),   // タイトル1箇所のみ
+```
+
+PR #192 の教訓: OGP 画像ロードエラー時に `_LinkFallback` を返したところ、`_OverlayInfo` のタイトルと重複表示された。
