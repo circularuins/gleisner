@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../graphql/client.dart';
 import '../graphql/mutations/media.dart';
 import '../models/post.dart' show MediaType;
+import '../utils/media_limits.dart';
 import '../utils/heic_converter.dart';
 import '../utils/video_thumbnail.dart';
 import '../utils/audio_duration.dart';
@@ -230,6 +231,39 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         return null;
       }
 
+      // Extract thumbnail + duration before upload to avoid R2 orphans
+      int? durationSeconds;
+      Uint8List? thumbnailBytes;
+      try {
+        final meta = await captureVideoThumbnail(bytes, mimeType: contentType);
+        durationSeconds = meta.durationSeconds;
+        thumbnailBytes = meta.thumbnail;
+      } catch (e) {
+        debugPrint('[MediaUpload] thumbnail/duration extraction failed: $e');
+      }
+      if (disposed) return null;
+
+      // Block upload if duration is unknown — cannot verify limit (ADR 025)
+      if (durationSeconds == null) {
+        if (!disposed) {
+          state = const MediaUploadState(
+            error: 'Could not determine video duration. Please try another file.',
+          );
+        }
+        return null;
+      }
+
+      // Enforce video duration limit (ADR 025) — reject before upload
+      if (durationSeconds > maxVideoDurationSeconds) {
+        if (!disposed) {
+          state = MediaUploadState(
+            error:
+                'Video must be ${maxVideoDurationSeconds ~/ 60} minute or shorter.',
+          );
+        }
+        return null;
+      }
+
       // Upload video
       final videoUrl = await _upload(
         category: category,
@@ -239,21 +273,14 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       if (videoUrl == null) return null;
       if (disposed) return null;
 
-      // Extract thumbnail + duration from video
+      // Upload thumbnail
       String? thumbnailUrl;
-      int? durationSeconds;
-      try {
-        final meta = await captureVideoThumbnail(bytes, mimeType: contentType);
-        durationSeconds = meta.durationSeconds;
-        if (meta.thumbnail != null && !disposed) {
-          thumbnailUrl = await _upload(
-            category: category,
-            bytes: meta.thumbnail!,
-            contentType: 'image/jpeg',
-          );
-        }
-      } catch (e) {
-        debugPrint('[MediaUpload] thumbnail/duration extraction failed: $e');
+      if (thumbnailBytes != null && !disposed) {
+        thumbnailUrl = await _upload(
+          category: category,
+          bytes: thumbnailBytes,
+          contentType: 'image/jpeg',
+        );
       }
 
       return (
@@ -297,21 +324,41 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         return null;
       }
 
-      // Upload first (sets isUploading immediately), then extract duration.
-      // Serial order avoids race where isUploading resets before Future.wait completes.
+      // Extract duration before upload to avoid R2 orphans
+      final durationSeconds = await extractAudioDuration(
+        bytes,
+        mimeType: contentType,
+      );
+      if (disposed) return null;
+
+      // Block upload if duration is unknown — cannot verify limit (ADR 025)
+      if (durationSeconds == null) {
+        if (!disposed) {
+          state = const MediaUploadState(
+            error: 'Could not determine audio duration. Please try another file.',
+          );
+        }
+        return null;
+      }
+
+      // Enforce audio duration limit (ADR 025) — reject before upload
+      if (durationSeconds > maxAudioDurationSeconds) {
+        if (!disposed) {
+          state = MediaUploadState(
+            error:
+                'Audio must be ${maxAudioDurationSeconds ~/ 60} minutes or shorter.',
+          );
+        }
+        return null;
+      }
+
+      // Upload after duration check passes
       final url = await _upload(
         category: category,
         bytes: bytes,
         contentType: contentType,
       );
       if (disposed || url == null) return null;
-
-      // Duration extraction is best-effort; typically completes instantly.
-      final durationSeconds = await extractAudioDuration(
-        bytes,
-        mimeType: contentType,
-      );
-      if (disposed) return null;
 
       return (audioUrl: url, durationSeconds: durationSeconds);
     } catch (e) {

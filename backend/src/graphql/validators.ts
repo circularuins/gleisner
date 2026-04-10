@@ -3,6 +3,29 @@ import { isR2Configured, isR2Url, isLocalDevUrl } from "../storage/r2.js";
 
 export const MAX_PASSWORD_LENGTH = 128;
 
+/** Media duration limits in seconds (ADR 025) */
+export const MAX_VIDEO_DURATION_SECONDS = 60; // 1 minute
+export const MAX_AUDIO_DURATION_SECONDS = 300; // 5 minutes
+export const MAX_GENERIC_DURATION_SECONDS = 86400; // 24 hours (fallback)
+
+/** Validate duration against media-type-specific limits (ADR 025). */
+export function validateDuration(duration: number, mediaType: string): void {
+  if (duration < 0) {
+    throw new GraphQLError("Duration must not be negative");
+  }
+  const maxDuration =
+    mediaType === "video"
+      ? MAX_VIDEO_DURATION_SECONDS
+      : mediaType === "audio"
+        ? MAX_AUDIO_DURATION_SECONDS
+        : MAX_GENERIC_DURATION_SECONDS;
+  if (duration > maxDuration) {
+    throw new GraphQLError(
+      `Duration exceeds the ${maxDuration}-second limit for ${mediaType} posts`,
+    );
+  }
+}
+
 /** Validate that a URL uses http or https protocol. Prevents javascript:/data: XSS vectors. */
 export function validateUrl(url: string): void {
   try {

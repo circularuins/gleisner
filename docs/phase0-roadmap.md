@@ -23,13 +23,13 @@ Phase 0 リリースまでのタスク一覧。随時更新し、進捗を追跡
 - 参照: `docs/ideas/030-responsive-layout-desktop-tablet.md`
 
 ### 1.2 メディア制限の強制（ADR 025）
-- [ ] 動画 1 分制限（Issue #144）
-- [ ] 音声 5 分制限（Issue #145）
+- [x] 動画 1 分制限（Issue #144）— PR #195
+- [x] 音声 5 分制限（Issue #145）— PR #195
 
 ### 1.3 セキュリティ即時対応（ADR 020 Immediate）
-- [ ] JWT secret key logging 削除
-- [ ] authMiddleware サイレント失敗修正
-- [ ] パスワード長上限 128 文字
+- [x] JWT secret key logging 削除
+- [x] authMiddleware サイレント失敗修正
+- [x] パスワード長上限 128 文字
 
 ### 1.4 マルチ画像カルーセル（Issue #139）
 - [ ] DB スキーマ: post_media テーブル（1:N）追加、既存 mediaUrl からの移行
@@ -143,4 +143,4 @@ Phase 0 リリースまでのタスク一覧。随時更新し、進捗を追跡
 
 ---
 
-*最終更新: 2026-04-10*
+*最終更新: 2026-04-11*

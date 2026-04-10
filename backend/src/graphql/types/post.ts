@@ -11,6 +11,7 @@ import {
   validatePostVisibility,
   validateMediaUrl,
   validateUrl,
+  validateDuration,
 } from "../validators.js";
 import { checkArtistAccess } from "../access.js";
 import { fetchOgpMetadata } from "../../ogp/fetcher.js";
@@ -287,12 +288,9 @@ builder.mutationFields((t) => ({
         validateMediaUrl(args.thumbnailUrl);
       }
 
-      // Validate duration
-      if (
-        args.duration != null &&
-        (args.duration < 0 || args.duration > 86400)
-      ) {
-        throw new GraphQLError("Duration must be between 0 and 86400 seconds");
+      // Validate duration (media-type-specific limits per ADR 025)
+      if (args.duration != null) {
+        validateDuration(args.duration, args.mediaType);
       }
 
       // Validate importance
@@ -533,12 +531,17 @@ builder.mutationFields((t) => ({
         }
       }
 
-      // Validate duration
-      if (
-        args.duration != null &&
-        (args.duration < 0 || args.duration > 86400)
-      ) {
-        throw new GraphQLError("Duration must be between 0 and 86400 seconds");
+      // Validate duration (media-type-specific limits per ADR 025)
+      // Re-check when mediaType changes even if duration is not updated,
+      // because the existing duration may violate the new type's limit.
+      {
+        const effectiveType =
+          (args.mediaType as string | undefined) ?? post.mediaType;
+        const effectiveDuration =
+          args.duration ?? (post.duration as number | null);
+        if (effectiveDuration != null) {
+          validateDuration(effectiveDuration, effectiveType);
+        }
       }
 
       // Validate importance
