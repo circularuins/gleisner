@@ -1539,5 +1539,36 @@ describe("Post GraphQL integration", () => {
       );
       expect(result.errors).toBeUndefined();
     });
+
+    it("rejects updatePost changing mediaType when existing duration exceeds new limit", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "dur9@test.com",
+        "dur9",
+        "durart9",
+      );
+      // Create text post with 120s duration (allowed for text)
+      const createResult = await gql(
+        app,
+        CREATE_POST_WITH_DURATION,
+        { trackId, mediaType: "text", duration: 120 },
+        token,
+      );
+      const postId = (createResult.data!.createPost as { id: string }).id;
+
+      // Change to video without sending duration — existing 120s exceeds 60s limit
+      const result = await gql(
+        app,
+        UPDATE_POST_WITH_DURATION,
+        {
+          id: postId,
+          mediaType: "video",
+          mediaUrl: "http://localhost:4000/test-video.mp4",
+        },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("60-second limit");
+    });
   });
 });

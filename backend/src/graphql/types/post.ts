@@ -532,10 +532,16 @@ builder.mutationFields((t) => ({
       }
 
       // Validate duration (media-type-specific limits per ADR 025)
-      if (args.duration != null) {
+      // Re-check when mediaType changes even if duration is not updated,
+      // because the existing duration may violate the new type's limit.
+      {
         const effectiveType =
           (args.mediaType as string | undefined) ?? post.mediaType;
-        validateDuration(args.duration, effectiveType);
+        const effectiveDuration =
+          args.duration ?? (post.duration as number | null);
+        if (effectiveDuration != null) {
+          validateDuration(effectiveDuration, effectiveType);
+        }
       }
 
       // Validate importance

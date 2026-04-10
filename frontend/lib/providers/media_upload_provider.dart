@@ -243,9 +243,18 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       }
       if (disposed) return null;
 
+      // Block upload if duration is unknown — cannot verify limit (ADR 025)
+      if (durationSeconds == null) {
+        if (!disposed) {
+          state = const MediaUploadState(
+            error: 'Could not determine video duration. Please try another file.',
+          );
+        }
+        return null;
+      }
+
       // Enforce video duration limit (ADR 025) — reject before upload
-      if (durationSeconds != null &&
-          durationSeconds > maxVideoDurationSeconds) {
+      if (durationSeconds > maxVideoDurationSeconds) {
         if (!disposed) {
           state = MediaUploadState(
             error:
@@ -322,9 +331,18 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       );
       if (disposed) return null;
 
+      // Block upload if duration is unknown — cannot verify limit (ADR 025)
+      if (durationSeconds == null) {
+        if (!disposed) {
+          state = const MediaUploadState(
+            error: 'Could not determine audio duration. Please try another file.',
+          );
+        }
+        return null;
+      }
+
       // Enforce audio duration limit (ADR 025) — reject before upload
-      if (durationSeconds != null &&
-          durationSeconds > maxAudioDurationSeconds) {
+      if (durationSeconds > maxAudioDurationSeconds) {
         if (!disposed) {
           state = MediaUploadState(
             error:
