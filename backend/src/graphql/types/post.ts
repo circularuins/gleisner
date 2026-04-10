@@ -11,6 +11,9 @@ import {
   validatePostVisibility,
   validateMediaUrl,
   validateUrl,
+  MAX_VIDEO_DURATION_SECONDS,
+  MAX_AUDIO_DURATION_SECONDS,
+  MAX_GENERIC_DURATION_SECONDS,
 } from "../validators.js";
 import { checkArtistAccess } from "../access.js";
 import { fetchOgpMetadata } from "../../ogp/fetcher.js";
@@ -287,12 +290,22 @@ builder.mutationFields((t) => ({
         validateMediaUrl(args.thumbnailUrl);
       }
 
-      // Validate duration
-      if (
-        args.duration != null &&
-        (args.duration < 0 || args.duration > 86400)
-      ) {
-        throw new GraphQLError("Duration must be between 0 and 86400 seconds");
+      // Validate duration (media-type-specific limits per ADR 025)
+      if (args.duration != null) {
+        if (args.duration < 0) {
+          throw new GraphQLError("Duration must not be negative");
+        }
+        const maxDuration =
+          args.mediaType === "video"
+            ? MAX_VIDEO_DURATION_SECONDS
+            : args.mediaType === "audio"
+              ? MAX_AUDIO_DURATION_SECONDS
+              : MAX_GENERIC_DURATION_SECONDS;
+        if (args.duration > maxDuration) {
+          throw new GraphQLError(
+            `Duration exceeds the ${maxDuration}-second limit for ${args.mediaType} posts`,
+          );
+        }
       }
 
       // Validate importance
@@ -533,12 +546,24 @@ builder.mutationFields((t) => ({
         }
       }
 
-      // Validate duration
-      if (
-        args.duration != null &&
-        (args.duration < 0 || args.duration > 86400)
-      ) {
-        throw new GraphQLError("Duration must be between 0 and 86400 seconds");
+      // Validate duration (media-type-specific limits per ADR 025)
+      if (args.duration != null) {
+        if (args.duration < 0) {
+          throw new GraphQLError("Duration must not be negative");
+        }
+        const effectiveType =
+          (args.mediaType as string | undefined) ?? post.mediaType;
+        const maxDuration =
+          effectiveType === "video"
+            ? MAX_VIDEO_DURATION_SECONDS
+            : effectiveType === "audio"
+              ? MAX_AUDIO_DURATION_SECONDS
+              : MAX_GENERIC_DURATION_SECONDS;
+        if (args.duration > maxDuration) {
+          throw new GraphQLError(
+            `Duration exceeds the ${maxDuration}-second limit for ${effectiveType} posts`,
+          );
+        }
       }
 
       // Validate importance

@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../graphql/client.dart';
 import '../graphql/mutations/media.dart';
 import '../models/post.dart' show MediaType;
+import '../utils/media_limits.dart';
 import '../utils/heic_converter.dart';
 import '../utils/video_thumbnail.dart';
 import '../utils/audio_duration.dart';
@@ -256,6 +257,18 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         debugPrint('[MediaUpload] thumbnail/duration extraction failed: $e');
       }
 
+      // Enforce video duration limit (ADR 025)
+      if (durationSeconds != null &&
+          durationSeconds > maxVideoDurationSeconds) {
+        if (!disposed) {
+          state = MediaUploadState(
+            error:
+                'Video must be ${maxVideoDurationSeconds ~/ 60} minute or shorter.',
+          );
+        }
+        return null;
+      }
+
       return (
         videoUrl: videoUrl,
         thumbnailUrl: thumbnailUrl,
@@ -312,6 +325,18 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         mimeType: contentType,
       );
       if (disposed) return null;
+
+      // Enforce audio duration limit (ADR 025)
+      if (durationSeconds != null &&
+          durationSeconds > maxAudioDurationSeconds) {
+        if (!disposed) {
+          state = MediaUploadState(
+            error:
+                'Audio must be ${maxAudioDurationSeconds ~/ 60} minutes or shorter.',
+          );
+        }
+        return null;
+      }
 
       return (audioUrl: url, durationSeconds: durationSeconds);
     } catch (e) {

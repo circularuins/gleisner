@@ -1330,4 +1330,116 @@ describe("Post GraphQL integration", () => {
       );
     });
   });
+
+  describe("media duration limits (ADR 025)", () => {
+    const CREATE_POST_WITH_DURATION = `
+      mutation CreatePost($trackId: String!, $mediaType: MediaType!, $duration: Int, $mediaUrl: String) {
+        createPost(trackId: $trackId, mediaType: $mediaType, duration: $duration, mediaUrl: $mediaUrl) {
+          id duration mediaType
+        }
+      }
+    `;
+
+    it("rejects video longer than 60 seconds", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "dur1@test.com",
+        "dur1",
+        "durart1",
+      );
+      const result = await gql(
+        app,
+        CREATE_POST_WITH_DURATION,
+        {
+          trackId,
+          mediaType: "video",
+          duration: 61,
+          mediaUrl: "http://localhost:4000/test-video.mp4",
+        },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("60-second limit");
+    });
+
+    it("accepts video at exactly 60 seconds", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "dur2@test.com",
+        "dur2",
+        "durart2",
+      );
+      const result = await gql(
+        app,
+        CREATE_POST_WITH_DURATION,
+        {
+          trackId,
+          mediaType: "video",
+          duration: 60,
+          mediaUrl: "http://localhost:4000/test-video.mp4",
+        },
+        token,
+      );
+      expect(result.errors).toBeUndefined();
+    });
+
+    it("rejects audio longer than 300 seconds", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "dur3@test.com",
+        "dur3",
+        "durart3",
+      );
+      const result = await gql(
+        app,
+        CREATE_POST_WITH_DURATION,
+        {
+          trackId,
+          mediaType: "audio",
+          duration: 301,
+          mediaUrl: "http://localhost:4000/test-audio.mp3",
+        },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("300-second limit");
+    });
+
+    it("accepts audio at exactly 300 seconds", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "dur4@test.com",
+        "dur4",
+        "durart4",
+      );
+      const result = await gql(
+        app,
+        CREATE_POST_WITH_DURATION,
+        {
+          trackId,
+          mediaType: "audio",
+          duration: 300,
+          mediaUrl: "http://localhost:4000/test-audio.mp3",
+        },
+        token,
+      );
+      expect(result.errors).toBeUndefined();
+    });
+
+    it("allows text post with any reasonable duration", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "dur5@test.com",
+        "dur5",
+        "durart5",
+      );
+      const result = await gql(
+        app,
+        CREATE_POST_WITH_DURATION,
+        { trackId, mediaType: "text", duration: 3600 },
+        token,
+      );
+      expect(result.errors).toBeUndefined();
+    });
+  });
 });
