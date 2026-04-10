@@ -384,3 +384,30 @@ export const posts = pgTable("posts", { ... }, (table) => [
 ```
 
 PR #186 の教訓: OGP レートリミットと URL 再利用クエリにインデックスがなく、3回のレビューで Critical に昇格。初回で追加していれば2回分のレビューサイクルを節約できた。
+
+### updatePost のフィールド間制約（effective value パターン）
+
+**`updatePost` でフィールド間に制約がある場合、`args` の値だけでなく既存 `post` の値も組み合わせてバリデーションすること。** `args.field != null` だけでガードすると、関連フィールドだけ変更して制約対象フィールドを省略したケースで穴が生まれる。
+
+```typescript
+// ❌ args のみチェック — mediaType 変更 + duration 省略で既存値が新制限に違反
+if (args.duration != null) {
+  validateDuration(args.duration, effectiveType);
+}
+
+// ✅ effective value で既存値も再チェック
+const effectiveDuration = args.duration ?? (post.duration as number | null);
+if (effectiveDuration != null) {
+  validateDuration(effectiveDuration, effectiveType);
+}
+```
+
+該当パターン: duration × mediaType、将来の fileSize × mediaType 等、フィールド間に依存関係がある全ケース。
+
+PR #195 の教訓: `args.duration != null` ガードだけでは text(120s) → video 変更時に 60s 制限をバイパスできた。
+
+### バリデーションロジックの重複排除
+
+**createPost / updatePost で同一のバリデーションロジックを書かないこと。** `validators.ts` にヘルパー関数を抽出し、両 mutation から呼び出す。
+
+既存パターン: `validatePostVisibility`, `validateMediaUrl`, `validateDuration` 等が `validators.ts` に集約済み。新しいバリデーションを追加する場合も同様にヘルパーとして定義する。
