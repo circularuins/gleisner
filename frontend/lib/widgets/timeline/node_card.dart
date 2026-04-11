@@ -331,37 +331,19 @@ class _ThoughtContent extends StatelessWidget {
           width: 0.5,
         ),
       ),
-      child: Stack(
-        children: [
-          // 💭 icon at top-left
-          Positioned(
-            top: 0,
-            left: 0,
-            child: Icon(
-              Icons.chat_bubble_outline,
-              size: isLarge ? 14 : 10,
-              color: trackColor.withValues(alpha: 0.3),
-            ),
+      child: Center(
+        child: Text(
+          preview,
+          style: TextStyle(
+            color: colorTextPrimary.withValues(alpha: 0.85),
+            fontSize: isLarge ? fontSizeSm : fontSizeXs,
+            height: 1.4,
+            fontStyle: FontStyle.italic,
           ),
-          // Body text centered
-          Center(
-            child: Padding(
-              padding: EdgeInsets.only(top: isLarge ? 12 : 8),
-              child: Text(
-                preview,
-                style: TextStyle(
-                  color: colorTextPrimary.withValues(alpha: 0.85),
-                  fontSize: isLarge ? fontSizeSm : fontSizeXs,
-                  height: 1.4,
-                  fontStyle: FontStyle.italic,
-                ),
-                maxLines: isLarge ? 5 : 3,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        ],
+          maxLines: isLarge ? 5 : 3,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
       ),
     );
   }
