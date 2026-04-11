@@ -247,7 +247,8 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       if (durationSeconds == null) {
         if (!disposed) {
           state = const MediaUploadState(
-            error: 'Could not determine video duration. Please try another file.',
+            error:
+                'Could not determine video duration. Please try another file.',
           );
         }
         return null;
@@ -335,7 +336,8 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       if (durationSeconds == null) {
         if (!disposed) {
           state = const MediaUploadState(
-            error: 'Could not determine audio duration. Please try another file.',
+            error:
+                'Could not determine audio duration. Please try another file.',
           );
         }
         return null;

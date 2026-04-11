@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/artist.dart';
+import '../../models/post.dart';
 import '../../models/timeline_item.dart';
 import '../../models/track.dart';
 import '../../providers/my_artist_provider.dart';
@@ -10,6 +11,7 @@ import '../../providers/pending_artist_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../utils/constellation_layout.dart';
+import '../../utils/date_format.dart';
 import '../../widgets/timeline/avatar_rail.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/milestone_detail_sheet.dart';
@@ -20,6 +22,7 @@ import '../../providers/tutorial_provider.dart';
 import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
+import '../create_post/create_post_screen.dart';
 import '../../widgets/tutorial/tutorial_spotlight.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
@@ -37,6 +40,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
   String? _focusedPostId;
   final _fabLayerLink = LayerLink();
   bool _showFirstPostTutorial = false;
+
+  /// Post shown in the desktop side panel (null = panel closed).
+  String? _sidePanelPostId;
 
   // Synapse dot animation — continuous cycle through all connections
   late final AnimationController _dotController;
@@ -346,231 +352,311 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                             .read(tutorialProvider.notifier)
                             .markSeen(TutorialIds.firstPost);
                       }
-                      context.go('/create-post');
+                      final screenWidth = MediaQuery.of(context).size.width;
+                      if (isDesktop(screenWidth)) {
+                        showDialog(
+                          context: context,
+                          builder: (dialogContext) => Dialog(
+                            backgroundColor: colorSurface0,
+                            insetPadding: const EdgeInsets.symmetric(
+                              horizontal: 80,
+                              vertical: 40,
+                            ),
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.all(
+                                Radius.circular(radiusLg),
+                              ),
+                              child: CreatePostScreen(
+                                onSuccess: () {
+                                  Navigator.of(dialogContext).pop();
+                                  ref.read(timelineProvider.notifier).refresh();
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      } else {
+                        context.go('/create-post');
+                      }
                     },
                   ),
                 )
               : null,
-          body: Column(
+          body: Row(
             children: [
-              if (timeline.artist != null && timeline.artist!.tracks.isNotEmpty)
-                _TrackSelector(
-                  tracks: timeline.artist!.tracks,
-                  selectedTrackIds: timeline.selectedTrackIds,
-                  allSelected: timeline.allSelected,
-                  onToggleTrack: (trackId) =>
-                      ref.read(timelineProvider.notifier).toggleTrack(trackId),
-                  onToggleAll: () =>
-                      ref.read(timelineProvider.notifier).toggleAll(),
-                ),
-              // Avatar rail — always visible (not inside scroll)
-              if (tuneIn.tunedInArtists.isNotEmpty ||
-                  selfArtistUsername != null)
-                AvatarRail(
-                  artists: tuneIn.tunedInArtists,
-                  selfArtistUsername: selfArtistUsername,
-                  selfAvatarUrl: myArtist?.avatarUrl,
-                  selfIsPrivate: myArtist?.isPrivate ?? false,
-                  selectedArtistUsername:
-                      _viewingArtistUsername ??
-                      (timeline.artist?.artistUsername),
-                  onSelectArtist: _switchToArtist,
-                  onSelectSelf: () {
-                    if (_ownArtistUsername != null) {
-                      _switchToArtist(_ownArtistUsername!);
-                    }
-                  },
-                ),
-              if (timeline.error != null)
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    timeline.error!,
-                    style: TextStyle(color: theme.colorScheme.error),
-                  ),
-                ),
               Expanded(
-                child: timeline.isLoading && timeline.posts.isEmpty
-                    ? const Center(child: CircularProgressIndicator())
-                    : timeline.posts.isEmpty && !isOwn
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.headphones,
-                              size: 40,
-                              color: colorInteractiveMuted,
-                            ),
-                            const SizedBox(height: spaceMd),
-                            Text(
-                              'No posts from this artist yet',
-                              style: TextStyle(
-                                color: colorInteractive,
-                                fontSize: theme.textTheme.bodyLarge?.fontSize,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : timeline.posts.isEmpty
-                    ? Center(
+                child: Column(
+                  children: [
+                    if (timeline.artist != null &&
+                        timeline.artist!.tracks.isNotEmpty)
+                      _TrackSelector(
+                        tracks: timeline.artist!.tracks,
+                        selectedTrackIds: timeline.selectedTrackIds,
+                        allSelected: timeline.allSelected,
+                        onToggleTrack: (trackId) => ref
+                            .read(timelineProvider.notifier)
+                            .toggleTrack(trackId),
+                        onToggleAll: () =>
+                            ref.read(timelineProvider.notifier).toggleAll(),
+                      ),
+                    // Avatar rail — always visible (not inside scroll)
+                    if (tuneIn.tunedInArtists.isNotEmpty ||
+                        selfArtistUsername != null)
+                      AvatarRail(
+                        artists: tuneIn.tunedInArtists,
+                        selfArtistUsername: selfArtistUsername,
+                        selfAvatarUrl: myArtist?.avatarUrl,
+                        selfIsPrivate: myArtist?.isPrivate ?? false,
+                        selectedArtistUsername:
+                            _viewingArtistUsername ??
+                            (timeline.artist?.artistUsername),
+                        onSelectArtist: _switchToArtist,
+                        onSelectSelf: () {
+                          if (_ownArtistUsername != null) {
+                            _switchToArtist(_ownArtistUsername!);
+                          }
+                        },
+                      ),
+                    if (timeline.error != null)
+                      Padding(
+                        padding: const EdgeInsets.all(16),
                         child: Text(
-                          timeline.artist == null
-                              ? 'Discover artists and tune in to fill your timeline'
-                              : 'No posts yet',
-                          style: TextStyle(
-                            color: colorInteractive,
-                            fontSize: theme.textTheme.bodyLarge?.fontSize,
-                          ),
+                          timeline.error!,
+                          style: TextStyle(color: theme.colorScheme.error),
                         ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: () =>
-                            ref.read(timelineProvider.notifier).refresh(),
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final width = constraints.maxWidth;
-                            if (_lastWidth != width) {
-                              _lastWidth = width;
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                ref
-                                    .read(timelineProvider.notifier)
-                                    .computeLayout(width);
-                              });
-                            }
-
-                            final layout = timeline.layout;
-                            if (layout == null) {
-                              return const Center(
-                                child: CircularProgressIndicator(),
-                              );
-                            }
-
-                            return NotificationListener<ScrollNotification>(
-                              onNotification: (n) {
-                                setState(
-                                  () => _scrollOffset = n.metrics.pixels,
-                                );
-                                return false;
-                              },
-                              child: SingleChildScrollView(
-                                controller: _scrollController,
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                child: Column(
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        if (timeline.constellationPostIds !=
-                                            null) {
-                                          ref
-                                              .read(timelineProvider.notifier)
-                                              .clearConstellation();
-                                        } else if (_focusedPostId != null) {
-                                          setState(() => _focusedPostId = null);
-                                        }
-                                      },
-                                      child: SizedBox(
-                                        height: layout.totalHeight,
-                                        child: Stack(
-                                          children: [
-                                            // Background: spine + synapses + travelling dot
-                                            Positioned.fill(
-                                              child: AnimatedBuilder(
-                                                animation: _dotController,
-                                                builder: (context, _) => CustomPaint(
-                                                  painter: ConstellationPainter(
-                                                    layout: layout,
-                                                    constellationPostIds: timeline
-                                                        .constellationPostIds,
-                                                    animationValue:
-                                                        _dotController.value,
-                                                    scrollOffset: _scrollOffset,
-                                                    viewportHeight:
-                                                        constraints.maxHeight,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            // Day labels on the spine
-                                            // Find the one day closest above the midpoint
-                                            ..._buildDateLabels(
-                                              layout.days,
-                                              _scrollOffset,
-                                              constraints.maxHeight,
-                                            ),
-                                            // Nodes (focused node rendered last for z-order)
-                                            ..._buildNodes(
-                                              layout,
-                                              timeline.highlightPostId,
-                                              timeline.constellationPostIds,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                      ),
+                    Expanded(
+                      child: timeline.isLoading && timeline.posts.isEmpty
+                          ? const Center(child: CircularProgressIndicator())
+                          : timeline.posts.isEmpty && !isOwn
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.headphones,
+                                    size: 40,
+                                    color: colorInteractiveMuted,
+                                  ),
+                                  const SizedBox(height: spaceMd),
+                                  Text(
+                                    'No posts from this artist yet',
+                                    style: TextStyle(
+                                      color: colorInteractive,
+                                      fontSize:
+                                          theme.textTheme.bodyLarge?.fontSize,
                                     ),
-                                  ],
+                                  ),
+                                ],
+                              ),
+                            )
+                          : timeline.posts.isEmpty
+                          ? Center(
+                              child: Text(
+                                timeline.artist == null
+                                    ? 'Discover artists and tune in to fill your timeline'
+                                    : 'No posts yet',
+                                style: TextStyle(
+                                  color: colorInteractive,
+                                  fontSize: theme.textTheme.bodyLarge?.fontSize,
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                      ),
-              ),
-              // Constellation highlight banner
-              if (timeline.constellationPostIds != null)
-                Builder(
-                  builder: (context) {
-                    final constellationName = timeline.posts
-                        .where(
-                          (p) =>
-                              timeline.constellationPostIds!.contains(p.id) &&
-                              p.constellation != null,
-                        )
-                        .map((p) => p.constellation!.name)
-                        .firstOrNull;
-                    return Container(
-                      color: colorSurface1,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.auto_awesome,
-                            size: 16,
-                            color: colorInteractive,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              constellationName != null
-                                  ? '$constellationName · ${timeline.constellationPostIds!.length} posts'
-                                  : 'Constellation · ${timeline.constellationPostIds!.length} posts',
-                              style: const TextStyle(
-                                color: colorTextSecondary,
-                                fontSize: 13,
+                            )
+                          : RefreshIndicator(
+                              onRefresh: () =>
+                                  ref.read(timelineProvider.notifier).refresh(),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final width = constraints.maxWidth;
+                                  if (_lastWidth != width) {
+                                    _lastWidth = width;
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback((_) {
+                                          ref
+                                              .read(timelineProvider.notifier)
+                                              .computeLayout(width);
+                                        });
+                                  }
+
+                                  final layout = timeline.layout;
+                                  if (layout == null) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  }
+
+                                  return NotificationListener<
+                                    ScrollNotification
+                                  >(
+                                    onNotification: (n) {
+                                      setState(
+                                        () => _scrollOffset = n.metrics.pixels,
+                                      );
+                                      return false;
+                                    },
+                                    child: SingleChildScrollView(
+                                      controller: _scrollController,
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      child: Column(
+                                        children: [
+                                          GestureDetector(
+                                            onTap: () {
+                                              if (timeline
+                                                      .constellationPostIds !=
+                                                  null) {
+                                                ref
+                                                    .read(
+                                                      timelineProvider.notifier,
+                                                    )
+                                                    .clearConstellation();
+                                              } else if (_focusedPostId !=
+                                                  null) {
+                                                setState(
+                                                  () => _focusedPostId = null,
+                                                );
+                                              }
+                                            },
+                                            child: SizedBox(
+                                              height: layout.totalHeight,
+                                              child: Stack(
+                                                children: [
+                                                  // Background: spine + synapses + travelling dot
+                                                  Positioned.fill(
+                                                    child: AnimatedBuilder(
+                                                      animation: _dotController,
+                                                      builder: (context, _) => CustomPaint(
+                                                        painter: ConstellationPainter(
+                                                          layout: layout,
+                                                          constellationPostIds:
+                                                              timeline
+                                                                  .constellationPostIds,
+                                                          animationValue:
+                                                              _dotController
+                                                                  .value,
+                                                          scrollOffset:
+                                                              _scrollOffset,
+                                                          viewportHeight:
+                                                              constraints
+                                                                  .maxHeight,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  // Day labels on the spine
+                                                  // Find the one day closest above the midpoint
+                                                  ..._buildDateLabels(
+                                                    layout.days,
+                                                    _scrollOffset,
+                                                    constraints.maxHeight,
+                                                  ),
+                                                  // Nodes (focused node rendered last for z-order)
+                                                  ..._buildNodes(
+                                                    layout,
+                                                    timeline.highlightPostId,
+                                                    timeline
+                                                        .constellationPostIds,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          GestureDetector(
-                            onTap: () => ref
-                                .read(timelineProvider.notifier)
-                                .clearConstellation(),
-                            child: const Icon(
-                              Icons.close,
-                              size: 18,
-                              color: colorInteractive,
+                    ),
+                    // Constellation highlight banner
+                    if (timeline.constellationPostIds != null)
+                      Builder(
+                        builder: (context) {
+                          final constellationName = timeline.posts
+                              .where(
+                                (p) =>
+                                    timeline.constellationPostIds!.contains(
+                                      p.id,
+                                    ) &&
+                                    p.constellation != null,
+                              )
+                              .map((p) => p.constellation!.name)
+                              .firstOrNull;
+                          return Container(
+                            color: colorSurface1,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
                             ),
-                          ),
-                        ],
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.auto_awesome,
+                                  size: 16,
+                                  color: colorInteractive,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    constellationName != null
+                                        ? '$constellationName · ${timeline.constellationPostIds!.length} posts'
+                                        : 'Constellation · ${timeline.constellationPostIds!.length} posts',
+                                    style: const TextStyle(
+                                      color: colorTextSecondary,
+                                      fontSize: fontSizeSm,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () => ref
+                                      .read(timelineProvider.notifier)
+                                      .clearConstellation(),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 18,
+                                    color: colorInteractive,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
+                  ],
                 ),
+              ),
+              // Desktop side panel for post detail
+              if (_sidePanelPostId != null) ...[
+                const VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: colorBorder,
+                ),
+                SizedBox(
+                  width: sidePanelWidth,
+                  child: _DesktopDetailPanel(
+                    postId: _sidePanelPostId!,
+                    posts: timeline.posts,
+                    isOwn: isOwn,
+                    onClose: () => setState(() => _sidePanelPostId = null),
+                    onToggleReaction: (id, emoji) => ref
+                        .read(timelineProvider.notifier)
+                        .toggleReaction(id, emoji),
+                    onReactionsChanged: (id, counts, myReactions) => ref
+                        .read(timelineProvider.notifier)
+                        .updatePostReactions(id, counts, myReactions),
+                    onEdit: isOwn
+                        ? (post) {
+                            setState(() => _sidePanelPostId = null);
+                            context.push('/edit-post', extra: post);
+                          }
+                        : null,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -674,6 +760,17 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
   }
 
   void _openDetailSheet(String postId) {
+    // Desktop: show side panel instead of bottom sheet
+    final screenWidth = MediaQuery.of(context).size.width;
+    if (isDesktop(screenWidth)) {
+      setState(() => _sidePanelPostId = postId);
+      return;
+    }
+
+    _showDetailBottomSheet(postId);
+  }
+
+  void _showDetailBottomSheet(String postId) {
     final post = ref
         .read(timelineProvider)
         .posts
@@ -864,7 +961,7 @@ class _DateLabel extends StatelessWidget {
             day.date.day.toString(),
             style: TextStyle(
               color: dayColor,
-              fontSize: 13,
+              fontSize: fontSizeSm,
               fontWeight: FontWeight.w700,
               height: 1.1,
             ),
@@ -1100,6 +1197,240 @@ class _GlowingStarButtonState extends State<_GlowingStarButton>
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Desktop-only side panel showing post detail inline.
+class _DesktopDetailPanel extends StatelessWidget {
+  final String postId;
+  final List<Post> posts;
+  final bool isOwn;
+  final VoidCallback onClose;
+  final Future<bool> Function(String, String) onToggleReaction;
+  final void Function(String, List<ReactionCount>, List<String>)
+  onReactionsChanged;
+  final void Function(Post)? onEdit;
+
+  const _DesktopDetailPanel({
+    required this.postId,
+    required this.posts,
+    required this.isOwn,
+    required this.onClose,
+    required this.onToggleReaction,
+    required this.onReactionsChanged,
+    this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final post = posts.where((p) => p.id == postId).firstOrNull;
+    if (post == null) return const SizedBox.shrink();
+
+    return Container(
+      color: colorSurface1,
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: spaceLg,
+              vertical: spaceSm,
+            ),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: colorBorder)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    post.title ?? 'Untitled',
+                    style: const TextStyle(
+                      color: colorTextPrimary,
+                      fontSize: fontSizeLg,
+                      fontWeight: weightSemibold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (onEdit != null)
+                  IconButton(
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      size: 18,
+                      color: colorInteractive,
+                    ),
+                    onPressed: () => onEdit!(post),
+                    tooltip: 'Edit',
+                  ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.close,
+                    size: 18,
+                    color: colorInteractive,
+                  ),
+                  onPressed: onClose,
+                  tooltip: 'Close',
+                ),
+              ],
+            ),
+          ),
+          // Content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(spaceLg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Image: show directly
+                  if (post.mediaUrl != null &&
+                      post.mediaType == MediaType.image)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: spaceLg),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(radiusMd),
+                        child: Image.network(
+                          post.mediaUrl!,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          cacheWidth: 800,
+                          errorBuilder: (_, _, _) => Container(
+                            height: 120,
+                            color: colorSurface2,
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                color: colorInteractiveMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Video: show thumbnail if available, else placeholder
+                  if (post.mediaType == MediaType.video)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: spaceLg),
+                      child: Container(
+                        height: 160,
+                        decoration: BoxDecoration(
+                          color: colorSurface2,
+                          borderRadius: BorderRadius.circular(radiusMd),
+                          image: post.thumbnailUrl != null
+                              ? DecorationImage(
+                                  image: NetworkImage(post.thumbnailUrl!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.play_circle_outline,
+                                size: 40,
+                                color: colorTextPrimary,
+                              ),
+                              if (post.duration != null)
+                                Text(
+                                  '${post.duration! ~/ 60}:${(post.duration! % 60).toString().padLeft(2, '0')}',
+                                  style: const TextStyle(
+                                    color: colorTextSecondary,
+                                    fontSize: fontSizeSm,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Audio: show placeholder with duration
+                  if (post.mediaType == MediaType.audio)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: spaceLg),
+                      child: Container(
+                        padding: const EdgeInsets.all(spaceLg),
+                        decoration: BoxDecoration(
+                          color: colorSurface2,
+                          borderRadius: BorderRadius.circular(radiusMd),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.audiotrack,
+                              size: 24,
+                              color: colorInteractive,
+                            ),
+                            const SizedBox(width: spaceMd),
+                            Text(
+                              post.duration != null
+                                  ? '${post.duration! ~/ 60}:${(post.duration! % 60).toString().padLeft(2, '0')}'
+                                  : 'Audio',
+                              style: const TextStyle(
+                                color: colorTextSecondary,
+                                fontSize: fontSizeMd,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (post.body != null && post.body!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: spaceLg),
+                      child: Text(
+                        post.body!,
+                        style: const TextStyle(
+                          color: colorTextSecondary,
+                          fontSize: fontSizeMd,
+                          height: 1.6,
+                        ),
+                      ),
+                    ),
+                  Text(
+                    '${post.mediaType.name} · ${formatDate(post.createdAt)}',
+                    style: const TextStyle(
+                      color: colorTextMuted,
+                      fontSize: fontSizeSm,
+                    ),
+                  ),
+                  if (post.reactionCounts.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: spaceLg),
+                      child: Wrap(
+                        spacing: spaceSm,
+                        runSpacing: spaceXs,
+                        children: post.reactionCounts.map((rc) {
+                          final isMine = post.myReactions.contains(rc.emoji);
+                          return ActionChip(
+                            label: Text(
+                              '${rc.emoji} ${rc.count}',
+                              style: TextStyle(
+                                fontSize: fontSizeSm,
+                                color: isMine
+                                    ? colorAccentGold
+                                    : colorTextSecondary,
+                              ),
+                            ),
+                            backgroundColor: isMine
+                                ? colorSurface2
+                                : colorSurface0,
+                            side: BorderSide(
+                              color: isMine ? colorAccentGold : colorBorder,
+                            ),
+                            onPressed: () =>
+                                onToggleReaction(post.id, rc.emoji),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -68,315 +68,325 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(spaceXl),
-        children: [
-          // User info
-          Row(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: maxContentWidth),
+          child: ListView(
+            padding: const EdgeInsets.all(spaceXl),
             children: [
-              AvatarImage(
-                imageUrl: user.avatarUrl,
-                seed: user.username,
-                size: 64,
-              ),
-              const SizedBox(width: spaceLg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(user.displayName ?? user.username, style: textHeading),
-                    const SizedBox(height: spaceXxs),
-                    Text(
-                      '@${user.username}',
-                      style: textCaption.copyWith(color: colorTextMuted),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          // Bio
-          if (user.bio != null && user.bio!.isNotEmpty) ...[
-            const SizedBox(height: spaceLg),
-            Text(
-              user.bio!,
-              style: textBody.copyWith(color: colorTextSecondary),
-            ),
-          ],
-
-          // Meta: Joined + Tuned In
-          const SizedBox(height: spaceMd),
-          Wrap(
-            spacing: spaceLg,
-            children: [
-              Text(
-                'Joined ${_formatJoinDate(user.createdAt)}',
-                style: textCaption.copyWith(color: colorTextMuted),
-              ),
-              if (tuneInState.tunedInArtists.isNotEmpty)
-                Text(
-                  '${tuneInState.tunedInArtists.length} Tuned In',
-                  style: textCaption.copyWith(color: colorTextMuted),
-                ),
-            ],
-          ),
-          const SizedBox(height: spaceXxl),
-
-          // Artist section
-          if (artist != null) ...[
-            // Registered artist info
-            Container(
-              padding: const EdgeInsets.all(spaceLg),
-              decoration: BoxDecoration(
-                color: colorSurface1,
-                borderRadius: BorderRadius.circular(radiusLg),
-                border: Border.all(color: colorBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // User info
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.auto_awesome,
-                        size: 16,
-                        color: colorAccentGold,
-                      ),
-                      const SizedBox(width: spaceSm),
-                      Text(
-                        'Artist',
-                        style: textLabel.copyWith(color: colorAccentGold),
-                      ),
-                    ],
+                  AvatarImage(
+                    imageUrl: user.avatarUrl,
+                    seed: user.username,
+                    size: 64,
                   ),
-                  const SizedBox(height: spaceMd),
-                  Text(
-                    artist.displayName ?? artist.artistUsername,
-                    style: textHeading,
-                  ),
-                  const SizedBox(height: spaceXxs),
-                  Text(
-                    '@${artist.artistUsername}',
-                    style: textCaption.copyWith(color: colorTextMuted),
-                  ),
-                  if (artist.tracks.isNotEmpty) ...[
-                    const SizedBox(height: spaceMd),
-                    Text(
-                      '${artist.tracks.length} track${artist.tracks.length == 1 ? '' : 's'}',
-                      style: textCaption.copyWith(color: colorTextSecondary),
-                    ),
-                  ],
-                  // Artist visibility toggle
-                  const SizedBox(height: spaceMd),
-                  Row(
-                    children: [
-                      Icon(
-                        artist.profileVisibility == 'private'
-                            ? Icons.lock_outline
-                            : Icons.public,
-                        size: 14,
-                        color: colorTextMuted,
-                      ),
-                      const SizedBox(width: spaceXs),
-                      Text(
-                        artist.profileVisibility == 'private'
-                            ? 'Private'
-                            : 'Public',
-                        style: textCaption.copyWith(color: colorTextMuted),
-                      ),
-                      const Spacer(),
-                      Switch(
-                        value: artist.profileVisibility == 'public',
-                        activeColor: colorAccentGold,
-                        onChanged: (isPublic) async {
-                          final v = isPublic ? 'public' : 'private';
-                          await ref
-                              .read(editArtistProvider.notifier)
-                              .updateArtist(profileVisibility: v);
-                          ref.read(discoverProvider.notifier).loadInitial();
-                        },
-                      ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: spaceSm),
-                    child: Text(
-                      artist.profileVisibility == 'private'
-                          ? 'Your artist page is hidden from Discover and search. Only existing fans and direct links can access it.'
-                          : 'Your artist page is visible in Discover and search. Anyone can view your profile and Tune In.',
-                      style: textCaption.copyWith(
-                        color: colorTextMuted,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: spaceSm),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () =>
-                          context.push('/artist/${artist.artistUsername}'),
-                      icon: const Icon(Icons.person, size: 16),
-                      label: const Text('View Artist Page'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: colorAccentGold,
-                        side: BorderSide(
-                          color: colorAccentGold.withValues(alpha: 0.3),
+                  const SizedBox(width: spaceLg),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user.displayName ?? user.username,
+                          style: textHeading,
                         ),
-                      ),
+                        const SizedBox(height: spaceXxs),
+                        Text(
+                          '@${user.username}',
+                          style: textCaption.copyWith(color: colorTextMuted),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ] else ...[
-            // Become an artist CTA
-            GestureDetector(
-              onTap: () => _showRegisterSheet(context),
-              child: Container(
-                padding: const EdgeInsets.all(spaceLg),
-                decoration: BoxDecoration(
-                  color: colorSurface1,
-                  borderRadius: BorderRadius.circular(radiusLg),
-                  border: Border.all(
-                    color: colorAccentGold.withValues(alpha: 0.3),
-                  ),
+
+              // Bio
+              if (user.bio != null && user.bio!.isNotEmpty) ...[
+                const SizedBox(height: spaceLg),
+                Text(
+                  user.bio!,
+                  style: textBody.copyWith(color: colorTextSecondary),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: colorAccentGold.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(radiusMd),
-                      ),
-                      child: const Icon(
-                        Icons.auto_awesome,
-                        color: colorAccentGold,
-                      ),
+              ],
+
+              // Meta: Joined + Tuned In
+              const SizedBox(height: spaceMd),
+              Wrap(
+                spacing: spaceLg,
+                children: [
+                  Text(
+                    'Joined ${_formatJoinDate(user.createdAt)}',
+                    style: textCaption.copyWith(color: colorTextMuted),
+                  ),
+                  if (tuneInState.tunedInArtists.isNotEmpty)
+                    Text(
+                      '${tuneInState.tunedInArtists.length} Tuned In',
+                      style: textCaption.copyWith(color: colorTextMuted),
                     ),
-                    const SizedBox(width: spaceLg),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                ],
+              ),
+              const SizedBox(height: spaceXxl),
+
+              // Artist section
+              if (artist != null) ...[
+                // Registered artist info
+                Container(
+                  padding: const EdgeInsets.all(spaceLg),
+                  decoration: BoxDecoration(
+                    color: colorSurface1,
+                    borderRadius: BorderRadius.circular(radiusLg),
+                    border: Border.all(color: colorBorder),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Text('Become an Artist', style: textHeading),
-                          const SizedBox(height: spaceXxs),
+                          const Icon(
+                            Icons.auto_awesome,
+                            size: 16,
+                            color: colorAccentGold,
+                          ),
+                          const SizedBox(width: spaceSm),
                           Text(
-                            'Start sharing your creative journey',
-                            style: textCaption.copyWith(
-                              color: colorTextSecondary,
-                            ),
+                            'Artist',
+                            style: textLabel.copyWith(color: colorAccentGold),
                           ),
                         ],
                       ),
+                      const SizedBox(height: spaceMd),
+                      Text(
+                        artist.displayName ?? artist.artistUsername,
+                        style: textHeading,
+                      ),
+                      const SizedBox(height: spaceXxs),
+                      Text(
+                        '@${artist.artistUsername}',
+                        style: textCaption.copyWith(color: colorTextMuted),
+                      ),
+                      if (artist.tracks.isNotEmpty) ...[
+                        const SizedBox(height: spaceMd),
+                        Text(
+                          '${artist.tracks.length} track${artist.tracks.length == 1 ? '' : 's'}',
+                          style: textCaption.copyWith(
+                            color: colorTextSecondary,
+                          ),
+                        ),
+                      ],
+                      // Artist visibility toggle
+                      const SizedBox(height: spaceMd),
+                      Row(
+                        children: [
+                          Icon(
+                            artist.profileVisibility == 'private'
+                                ? Icons.lock_outline
+                                : Icons.public,
+                            size: 14,
+                            color: colorTextMuted,
+                          ),
+                          const SizedBox(width: spaceXs),
+                          Text(
+                            artist.profileVisibility == 'private'
+                                ? 'Private'
+                                : 'Public',
+                            style: textCaption.copyWith(color: colorTextMuted),
+                          ),
+                          const Spacer(),
+                          Switch(
+                            value: artist.profileVisibility == 'public',
+                            activeColor: colorAccentGold,
+                            onChanged: (isPublic) async {
+                              final v = isPublic ? 'public' : 'private';
+                              await ref
+                                  .read(editArtistProvider.notifier)
+                                  .updateArtist(profileVisibility: v);
+                              ref.read(discoverProvider.notifier).loadInitial();
+                            },
+                          ),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: spaceSm),
+                        child: Text(
+                          artist.profileVisibility == 'private'
+                              ? 'Your artist page is hidden from Discover and search. Only existing fans and direct links can access it.'
+                              : 'Your artist page is visible in Discover and search. Anyone can view your profile and Tune In.',
+                          style: textCaption.copyWith(
+                            color: colorTextMuted,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: spaceSm),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              context.push('/artist/${artist.artistUsername}'),
+                          icon: const Icon(Icons.person, size: 16),
+                          label: const Text('View Artist Page'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: colorAccentGold,
+                            side: BorderSide(
+                              color: colorAccentGold.withValues(alpha: 0.3),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                // Become an artist CTA
+                GestureDetector(
+                  onTap: () => _showRegisterSheet(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(spaceLg),
+                    decoration: BoxDecoration(
+                      color: colorSurface1,
+                      borderRadius: BorderRadius.circular(radiusLg),
+                      border: Border.all(
+                        color: colorAccentGold.withValues(alpha: 0.3),
+                      ),
                     ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: colorAccentGold.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(radiusMd),
+                          ),
+                          child: const Icon(
+                            Icons.auto_awesome,
+                            color: colorAccentGold,
+                          ),
+                        ),
+                        const SizedBox(width: spaceLg),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Become an Artist', style: textHeading),
+                              const SizedBox(height: spaceXxs),
+                              Text(
+                                'Start sharing your creative journey',
+                                style: textCaption.copyWith(
+                                  color: colorTextSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: colorInteractiveMuted,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
+              // Guardian section: child accounts (not shown for child accounts)
+              if (!isChild) ...[
+                const SizedBox(height: spaceXxl),
+                Row(
+                  children: [
                     const Icon(
-                      Icons.chevron_right,
-                      color: colorInteractiveMuted,
+                      Icons.people_outline,
+                      size: 18,
+                      color: colorTextMuted,
+                    ),
+                    const SizedBox(width: spaceSm),
+                    Text(
+                      'Child Accounts',
+                      style: textHeading.copyWith(fontSize: 16),
                     ),
                   ],
                 ),
-              ),
-            ),
-          ],
-
-          // Guardian section: child accounts (not shown for child accounts)
-          if (!isChild) ...[
-            const SizedBox(height: spaceXxl),
-            Row(
-              children: [
-                const Icon(
-                  Icons.people_outline,
-                  size: 18,
-                  color: colorTextMuted,
-                ),
-                const SizedBox(width: spaceSm),
-                Text(
-                  'Child Accounts',
-                  style: textHeading.copyWith(fontSize: 16),
-                ),
+                const SizedBox(height: spaceMd),
+                if (guardianState.isLoading)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(spaceLg),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else ...[
+                  // Child cards
+                  ...guardianState.children.map(
+                    (child) => Padding(
+                      padding: const EdgeInsets.only(bottom: spaceSm),
+                      child: _buildChildCard(child),
+                    ),
+                  ),
+                  // Add child button
+                  OutlinedButton.icon(
+                    onPressed: () => _showCreateChildSheet(context),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add Child Account'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colorTextSecondary,
+                      side: const BorderSide(color: colorBorder),
+                    ),
+                  ),
+                ],
               ],
-            ),
-            const SizedBox(height: spaceMd),
-            if (guardianState.isLoading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(spaceLg),
-                  child: CircularProgressIndicator(strokeWidth: 2),
+
+              const SizedBox(height: spaceXxl),
+
+              // Child mode: show "Return to My Account" prominently above Logout
+              if (isChild) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _switchBackToGuardian,
+                    icon: const Icon(Icons.swap_horiz, size: 16),
+                    label: const Text('Return to My Account'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colorAccentGold,
+                      foregroundColor: colorSurface0,
+                      padding: const EdgeInsets.symmetric(vertical: spaceMd),
+                    ),
+                  ),
                 ),
-              )
-            else ...[
-              // Child cards
-              ...guardianState.children.map(
-                (child) => Padding(
-                  padding: const EdgeInsets.only(bottom: spaceSm),
-                  child: _buildChildCard(child),
+                const SizedBox(height: spaceMd),
+              ],
+
+              // About
+              TextButton(
+                onPressed: () => context.push('/about'),
+                child: Text(
+                  'About Gleisner',
+                  style: textCaption.copyWith(color: colorTextMuted),
                 ),
               ),
-              // Add child button
-              OutlinedButton.icon(
-                onPressed: () => _showCreateChildSheet(context),
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add Child Account'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colorTextSecondary,
-                  side: const BorderSide(color: colorBorder),
-                ),
+              const SizedBox(height: spaceSm),
+
+              // Logout
+              OutlinedButton(
+                onPressed: () async {
+                  await ref.read(authProvider.notifier).logout();
+                  ref.invalidate(graphqlClientProvider);
+                  ref.invalidate(timelineProvider);
+                  ref.invalidate(myArtistProvider);
+                  ref.invalidate(tuneInProvider);
+                  ref.invalidate(discoverProvider);
+                  ref.invalidate(unassignedPostsProvider);
+                  ref.invalidate(analyticsProvider);
+                  ref.invalidate(guardianProvider);
+                  await ref.read(tutorialProvider.notifier).reset();
+                  ref.invalidate(tutorialProvider);
+                },
+                child: const Text('Logout'),
               ),
             ],
-          ],
-
-          const SizedBox(height: spaceXxl),
-
-          // Child mode: show "Return to My Account" prominently above Logout
-          if (isChild) ...[
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _switchBackToGuardian,
-                icon: const Icon(Icons.swap_horiz, size: 16),
-                label: const Text('Return to My Account'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: colorAccentGold,
-                  foregroundColor: colorSurface0,
-                  padding: const EdgeInsets.symmetric(vertical: spaceMd),
-                ),
-              ),
-            ),
-            const SizedBox(height: spaceMd),
-          ],
-
-          // About
-          TextButton(
-            onPressed: () => context.push('/about'),
-            child: Text(
-              'About Gleisner',
-              style: textCaption.copyWith(color: colorTextMuted),
-            ),
           ),
-          const SizedBox(height: spaceSm),
-
-          // Logout
-          OutlinedButton(
-            onPressed: () async {
-              await ref.read(authProvider.notifier).logout();
-              ref.invalidate(graphqlClientProvider);
-              ref.invalidate(timelineProvider);
-              ref.invalidate(myArtistProvider);
-              ref.invalidate(tuneInProvider);
-              ref.invalidate(discoverProvider);
-              ref.invalidate(unassignedPostsProvider);
-              ref.invalidate(analyticsProvider);
-              ref.invalidate(guardianProvider);
-              await ref.read(tutorialProvider.notifier).reset();
-              ref.invalidate(tutorialProvider);
-            },
-            child: const Text('Logout'),
-          ),
-        ],
+        ),
       ),
     );
   }
