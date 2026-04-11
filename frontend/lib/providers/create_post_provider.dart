@@ -95,6 +95,18 @@ class CreatePostNotifier extends Notifier<CreatePostState>
 
   void setVisibility(String value) {
     state = state.copyWith(visibility: value);
+    // Clear externalPublish when switching to draft
+    if (value != 'public' && state.externalPublish) {
+      state = state.copyWith(externalPublish: false);
+    }
+  }
+
+  void setArticleGenre(ArticleGenre? genre) {
+    state = state.copyWith(articleGenre: genre);
+  }
+
+  void setExternalPublish(bool value) {
+    state = state.copyWith(externalPublish: value);
   }
 
   void addConnection(Post post, ConnectionType connectionType) {

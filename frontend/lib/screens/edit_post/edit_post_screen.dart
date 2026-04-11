@@ -56,6 +56,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   String? _thumbnailUrl;
   int? _durationSeconds;
   DateTime? _eventAt;
+  ArticleGenre? _articleGenre;
+  late bool _externalPublish;
   // IME-safe FocusNodes — block Tab during composition
   late final FocusNode _titleFocusNode;
   late final FocusNode _bodyFocusNode;
@@ -95,6 +97,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     _thumbnailUrl = widget.post.thumbnailUrl;
     _durationSeconds = widget.post.duration;
     _eventAt = widget.post.eventAt;
+    _articleGenre = widget.post.articleGenre;
+    _externalPublish = widget.post.externalPublish;
   }
 
   @override
@@ -175,6 +179,10 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,
             visibility: _visibility,
+            articleGenre: _articleGenre?.name,
+            clearArticleGenre:
+                _articleGenre == null && widget.post.articleGenre != null,
+            externalPublish: _externalPublish,
           );
     } else {
       updated = await ref
@@ -196,6 +204,10 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,
             visibility: _visibility,
+            articleGenre: _articleGenre?.name,
+            clearArticleGenre:
+                _articleGenre == null && widget.post.articleGenre != null,
+            externalPublish: _externalPublish,
           );
     }
 
@@ -483,7 +495,101 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         ),
       ),
       TextBodyCounter(controller: _quillController),
+      const SizedBox(height: spaceMd),
+      // Article genre picker
+      _buildArticleGenrePicker(),
+      const SizedBox(height: spaceMd),
+      // External publish toggle
+      _buildExternalPublishToggle(),
     ];
+  }
+
+  Widget _buildArticleGenrePicker() {
+    const genreLabels = {
+      ArticleGenre.fiction: 'Fiction',
+      ArticleGenre.poetry: 'Poetry',
+      ArticleGenre.essay: 'Essay',
+      ArticleGenre.technical: 'Technical',
+      ArticleGenre.opinion: 'Opinion',
+      ArticleGenre.diary: 'Diary',
+      ArticleGenre.review: 'Review',
+      ArticleGenre.travel: 'Travel',
+      ArticleGenre.other: 'Other',
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Genre',
+          style: TextStyle(
+            color: colorTextMuted,
+            fontSize: fontSizeSm,
+            fontWeight: weightSemibold,
+          ),
+        ),
+        const SizedBox(height: spaceXs),
+        Wrap(
+          spacing: spaceSm,
+          runSpacing: spaceXs,
+          children: ArticleGenre.values.map((genre) {
+            final isSelected = genre == _articleGenre;
+            return ChoiceChip(
+              label: Text(
+                genreLabels[genre] ?? genre.name,
+                style: TextStyle(
+                  fontSize: fontSizeSm,
+                  color: isSelected ? colorSurface0 : colorTextSecondary,
+                ),
+              ),
+              selected: isSelected,
+              selectedColor: colorAccentGold,
+              backgroundColor: colorSurface1,
+              side: BorderSide(
+                color: isSelected ? colorAccentGold : colorBorder,
+              ),
+              onSelected: (on) {
+                setState(() => _articleGenre = on ? genre : null);
+              },
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExternalPublishToggle() {
+    if (_visibility != 'public') return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                'Publish externally',
+                style: TextStyle(
+                  color: colorTextSecondary,
+                  fontSize: fontSizeSm,
+                  fontWeight: weightMedium,
+                ),
+              ),
+              SizedBox(height: spaceXxs),
+              Text(
+                'Make available on the public article site',
+                style: TextStyle(color: colorTextMuted, fontSize: fontSizeXs),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          value: _externalPublish,
+          activeColor: colorAccentGold,
+          onChanged: (v) => setState(() => _externalPublish = v),
+        ),
+      ],
+    );
   }
 
   List<Widget> _buildMediaFields() {

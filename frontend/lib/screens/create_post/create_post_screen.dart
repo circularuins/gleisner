@@ -734,7 +734,7 @@ class _FormStep extends ConsumerWidget {
       case MediaType.thought:
         return _buildThoughtFields(theme);
       case MediaType.article:
-        return _buildTextFields(theme);
+        return _buildTextFields(theme, ref);
       case MediaType.image:
       case MediaType.video:
       case MediaType.audio:
@@ -778,7 +778,7 @@ class _FormStep extends ConsumerWidget {
   }
 
   // article: title (optional) + rich text editor
-  List<Widget> _buildTextFields(ThemeData theme) {
+  List<Widget> _buildTextFields(ThemeData theme, WidgetRef ref) {
     return [
       Container(
         decoration: const BoxDecoration(
@@ -825,6 +825,11 @@ class _FormStep extends ConsumerWidget {
       // Character count for text body
       TextBodyCounter(controller: quillController),
       const SizedBox(height: spaceMd),
+      // Article genre picker
+      _ArticleGenrePicker(ref: ref),
+      const SizedBox(height: spaceMd),
+      // External publish toggle (only when visibility is public)
+      _ExternalPublishToggle(ref: ref),
     ];
   }
 
@@ -1521,4 +1526,120 @@ IconData _mediaTypeIcon(MediaType type) {
     MediaType.audio => Icons.headphones_outlined,
     MediaType.link => Icons.link,
   };
+}
+
+/// Genre picker for article posts.
+class _ArticleGenrePicker extends StatelessWidget {
+  final WidgetRef ref;
+  const _ArticleGenrePicker({required this.ref});
+
+  static const _genreLabels = {
+    ArticleGenre.fiction: 'Fiction',
+    ArticleGenre.poetry: 'Poetry',
+    ArticleGenre.essay: 'Essay',
+    ArticleGenre.technical: 'Technical',
+    ArticleGenre.opinion: 'Opinion',
+    ArticleGenre.diary: 'Diary',
+    ArticleGenre.review: 'Review',
+    ArticleGenre.travel: 'Travel',
+    ArticleGenre.other: 'Other',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = ref.watch(
+      createPostProvider.select((s) => s.articleGenre),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Genre',
+          style: TextStyle(
+            color: colorTextMuted,
+            fontSize: fontSizeSm,
+            fontWeight: weightSemibold,
+          ),
+        ),
+        const SizedBox(height: spaceXs),
+        Wrap(
+          spacing: spaceSm,
+          runSpacing: spaceXs,
+          children: ArticleGenre.values.map((genre) {
+            final isSelected = genre == selected;
+            return ChoiceChip(
+              label: Text(
+                _genreLabels[genre] ?? genre.name,
+                style: TextStyle(
+                  fontSize: fontSizeSm,
+                  color: isSelected ? colorSurface0 : colorTextSecondary,
+                ),
+              ),
+              selected: isSelected,
+              selectedColor: colorAccentGold,
+              backgroundColor: colorSurface1,
+              side: BorderSide(
+                color: isSelected ? colorAccentGold : colorBorder,
+              ),
+              onSelected: (on) {
+                ref
+                    .read(createPostProvider.notifier)
+                    .setArticleGenre(on ? genre : null);
+              },
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+/// External publish toggle for article posts (only when visibility is public).
+class _ExternalPublishToggle extends StatelessWidget {
+  final WidgetRef ref;
+  const _ExternalPublishToggle({required this.ref});
+
+  @override
+  Widget build(BuildContext context) {
+    final visibility = ref.watch(
+      createPostProvider.select((s) => s.visibility),
+    );
+    final externalPublish = ref.watch(
+      createPostProvider.select((s) => s.externalPublish),
+    );
+
+    if (visibility != 'public') return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Publish externally',
+                style: TextStyle(
+                  color: colorTextSecondary,
+                  fontSize: fontSizeSm,
+                  fontWeight: weightMedium,
+                ),
+              ),
+              const SizedBox(height: spaceXxs),
+              Text(
+                'Make available on the public article site',
+                style: TextStyle(color: colorTextMuted, fontSize: fontSizeXs),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          value: externalPublish,
+          activeColor: colorAccentGold,
+          onChanged: (v) =>
+              ref.read(createPostProvider.notifier).setExternalPublish(v),
+        ),
+      ],
+    );
+  }
 }
