@@ -42,7 +42,19 @@ enum ArticleGenre {
   diary,
   review,
   travel,
-  other,
+  other;
+
+  String get label => switch (this) {
+    fiction => 'Fiction',
+    poetry => 'Poetry',
+    essay => 'Essay',
+    technical => 'Technical',
+    opinion => 'Opinion',
+    diary => 'Diary',
+    review => 'Review',
+    travel => 'Travel',
+    other => 'Other',
+  };
 }
 
 class ReactionCount {

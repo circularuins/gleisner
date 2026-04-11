@@ -1533,18 +1533,6 @@ class _ArticleGenrePicker extends StatelessWidget {
   final WidgetRef ref;
   const _ArticleGenrePicker({required this.ref});
 
-  static const _genreLabels = {
-    ArticleGenre.fiction: 'Fiction',
-    ArticleGenre.poetry: 'Poetry',
-    ArticleGenre.essay: 'Essay',
-    ArticleGenre.technical: 'Technical',
-    ArticleGenre.opinion: 'Opinion',
-    ArticleGenre.diary: 'Diary',
-    ArticleGenre.review: 'Review',
-    ArticleGenre.travel: 'Travel',
-    ArticleGenre.other: 'Other',
-  };
-
   @override
   Widget build(BuildContext context) {
     final selected = ref.watch(
@@ -1570,7 +1558,7 @@ class _ArticleGenrePicker extends StatelessWidget {
             final isSelected = genre == selected;
             return ChoiceChip(
               label: Text(
-                _genreLabels[genre] ?? genre.name,
+                genre.label,
                 style: TextStyle(
                   fontSize: fontSizeSm,
                   color: isSelected ? colorSurface0 : colorTextSecondary,

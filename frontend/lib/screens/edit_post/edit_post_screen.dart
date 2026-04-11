@@ -505,18 +505,6 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   }
 
   Widget _buildArticleGenrePicker() {
-    const genreLabels = {
-      ArticleGenre.fiction: 'Fiction',
-      ArticleGenre.poetry: 'Poetry',
-      ArticleGenre.essay: 'Essay',
-      ArticleGenre.technical: 'Technical',
-      ArticleGenre.opinion: 'Opinion',
-      ArticleGenre.diary: 'Diary',
-      ArticleGenre.review: 'Review',
-      ArticleGenre.travel: 'Travel',
-      ArticleGenre.other: 'Other',
-    };
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -536,7 +524,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             final isSelected = genre == _articleGenre;
             return ChoiceChip(
               label: Text(
-                genreLabels[genre] ?? genre.name,
+                genre.label,
                 style: TextStyle(
                   fontSize: fontSizeSm,
                   color: isSelected ? colorSurface0 : colorTextSecondary,

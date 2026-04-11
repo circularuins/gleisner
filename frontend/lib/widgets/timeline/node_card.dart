@@ -13,7 +13,7 @@ import 'seed_art_painter.dart';
 /// Border radius by media type.
 BorderRadius _borderForType(MediaType type) {
   return switch (type) {
-    MediaType.thought => BorderRadius.circular(radiusFull),
+    MediaType.thought => BorderRadius.circular(radiusXl),
     MediaType.article => BorderRadius.circular(radiusMd),
     MediaType.image => BorderRadius.circular(radiusXl),
     MediaType.video => const BorderRadius.only(
@@ -310,26 +310,73 @@ class _ThoughtContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final post = (node.item as PostItem).post;
     final preview = post.plainTextPreview ?? '';
+    final isLarge = node.nodeSize > 110;
 
-    return Container(
-      padding: const EdgeInsets.all(spaceSm),
-      decoration: BoxDecoration(
-        color: trackColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(radiusFull),
-      ),
-      child: Center(
-        child: Text(
-          preview,
-          style: TextStyle(
-            color: colorTextSecondary,
-            fontSize: node.nodeSize > 110 ? fontSizeSm : fontSizeXs,
-            height: 1.3,
+    return Stack(
+      children: [
+        // Bubble body
+        Container(
+          padding: EdgeInsets.all(isLarge ? spaceMd : spaceSm),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                trackColor.withValues(alpha: 0.06),
+                trackColor.withValues(alpha: 0.12),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(radiusXl),
+            border: Border.all(
+              color: trackColor.withValues(alpha: 0.15),
+              width: 0.5,
+            ),
           ),
-          maxLines: node.nodeSize > 110 ? 5 : 3,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
+          child: Center(
+            child: Text(
+              preview,
+              style: TextStyle(
+                color: colorTextPrimary.withValues(alpha: 0.85),
+                fontSize: isLarge ? fontSizeSm : fontSizeXs,
+                height: 1.4,
+                fontStyle: FontStyle.italic,
+              ),
+              maxLines: isLarge ? 5 : 3,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+          ),
         ),
-      ),
+        // Bubble tail (small circle at bottom-left)
+        Positioned(
+          bottom: 2,
+          left: isLarge ? spaceMd : spaceSm,
+          child: Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: trackColor.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: trackColor.withValues(alpha: 0.15),
+                width: 0.5,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: -2,
+          left: isLarge ? spaceSm : spaceXs,
+          child: Container(
+            width: 4,
+            height: 4,
+            decoration: BoxDecoration(
+              color: trackColor.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

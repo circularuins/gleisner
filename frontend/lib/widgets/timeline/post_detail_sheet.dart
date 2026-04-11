@@ -398,13 +398,14 @@ class _PostDetailContentState extends State<PostDetailContent> {
   List<Widget> _buildContentSection(Post post) {
     final isVisual =
         post.mediaType == MediaType.image || post.mediaType == MediaType.video;
-    final isText = post.mediaType == MediaType.article;
+    final isArticle = post.mediaType == MediaType.article;
+    final isThought = post.mediaType == MediaType.thought;
 
     final dateRow = _buildDateRow(post);
     final titleWidget = post.title != null
         ? Text(
             post.title!,
-            style: isText
+            style: isArticle
                 ? const TextStyle(
                     color: colorTextPrimary,
                     fontSize: 24,
@@ -424,8 +425,31 @@ class _PostDetailContentState extends State<PostDetailContent> {
         : null;
     final bodyWidget = _buildBodyWidget(post);
 
+    // Article genre badge
+    Widget? genreBadge;
+    if (isArticle && post.articleGenre != null) {
+      genreBadge = Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: spaceSm,
+          vertical: spaceXxs,
+        ),
+        decoration: BoxDecoration(
+          color: colorAccentGold.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(radiusSm),
+          border: Border.all(color: colorAccentGold.withValues(alpha: 0.2)),
+        ),
+        child: Text(
+          post.articleGenre!.label,
+          style: const TextStyle(
+            color: colorAccentGold,
+            fontSize: fontSizeXs,
+            fontWeight: weightSemibold,
+          ),
+        ),
+      );
+    }
+
     if (isVisual) {
-      // Image/Video: title → caption → date (compact, media is the hero)
       return [
         if (titleWidget != null) ...[
           titleWidget,
@@ -440,9 +464,18 @@ class _PostDetailContentState extends State<PostDetailContent> {
       ];
     }
 
-    // Audio/Link: title is in media overlay only when visual overlay exists.
-    // Audio: always has overlay when URL present.
-    // Link: only when ogImage is present (fallback card has no overlay).
+    // Thought: date → body (no title, simple layout)
+    if (isThought) {
+      return [
+        dateRow,
+        const SizedBox(height: spaceMd),
+        if (bodyWidget != null) ...[
+          bodyWidget,
+          const SizedBox(height: spaceLg),
+        ],
+      ];
+    }
+
     final isMediaOverlay =
         (post.mediaType == MediaType.audio &&
             post.mediaUrl != null &&
@@ -461,13 +494,14 @@ class _PostDetailContentState extends State<PostDetailContent> {
       ];
     }
 
-    // Text & other types: date → title → body
+    // Article & other types: date → genre → title → reading time → body
     return [
       dateRow,
+      if (genreBadge != null) ...[const SizedBox(height: spaceSm), genreBadge],
       const SizedBox(height: spaceMd),
       if (titleWidget != null) ...[
         titleWidget,
-        if (isText && post.plainTextPreview != null) ...[
+        if (isArticle && post.plainTextPreview != null) ...[
           const SizedBox(height: spaceSm),
           Text(
             '${estimateReadingMinutes(post.plainTextPreview!).clamp(1, 99)} min read',
@@ -477,7 +511,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
             ),
           ),
         ],
-        SizedBox(height: isText ? spaceLg : spaceSm),
+        SizedBox(height: isArticle ? spaceLg : spaceSm),
       ],
       if (bodyWidget != null) ...[bodyWidget, const SizedBox(height: spaceLg)],
     ];
@@ -556,7 +590,9 @@ class _PostDetailContentState extends State<PostDetailContent> {
     if (post.body != null) {
       return Text(
         post.body!,
-        style: post.mediaType == MediaType.article
+        style:
+            (post.mediaType == MediaType.article ||
+                post.mediaType == MediaType.thought)
             ? const TextStyle(
                 color: colorTextSecondary,
                 fontSize: fontSizeMd,
