@@ -16,7 +16,7 @@ import 'seed_art_painter.dart';
 
 const _reactionPresets = ['🔥', '❤️', '👏', '✨', '😍', '🎵', '💪', '🎸'];
 
-/// Show the post detail bottom sheet.
+/// Show the post detail bottom sheet (mobile).
 void showPostDetailSheet(
   BuildContext context,
   Post post, {
@@ -46,24 +46,65 @@ void showPostDetailSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _PostDetailSheet(
-      post: post,
-      onToggleReaction: onToggleReaction,
-      onReactionsChanged: onReactionsChanged,
-      onCreateConnection: onCreateConnection,
-      onDeleteConnection: onDeleteConnection,
-      onConnectionAdded: onConnectionAdded,
-      onConnectionRemoved: onConnectionRemoved,
-      onViewConstellation: onViewConstellation,
-      onNameConstellation: onNameConstellation,
-      onEdit: onEdit,
-      allPosts: allPosts,
+    builder: (_) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.82,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      builder: (context, scrollController) => Container(
+        decoration: BoxDecoration(
+          color: colorSurface1,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(radiusSheet),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: spaceSm, bottom: spaceXs),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colorInteractive,
+                  borderRadius: BorderRadius.circular(spaceXxs),
+                ),
+              ),
+            ),
+            Expanded(
+              child: PostDetailContent(
+                post: post,
+                scrollController: scrollController,
+                onToggleReaction: onToggleReaction,
+                onReactionsChanged: onReactionsChanged,
+                onCreateConnection: onCreateConnection,
+                onDeleteConnection: onDeleteConnection,
+                onConnectionAdded: onConnectionAdded,
+                onConnectionRemoved: onConnectionRemoved,
+                onViewConstellation: onViewConstellation,
+                onNameConstellation: onNameConstellation,
+                onEdit: onEdit,
+                allPosts: allPosts,
+              ),
+            ),
+          ],
+        ),
+      ),
     ),
   );
 }
 
-class _PostDetailSheet extends StatefulWidget {
+/// Shared post detail content used by both the mobile bottom sheet and
+/// the desktop side panel. Renders media, content, reactions, connections,
+/// constellation, and comments sections.
+class PostDetailContent extends StatefulWidget {
   final Post post;
+
+  /// Optional scroll controller (provided by DraggableScrollableSheet for
+  /// bottom sheet mode). When null, an internal scroll controller is used.
+  final ScrollController? scrollController;
+
   final Future<bool> Function(String postId, String emoji)? onToggleReaction;
   final void Function(
     String postId,
@@ -85,8 +126,10 @@ class _PostDetailSheet extends StatefulWidget {
   onNameConstellation;
   final VoidCallback? onEdit;
   final List<Post> allPosts;
-  const _PostDetailSheet({
+  const PostDetailContent({
+    super.key,
     required this.post,
+    this.scrollController,
     this.onToggleReaction,
     this.onReactionsChanged,
     this.onCreateConnection,
@@ -100,10 +143,10 @@ class _PostDetailSheet extends StatefulWidget {
   });
 
   @override
-  State<_PostDetailSheet> createState() => _PostDetailSheetState();
+  State<PostDetailContent> createState() => _PostDetailContentState();
 }
 
-class _PostDetailSheetState extends State<_PostDetailSheet> {
+class _PostDetailContentState extends State<PostDetailContent> {
   late List<ReactionCount> _reactionCounts;
   late Set<String> _myReactions;
   late List<PostConnection> _outgoingConnections;
@@ -282,91 +325,63 @@ class _PostDetailSheetState extends State<_PostDetailSheet> {
     final trackColor = post.trackDisplayColor;
     final seedString = '${post.title ?? ''}${post.createdAt.toIso8601String()}';
 
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.82,
-      minChildSize: 0.4,
-      maxChildSize: 0.92,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: colorSurface1,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(radiusSheet),
-            ),
+    return ListView(
+      controller: widget.scrollController,
+      padding: EdgeInsets.zero,
+      children: [
+        _buildMediaArea(context, post, trackColor, seedString),
+        // Content — layout varies by media type
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, spaceLg, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: _buildContentSection(post),
           ),
-          clipBehavior: Clip.antiAlias,
-          child: ListView(
-            controller: scrollController,
-            padding: EdgeInsets.zero,
+        ),
+        // Reactions — subtle, no divider above
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, spaceXs, 20, 0),
+          child: _buildReactionsSection(trackColor),
+        ),
+        // Connections
+        if (widget.allPosts.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, spaceMd, 20, 0),
+            child: _buildConnectionsSection(trackColor),
+          ),
+        // Constellation
+        if (widget.allPosts.isNotEmpty)
+          Padding(
+            key: ValueKey(
+              'constellation-${_outgoingConnections.map((c) => c.id).join(',')}-${_incomingConnections.map((c) => c.id).join(',')}',
+            ),
+            padding: const EdgeInsets.fromLTRB(20, spaceMd, 20, 0),
+            child: _buildConstellationSection(trackColor),
+          ),
+        // Comments placeholder
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, spaceLg, 20, spaceXxl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: spaceSm, bottom: spaceXs),
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colorInteractive,
-                    borderRadius: BorderRadius.circular(spaceXxs),
-                  ),
-                ),
+              Divider(
+                color: colorBorder.withValues(alpha: opacityOverlay),
+                height: 1,
               ),
-              _buildMediaArea(context, post, trackColor, seedString),
-              // Content — layout varies by media type
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, spaceLg, 20, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: _buildContentSection(post),
-                ),
-              ),
-              // Reactions — subtle, no divider above
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, spaceXs, 20, 0),
-                child: _buildReactionsSection(trackColor),
-              ),
-              // Connections
-              if (widget.allPosts.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, spaceMd, 20, 0),
-                  child: _buildConnectionsSection(trackColor),
-                ),
-              // Constellation
-              if (widget.allPosts.isNotEmpty)
-                Padding(
-                  key: ValueKey(
-                    'constellation-${_outgoingConnections.map((c) => c.id).join(',')}-${_incomingConnections.map((c) => c.id).join(',')}',
-                  ),
-                  padding: const EdgeInsets.fromLTRB(20, spaceMd, 20, 0),
-                  child: _buildConstellationSection(trackColor),
-                ),
-              // Comments placeholder
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, spaceLg, 20, spaceXxl),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Divider(
-                      color: colorBorder.withValues(alpha: opacityOverlay),
-                      height: 1,
-                    ),
-                    const SizedBox(height: spaceMd),
-                    Text('Comments', style: textLabel),
-                    const SizedBox(height: spaceXs),
-                    const Text(
-                      'Coming soon',
-                      style: TextStyle(
-                        color: colorInteractiveMuted,
-                        fontSize: fontSizeSm,
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: spaceMd),
+              Text('Comments', style: textLabel),
+              const SizedBox(height: spaceXs),
+              const Text(
+                'Coming soon',
+                style: TextStyle(
+                  color: colorInteractiveMuted,
+                  fontSize: fontSizeSm,
                 ),
               ),
             ],
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 

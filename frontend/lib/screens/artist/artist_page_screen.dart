@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../utils/date_format.dart';
 import '../../utils/open_url.dart';
 
 import '../../models/artist.dart';
@@ -68,6 +67,57 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
       return;
     }
     showPostDetailSheet(context, post);
+  }
+
+  Widget _buildSidePanel(ArtistPageState state) {
+    final post = state.recentPosts
+        .where((p) => p.id == _sidePanelPostId)
+        .firstOrNull;
+    if (post == null) return const SizedBox.shrink();
+
+    return Container(
+      color: colorSurface1,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: spaceLg,
+              vertical: spaceSm,
+            ),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: colorBorder)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    post.title ?? 'Untitled',
+                    style: const TextStyle(
+                      color: colorTextPrimary,
+                      fontSize: fontSizeLg,
+                      fontWeight: weightSemibold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.close,
+                    size: 18,
+                    color: colorInteractive,
+                  ),
+                  onPressed: () => setState(() => _sidePanelPostId = null),
+                  tooltip: 'Close',
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: PostDetailContent(post: post, allPosts: state.recentPosts),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -723,11 +773,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                   ),
                   SizedBox(
                     width: sidePanelWidth,
-                    child: _ArtistDetailPanel(
-                      postId: _sidePanelPostId!,
-                      posts: state.recentPosts,
-                      onClose: () => setState(() => _sidePanelPostId = null),
-                    ),
+                    child: _buildSidePanel(state),
                   ),
                 ],
               ],
@@ -1341,188 +1387,6 @@ class _MilestonesSectionState extends State<_MilestonesSection> {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// Desktop-only side panel showing post detail on Artist Page.
-class _ArtistDetailPanel extends StatelessWidget {
-  final String postId;
-  final List<Post> posts;
-  final VoidCallback onClose;
-
-  const _ArtistDetailPanel({
-    required this.postId,
-    required this.posts,
-    required this.onClose,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final post = posts.where((p) => p.id == postId).firstOrNull;
-    if (post == null) return const SizedBox.shrink();
-
-    return Container(
-      color: colorSurface1,
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: spaceLg,
-              vertical: spaceSm,
-            ),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: colorBorder)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    post.title ?? 'Untitled',
-                    style: const TextStyle(
-                      color: colorTextPrimary,
-                      fontSize: fontSizeLg,
-                      fontWeight: weightSemibold,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.close,
-                    size: 18,
-                    color: colorInteractive,
-                  ),
-                  onPressed: onClose,
-                  tooltip: 'Close',
-                ),
-              ],
-            ),
-          ),
-          // Content
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(spaceLg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (post.mediaUrl != null &&
-                      post.mediaType == MediaType.image)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: spaceLg),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(radiusMd),
-                        child: Image.network(
-                          post.mediaUrl!,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          cacheWidth: 800,
-                          errorBuilder: (_, _, _) => Container(
-                            height: 120,
-                            color: colorSurface2,
-                            child: const Center(
-                              child: Icon(
-                                Icons.broken_image,
-                                color: colorInteractiveMuted,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (post.mediaType == MediaType.video)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: spaceLg),
-                      child: Container(
-                        height: 160,
-                        decoration: BoxDecoration(
-                          color: colorSurface2,
-                          borderRadius: BorderRadius.circular(radiusMd),
-                          image: post.thumbnailUrl != null
-                              ? DecorationImage(
-                                  image: NetworkImage(post.thumbnailUrl!),
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
-                        ),
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.play_circle_outline,
-                                size: 40,
-                                color: colorTextPrimary,
-                              ),
-                              if (post.duration != null)
-                                Text(
-                                  '${post.duration! ~/ 60}:${(post.duration! % 60).toString().padLeft(2, '0')}',
-                                  style: const TextStyle(
-                                    color: colorTextSecondary,
-                                    fontSize: fontSizeSm,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (post.mediaType == MediaType.audio)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: spaceLg),
-                      child: Container(
-                        padding: const EdgeInsets.all(spaceLg),
-                        decoration: BoxDecoration(
-                          color: colorSurface2,
-                          borderRadius: BorderRadius.circular(radiusMd),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.audiotrack,
-                              size: 24,
-                              color: colorInteractive,
-                            ),
-                            const SizedBox(width: spaceMd),
-                            Text(
-                              post.duration != null
-                                  ? '${post.duration! ~/ 60}:${(post.duration! % 60).toString().padLeft(2, '0')}'
-                                  : 'Audio',
-                              style: const TextStyle(
-                                color: colorTextSecondary,
-                                fontSize: fontSizeMd,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  if (post.body != null && post.body!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: spaceLg),
-                      child: Text(
-                        post.body!,
-                        style: const TextStyle(
-                          color: colorTextSecondary,
-                          fontSize: fontSizeMd,
-                          height: 1.6,
-                        ),
-                      ),
-                    ),
-                  Text(
-                    '${post.mediaType.name} · ${formatDate(post.createdAt)}',
-                    style: const TextStyle(
-                      color: colorTextMuted,
-                      fontSize: fontSizeSm,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
