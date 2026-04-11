@@ -21,6 +21,8 @@ class CreatePostState {
   final bool isSubmitting;
   final String? error;
   final List<PendingConnection> selectedConnections;
+  final ArticleGenre? articleGenre;
+  final bool externalPublish;
 
   const CreatePostState({
     this.step = 0,
@@ -31,6 +33,8 @@ class CreatePostState {
     this.isSubmitting = false,
     this.error,
     this.selectedConnections = const [],
+    this.articleGenre,
+    this.externalPublish = false,
   });
 
   CreatePostState copyWith({
@@ -42,6 +46,8 @@ class CreatePostState {
     bool? isSubmitting,
     Object? error = sentinel,
     List<PendingConnection>? selectedConnections,
+    Object? articleGenre = sentinel,
+    bool? externalPublish,
   }) {
     return CreatePostState(
       step: step ?? this.step,
@@ -56,6 +62,10 @@ class CreatePostState {
       isSubmitting: isSubmitting ?? this.isSubmitting,
       error: error == sentinel ? this.error : error as String?,
       selectedConnections: selectedConnections ?? this.selectedConnections,
+      articleGenre: articleGenre == sentinel
+          ? this.articleGenre
+          : articleGenre as ArticleGenre?,
+      externalPublish: externalPublish ?? this.externalPublish,
     );
   }
 }
@@ -162,6 +172,9 @@ class CreatePostNotifier extends Notifier<CreatePostState>
             if (eventAt != null) 'eventAt': eventAt.toIso8601String(),
             'importance': state.importance,
             'visibility': state.visibility,
+            if (state.articleGenre != null)
+              'articleGenre': state.articleGenre!.name,
+            if (state.externalPublish) 'externalPublish': true,
           },
         ),
       );

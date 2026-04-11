@@ -76,7 +76,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         document: Document.fromJson(widget.post.bodyDelta!),
         selection: const TextSelection.collapsed(offset: 0),
       );
-    } else if (widget.post.mediaType == MediaType.text &&
+    } else if (widget.post.mediaType == MediaType.article &&
         widget.post.body != null) {
       // Convert plain text to Delta for editing
       _quillController = QuillController(
@@ -113,7 +113,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     // Prevent clearing media file for non-text types
-    if (widget.post.mediaType != MediaType.text &&
+    if (widget.post.mediaType != MediaType.article &&
         _mediaUrlController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -135,7 +135,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     // For text type, use Quill Delta; for others, use plain body
     String body;
     String? bodyFormat;
-    if (widget.post.mediaType == MediaType.text) {
+    if (widget.post.mediaType == MediaType.article) {
       final delta = _quillController.document.toDelta().toJson();
       body = jsonEncode(delta);
       bodyFormat = 'delta';
@@ -394,7 +394,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
 
   List<Widget> _buildContentFields() {
     switch (widget.post.mediaType) {
-      case MediaType.text:
+      case MediaType.thought:
+        return _buildTextFields(); // thought edit uses same plain text field
+      case MediaType.article:
         return _buildTextFields();
       case MediaType.image:
       case MediaType.video:

@@ -83,10 +83,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (ref.read(mediaUploadProvider).isUploading) return;
 
-    // Require media file for non-text types
+    // Require media file for media types (not thought/article/link)
     final mediaType = ref.read(createPostProvider).selectedMediaType;
     if (mediaType != null &&
-        mediaType != MediaType.text &&
+        mediaType != MediaType.article &&
+        mediaType != MediaType.thought &&
         _mediaUrlController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -97,12 +98,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       return;
     }
 
-    // For text type, use Quill Delta; for others, use plain body
-    final isTextType =
-        ref.read(createPostProvider).selectedMediaType == MediaType.text;
+    // Article: use Quill Delta; Thought + others: use plain body
+    final isArticle =
+        ref.read(createPostProvider).selectedMediaType == MediaType.article;
     String? bodyValue;
     String? bodyFormat;
-    if (isTextType) {
+    if (isArticle) {
       final delta = _quillController.document.toDelta().toJson();
       bodyValue = jsonEncode(delta);
       bodyFormat = 'delta';
@@ -421,7 +422,8 @@ class _MediaTypeStep extends ConsumerWidget {
   const _MediaTypeStep();
 
   static const _mediaTypeOptions = [
-    (MediaType.text, Icons.article, 'Text'),
+    (MediaType.thought, Icons.chat_bubble_outline, 'Thought'),
+    (MediaType.article, Icons.description_outlined, 'Article'),
     (MediaType.image, Icons.image, 'Image'),
     (MediaType.video, Icons.videocam, 'Video'),
     (MediaType.audio, Icons.audiotrack, 'Audio'),
@@ -729,7 +731,9 @@ class _FormStep extends ConsumerWidget {
     WidgetRef ref,
   ) {
     switch (mediaType) {
-      case MediaType.text:
+      case MediaType.thought:
+        return _buildThoughtFields(theme);
+      case MediaType.article:
         return _buildTextFields(theme);
       case MediaType.image:
       case MediaType.video:
@@ -740,7 +744,40 @@ class _FormStep extends ConsumerWidget {
     }
   }
 
-  // text: title (optional) + rich text editor
+  // thought: plain text body only, 280 char limit, no title
+  List<Widget> _buildThoughtFields(ThemeData theme) {
+    return [
+      Container(
+        decoration: BoxDecoration(
+          color: colorSurface1,
+          borderRadius: BorderRadius.circular(radiusLg),
+          border: Border.all(color: colorBorder),
+        ),
+        child: TextField(
+          controller: bodyController,
+          maxLines: 6,
+          maxLength: 280,
+          style: const TextStyle(
+            color: colorTextPrimary,
+            fontSize: fontSizeMd,
+            height: 1.5,
+          ),
+          decoration: const InputDecoration(
+            hintText: "What's on your mind?",
+            hintStyle: TextStyle(color: colorInteractiveMuted),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.all(spaceLg),
+            counterStyle: TextStyle(
+              color: colorTextMuted,
+              fontSize: fontSizeXs,
+            ),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  // article: title (optional) + rich text editor
   List<Widget> _buildTextFields(ThemeData theme) {
     return [
       Container(
@@ -1477,7 +1514,8 @@ class _TagPill extends StatelessWidget {
 
 IconData _mediaTypeIcon(MediaType type) {
   return switch (type) {
-    MediaType.text => Icons.text_fields,
+    MediaType.thought => Icons.chat_bubble_outline,
+    MediaType.article => Icons.text_fields,
     MediaType.image => Icons.image_outlined,
     MediaType.video => Icons.videocam_outlined,
     MediaType.audio => Icons.headphones_outlined,

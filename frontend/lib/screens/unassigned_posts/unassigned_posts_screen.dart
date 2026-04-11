@@ -240,7 +240,8 @@ class _PostTile extends StatelessWidget {
 
   static IconData _mediaTypeIcon(MediaType type) {
     return switch (type) {
-      MediaType.text => Icons.article_outlined,
+      MediaType.thought => Icons.chat_bubble_outline,
+      MediaType.article => Icons.description_outlined,
       MediaType.image => Icons.image_outlined,
       MediaType.video => Icons.videocam_outlined,
       MediaType.audio => Icons.headphones_outlined,

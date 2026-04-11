@@ -13,7 +13,8 @@ import 'seed_art_painter.dart';
 /// Border radius by media type.
 BorderRadius _borderForType(MediaType type) {
   return switch (type) {
-    MediaType.text => BorderRadius.circular(radiusMd),
+    MediaType.thought => BorderRadius.circular(radiusFull),
+    MediaType.article => BorderRadius.circular(radiusMd),
     MediaType.image => BorderRadius.circular(radiusXl),
     MediaType.video => const BorderRadius.only(
       topLeft: Radius.circular(radiusLg),
@@ -288,12 +289,48 @@ class _NodeCardState extends State<NodeCard>
 
   Widget _buildContent(PlacedNode node, Color trackColor) {
     return switch ((node.item as PostItem).post.mediaType) {
-      MediaType.text => _TextContent(node: node, trackColor: trackColor),
+      MediaType.thought => _ThoughtContent(node: node, trackColor: trackColor),
+      MediaType.article => _TextContent(node: node, trackColor: trackColor),
       MediaType.image => _ImageContent(node: node, trackColor: trackColor),
       MediaType.video => _VideoContent(node: node, trackColor: trackColor),
       MediaType.audio => _AudioContent(node: node, trackColor: trackColor),
       MediaType.link => _LinkContent(node: node, trackColor: trackColor),
     };
+  }
+}
+
+// --- Thought: bubble with body text, no title ---
+class _ThoughtContent extends StatelessWidget {
+  final PlacedNode node;
+  final Color trackColor;
+
+  const _ThoughtContent({required this.node, required this.trackColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final post = (node.item as PostItem).post;
+    final preview = post.plainTextPreview ?? '';
+
+    return Container(
+      padding: const EdgeInsets.all(spaceSm),
+      decoration: BoxDecoration(
+        color: trackColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(radiusFull),
+      ),
+      child: Center(
+        child: Text(
+          preview,
+          style: TextStyle(
+            color: colorTextSecondary,
+            fontSize: node.nodeSize > 110 ? fontSizeSm : fontSizeXs,
+            height: 1.3,
+          ),
+          maxLines: node.nodeSize > 110 ? 5 : 3,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
   }
 }
 

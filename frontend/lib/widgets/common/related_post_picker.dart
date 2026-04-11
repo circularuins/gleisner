@@ -273,7 +273,8 @@ class _TrackFilterChip extends StatelessWidget {
 
 IconData _mediaTypeIcon(MediaType type) {
   return switch (type) {
-    MediaType.text => Icons.article,
+    MediaType.thought => Icons.chat_bubble_outline,
+    MediaType.article => Icons.description_outlined,
     MediaType.image => Icons.image,
     MediaType.video => Icons.videocam,
     MediaType.audio => Icons.audiotrack,

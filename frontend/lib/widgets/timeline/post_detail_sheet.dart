@@ -398,7 +398,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
   List<Widget> _buildContentSection(Post post) {
     final isVisual =
         post.mediaType == MediaType.image || post.mediaType == MediaType.video;
-    final isText = post.mediaType == MediaType.text;
+    final isText = post.mediaType == MediaType.article;
 
     final dateRow = _buildDateRow(post);
     final titleWidget = post.title != null
@@ -556,7 +556,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
     if (post.body != null) {
       return Text(
         post.body!,
-        style: post.mediaType == MediaType.text
+        style: post.mediaType == MediaType.article
             ? const TextStyle(
                 color: colorTextSecondary,
                 fontSize: fontSizeMd,
@@ -1102,7 +1102,8 @@ class _PostDetailContentState extends State<PostDetailContent> {
   ) {
     final width = MediaQuery.of(context).size.width;
     return switch (post.mediaType) {
-      MediaType.text => _textMediaArea(post, trackColor),
+      MediaType.thought => _textMediaArea(post, trackColor),
+      MediaType.article => _textMediaArea(post, trackColor),
       MediaType.image => _visualMediaArea(
         context,
         post,
@@ -1893,7 +1894,8 @@ class _PostDetailContentState extends State<PostDetailContent> {
       MediaType.video => '🎬',
       MediaType.audio => '🎵',
       MediaType.link => '🔗',
-      MediaType.text => '📝',
+      MediaType.thought => '💭',
+      MediaType.article => '📝',
     };
     final date = p.createdAt.toLocal();
     final dateStr = '${date.month}/${date.day}';
