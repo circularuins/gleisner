@@ -112,8 +112,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Prevent clearing media file for non-text types
+    // Prevent clearing media file for media types (not thought/article/link)
     if (widget.post.mediaType != MediaType.article &&
+        widget.post.mediaType != MediaType.thought &&
         _mediaUrlController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -132,7 +133,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     final title = _titleController.text.trim();
     final mediaUrl = _mediaUrlController.text.trim();
 
-    // For text type, use Quill Delta; for others, use plain body
+    // Article: use Quill Delta; Thought + others: use plain body
     String body;
     String? bodyFormat;
     if (widget.post.mediaType == MediaType.article) {
@@ -395,7 +396,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   List<Widget> _buildContentFields() {
     switch (widget.post.mediaType) {
       case MediaType.thought:
-        return _buildTextFields(); // thought edit uses same plain text field
+        return _buildThoughtFields();
       case MediaType.article:
         return _buildTextFields();
       case MediaType.image:
@@ -405,6 +406,38 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
       case MediaType.link:
         return _buildLinkFields();
     }
+  }
+
+  List<Widget> _buildThoughtFields() {
+    return [
+      Container(
+        decoration: BoxDecoration(
+          color: colorSurface1,
+          borderRadius: BorderRadius.circular(radiusLg),
+          border: Border.all(color: colorBorder),
+        ),
+        child: TextField(
+          controller: _bodyController,
+          maxLines: 6,
+          maxLength: 280,
+          style: const TextStyle(
+            color: colorTextPrimary,
+            fontSize: fontSizeMd,
+            height: 1.5,
+          ),
+          decoration: const InputDecoration(
+            hintText: "What's on your mind?",
+            hintStyle: TextStyle(color: colorInteractiveMuted),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.all(spaceLg),
+            counterStyle: TextStyle(
+              color: colorTextMuted,
+              fontSize: fontSizeXs,
+            ),
+          ),
+        ),
+      ),
+    ];
   }
 
   List<Widget> _buildTextFields() {
