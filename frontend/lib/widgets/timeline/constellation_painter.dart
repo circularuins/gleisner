@@ -50,7 +50,11 @@ class ConstellationPainter extends CustomPainter {
     final paint = Paint()
       ..color = colorBorder
       ..strokeWidth = 1;
-    canvas.drawLine(const Offset(18, 0), Offset(18, size.height), paint);
+    if (layout.isHorizontal) {
+      canvas.drawLine(const Offset(0, 18), Offset(size.width, 18), paint);
+    } else {
+      canvas.drawLine(const Offset(18, 0), Offset(18, size.height), paint);
+    }
   }
 
   // ── Testable static helpers ─────────────────────────────────────
@@ -67,16 +71,23 @@ class ConstellationPainter extends CustomPainter {
   }
 
   /// Whether a synapse overlaps the visible viewport (with margin).
+  /// For horizontal layouts, checks X axis; for vertical, checks Y axis.
   @visibleForTesting
   static bool isInViewport(
     SynapseConnection conn, {
     required double scrollOffset,
     required double viewportHeight,
     double margin = 100.0,
+    bool isHorizontal = false,
   }) {
     if (viewportHeight == double.infinity) return true;
     final top = scrollOffset - margin;
     final bottom = scrollOffset + viewportHeight + margin;
+    if (isHorizontal) {
+      final minX = conn.start.dx < conn.end.dx ? conn.start.dx : conn.end.dx;
+      final maxX = conn.start.dx > conn.end.dx ? conn.start.dx : conn.end.dx;
+      return maxX >= top && minX <= bottom;
+    }
     final minY = conn.start.dy < conn.end.dy ? conn.start.dy : conn.end.dy;
     final maxY = conn.start.dy > conn.end.dy ? conn.start.dy : conn.end.dy;
     return maxY >= top && minY <= bottom;
@@ -115,7 +126,7 @@ class ConstellationPainter extends CustomPainter {
   // ────────────────────────────────────────────────────────────────
 
   void _drawSynapses(Canvas canvas) {
-    const sw = ConstellationLayout.spineWidth;
+    final sw = layout.isHorizontal ? 0.0 : ConstellationLayout.spineWidth;
     final filter = constellationPostIds;
 
     // Build list of filtered connections
@@ -165,6 +176,7 @@ class ConstellationPainter extends CustomPainter {
             c,
             scrollOffset: scrollOffset,
             viewportHeight: viewportHeight,
+            isHorizontal: layout.isHorizontal,
           ),
         )
         .toList(growable: false);

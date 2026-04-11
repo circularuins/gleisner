@@ -23,6 +23,7 @@ import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
 import '../create_post/create_post_screen.dart';
+import '../edit_post/edit_post_screen.dart';
 import '../../widgets/tutorial/tutorial_spotlight.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
@@ -35,6 +36,7 @@ class TimelineScreen extends ConsumerStatefulWidget {
 class _TimelineScreenState extends ConsumerState<TimelineScreen>
     with SingleTickerProviderStateMixin {
   double? _lastWidth;
+  double? _lastHeight;
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0;
   String? _focusedPostId;
@@ -468,13 +470,24 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                               child: LayoutBuilder(
                                 builder: (context, constraints) {
                                   final width = constraints.maxWidth;
-                                  if (_lastWidth != width) {
+                                  final height = constraints.maxHeight;
+                                  final screenWidth = MediaQuery.of(
+                                    context,
+                                  ).size.width;
+                                  final useHorizontal = isDesktop(screenWidth);
+                                  if (_lastWidth != width ||
+                                      _lastHeight != height) {
                                     _lastWidth = width;
+                                    _lastHeight = height;
                                     WidgetsBinding.instance
                                         .addPostFrameCallback((_) {
                                           ref
                                               .read(timelineProvider.notifier)
-                                              .computeLayout(width);
+                                              .computeLayout(
+                                                width,
+                                                height: height,
+                                                horizontal: useHorizontal,
+                                              );
                                         });
                                   }
 
@@ -495,6 +508,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                       return false;
                                     },
                                     child: SingleChildScrollView(
+                                      scrollDirection: layout.isHorizontal
+                                          ? Axis.horizontal
+                                          : Axis.vertical,
                                       controller: _scrollController,
                                       physics:
                                           const AlwaysScrollableScrollPhysics(),
@@ -518,7 +534,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                               }
                                             },
                                             child: SizedBox(
-                                              height: layout.totalHeight,
+                                              height: layout.isHorizontal
+                                                  ? constraints.maxHeight
+                                                  : layout.totalHeight,
+                                              width: layout.isHorizontal
+                                                  ? layout.totalWidth
+                                                  : null,
                                               child: Stack(
                                                 children: [
                                                   // Background: spine + synapses + travelling dot
@@ -544,11 +565,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                                     ),
                                                   ),
                                                   // Day labels on the spine
-                                                  // Find the one day closest above the midpoint
                                                   ..._buildDateLabels(
-                                                    layout.days,
+                                                    layout,
                                                     _scrollOffset,
-                                                    constraints.maxHeight,
+                                                    layout.isHorizontal
+                                                        ? constraints.maxWidth
+                                                        : constraints.maxHeight,
                                                   ),
                                                   // Nodes (focused node rendered last for z-order)
                                                   ..._buildNodes(
@@ -651,7 +673,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                     onEdit: isOwn
                         ? (post) {
                             setState(() => _sidePanelPostId = null);
-                            context.push('/edit-post', extra: post);
+                            _openEditPost(post);
                           }
                         : null,
                   ),
@@ -724,7 +746,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
       }
 
       final positioned = Positioned(
-        left: ConstellationLayout.spineWidth + node.x,
+        left: layout.isHorizontal
+            ? node.x
+            : ConstellationLayout.spineWidth + node.x,
         top: node.y,
         width: node.width,
         child: dimmed
@@ -770,6 +794,35 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     _showDetailBottomSheet(postId);
   }
 
+  /// Open edit post — dialog on desktop, push navigation on mobile.
+  void _openEditPost(Post post) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    if (isDesktop(screenWidth)) {
+      showDialog(
+        context: context,
+        builder: (dialogContext) => Dialog(
+          backgroundColor: colorSurface0,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 80,
+            vertical: 40,
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.all(Radius.circular(radiusLg)),
+            child: EditPostScreen(
+              post: post,
+              onSaved: (_) {
+                Navigator.of(dialogContext).pop();
+                ref.read(timelineProvider.notifier).refresh();
+              },
+            ),
+          ),
+        ),
+      );
+    } else {
+      context.push('/edit-post', extra: post);
+    }
+  }
+
   void _showDetailBottomSheet(String postId) {
     final post = ref
         .read(timelineProvider)
@@ -808,7 +861,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
       onEdit: isOwn
           ? () {
               Navigator.pop(context); // Close detail sheet
-              context.push('/edit-post', extra: post);
+              _openEditPost(post);
             }
           : null,
       allPosts: ref.read(timelineProvider).posts,
@@ -861,27 +914,43 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
   }
 
   List<Positioned> _buildDateLabels(
-    List<DaySection> days,
+    LayoutResult layout,
     double scrollOffset,
-    double viewportHeight,
+    double viewportSize,
   ) {
-    // Determine which single day to highlight.
-    // - If not scrolled (or scrolled back to top), only "today" highlights
-    //   (via its own isToday styling) — no other day gets isHighlighted.
-    // - Once scrolled, the last non-today day above the midpoint highlights,
-    //   and today loses its special brightness (handled by isHighlighted being
-    //   assigned to a different index).
-    final midpoint = viewportHeight * 0.67;
+    final days = layout.days;
+    final horizontal = layout.isHorizontal;
+
+    final midpoint = viewportSize * 0.67;
     final hasScrolled = scrollOffset > 4;
     int? highlightedIndex;
     if (hasScrolled) {
       for (int i = 0; i < days.length; i++) {
         if (days[i].isToday) continue;
-        final screenY = days[i].top + 6 - scrollOffset;
-        if (screenY < midpoint) {
+        final screenPos = horizontal
+            ? days[i].left + 6 - scrollOffset
+            : days[i].top + 6 - scrollOffset;
+        if (screenPos < midpoint) {
           highlightedIndex = i;
         }
       }
+    }
+
+    if (horizontal) {
+      return [
+        for (int i = 0; i < days.length; i++)
+          Positioned(
+            left: days[i].left + 6,
+            top: 0,
+            child: _DateLabel(
+              day: days[i],
+              isHighlighted: i == highlightedIndex,
+              dimToday: highlightedIndex != null,
+              showYear: _shouldShowYear(days, i),
+              horizontal: true,
+            ),
+          ),
+      ];
     }
 
     return [
@@ -916,12 +985,14 @@ class _DateLabel extends StatelessWidget {
   final bool isHighlighted;
   final bool dimToday;
   final bool showYear;
+  final bool horizontal;
 
   const _DateLabel({
     required this.day,
     this.isHighlighted = false,
     this.dimToday = false,
     this.showYear = false,
+    this.horizontal = false,
   });
 
   @override
@@ -941,6 +1012,45 @@ class _DateLabel extends StatelessWidget {
     } else {
       dayColor = colorInteractiveMuted;
       monthColor = colorInteractiveMuted;
+    }
+
+    if (horizontal) {
+      return SizedBox(
+        height: ConstellationLayout.spineHeight,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isToday)
+              Container(
+                width: 7,
+                height: 7,
+                margin: const EdgeInsets.only(right: 4),
+                decoration: const BoxDecoration(
+                  color: colorError,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            Text(
+              '${_shortMonth(day.date.month)} ${day.date.day}',
+              style: TextStyle(
+                color: dayColor,
+                fontSize: fontSizeSm,
+                fontWeight: FontWeight.w700,
+                height: 1.1,
+              ),
+            ),
+            if (showYear)
+              Text(
+                " '${(day.date.year % 100).toString().padLeft(2, '0')}",
+                style: TextStyle(
+                  color: monthColor,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
+        ),
+      );
     }
 
     return SizedBox(
