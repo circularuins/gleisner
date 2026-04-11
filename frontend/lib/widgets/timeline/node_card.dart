@@ -312,66 +312,99 @@ class _ThoughtContent extends StatelessWidget {
     final preview = post.plainTextPreview ?? '';
     final isLarge = node.nodeSize > 110;
 
-    final bubbleColor = trackColor.withValues(alpha: 0.12);
+    final pad = isLarge ? spaceMd : spaceSm;
+    const tailH = 8.0;
 
-    return CustomPaint(
-      painter: _BubbleTailPainter(color: bubbleColor),
-      child: Container(
-        padding: EdgeInsets.fromLTRB(
-          isLarge ? spaceMd : spaceSm,
-          isLarge ? spaceMd : spaceSm,
-          isLarge ? spaceMd : spaceSm,
-          (isLarge ? spaceMd : spaceSm) + 10,
+    return Container(
+      padding: EdgeInsets.fromLTRB(pad, pad, pad, pad + tailH),
+      decoration: ShapeDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            trackColor.withValues(alpha: 0.06),
+            trackColor.withValues(alpha: 0.12),
+          ],
         ),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [trackColor.withValues(alpha: 0.06), bubbleColor],
-          ),
-          borderRadius: BorderRadius.circular(radiusXl),
-          border: Border.all(
-            color: trackColor.withValues(alpha: 0.15),
-            width: 0.5,
-          ),
+        shape: _BubbleShapeBorder(
+          borderColor: trackColor.withValues(alpha: 0.15),
+          radius: radiusXl,
+          tailHeight: tailH,
         ),
-        child: Center(
-          child: Text(
-            preview,
-            style: TextStyle(
-              color: colorTextPrimary.withValues(alpha: 0.85),
-              fontSize: isLarge ? fontSizeSm : fontSizeXs,
-              height: 1.4,
-              fontStyle: FontStyle.italic,
-            ),
-            maxLines: isLarge ? 5 : 3,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+      ),
+      child: Center(
+        child: Text(
+          preview,
+          style: TextStyle(
+            color: colorTextPrimary.withValues(alpha: 0.85),
+            fontSize: isLarge ? fontSizeSm : fontSizeXs,
+            height: 1.4,
+            fontStyle: FontStyle.italic,
           ),
+          maxLines: isLarge ? 5 : 3,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
         ),
       ),
     );
   }
 }
 
-/// Paints a small triangular tail at the bottom-left of the thought bubble.
-class _BubbleTailPainter extends CustomPainter {
-  final Color color;
-  const _BubbleTailPainter({required this.color});
+/// Speech-bubble shape: rounded rectangle with a small tail at bottom-left.
+class _BubbleShapeBorder extends ShapeBorder {
+  final Color borderColor;
+  final double radius;
+  final double tailHeight;
+
+  const _BubbleShapeBorder({
+    required this.borderColor,
+    required this.radius,
+    required this.tailHeight,
+  });
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
+  EdgeInsetsGeometry get dimensions => EdgeInsets.zero;
+
+  Path _buildPath(Rect rect) {
+    final bodyRect = Rect.fromLTRB(
+      rect.left,
+      rect.top,
+      rect.right,
+      rect.bottom - tailHeight,
+    );
     final path = Path()
-      ..moveTo(14, size.height - 10)
-      ..lineTo(8, size.height)
-      ..lineTo(22, size.height - 6)
+      ..addRRect(RRect.fromRectAndRadius(bodyRect, Radius.circular(radius)));
+
+    // Tail: small triangle at bottom-left
+    final tailLeft = rect.left + 16.0;
+    path
+      ..moveTo(tailLeft, bodyRect.bottom)
+      ..lineTo(tailLeft - 2, rect.bottom)
+      ..lineTo(tailLeft + 10, bodyRect.bottom)
       ..close();
-    canvas.drawPath(path, paint);
+
+    return path;
   }
 
   @override
-  bool shouldRepaint(_BubbleTailPainter old) => color != old.color;
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) =>
+      _buildPath(rect);
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
+      _buildPath(rect);
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
+    final paint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+    canvas.drawPath(_buildPath(rect), paint);
+  }
+
+  @override
+  ShapeBorder scale(double t) => this;
 }
 
 // --- Text: body preview, no seed art ---
