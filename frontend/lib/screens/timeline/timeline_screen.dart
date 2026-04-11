@@ -364,15 +364,20 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                               horizontal: 80,
                               vertical: 40,
                             ),
-                            child: ClipRRect(
-                              borderRadius: const BorderRadius.all(
-                                Radius.circular(radiusLg),
-                              ),
-                              child: CreatePostScreen(
-                                onSuccess: () {
-                                  Navigator.of(dialogContext).pop();
-                                  ref.read(timelineProvider.notifier).refresh();
-                                },
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 600),
+                              child: ClipRRect(
+                                borderRadius: const BorderRadius.all(
+                                  Radius.circular(radiusLg),
+                                ),
+                                child: CreatePostScreen(
+                                  onSuccess: () {
+                                    Navigator.of(dialogContext).pop();
+                                    ref
+                                        .read(timelineProvider.notifier)
+                                        .refresh();
+                                  },
+                                ),
                               ),
                             ),
                           ),
@@ -806,14 +811,17 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
             horizontal: 80,
             vertical: 40,
           ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.all(Radius.circular(radiusLg)),
-            child: EditPostScreen(
-              post: post,
-              onSaved: (_) {
-                Navigator.of(dialogContext).pop();
-                ref.read(timelineProvider.notifier).refresh();
-              },
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.all(Radius.circular(radiusLg)),
+              child: EditPostScreen(
+                post: post,
+                onSaved: (_) {
+                  Navigator.of(dialogContext).pop();
+                  ref.read(timelineProvider.notifier).refresh();
+                },
+              ),
             ),
           ),
         ),
