@@ -313,6 +313,7 @@ class _ThoughtContent extends StatelessWidget {
     final isLarge = node.nodeSize > 110;
 
     return Stack(
+      clipBehavior: Clip.none,
       children: [
         // Bubble body
         Container(
@@ -347,9 +348,9 @@ class _ThoughtContent extends StatelessWidget {
             ),
           ),
         ),
-        // Bubble tail (small circle at bottom-left)
+        // Bubble tail (small circles below bottom-left)
         Positioned(
-          bottom: 2,
+          bottom: -6,
           left: isLarge ? spaceMd : spaceSm,
           child: Container(
             width: 8,
@@ -365,7 +366,7 @@ class _ThoughtContent extends StatelessWidget {
           ),
         ),
         Positioned(
-          bottom: -2,
+          bottom: -12,
           left: isLarge ? spaceSm : spaceXs,
           child: Container(
             width: 4,
