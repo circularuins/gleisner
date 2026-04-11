@@ -11,6 +11,7 @@ import '../../providers/pending_artist_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../utils/constellation_layout.dart';
+import '../../utils/date_format.dart';
 import '../../widgets/timeline/avatar_rail.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/milestone_detail_sheet.dart';
@@ -603,7 +604,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                         : 'Constellation · ${timeline.constellationPostIds!.length} posts',
                                     style: const TextStyle(
                                       color: colorTextSecondary,
-                                      fontSize: 13,
+                                      fontSize: fontSizeSm,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -960,7 +961,7 @@ class _DateLabel extends StatelessWidget {
             day.date.day.toString(),
             style: TextStyle(
               color: dayColor,
-              fontSize: 13,
+              fontSize: fontSizeSm,
               fontWeight: FontWeight.w700,
               height: 1.1,
             ),
@@ -1389,7 +1390,7 @@ class _DesktopDetailPanel extends StatelessWidget {
                       ),
                     ),
                   Text(
-                    '${post.mediaType.name} · ${_formatDate(post.createdAt)}',
+                    '${post.mediaType.name} · ${formatDate(post.createdAt)}',
                     style: const TextStyle(
                       color: colorTextMuted,
                       fontSize: fontSizeSm,
@@ -1432,9 +1433,5 @@ class _DesktopDetailPanel extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 }

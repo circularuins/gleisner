@@ -1,3 +1,8 @@
+/// Format date as YYYY-MM-DD.
+String formatDate(DateTime date) {
+  return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+}
+
 String formatRelativeDate(DateTime date, {DateTime? now}) {
   final ref = now ?? DateTime.now();
   final diff = ref.difference(date);
