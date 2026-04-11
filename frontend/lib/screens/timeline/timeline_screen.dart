@@ -392,267 +392,281 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
           body: Row(
             children: [
               Expanded(
-                child: Column(
-                  children: [
-                    if (timeline.artist != null &&
-                        timeline.artist!.tracks.isNotEmpty)
-                      _TrackSelector(
-                        tracks: timeline.artist!.tracks,
-                        selectedTrackIds: timeline.selectedTrackIds,
-                        allSelected: timeline.allSelected,
-                        onToggleTrack: (trackId) => ref
-                            .read(timelineProvider.notifier)
-                            .toggleTrack(trackId),
-                        onToggleAll: () =>
-                            ref.read(timelineProvider.notifier).toggleAll(),
-                      ),
-                    // Avatar rail — always visible (not inside scroll)
-                    if (tuneIn.tunedInArtists.isNotEmpty ||
-                        selfArtistUsername != null)
-                      AvatarRail(
-                        artists: tuneIn.tunedInArtists,
-                        selfArtistUsername: selfArtistUsername,
-                        selfAvatarUrl: myArtist?.avatarUrl,
-                        selfIsPrivate: myArtist?.isPrivate ?? false,
-                        selectedArtistUsername:
-                            _viewingArtistUsername ??
-                            (timeline.artist?.artistUsername),
-                        onSelectArtist: _switchToArtist,
-                        onSelectSelf: () {
-                          if (_ownArtistUsername != null) {
-                            _switchToArtist(_ownArtistUsername!);
-                          }
-                        },
-                      ),
-                    if (timeline.error != null)
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          timeline.error!,
-                          style: TextStyle(color: theme.colorScheme.error),
+                child: GestureDetector(
+                  onTap: _sidePanelPostId != null
+                      ? () => setState(() => _sidePanelPostId = null)
+                      : null,
+                  behavior: HitTestBehavior.translucent,
+                  child: Column(
+                    children: [
+                      if (timeline.artist != null &&
+                          timeline.artist!.tracks.isNotEmpty)
+                        _TrackSelector(
+                          tracks: timeline.artist!.tracks,
+                          selectedTrackIds: timeline.selectedTrackIds,
+                          allSelected: timeline.allSelected,
+                          onToggleTrack: (trackId) => ref
+                              .read(timelineProvider.notifier)
+                              .toggleTrack(trackId),
+                          onToggleAll: () =>
+                              ref.read(timelineProvider.notifier).toggleAll(),
                         ),
+                      // Avatar rail — always visible (not inside scroll)
+                      if (tuneIn.tunedInArtists.isNotEmpty ||
+                          selfArtistUsername != null)
+                        AvatarRail(
+                          artists: tuneIn.tunedInArtists,
+                          selfArtistUsername: selfArtistUsername,
+                          selfAvatarUrl: myArtist?.avatarUrl,
+                          selfIsPrivate: myArtist?.isPrivate ?? false,
+                          selectedArtistUsername:
+                              _viewingArtistUsername ??
+                              (timeline.artist?.artistUsername),
+                          onSelectArtist: _switchToArtist,
+                          onSelectSelf: () {
+                            if (_ownArtistUsername != null) {
+                              _switchToArtist(_ownArtistUsername!);
+                            }
+                          },
+                        ),
+                      if (timeline.error != null)
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            timeline.error!,
+                            style: TextStyle(color: theme.colorScheme.error),
+                          ),
+                        ),
+                      Expanded(
+                        child: timeline.isLoading && timeline.posts.isEmpty
+                            ? const Center(child: CircularProgressIndicator())
+                            : timeline.posts.isEmpty && !isOwn
+                            ? Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.headphones,
+                                      size: 40,
+                                      color: colorInteractiveMuted,
+                                    ),
+                                    const SizedBox(height: spaceMd),
+                                    Text(
+                                      'No posts from this artist yet',
+                                      style: TextStyle(
+                                        color: colorInteractive,
+                                        fontSize:
+                                            theme.textTheme.bodyLarge?.fontSize,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : timeline.posts.isEmpty
+                            ? Center(
+                                child: Text(
+                                  timeline.artist == null
+                                      ? 'Discover artists and tune in to fill your timeline'
+                                      : 'No posts yet',
+                                  style: TextStyle(
+                                    color: colorInteractive,
+                                    fontSize:
+                                        theme.textTheme.bodyLarge?.fontSize,
+                                  ),
+                                ),
+                              )
+                            : RefreshIndicator(
+                                onRefresh: () => ref
+                                    .read(timelineProvider.notifier)
+                                    .refresh(),
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final width = constraints.maxWidth;
+                                    final height = constraints.maxHeight;
+                                    final screenWidth = MediaQuery.of(
+                                      context,
+                                    ).size.width;
+                                    final useHorizontal = isDesktop(
+                                      screenWidth,
+                                    );
+                                    if (_lastWidth != width ||
+                                        _lastHeight != height) {
+                                      _lastWidth = width;
+                                      _lastHeight = height;
+                                      WidgetsBinding.instance
+                                          .addPostFrameCallback((_) {
+                                            ref
+                                                .read(timelineProvider.notifier)
+                                                .computeLayout(
+                                                  width,
+                                                  height: height,
+                                                  horizontal: useHorizontal,
+                                                );
+                                          });
+                                    }
+
+                                    final layout = timeline.layout;
+                                    if (layout == null) {
+                                      return const Center(
+                                        child: CircularProgressIndicator(),
+                                      );
+                                    }
+
+                                    return NotificationListener<
+                                      ScrollNotification
+                                    >(
+                                      onNotification: (n) {
+                                        setState(
+                                          () =>
+                                              _scrollOffset = n.metrics.pixels,
+                                        );
+                                        return false;
+                                      },
+                                      child: SingleChildScrollView(
+                                        scrollDirection: layout.isHorizontal
+                                            ? Axis.horizontal
+                                            : Axis.vertical,
+                                        controller: _scrollController,
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        child: Column(
+                                          children: [
+                                            GestureDetector(
+                                              onTap: () {
+                                                if (timeline
+                                                        .constellationPostIds !=
+                                                    null) {
+                                                  ref
+                                                      .read(
+                                                        timelineProvider
+                                                            .notifier,
+                                                      )
+                                                      .clearConstellation();
+                                                } else if (_focusedPostId !=
+                                                    null) {
+                                                  setState(
+                                                    () => _focusedPostId = null,
+                                                  );
+                                                }
+                                              },
+                                              child: SizedBox(
+                                                height: layout.isHorizontal
+                                                    ? constraints.maxHeight
+                                                    : layout.totalHeight,
+                                                width: layout.isHorizontal
+                                                    ? layout.totalWidth
+                                                    : null,
+                                                child: Stack(
+                                                  children: [
+                                                    // Background: spine + synapses + travelling dot
+                                                    Positioned.fill(
+                                                      child: AnimatedBuilder(
+                                                        animation:
+                                                            _dotController,
+                                                        builder: (context, _) => CustomPaint(
+                                                          painter: ConstellationPainter(
+                                                            layout: layout,
+                                                            constellationPostIds:
+                                                                timeline
+                                                                    .constellationPostIds,
+                                                            animationValue:
+                                                                _dotController
+                                                                    .value,
+                                                            scrollOffset:
+                                                                _scrollOffset,
+                                                            viewportHeight:
+                                                                constraints
+                                                                    .maxHeight,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    // Day labels on the spine
+                                                    ..._buildDateLabels(
+                                                      layout,
+                                                      _scrollOffset,
+                                                      layout.isHorizontal
+                                                          ? constraints.maxWidth
+                                                          : constraints
+                                                                .maxHeight,
+                                                    ),
+                                                    // Nodes (focused node rendered last for z-order)
+                                                    ..._buildNodes(
+                                                      layout,
+                                                      timeline.highlightPostId,
+                                                      timeline
+                                                          .constellationPostIds,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
                       ),
-                    Expanded(
-                      child: timeline.isLoading && timeline.posts.isEmpty
-                          ? const Center(child: CircularProgressIndicator())
-                          : timeline.posts.isEmpty && !isOwn
-                          ? Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
+                      // Constellation highlight banner
+                      if (timeline.constellationPostIds != null)
+                        Builder(
+                          builder: (context) {
+                            final constellationName = timeline.posts
+                                .where(
+                                  (p) =>
+                                      timeline.constellationPostIds!.contains(
+                                        p.id,
+                                      ) &&
+                                      p.constellation != null,
+                                )
+                                .map((p) => p.constellation!.name)
+                                .firstOrNull;
+                            return Container(
+                              color: colorSurface1,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              child: Row(
                                 children: [
                                   const Icon(
-                                    Icons.headphones,
-                                    size: 40,
-                                    color: colorInteractiveMuted,
+                                    Icons.auto_awesome,
+                                    size: 16,
+                                    color: colorInteractive,
                                   ),
-                                  const SizedBox(height: spaceMd),
-                                  Text(
-                                    'No posts from this artist yet',
-                                    style: TextStyle(
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      constellationName != null
+                                          ? '$constellationName · ${timeline.constellationPostIds!.length} posts'
+                                          : 'Constellation · ${timeline.constellationPostIds!.length} posts',
+                                      style: const TextStyle(
+                                        color: colorTextSecondary,
+                                        fontSize: fontSizeSm,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () => ref
+                                        .read(timelineProvider.notifier)
+                                        .clearConstellation(),
+                                    child: const Icon(
+                                      Icons.close,
+                                      size: 18,
                                       color: colorInteractive,
-                                      fontSize:
-                                          theme.textTheme.bodyLarge?.fontSize,
                                     ),
                                   ),
                                 ],
                               ),
-                            )
-                          : timeline.posts.isEmpty
-                          ? Center(
-                              child: Text(
-                                timeline.artist == null
-                                    ? 'Discover artists and tune in to fill your timeline'
-                                    : 'No posts yet',
-                                style: TextStyle(
-                                  color: colorInteractive,
-                                  fontSize: theme.textTheme.bodyLarge?.fontSize,
-                                ),
-                              ),
-                            )
-                          : RefreshIndicator(
-                              onRefresh: () =>
-                                  ref.read(timelineProvider.notifier).refresh(),
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final width = constraints.maxWidth;
-                                  final height = constraints.maxHeight;
-                                  final screenWidth = MediaQuery.of(
-                                    context,
-                                  ).size.width;
-                                  final useHorizontal = isDesktop(screenWidth);
-                                  if (_lastWidth != width ||
-                                      _lastHeight != height) {
-                                    _lastWidth = width;
-                                    _lastHeight = height;
-                                    WidgetsBinding.instance
-                                        .addPostFrameCallback((_) {
-                                          ref
-                                              .read(timelineProvider.notifier)
-                                              .computeLayout(
-                                                width,
-                                                height: height,
-                                                horizontal: useHorizontal,
-                                              );
-                                        });
-                                  }
-
-                                  final layout = timeline.layout;
-                                  if (layout == null) {
-                                    return const Center(
-                                      child: CircularProgressIndicator(),
-                                    );
-                                  }
-
-                                  return NotificationListener<
-                                    ScrollNotification
-                                  >(
-                                    onNotification: (n) {
-                                      setState(
-                                        () => _scrollOffset = n.metrics.pixels,
-                                      );
-                                      return false;
-                                    },
-                                    child: SingleChildScrollView(
-                                      scrollDirection: layout.isHorizontal
-                                          ? Axis.horizontal
-                                          : Axis.vertical,
-                                      controller: _scrollController,
-                                      physics:
-                                          const AlwaysScrollableScrollPhysics(),
-                                      child: Column(
-                                        children: [
-                                          GestureDetector(
-                                            onTap: () {
-                                              if (timeline
-                                                      .constellationPostIds !=
-                                                  null) {
-                                                ref
-                                                    .read(
-                                                      timelineProvider.notifier,
-                                                    )
-                                                    .clearConstellation();
-                                              } else if (_focusedPostId !=
-                                                  null) {
-                                                setState(
-                                                  () => _focusedPostId = null,
-                                                );
-                                              }
-                                            },
-                                            child: SizedBox(
-                                              height: layout.isHorizontal
-                                                  ? constraints.maxHeight
-                                                  : layout.totalHeight,
-                                              width: layout.isHorizontal
-                                                  ? layout.totalWidth
-                                                  : null,
-                                              child: Stack(
-                                                children: [
-                                                  // Background: spine + synapses + travelling dot
-                                                  Positioned.fill(
-                                                    child: AnimatedBuilder(
-                                                      animation: _dotController,
-                                                      builder: (context, _) => CustomPaint(
-                                                        painter: ConstellationPainter(
-                                                          layout: layout,
-                                                          constellationPostIds:
-                                                              timeline
-                                                                  .constellationPostIds,
-                                                          animationValue:
-                                                              _dotController
-                                                                  .value,
-                                                          scrollOffset:
-                                                              _scrollOffset,
-                                                          viewportHeight:
-                                                              constraints
-                                                                  .maxHeight,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  // Day labels on the spine
-                                                  ..._buildDateLabels(
-                                                    layout,
-                                                    _scrollOffset,
-                                                    layout.isHorizontal
-                                                        ? constraints.maxWidth
-                                                        : constraints.maxHeight,
-                                                  ),
-                                                  // Nodes (focused node rendered last for z-order)
-                                                  ..._buildNodes(
-                                                    layout,
-                                                    timeline.highlightPostId,
-                                                    timeline
-                                                        .constellationPostIds,
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                    ),
-                    // Constellation highlight banner
-                    if (timeline.constellationPostIds != null)
-                      Builder(
-                        builder: (context) {
-                          final constellationName = timeline.posts
-                              .where(
-                                (p) =>
-                                    timeline.constellationPostIds!.contains(
-                                      p.id,
-                                    ) &&
-                                    p.constellation != null,
-                              )
-                              .map((p) => p.constellation!.name)
-                              .firstOrNull;
-                          return Container(
-                            color: colorSurface1,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.auto_awesome,
-                                  size: 16,
-                                  color: colorInteractive,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    constellationName != null
-                                        ? '$constellationName · ${timeline.constellationPostIds!.length} posts'
-                                        : 'Constellation · ${timeline.constellationPostIds!.length} posts',
-                                    style: const TextStyle(
-                                      color: colorTextSecondary,
-                                      fontSize: fontSizeSm,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () => ref
-                                      .read(timelineProvider.notifier)
-                                      .clearConstellation(),
-                                  child: const Icon(
-                                    Icons.close,
-                                    size: 18,
-                                    color: colorInteractive,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                  ],
+                            );
+                          },
+                        ),
+                    ],
+                  ),
                 ),
               ),
               // Desktop side panel for post detail
