@@ -759,3 +759,66 @@ final url = await _upload(bytes: bytes, ...);
 duration 取得に失敗した場合も、制限を検証できないためアップロードをブロックする。
 
 PR #195 の教訓: アップロード後に duration チェックを行い、Critical 指摘で順序を入れ替えた。
+
+### BottomSheet ウィジェットをサイドパネルで再利用する場合の Navigator.pop
+
+**BottomSheet 用ウィジェットを Desktop サイドパネルで再利用する場合、内部の `Navigator.pop(context)` が Assertion Error を起こす。** サイドパネルにはモーダルが存在しないため pop するルートがない。
+
+`embedded` フラグで分岐するパターンを使うこと。
+
+```dart
+// ❌ サイドパネルで Assertion Error
+onTap: () {
+  Navigator.pop(context); // モーダルがない → クラッシュ
+  widget.onViewConstellation?.call(ids);
+},
+
+// ✅ embedded フラグで分岐
+onTap: () {
+  if (!widget.embedded) Navigator.pop(context);
+  widget.onViewConstellation?.call(ids);
+},
+```
+
+該当パターン: `PostDetailContent`（constellation View / Name Save）。将来 `MilestoneDetailSheet` 等を共通化する場合も同様。
+
+PR #197 の教訓: `PostDetailSheet` を `PostDetailContent` に切り出した際、2箇所の `Navigator.pop` でサイドパネルがクラッシュした。
+
+### LayoutResult フィールド追加チェックリスト
+
+**⚠ `LayoutResult` にフィールドを追加する場合、以下の手動コピー箇所を同時に更新すること:**
+
+1. `LayoutResult` クラス定義（`constellation_layout.dart`）
+2. `ConstellationLayout.compute()` の return 文
+3. `ConstellationLayout.computeHorizontal()` の return 文
+4. **`timeline_provider.dart` の `updatePostReactions` 内の `LayoutResult(...)` 手動再構築**
+
+特に 4 は忘れやすい。`Post` フィールド追加チェックリストと同じ構造の問題。
+
+PR #197 の教訓: `isHorizontal`/`totalWidth` を追加したが `updatePostReactions` で引き継ぎ漏れ → デスクトップで横スクロール中にリアクション操作すると縦に崩壊。5回目のレビューで発見。
+
+### LayoutBuilder 内で MediaQuery.of(context) を使わない
+
+**`LayoutBuilder` の `builder` 内で画面幅が必要な場合、`MediaQuery.of(context).size.width` ではなく `constraints.maxWidth` を使うこと。**
+
+- `MediaQuery` は画面全幅を返す → サイドパネルが開いている場合でもパネル幅を含む
+- `constraints.maxWidth` は親ウィジェットが許容する実際の幅 → サイドパネル分を除いた正確な幅
+
+```dart
+// ❌ サイドパネル表示時に画面全幅でカード幅を計算 → はみ出す
+final screenWidth = MediaQuery.of(context).size.width;
+final cardWidth = (screenWidth - padding) / 2;
+
+// ❌ LayoutBuilder 内で isDesktop 判定に MediaQuery を使用 → 不要な rebuild
+final screenWidth = MediaQuery.of(context).size.width;
+final useHorizontal = isDesktop(screenWidth);
+
+// ✅ constraints を使用
+builder: (context, constraints) {
+  final width = constraints.maxWidth;
+  final useHorizontal = isDesktop(width);
+  final cardWidth = (width - padding) / 2;
+}
+```
+
+PR #197 の教訓: `_RecentPostCard` の幅計算と `isDesktop` 判定の両方で `MediaQuery` を使用し、サイドパネル時のレイアウト崩れと不要な rebuild を引き起こした。

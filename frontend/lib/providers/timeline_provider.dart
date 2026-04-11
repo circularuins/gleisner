@@ -80,6 +80,8 @@ class TimelineState {
 class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   late GraphQLClient _client;
   double _lastWidth = 0;
+  double _lastHeight = 0;
+  bool _useHorizontal = false;
 
   @override
   TimelineState build() {
@@ -499,10 +501,13 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
             reactionCount: updated.totalReactions,
           );
           final isAudio = updated.mediaType == MediaType.audio;
+          final maxW = _useHorizontal
+              ? _lastWidth * 0.4
+              : _lastWidth - ConstellationLayout.spineWidth - 20;
           final w = isAudio
-              ? min(sz * 1.8, _lastWidth - ConstellationLayout.spineWidth - 20)
+              ? min(sz * 1.8, maxW)
               : sz > 110
-              ? min(sz * 1.25, _lastWidth - ConstellationLayout.spineWidth - 20)
+              ? min(sz * 1.25, maxW)
               : sz;
           final mediaH = isAudio
               ? sz * 0.45
@@ -529,6 +534,8 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
           days: layout.days,
           connections: layout.connections,
           totalHeight: layout.totalHeight,
+          totalWidth: layout.totalWidth,
+          isHorizontal: layout.isHorizontal,
         ),
       );
     } else {
@@ -720,8 +727,14 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   }
 
   // TODO: Move to Isolate.run() for large datasets (O(n^2) overlap check)
-  void computeLayout(double width) {
+  void computeLayout(
+    double width, {
+    double height = 0,
+    bool horizontal = false,
+  }) {
     _lastWidth = width;
+    _lastHeight = height;
+    _useHorizontal = horizontal;
     _recomputeLayout();
   }
 
@@ -735,10 +748,19 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
       ...state.posts.map(PostItem.new),
       ...milestones.map(MilestoneItem.new),
     ];
-    final result = ConstellationLayout.compute(
-      items: timelineItems,
-      containerWidth: _lastWidth,
-    );
+    final LayoutResult result;
+    if (_useHorizontal && _lastHeight > 0) {
+      result = ConstellationLayout.computeHorizontal(
+        items: timelineItems,
+        containerHeight: _lastHeight,
+        containerWidth: _lastWidth,
+      );
+    } else {
+      result = ConstellationLayout.compute(
+        items: timelineItems,
+        containerWidth: _lastWidth,
+      );
+    }
     state = state.copyWith(layout: result);
   }
 

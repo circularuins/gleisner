@@ -83,6 +83,21 @@ create_post() {
   sleep 0.3
 }
 
+# Check if posts already exist (skip creation if so)
+EXISTING_POSTS=$(docker exec gleisner-db psql -U gleisner -d gleisner -t -c \
+  "SELECT count(*) FROM posts WHERE author_id = (SELECT id FROM users WHERE username = '$USERNAME');" \
+  | tr -d ' ' | grep -v '^$')
+
+if [ "$EXISTING_POSTS" -gt 0 ] 2>/dev/null; then
+  echo "==> $EXISTING_POSTS posts already exist — skipping post creation"
+  echo "    To re-seed: TRUNCATE users CASCADE first, then re-run"
+  # Jump to discover data seeding
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  "$SCRIPT_DIR/seed-discover-data.sh" "$API" "$AUTH"
+  echo "==> Done (existing data preserved)"
+  exit 0
+fi
+
 # Media URL prefix: use R2 public URL if configured, otherwise localhost
 # Source .env to check R2 configuration (same dir as backend)
 SCRIPT_DIR_EARLY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -96,13 +111,13 @@ else
 fi
 
 # Play track
-create_post "$PLAY" "Flamenco-session" 1.0 video 204 "$MEDIA_URL/flamenco.mp4"
-create_post "$PLAY" "Chord-melody-practice" 0.6 video 292 "$MEDIA_URL/chord-melody.mp4"
+create_post "$PLAY" "Flamenco-session" 1.0 video 55 "$MEDIA_URL/flamenco.mp4"
+create_post "$PLAY" "Chord-melody-practice" 0.6 video 48 "$MEDIA_URL/chord-melody.mp4"
 create_post "$PLAY" "Blues-scale-workout" 0.25 audio 150 "$MEDIA_URL/blues-scale.mp3"
 create_post "$PLAY" "New-rasgueado-pattern" 0.8 text "" "" "Been working on a new rasgueado technique all week. The key insight: instead of fanning all four fingers evenly, I delay the ring finger slightly to create a triplet feel against the strummed bass. It sounds almost like two guitarists playing at once. Still need to clean up the transition back into picado, but the core pattern is solid. Going to try it on the Bulerias piece next."
-create_post "$PLAY" "Fingerpicking-exercise" 0.15 audio 310 "$MEDIA_URL/fingerpicking.mp3"
+create_post "$PLAY" "Fingerpicking-exercise" 0.15 audio 290 "$MEDIA_URL/fingerpicking.mp3"
 create_post "$PLAY" "Jazz-improv-notes" 0.4 text "" "" "Transcribed the Wes Montgomery solo from Four on Six today. His octave technique is deceptively simple — the real magic is in the rhythmic displacement. He anticipates the chord changes by a half beat, creating this floating feeling over the groove. Tried applying the same concept to my own ii-V-I lines and it immediately made everything sound more musical. Less notes, more intention."
-create_post "$PLAY" "Live-at-open-mic" 0.95 video 464 "$MEDIA_URL/open-mic.mp4"
+create_post "$PLAY" "Live-at-open-mic" 0.95 video 58 "$MEDIA_URL/open-mic.mp4"
 
 # Compose track
 create_post "$COMPOSE" "Final-mix-Sunrise" 0.8 audio 222 "$MEDIA_URL/sunrise-final.mp3"
@@ -110,7 +125,7 @@ create_post "$COMPOSE" "Sidechain-experiment" 0.3 audio 48 "$MEDIA_URL/sidechain
 create_post "$COMPOSE" "WIP-Sunrise-Protocol" 0.65 audio 107 "$MEDIA_URL/sunrise-wip.mp3"
 create_post "$COMPOSE" "Mix-notes" 0.1 text "" "" "Mixing session notes: The kick and bass are finally sitting right after sidechain compression at 3:1 ratio with 20ms attack. Vocals need more air around 12kHz — shelf boost maybe +2dB. The bridge section still feels empty. Thinking about adding a reversed reverb swell from the guitar hook. Also the snare sounds papery on laptop speakers, need to check the 200Hz region."
 create_post "$COMPOSE" "Lyrics-Digital-Citizen" 0.4 text "" "" "Draft lyrics for Digital Citizen (verse 2):\n\nWe built our homes on borrowed ground\nServers hum where roots should grow\nEvery memory a rented room\nEvery voice an echo of the algorithm\n\nBut I remember the sound of rain on a real window\nAnd the weight of a letter that someone actually wrote\n\nStill working on the chorus. The theme is about reclaiming authenticity in digital spaces — which is literally what this platform is about."
-create_post "$COMPOSE" "Beat-tape-vol3" 0.55 audio 382 "$MEDIA_URL/beat-tape-v3.mp3"
+create_post "$COMPOSE" "Beat-tape-vol3" 0.55 audio 295 "$MEDIA_URL/beat-tape-v3.mp3"
 
 # Life track
 create_post "$LIFE" "Studio-morning" 0.03 image "" "$MEDIA_URL/studio-morning.jpg"
@@ -120,16 +135,16 @@ create_post "$LIFE" "Morning-routine" 0.02 image "" "$MEDIA_URL/morning.jpg"
 create_post "$LIFE" "Birthday" 0.6 image "" "$MEDIA_URL/birthday.jpg"
 
 # English track
-create_post "$ENGLISH" "1K-followers-thankyou" 0.9 video 131 "$MEDIA_URL/1k-thankyou.mp4"
-create_post "$ENGLISH" "QA-How-I-started" 0.6 video 225 "$MEDIA_URL/qa-how-started.mp4"
+create_post "$ENGLISH" "1K-followers-thankyou" 0.9 video 42 "$MEDIA_URL/1k-thankyou.mp4"
+create_post "$ENGLISH" "QA-How-I-started" 0.6 video 56 "$MEDIA_URL/qa-how-started.mp4"
 create_post "$ENGLISH" "English-diary-5" 0.15 text "" "" "English diary day 5. Today I tried explaining my music production process in English to a friend from Berlin. I kept mixing up past tense and present tense when talking about the creative process. She said my English is getting much better though. New words I learned: resonance, overtone, sustain (I knew these in a music context but not how to use them in casual conversation). Going to try writing my next song bio in English first instead of translating from Japanese."
-create_post "$ENGLISH" "Studio-tour" 0.55 video 255 "$MEDIA_URL/studio-tour.mp4"
+create_post "$ENGLISH" "Studio-tour" 0.55 video 50 "$MEDIA_URL/studio-tour.mp4"
 
 # Live track
-create_post "$LIVE" "Blues-jam-with-friends" 1.0 video 513 "$MEDIA_URL/blues-jam.mp4"
-create_post "$LIVE" "Flamenco-x-beatbox" 0.95 video 372 "$MEDIA_URL/flamenco-beatbox.mp4"
-create_post "$LIVE" "Talent-show-rehearsal" 0.5 video 115 "$MEDIA_URL/rehearsal.mp4"
-create_post "$LIVE" "Evening-jam-circle" 0.85 audio 720 "$MEDIA_URL/evening-jam.mp3"
+create_post "$LIVE" "Blues-jam-with-friends" 1.0 video 59 "$MEDIA_URL/blues-jam.mp4"
+create_post "$LIVE" "Flamenco-x-beatbox" 0.95 video 45 "$MEDIA_URL/flamenco-beatbox.mp4"
+create_post "$LIVE" "Talent-show-rehearsal" 0.5 video 38 "$MEDIA_URL/rehearsal.mp4"
+create_post "$LIVE" "Evening-jam-circle" 0.85 audio 280 "$MEDIA_URL/evening-jam.mp3"
 
 # Studio track
 create_post "$STUDIO" "Sketch-Neon-Garden" 0.35 audio 72 "$MEDIA_URL/neon-garden.mp3"

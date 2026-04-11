@@ -40,6 +40,9 @@ class ArtistPageScreen extends ConsumerStatefulWidget {
 }
 
 class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
+  /// Post shown in the desktop side panel (null = panel closed).
+  String? _sidePanelPostId;
+
   @override
   void initState() {
     super.initState();
@@ -48,6 +51,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
       ref.read(analyticsProvider.notifier).trackPageView('/artist/:username');
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(artistPageProvider.notifier).loadArtist(widget.username);
       // Only load unassigned posts when viewing own artist page
       final myArtist = ref.read(myArtistProvider);
@@ -55,6 +59,70 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
         ref.read(unassignedPostsProvider.notifier).load();
       }
     });
+  }
+
+  void _openPostDetail(Post post) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    if (isDesktop(screenWidth)) {
+      setState(() => _sidePanelPostId = post.id);
+      return;
+    }
+    showPostDetailSheet(context, post);
+  }
+
+  Widget _buildSidePanel(ArtistPageState state) {
+    final post = state.recentPosts
+        .where((p) => p.id == _sidePanelPostId)
+        .firstOrNull;
+    if (post == null) return const SizedBox.shrink();
+
+    return Container(
+      color: colorSurface1,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: spaceLg,
+              vertical: spaceSm,
+            ),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: colorBorder)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    post.title ?? 'Untitled',
+                    style: const TextStyle(
+                      color: colorTextPrimary,
+                      fontSize: fontSizeLg,
+                      fontWeight: weightSemibold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.close,
+                    size: 18,
+                    color: colorInteractive,
+                  ),
+                  onPressed: () => setState(() => _sidePanelPostId = null),
+                  tooltip: 'Close',
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: PostDetailContent(
+              post: post,
+              allPosts: state.recentPosts,
+              embedded: true,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -87,41 +155,612 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
             )
           : artist == null
           ? _ErrorView(error: 'Artist not found', onRetry: null)
-          : CustomScrollView(
-              slivers: [
-                // Cover image
-                SliverAppBar(
-                  expandedHeight: 200,
-                  pinned: true,
-                  backgroundColor: colorSurface0,
-                  leading: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: colorTextPrimary),
-                    onPressed: () => context.pop(),
-                  ),
-                  flexibleSpace: FlexibleSpaceBar(
-                    background: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        CoverImage(
-                          imageUrl: artist.coverImageUrl,
-                          seed: artist.artistUsername,
-                          onTap: isSelf
-                              ? () => _uploadCoverImage(context)
-                              : null,
+          : Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _sidePanelPostId != null
+                        ? () => setState(() => _sidePanelPostId = null)
+                        : null,
+                    behavior: HitTestBehavior.translucent,
+                    child: CustomScrollView(
+                      slivers: [
+                        // Cover image
+                        SliverAppBar(
+                          expandedHeight: 200,
+                          pinned: true,
+                          backgroundColor: colorSurface0,
+                          leading: IconButton(
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: colorTextPrimary,
+                            ),
+                            onPressed: () => context.pop(),
+                          ),
+                          flexibleSpace: FlexibleSpaceBar(
+                            background: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                CoverImage(
+                                  imageUrl: artist.coverImageUrl,
+                                  seed: artist.artistUsername,
+                                  onTap: isSelf
+                                      ? () => _uploadCoverImage(context)
+                                      : null,
+                                ),
+                                // Gradient fade at bottom (IgnorePointer so taps pass through to CoverImage)
+                                const Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  height: 60,
+                                  child: IgnorePointer(
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Color(0x00000000),
+                                            colorSurface0,
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        // Gradient fade at bottom (IgnorePointer so taps pass through to CoverImage)
-                        const Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          height: 60,
-                          child: IgnorePointer(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [Color(0x00000000), colorSurface0],
+
+                        SliverToBoxAdapter(
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxWidth: maxContentWidth,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: spaceXl,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: spaceLg),
+                                    // Avatar
+                                    AvatarImage(
+                                      imageUrl: artist.avatarUrl,
+                                      seed: artist.artistUsername,
+                                      size: 72,
+                                      onTap: isSelf
+                                          ? () => _uploadAvatarImage(context)
+                                          : null,
+                                    ),
+                                    const SizedBox(height: spaceMd),
+
+                                    // Header: name + username + tuned in count
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: GestureDetector(
+                                            onTap: isSelf
+                                                ? () => _showEditDisplayName(
+                                                    context,
+                                                    artist,
+                                                  )
+                                                : null,
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Flexible(
+                                                  child: Text(
+                                                    artist.displayName ??
+                                                        artist.artistUsername,
+                                                    style: const TextStyle(
+                                                      color: colorTextPrimary,
+                                                      fontSize: fontSizeTitle,
+                                                      fontWeight: weightBold,
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (isSelf) ...[
+                                                  const SizedBox(
+                                                    width: spaceXs,
+                                                  ),
+                                                  const Icon(
+                                                    Icons.edit_outlined,
+                                                    size: 14,
+                                                    color: colorTextMuted,
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        if (artist.profileVisibility ==
+                                            'private') ...[
+                                          const SizedBox(width: spaceSm),
+                                          const Icon(
+                                            Icons.lock_outline,
+                                            size: 18,
+                                            color: colorTextMuted,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    const SizedBox(height: spaceXxs),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          '@${artist.artistUsername}',
+                                          style: const TextStyle(
+                                            color: colorTextMuted,
+                                            fontSize: fontSizeMd,
+                                          ),
+                                        ),
+                                        const SizedBox(width: spaceMd),
+                                        const Icon(
+                                          Icons.headphones,
+                                          size: 13,
+                                          color: colorTextMuted,
+                                        ),
+                                        const SizedBox(width: spaceXxs),
+                                        Text(
+                                          '${artist.tunedInCount}',
+                                          style: const TextStyle(
+                                            color: colorTextMuted,
+                                            fontSize: fontSizeSm,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: spaceLg),
+
+                                    // Tune In button (not shown on own page)
+                                    if (isAuthenticated && !isSelf)
+                                      _TuneInButton(
+                                        isTunedIn: isTunedIn,
+                                        onTap: () async {
+                                          final tunedIn = await ref
+                                              .read(tuneInProvider.notifier)
+                                              .toggleTuneIn(artist.id);
+                                          if (!context.mounted) return;
+                                          if (tunedIn) {
+                                            ref
+                                                .read(
+                                                  pendingArtistProvider
+                                                      .notifier,
+                                                )
+                                                .set(artist.artistUsername);
+                                            context.go('/timeline');
+                                          }
+                                        },
+                                      ),
+
+                                    // Genres
+                                    if (artist.genres.isNotEmpty || isSelf) ...[
+                                      const SizedBox(height: spaceXl),
+                                      if (isSelf)
+                                        Row(
+                                          children: [
+                                            const Expanded(
+                                              child: Text(
+                                                'GENRES',
+                                                style: TextStyle(
+                                                  color: colorTextMuted,
+                                                  fontSize: fontSizeXs,
+                                                  fontWeight: weightSemibold,
+                                                  letterSpacing: 1,
+                                                ),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit_outlined,
+                                                size: 18,
+                                                color: colorTextMuted,
+                                              ),
+                                              onPressed: () =>
+                                                  _showEditGenresSheet(
+                                                    context,
+                                                    artist,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      if (artist.genres.isNotEmpty)
+                                        Wrap(
+                                          spacing: spaceSm,
+                                          runSpacing: spaceSm,
+                                          children: artist.genres.map((ag) {
+                                            return _Chip(
+                                              label: ag.genre.name,
+                                              color: colorTextSecondary,
+                                              bgColor: colorSurface2,
+                                              borderColor: colorBorder,
+                                            );
+                                          }).toList(),
+                                        ),
+                                    ],
+
+                                    // About section
+                                    if (isSelf ||
+                                        artist.location != null ||
+                                        artist.activeSince != null ||
+                                        artist.tagline != null ||
+                                        artist.bio != null) ...[
+                                      const SizedBox(height: spaceXl),
+                                      if (isSelf)
+                                        Row(
+                                          children: [
+                                            const Expanded(
+                                              child: Text(
+                                                'ABOUT',
+                                                style: TextStyle(
+                                                  color: colorTextMuted,
+                                                  fontSize: fontSizeXs,
+                                                  fontWeight: weightSemibold,
+                                                  letterSpacing: 1,
+                                                ),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit_outlined,
+                                                size: 18,
+                                                color: colorTextMuted,
+                                              ),
+                                              onPressed: () =>
+                                                  _showEditAboutSheet(
+                                                    context,
+                                                    artist,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      // Location + Active since
+                                      if (artist.location != null ||
+                                          artist.activeSince != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: spaceSm,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              if (artist.location != null) ...[
+                                                const Icon(
+                                                  Icons.place_outlined,
+                                                  size: 14,
+                                                  color: colorTextMuted,
+                                                ),
+                                                const SizedBox(width: spaceXxs),
+                                                Text(
+                                                  artist.location!,
+                                                  style: const TextStyle(
+                                                    color: colorTextMuted,
+                                                    fontSize: fontSizeSm,
+                                                  ),
+                                                ),
+                                              ],
+                                              if (artist.location != null &&
+                                                  artist.activeSince != null)
+                                                const Text(
+                                                  ' · ',
+                                                  style: TextStyle(
+                                                    color: colorTextMuted,
+                                                  ),
+                                                ),
+                                              if (artist.activeSince != null)
+                                                Text(
+                                                  'Active since ${artist.activeSince}',
+                                                  style: const TextStyle(
+                                                    color: colorTextMuted,
+                                                    fontSize: fontSizeSm,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      // Tagline
+                                      if (artist.tagline != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: spaceSm,
+                                          ),
+                                          child: Text(
+                                            artist.tagline!,
+                                            style: const TextStyle(
+                                              color: colorTextSecondary,
+                                              fontSize: fontSizeMd,
+                                              fontStyle: FontStyle.italic,
+                                              height: 1.5,
+                                            ),
+                                          ),
+                                        ),
+                                      // Bio
+                                      if (artist.bio != null)
+                                        Text(
+                                          artist.bio!,
+                                          style: const TextStyle(
+                                            color: colorTextSecondary,
+                                            fontSize: fontSizeMd,
+                                            height: 1.6,
+                                          ),
+                                        ),
+                                    ],
+
+                                    // Links section
+                                    if (artist.links.isNotEmpty || isSelf) ...[
+                                      const SizedBox(height: spaceXl),
+                                      if (isSelf)
+                                        Row(
+                                          children: [
+                                            const Expanded(
+                                              child: Text(
+                                                'LINKS',
+                                                style: TextStyle(
+                                                  color: colorTextMuted,
+                                                  fontSize: fontSizeXs,
+                                                  fontWeight: weightSemibold,
+                                                  letterSpacing: 1,
+                                                ),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit_outlined,
+                                                size: 18,
+                                                color: colorTextMuted,
+                                              ),
+                                              onPressed: () =>
+                                                  _showEditLinksSheet(
+                                                    context,
+                                                    artist,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      if (artist.links.isNotEmpty)
+                                        _LinksSection(links: artist.links),
+                                    ],
+
+                                    // Career milestones section
+                                    if (artist.milestones.isNotEmpty ||
+                                        isSelf) ...[
+                                      const SizedBox(height: spaceXl),
+                                      Row(
+                                        children: [
+                                          const Expanded(
+                                            child: Text(
+                                              'CAREER',
+                                              style: TextStyle(
+                                                color: colorTextMuted,
+                                                fontSize: fontSizeXs,
+                                                fontWeight: weightSemibold,
+                                                letterSpacing: 1,
+                                              ),
+                                            ),
+                                          ),
+                                          if (isSelf)
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit_outlined,
+                                                size: 18,
+                                                color: colorInteractive,
+                                              ),
+                                              onPressed: () =>
+                                                  _showEditMilestonesSheet(
+                                                    context,
+                                                    artist,
+                                                  ),
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                            ),
+                                        ],
+                                      ),
+                                      if (artist.milestones.isNotEmpty)
+                                        _MilestonesSection(
+                                          milestones: artist.milestones,
+                                        ),
+                                    ],
+
+                                    // Tracks section
+                                    if (artist.tracks.isNotEmpty || isSelf) ...[
+                                      const SizedBox(height: spaceXl),
+                                      Row(
+                                        children: [
+                                          const Expanded(
+                                            child: Text(
+                                              'TRACKS',
+                                              style: TextStyle(
+                                                color: colorTextMuted,
+                                                fontSize: fontSizeXs,
+                                                fontWeight: weightSemibold,
+                                                letterSpacing: 1,
+                                              ),
+                                            ),
+                                          ),
+                                          if (isSelf)
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit_outlined,
+                                                size: 18,
+                                                color: colorTextMuted,
+                                              ),
+                                              onPressed: () =>
+                                                  _showEditTracksSheet(
+                                                    context,
+                                                    artist,
+                                                  ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: spaceXxs),
+                                      const Text(
+                                        "This artist's content streams",
+                                        style: TextStyle(
+                                          color: colorTextMuted,
+                                          fontSize: fontSizeXs,
+                                        ),
+                                      ),
+                                      const SizedBox(height: spaceMd),
+                                      Wrap(
+                                        spacing: spaceSm,
+                                        runSpacing: spaceSm,
+                                        children: artist.tracks.map((track) {
+                                          return _Chip(
+                                            label: track.name,
+                                            color: track.displayColor,
+                                            bgColor: track.displayColor
+                                                .withValues(alpha: 0.1),
+                                            borderColor: track.displayColor
+                                                .withValues(alpha: 0.3),
+                                            dot: true,
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ],
+
+                                    // Recent Posts section
+                                    if (state.recentPosts.isNotEmpty) ...[
+                                      const SizedBox(height: spaceXl),
+                                      const Text(
+                                        'RECENT POSTS',
+                                        style: TextStyle(
+                                          color: colorTextMuted,
+                                          fontSize: fontSizeXs,
+                                          fontWeight: weightSemibold,
+                                          letterSpacing: 1,
+                                        ),
+                                      ),
+                                      const SizedBox(height: spaceMd),
+                                      const SizedBox(height: spaceSm),
+                                      LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          final cardWidth =
+                                              (constraints.maxWidth - spaceSm) /
+                                              2;
+                                          return Wrap(
+                                            spacing: spaceSm,
+                                            runSpacing: spaceSm,
+                                            children: state.recentPosts
+                                                .map(
+                                                  (p) => SizedBox(
+                                                    width: cardWidth,
+                                                    child: _RecentPostCard(
+                                                      post: p,
+                                                      onTap: () =>
+                                                          _openPostDetail(p),
+                                                    ),
+                                                  ),
+                                                )
+                                                .toList(),
+                                          );
+                                        },
+                                      ),
+                                    ],
+
+                                    // Unassigned posts link (own view only)
+                                    if (isSelf && unassignedCount > 0) ...[
+                                      const SizedBox(height: spaceLg),
+                                      InkWell(
+                                        borderRadius: BorderRadius.circular(
+                                          radiusMd,
+                                        ),
+                                        onTap: () => Navigator.of(context).push(
+                                          MaterialPageRoute<void>(
+                                            builder: (_) =>
+                                                UnassignedPostsScreen(
+                                                  tracks: artist.tracks,
+                                                ),
+                                          ),
+                                        ),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: spaceMd,
+                                            vertical: spaceSm,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: colorSurface1,
+                                            borderRadius: BorderRadius.circular(
+                                              radiusMd,
+                                            ),
+                                            border: Border.all(
+                                              color: colorBorder,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.inventory_2_outlined,
+                                                size: 16,
+                                                color: colorTextMuted,
+                                              ),
+                                              const SizedBox(width: spaceSm),
+                                              Text(
+                                                'Unassigned posts',
+                                                style: const TextStyle(
+                                                  color: colorTextSecondary,
+                                                  fontSize: fontSizeSm,
+                                                ),
+                                              ),
+                                              const Spacer(),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: spaceSm,
+                                                      vertical: spaceXxs,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: colorAccentGold
+                                                      .withValues(alpha: 0.15),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        radiusSm,
+                                                      ),
+                                                ),
+                                                child: Text(
+                                                  '$unassignedCount',
+                                                  style: const TextStyle(
+                                                    color: colorAccentGold,
+                                                    fontSize: fontSizeXs,
+                                                    fontWeight: weightSemibold,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: spaceXs),
+                                              const Icon(
+                                                Icons.chevron_right,
+                                                size: 18,
+                                                color: colorInteractiveMuted,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+
+                                    // View full timeline link
+                                    const SizedBox(height: spaceXl),
+                                    const Divider(color: colorBorder),
+                                    const SizedBox(height: spaceMd),
+                                    TextButton.icon(
+                                      onPressed: () => context.push(
+                                        '/@${artist.artistUsername}',
+                                      ),
+                                      icon: const Icon(
+                                        Icons.grid_view,
+                                        size: 16,
+                                      ),
+                                      label: const Text('View full timeline'),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: colorInteractive,
+                                      ),
+                                    ),
+                                    const SizedBox(height: spaceXl),
+                                  ],
                                 ),
                               ),
                             ),
@@ -131,527 +770,18 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                     ),
                   ),
                 ),
-
-                SliverToBoxAdapter(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: maxContentWidth,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: spaceXl,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: spaceLg),
-                            // Avatar
-                            AvatarImage(
-                              imageUrl: artist.avatarUrl,
-                              seed: artist.artistUsername,
-                              size: 72,
-                              onTap: isSelf
-                                  ? () => _uploadAvatarImage(context)
-                                  : null,
-                            ),
-                            const SizedBox(height: spaceMd),
-
-                            // Header: name + username + tuned in count
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: GestureDetector(
-                                    onTap: isSelf
-                                        ? () => _showEditDisplayName(
-                                            context,
-                                            artist,
-                                          )
-                                        : null,
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            artist.displayName ??
-                                                artist.artistUsername,
-                                            style: const TextStyle(
-                                              color: colorTextPrimary,
-                                              fontSize: fontSizeTitle,
-                                              fontWeight: weightBold,
-                                            ),
-                                          ),
-                                        ),
-                                        if (isSelf) ...[
-                                          const SizedBox(width: spaceXs),
-                                          const Icon(
-                                            Icons.edit_outlined,
-                                            size: 14,
-                                            color: colorTextMuted,
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                if (artist.profileVisibility == 'private') ...[
-                                  const SizedBox(width: spaceSm),
-                                  const Icon(
-                                    Icons.lock_outline,
-                                    size: 18,
-                                    color: colorTextMuted,
-                                  ),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: spaceXxs),
-                            Row(
-                              children: [
-                                Text(
-                                  '@${artist.artistUsername}',
-                                  style: const TextStyle(
-                                    color: colorTextMuted,
-                                    fontSize: fontSizeMd,
-                                  ),
-                                ),
-                                const SizedBox(width: spaceMd),
-                                const Icon(
-                                  Icons.headphones,
-                                  size: 13,
-                                  color: colorTextMuted,
-                                ),
-                                const SizedBox(width: spaceXxs),
-                                Text(
-                                  '${artist.tunedInCount}',
-                                  style: const TextStyle(
-                                    color: colorTextMuted,
-                                    fontSize: fontSizeSm,
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: spaceLg),
-
-                            // Tune In button (not shown on own page)
-                            if (isAuthenticated && !isSelf)
-                              _TuneInButton(
-                                isTunedIn: isTunedIn,
-                                onTap: () async {
-                                  final tunedIn = await ref
-                                      .read(tuneInProvider.notifier)
-                                      .toggleTuneIn(artist.id);
-                                  if (!context.mounted) return;
-                                  if (tunedIn) {
-                                    ref
-                                        .read(pendingArtistProvider.notifier)
-                                        .set(artist.artistUsername);
-                                    context.go('/timeline');
-                                  }
-                                },
-                              ),
-
-                            // Genres
-                            if (artist.genres.isNotEmpty || isSelf) ...[
-                              const SizedBox(height: spaceXl),
-                              if (isSelf)
-                                Row(
-                                  children: [
-                                    const Expanded(
-                                      child: Text(
-                                        'GENRES',
-                                        style: TextStyle(
-                                          color: colorTextMuted,
-                                          fontSize: fontSizeXs,
-                                          fontWeight: weightSemibold,
-                                          letterSpacing: 1,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit_outlined,
-                                        size: 18,
-                                        color: colorTextMuted,
-                                      ),
-                                      onPressed: () =>
-                                          _showEditGenresSheet(context, artist),
-                                    ),
-                                  ],
-                                ),
-                              if (artist.genres.isNotEmpty)
-                                Wrap(
-                                  spacing: spaceSm,
-                                  runSpacing: spaceSm,
-                                  children: artist.genres.map((ag) {
-                                    return _Chip(
-                                      label: ag.genre.name,
-                                      color: colorTextSecondary,
-                                      bgColor: colorSurface2,
-                                      borderColor: colorBorder,
-                                    );
-                                  }).toList(),
-                                ),
-                            ],
-
-                            // About section
-                            if (isSelf ||
-                                artist.location != null ||
-                                artist.activeSince != null ||
-                                artist.tagline != null ||
-                                artist.bio != null) ...[
-                              const SizedBox(height: spaceXl),
-                              if (isSelf)
-                                Row(
-                                  children: [
-                                    const Expanded(
-                                      child: Text(
-                                        'ABOUT',
-                                        style: TextStyle(
-                                          color: colorTextMuted,
-                                          fontSize: fontSizeXs,
-                                          fontWeight: weightSemibold,
-                                          letterSpacing: 1,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit_outlined,
-                                        size: 18,
-                                        color: colorTextMuted,
-                                      ),
-                                      onPressed: () =>
-                                          _showEditAboutSheet(context, artist),
-                                    ),
-                                  ],
-                                ),
-                              // Location + Active since
-                              if (artist.location != null ||
-                                  artist.activeSince != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    bottom: spaceSm,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      if (artist.location != null) ...[
-                                        const Icon(
-                                          Icons.place_outlined,
-                                          size: 14,
-                                          color: colorTextMuted,
-                                        ),
-                                        const SizedBox(width: spaceXxs),
-                                        Text(
-                                          artist.location!,
-                                          style: const TextStyle(
-                                            color: colorTextMuted,
-                                            fontSize: fontSizeSm,
-                                          ),
-                                        ),
-                                      ],
-                                      if (artist.location != null &&
-                                          artist.activeSince != null)
-                                        const Text(
-                                          ' · ',
-                                          style: TextStyle(
-                                            color: colorTextMuted,
-                                          ),
-                                        ),
-                                      if (artist.activeSince != null)
-                                        Text(
-                                          'Active since ${artist.activeSince}',
-                                          style: const TextStyle(
-                                            color: colorTextMuted,
-                                            fontSize: fontSizeSm,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              // Tagline
-                              if (artist.tagline != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    bottom: spaceSm,
-                                  ),
-                                  child: Text(
-                                    artist.tagline!,
-                                    style: const TextStyle(
-                                      color: colorTextSecondary,
-                                      fontSize: fontSizeMd,
-                                      fontStyle: FontStyle.italic,
-                                      height: 1.5,
-                                    ),
-                                  ),
-                                ),
-                              // Bio
-                              if (artist.bio != null)
-                                Text(
-                                  artist.bio!,
-                                  style: const TextStyle(
-                                    color: colorTextSecondary,
-                                    fontSize: fontSizeMd,
-                                    height: 1.6,
-                                  ),
-                                ),
-                            ],
-
-                            // Links section
-                            if (artist.links.isNotEmpty || isSelf) ...[
-                              const SizedBox(height: spaceXl),
-                              if (isSelf)
-                                Row(
-                                  children: [
-                                    const Expanded(
-                                      child: Text(
-                                        'LINKS',
-                                        style: TextStyle(
-                                          color: colorTextMuted,
-                                          fontSize: fontSizeXs,
-                                          fontWeight: weightSemibold,
-                                          letterSpacing: 1,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit_outlined,
-                                        size: 18,
-                                        color: colorTextMuted,
-                                      ),
-                                      onPressed: () =>
-                                          _showEditLinksSheet(context, artist),
-                                    ),
-                                  ],
-                                ),
-                              if (artist.links.isNotEmpty)
-                                _LinksSection(links: artist.links),
-                            ],
-
-                            // Career milestones section
-                            if (artist.milestones.isNotEmpty || isSelf) ...[
-                              const SizedBox(height: spaceXl),
-                              Row(
-                                children: [
-                                  const Expanded(
-                                    child: Text(
-                                      'CAREER',
-                                      style: TextStyle(
-                                        color: colorTextMuted,
-                                        fontSize: fontSizeXs,
-                                        fontWeight: weightSemibold,
-                                        letterSpacing: 1,
-                                      ),
-                                    ),
-                                  ),
-                                  if (isSelf)
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit_outlined,
-                                        size: 18,
-                                        color: colorInteractive,
-                                      ),
-                                      onPressed: () => _showEditMilestonesSheet(
-                                        context,
-                                        artist,
-                                      ),
-                                      visualDensity: VisualDensity.compact,
-                                    ),
-                                ],
-                              ),
-                              if (artist.milestones.isNotEmpty)
-                                _MilestonesSection(
-                                  milestones: artist.milestones,
-                                ),
-                            ],
-
-                            // Tracks section
-                            if (artist.tracks.isNotEmpty || isSelf) ...[
-                              const SizedBox(height: spaceXl),
-                              Row(
-                                children: [
-                                  const Expanded(
-                                    child: Text(
-                                      'TRACKS',
-                                      style: TextStyle(
-                                        color: colorTextMuted,
-                                        fontSize: fontSizeXs,
-                                        fontWeight: weightSemibold,
-                                        letterSpacing: 1,
-                                      ),
-                                    ),
-                                  ),
-                                  if (isSelf)
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit_outlined,
-                                        size: 18,
-                                        color: colorTextMuted,
-                                      ),
-                                      onPressed: () =>
-                                          _showEditTracksSheet(context, artist),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: spaceXxs),
-                              const Text(
-                                "This artist's content streams",
-                                style: TextStyle(
-                                  color: colorTextMuted,
-                                  fontSize: fontSizeXs,
-                                ),
-                              ),
-                              const SizedBox(height: spaceMd),
-                              Wrap(
-                                spacing: spaceSm,
-                                runSpacing: spaceSm,
-                                children: artist.tracks.map((track) {
-                                  return _Chip(
-                                    label: track.name,
-                                    color: track.displayColor,
-                                    bgColor: track.displayColor.withValues(
-                                      alpha: 0.1,
-                                    ),
-                                    borderColor: track.displayColor.withValues(
-                                      alpha: 0.3,
-                                    ),
-                                    dot: true,
-                                  );
-                                }).toList(),
-                              ),
-                            ],
-
-                            // Recent Posts section
-                            if (state.recentPosts.isNotEmpty) ...[
-                              const SizedBox(height: spaceXl),
-                              const Text(
-                                'RECENT POSTS',
-                                style: TextStyle(
-                                  color: colorTextMuted,
-                                  fontSize: fontSizeXs,
-                                  fontWeight: weightSemibold,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              const SizedBox(height: spaceMd),
-                              const SizedBox(height: spaceSm),
-                              Wrap(
-                                spacing: spaceSm,
-                                runSpacing: spaceSm,
-                                children: state.recentPosts
-                                    .map(
-                                      (p) => SizedBox(
-                                        width:
-                                            (MediaQuery.of(context).size.width -
-                                                spaceXl * 2 -
-                                                spaceSm) /
-                                            2,
-                                        child: _RecentPostCard(
-                                          post: p,
-                                          onTap: () =>
-                                              showPostDetailSheet(context, p),
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                            ],
-
-                            // Unassigned posts link (own view only)
-                            if (isSelf && unassignedCount > 0) ...[
-                              const SizedBox(height: spaceLg),
-                              InkWell(
-                                borderRadius: BorderRadius.circular(radiusMd),
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => UnassignedPostsScreen(
-                                      tracks: artist.tracks,
-                                    ),
-                                  ),
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: spaceMd,
-                                    vertical: spaceSm,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: colorSurface1,
-                                    borderRadius: BorderRadius.circular(
-                                      radiusMd,
-                                    ),
-                                    border: Border.all(color: colorBorder),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.inventory_2_outlined,
-                                        size: 16,
-                                        color: colorTextMuted,
-                                      ),
-                                      const SizedBox(width: spaceSm),
-                                      Text(
-                                        'Unassigned posts',
-                                        style: const TextStyle(
-                                          color: colorTextSecondary,
-                                          fontSize: fontSizeSm,
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: spaceSm,
-                                          vertical: spaceXxs,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: colorAccentGold.withValues(
-                                            alpha: 0.15,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            radiusSm,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          '$unassignedCount',
-                                          style: const TextStyle(
-                                            color: colorAccentGold,
-                                            fontSize: fontSizeXs,
-                                            fontWeight: weightSemibold,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: spaceXs),
-                                      const Icon(
-                                        Icons.chevron_right,
-                                        size: 18,
-                                        color: colorInteractiveMuted,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-
-                            // View full timeline link
-                            const SizedBox(height: spaceXl),
-                            const Divider(color: colorBorder),
-                            const SizedBox(height: spaceMd),
-                            TextButton.icon(
-                              onPressed: () =>
-                                  context.push('/@${artist.artistUsername}'),
-                              icon: const Icon(Icons.grid_view, size: 16),
-                              label: const Text('View full timeline'),
-                              style: TextButton.styleFrom(
-                                foregroundColor: colorInteractive,
-                              ),
-                            ),
-                            const SizedBox(height: spaceXl),
-                          ],
-                        ),
-                      ),
-                    ),
+                // Desktop side panel for post detail
+                if (_sidePanelPostId != null) ...[
+                  const VerticalDivider(
+                    width: 1,
+                    thickness: 1,
+                    color: colorBorder,
                   ),
-                ),
+                  SizedBox(
+                    width: sidePanelWidth,
+                    child: _buildSidePanel(state),
+                  ),
+                ],
               ],
             ),
     );

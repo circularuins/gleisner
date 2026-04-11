@@ -411,3 +411,17 @@ PR #195 の教訓: `args.duration != null` ガードだけでは text(120s) → 
 **createPost / updatePost で同一のバリデーションロジックを書かないこと。** `validators.ts` にヘルパー関数を抽出し、両 mutation から呼び出す。
 
 既存パターン: `validatePostVisibility`, `validateMediaUrl`, `validateDuration` 等が `validators.ts` に集約済み。新しいバリデーションを追加する場合も同様にヘルパーとして定義する。
+
+### seed データとバリデーション制限の同期
+
+**バリデーション制限（duration 上限、ファイルサイズ上限等）を変更した場合、`scripts/seed-test-data.sh` と `scripts/seed-discover-data.sh` の該当データも同時に更新すること。**
+
+seed スクリプトの `create_post` は `> /dev/null` でエラーを握り潰すため、制限違反の投稿が無言で失敗する。失敗した投稿を参照する connection 作成も連鎖的に全滅する。
+
+チェックリスト:
+- [ ] 動画 duration 上限を変更した場合 → seed の全 video 投稿の duration を確認
+- [ ] 音声 duration 上限を変更した場合 → seed の全 audio 投稿の duration を確認
+- [ ] mediaUrl バリデーションを変更した場合 → seed の MEDIA_URL 構築ロジックを確認
+- [ ] 新しい必須フィールドを追加した場合 → seed の `create_post` にフィールドを追加
+
+PR #197 の教訓: PR #195 で動画60秒/音声300秒制限を追加したが seed データ未更新 → 12件の投稿が無言で失敗 → 17件の connection が全滅。

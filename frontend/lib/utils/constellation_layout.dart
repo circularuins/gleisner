@@ -41,11 +41,17 @@ class DaySection {
   final double height;
   final bool isToday;
 
+  /// For horizontal layouts: left edge and width of day column.
+  final double left;
+  final double width;
+
   const DaySection({
     required this.date,
     required this.top,
     required this.height,
     required this.isToday,
+    this.left = 0,
+    this.width = 0,
   });
 }
 
@@ -85,11 +91,19 @@ class LayoutResult {
   final List<SynapseConnection> connections;
   final double totalHeight;
 
+  /// For horizontal layouts, the total width of the scrollable area.
+  final double totalWidth;
+
+  /// Whether this layout uses horizontal (left-to-right) scrolling.
+  final bool isHorizontal;
+
   const LayoutResult({
     required this.nodes,
     required this.days,
     required this.connections,
     required this.totalHeight,
+    this.totalWidth = 0,
+    this.isHorizontal = false,
   });
 }
 
@@ -470,13 +484,361 @@ class ConstellationLayout {
     final totalHeight = max(nodeBottomY, dayBottomY) + 40;
 
     // Build synapse connections from backend data
-    final connections = _buildSynapses(nodes);
+    final connections = _buildSynapses(nodes, isHorizontal: false);
 
     return LayoutResult(
       nodes: nodes,
       days: days,
       connections: connections,
       totalHeight: totalHeight,
+    );
+  }
+
+  /// Height reserved for the date spine at the top in horizontal mode.
+  static const double spineHeight = 36;
+
+  /// Compute the constellation layout in horizontal (left-to-right) mode.
+  /// Newest posts on the left, oldest on the right. Time flows left→right.
+  static LayoutResult computeHorizontal({
+    required List<TimelineItem> items,
+    required double containerHeight,
+    required double containerWidth,
+  }) {
+    if (items.isEmpty) {
+      return const LayoutResult(
+        nodes: [],
+        days: [],
+        connections: [],
+        totalHeight: 0,
+        totalWidth: 0,
+        isHorizontal: true,
+      );
+    }
+
+    final cH = max(containerHeight - spineHeight, 200.0);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    DateTime localDate(DateTime utc) {
+      final local = utc.toLocal();
+      return DateTime(local.year, local.month, local.day);
+    }
+
+    // Sort by date (most recent first)
+    final sorted = List<TimelineItem>.from(items)
+      ..sort((a, b) {
+        final dayA = today.difference(localDate(a.displayDate)).inDays;
+        final dayB = today.difference(localDate(b.displayDate)).inDays;
+        if (dayA != dayB) return dayA.compareTo(dayB);
+        return b.displayDate.compareTo(a.displayDate);
+      });
+
+    // Group by days-ago
+    final dayMap = <int, List<TimelineItem>>{};
+    for (final item in sorted) {
+      final daysAgo = today.difference(localDate(item.displayDate)).inDays;
+      dayMap.putIfAbsent(daysAgo, () => []).add(item);
+    }
+    final dayKeys = dayMap.keys.toList()..sort();
+
+    // Pass 1: Generous day widths (columns left→right, newest first)
+    final dayX = <int, _DaySlot>{};
+    double x = 20;
+    for (int i = 0; i < dayKeys.length; i++) {
+      final dk = dayKeys[i];
+      final dayItems = dayMap[dk];
+      if (dayItems == null || dayItems.isEmpty) {
+        dayX[dk] = _DaySlot(top: x, height: 8);
+        x += 8;
+        continue;
+      }
+      double maxItemW = 0;
+      for (final it in dayItems) {
+        final sz = itemSize(it);
+        final w = it is MilestoneItem
+            ? min(sz + 140, containerWidth * 0.4)
+            : sz > 110
+            ? min(sz * 1.25, containerWidth * 0.4)
+            : sz;
+        maxItemW = max(maxItemW, w);
+      }
+      final colW = max(160.0, maxItemW * dayItems.length * 0.7);
+      dayX[dk] = _DaySlot(top: x, height: colW);
+      x += colW;
+    }
+
+    // Compute per-item horizontal order within each day
+    final dayOrder = <String, double>{};
+    for (final dk in dayKeys) {
+      final dayItems = dayMap[dk];
+      if (dayItems == null || dayItems.isEmpty) continue;
+      final byCtime = List<TimelineItem>.from(dayItems)
+        ..sort((a, b) => b.displayDate.compareTo(a.displayDate));
+      for (int i = 0; i < byCtime.length; i++) {
+        dayOrder[byCtime[i].id] = byCtime.length > 1
+            ? i / (byCtime.length - 1)
+            : 0.0;
+      }
+    }
+
+    // Place items — largest first for collision avoidance
+    final rng = DeterministicRng('constellation-h-v3');
+    final placedItems = <_PlacedItem>[];
+
+    final bySize = List<TimelineItem>.from(sorted)
+      ..sort((a, b) => itemSize(b).compareTo(itemSize(a)));
+
+    for (final item in bySize) {
+      final daysAgo = today.difference(localDate(item.displayDate)).inDays;
+      final dI = dayX[daysAgo];
+      if (dI == null) continue;
+
+      final sz = itemSize(item);
+      final bool isMilestone = item is MilestoneItem;
+      final bool isAudio =
+          item is PostItem && item.post.mediaType == MediaType.audio;
+
+      final w = isMilestone
+          ? min(sz + 140, containerWidth * 0.4)
+          : isAudio
+          ? min(sz * 1.8, cH - 20)
+          : sz > 110
+          ? min(sz * 1.25, cH - 20)
+          : sz;
+      final mediaH = isMilestone
+          ? 0.0
+          : isAudio
+          ? sz * 0.45
+          : sz > 110
+          ? sz * 0.7
+          : sz * 0.85;
+      final infoH = (isMilestone || isAudio) ? 0.0 : 30.0;
+      final totalNodeH = isMilestone ? sz : mediaH + infoH;
+
+      // X position: within day column, based on order
+      final orderFrac = dayOrder[item.id] ?? 0.0;
+      final xBase = dI.top + orderFrac * (dI.height - w);
+      const margin = 8.0;
+
+      double bx = xBase;
+      double by;
+
+      if (isMilestone) {
+        by = margin;
+        double bo = _overlapAmount(placedItems, bx, by, w, totalNodeH);
+        if (bo > 0) {
+          for (int a = 0; a < 12; a++) {
+            final xN = (rng.next() - 0.5) * 60;
+            final xC = max(
+              dI.top + 4,
+              min(dI.top + dI.height - w - 4, xBase + xN),
+            );
+            final ov = _overlapAmount(placedItems, xC, by, w, totalNodeH);
+            if (ov < bo) {
+              bo = ov;
+              bx = xC;
+              if (ov == 0) break;
+            }
+          }
+        }
+      } else {
+        by = margin + rng.next() * (cH - totalNodeH - margin * 2);
+        double bo = double.infinity;
+        for (int a = 0; a < 28; a++) {
+          final xN = (rng.next() - 0.5) * 60;
+          final xC = max(
+            dI.top + 4,
+            min(dI.top + dI.height - w - 4, xBase + xN),
+          );
+          final yC = margin + rng.next() * (cH - totalNodeH - margin * 2);
+          final ov = _overlapAmount(placedItems, xC, yC, w, totalNodeH);
+          if (ov < bo) {
+            bo = ov;
+            bx = xC;
+            by = yC;
+            if (ov == 0) break;
+          }
+        }
+      }
+
+      placedItems.add(
+        _PlacedItem(
+          x: bx,
+          y: by,
+          w: w,
+          h: totalNodeH,
+          item: item,
+          day: daysAgo,
+        ),
+      );
+    }
+
+    // Pass 2: Compact — pull columns leftward
+    double compactX = 20;
+    final dayCompact = <int, _DayCompact>{};
+
+    for (int i = 0; i < dayKeys.length; i++) {
+      final dk = dayKeys[i];
+      if (i > 0 && dk - dayKeys[i - 1] > 1) compactX += 20;
+      final dayItems = placedItems.where((p) => p.day == dk).toList();
+
+      if (dayItems.isEmpty) {
+        dayCompact[dk] = _DayCompact(newTop: compactX, newHeight: 40, shift: 0);
+        compactX += 40;
+        continue;
+      }
+
+      final minX = dayItems.map((p) => p.x).reduce(min);
+      final maxX = dayItems.map((p) => p.x + p.w).reduce(max);
+      final actualW = maxX - minX;
+      final newWidth = actualW + _tightPad * 2;
+      final shift = compactX + _tightPad - minX;
+      dayCompact[dk] = _DayCompact(
+        newTop: compactX,
+        newHeight: newWidth,
+        shift: shift,
+      );
+      compactX += newWidth;
+    }
+
+    // Apply column compaction (shift X)
+    for (final p in placedItems) {
+      final dc = dayCompact[p.day];
+      if (dc != null) p.x += dc.shift;
+    }
+
+    // Pass 3: Pull each node leftward
+    const gapPad = 8.0;
+    placedItems.sort((a, b) => a.x.compareTo(b.x));
+    for (final p in placedItems) {
+      double minAllowedX = 20.0;
+      for (final other in placedItems) {
+        if (identical(other, p)) continue;
+        final vOverlap =
+            p.y < other.y + other.h + gapPad && p.y + p.h + gapPad > other.y;
+        if (vOverlap &&
+            other.x + other.w + gapPad > minAllowedX &&
+            other.x < p.x) {
+          minAllowedX = max(minAllowedX, other.x + other.w + gapPad);
+        }
+      }
+      if (minAllowedX < p.x) {
+        p.x = minAllowedX;
+      }
+    }
+
+    // Pass 4: Enforce time-series order (newer = smaller X)
+    final byTime = List<_PlacedItem>.from(placedItems)
+      ..sort((a, b) => b.item.displayDate.compareTo(a.item.displayDate));
+    final nudgeRng = DeterministicRng('nudge-h');
+    double maxLeftX = -double.infinity;
+    for (final p in byTime) {
+      if (p.x < maxLeftX) {
+        p.x = maxLeftX;
+      }
+      final nudge = 6.0 + nudgeRng.next() * 24.0;
+      maxLeftX = max(maxLeftX, p.x + nudge);
+    }
+
+    // Pass 5: Minimum horizontal gap between day columns
+    const minDayGap = 40.0;
+    for (int i = 1; i < dayKeys.length; i++) {
+      final prevDk = dayKeys[i - 1];
+      final dk = dayKeys[i];
+      final prevItems = placedItems.where((p) => p.day == prevDk).toList();
+      final curItems = placedItems.where((p) => p.day == dk).toList();
+      if (prevItems.isEmpty || curItems.isEmpty) continue;
+
+      final prevRight = prevItems.map((p) => p.x + p.w).reduce(max);
+      final curLeft = curItems.map((p) => p.x).reduce(min);
+      final gap = curLeft - prevRight;
+
+      if (gap < minDayGap) {
+        final shift = minDayGap - gap;
+        final daysToShift = dayKeys.sublist(i).toSet();
+        for (final p in placedItems) {
+          if (daysToShift.contains(p.day)) p.x += shift;
+        }
+      }
+    }
+
+    // Recalculate total width and day positions
+    final nodeRightX = placedItems.isEmpty
+        ? compactX
+        : placedItems.map((p) => p.x + p.w).reduce(max);
+
+    for (final dk in dayKeys) {
+      final dayItems = placedItems.where((p) => p.day == dk).toList();
+      if (dayItems.isEmpty) continue;
+      final dayMinX = dayItems.map((p) => p.x).reduce(min);
+      final dayMaxX = dayItems.map((p) => p.x + p.w).reduce(max);
+      dayCompact[dk] = _DayCompact(
+        newTop: dayMinX - _tightPad,
+        newHeight: dayMaxX - dayMinX + _tightPad * 2,
+        shift: 0,
+      );
+    }
+
+    // Build PlacedNode list — shift Y down by spineHeight for top spine
+    final nodes = <PlacedNode>[];
+    for (final p in placedItems) {
+      final sz = itemSize(p.item);
+      final bool isMilestone = p.item is MilestoneItem;
+      final bool isAudio =
+          p.item is PostItem &&
+          (p.item as PostItem).post.mediaType == MediaType.audio;
+      final mediaH = isMilestone
+          ? 0.0
+          : isAudio
+          ? sz * 0.45
+          : sz > 110
+          ? sz * 0.7
+          : sz * 0.85;
+      final showInfo = !isMilestone && !isAudio;
+      nodes.add(
+        PlacedNode(
+          item: p.item,
+          x: p.x,
+          y: p.y + spineHeight,
+          width: p.w,
+          height: p.h,
+          nodeSize: sz,
+          mediaHeight: mediaH,
+          showInfo: showInfo,
+        ),
+      );
+    }
+
+    // Build DaySection list (horizontal: left/width instead of top/height)
+    final days = <DaySection>[];
+    for (final dk in dayKeys) {
+      final dc = dayCompact[dk];
+      if (dc == null) continue;
+      final date = today.subtract(Duration(days: dk));
+      days.add(
+        DaySection(
+          date: date,
+          top: 0,
+          height: containerHeight,
+          isToday: dk == 0,
+          left: dc.newTop,
+          width: dc.newHeight,
+        ),
+      );
+    }
+
+    final dayRightX = days.isEmpty ? 0.0 : days.last.left + days.last.width;
+    final totalWidth = max(nodeRightX, dayRightX) + 40;
+
+    final connections = _buildSynapses(nodes, isHorizontal: true);
+
+    return LayoutResult(
+      nodes: nodes,
+      days: days,
+      connections: connections,
+      totalHeight: containerHeight,
+      totalWidth: totalWidth,
+      isHorizontal: true,
     );
   }
 
@@ -500,7 +862,10 @@ class ConstellationLayout {
   /// Build synapse connections from backend connection data.
   /// Uses outgoingConnections on each post to find connected pairs.
   /// Milestones are skipped — they have no connections.
-  static List<SynapseConnection> _buildSynapses(List<PlacedNode> nodes) {
+  static List<SynapseConnection> _buildSynapses(
+    List<PlacedNode> nodes, {
+    bool isHorizontal = false,
+  }) {
     final connections = <SynapseConnection>[];
     final nodeById = <String, PlacedNode>{};
     for (final node in nodes) {
@@ -522,7 +887,9 @@ class ConstellationLayout {
         final target = nodeById[conn.targetId];
         if (target == null) continue;
 
-        connections.add(_makeSynapse(node, target, conn.connectionType));
+        connections.add(
+          _makeSynapse(node, target, conn.connectionType, isHorizontal),
+        );
       }
 
       for (final conn in post.incomingConnections) {
@@ -532,7 +899,9 @@ class ConstellationLayout {
         final source = nodeById[conn.sourceId];
         if (source == null) continue;
 
-        connections.add(_makeSynapse(source, node, conn.connectionType));
+        connections.add(
+          _makeSynapse(source, node, conn.connectionType, isHorizontal),
+        );
       }
     }
 
@@ -544,6 +913,7 @@ class ConstellationLayout {
     PlacedNode a,
     PlacedNode b,
     ConnectionType connectionType,
+    bool isHorizontal,
   ) {
     final postA = (a.item as PostItem).post;
     final postB = (b.item as PostItem).post;
@@ -558,11 +928,22 @@ class ConstellationLayout {
     final opacity = min(0.08 + postA.importance * 0.32, 0.4) * distFade;
     final width = (0.8 + min(postA.importance * 2.5, 2.5)) * distFade;
 
-    final dy = b.centerY - a.centerY;
-    final cx1 = a.centerX + (b.centerX - a.centerX) * 0.25 + dy * 0.15;
-    final cy1 = a.centerY + (b.centerY - a.centerY) * 0.25;
-    final cx2 = a.centerX + (b.centerX - a.centerX) * 0.75 - dy * 0.15;
-    final cy2 = a.centerY + (b.centerY - a.centerY) * 0.75;
+    final double cx1, cy1, cx2, cy2;
+    if (isHorizontal) {
+      // Horizontal: primary axis is X, curve perpendicular via dx
+      final dx = b.centerX - a.centerX;
+      cx1 = a.centerX + (b.centerX - a.centerX) * 0.25;
+      cy1 = a.centerY + (b.centerY - a.centerY) * 0.25 + dx * 0.15;
+      cx2 = a.centerX + (b.centerX - a.centerX) * 0.75;
+      cy2 = a.centerY + (b.centerY - a.centerY) * 0.75 - dx * 0.15;
+    } else {
+      // Vertical: primary axis is Y, curve perpendicular via dy
+      final dy = b.centerY - a.centerY;
+      cx1 = a.centerX + (b.centerX - a.centerX) * 0.25 + dy * 0.15;
+      cy1 = a.centerY + (b.centerY - a.centerY) * 0.25;
+      cx2 = a.centerX + (b.centerX - a.centerX) * 0.75 - dy * 0.15;
+      cy2 = a.centerY + (b.centerY - a.centerY) * 0.75;
+    }
 
     return SynapseConnection(
       sourcePostId: postA.id,
@@ -598,7 +979,7 @@ class _DayCompact {
 }
 
 class _PlacedItem {
-  final double x;
+  double x;
   double y;
   final double w;
   final double h;

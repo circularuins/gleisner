@@ -11,7 +11,6 @@ import '../../providers/pending_artist_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../utils/constellation_layout.dart';
-import '../../utils/date_format.dart';
 import '../../widgets/timeline/avatar_rail.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/milestone_detail_sheet.dart';
@@ -23,6 +22,7 @@ import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
 import '../create_post/create_post_screen.dart';
+import '../edit_post/edit_post_screen.dart';
 import '../../widgets/tutorial/tutorial_spotlight.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
@@ -35,6 +35,7 @@ class TimelineScreen extends ConsumerStatefulWidget {
 class _TimelineScreenState extends ConsumerState<TimelineScreen>
     with SingleTickerProviderStateMixin {
   double? _lastWidth;
+  double? _lastHeight;
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0;
   String? _focusedPostId;
@@ -362,15 +363,20 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                               horizontal: 80,
                               vertical: 40,
                             ),
-                            child: ClipRRect(
-                              borderRadius: const BorderRadius.all(
-                                Radius.circular(radiusLg),
-                              ),
-                              child: CreatePostScreen(
-                                onSuccess: () {
-                                  Navigator.of(dialogContext).pop();
-                                  ref.read(timelineProvider.notifier).refresh();
-                                },
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 600),
+                              child: ClipRRect(
+                                borderRadius: const BorderRadius.all(
+                                  Radius.circular(radiusLg),
+                                ),
+                                child: CreatePostScreen(
+                                  onSuccess: () {
+                                    Navigator.of(dialogContext).pop();
+                                    ref
+                                        .read(timelineProvider.notifier)
+                                        .refresh();
+                                  },
+                                ),
                               ),
                             ),
                           ),
@@ -468,13 +474,22 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                               child: LayoutBuilder(
                                 builder: (context, constraints) {
                                   final width = constraints.maxWidth;
-                                  if (_lastWidth != width) {
+                                  final height = constraints.maxHeight;
+                                  final useHorizontal = isDesktop(width);
+                                  if (_lastWidth != width ||
+                                      _lastHeight != height) {
                                     _lastWidth = width;
+                                    _lastHeight = height;
                                     WidgetsBinding.instance
                                         .addPostFrameCallback((_) {
+                                          if (!context.mounted) return;
                                           ref
                                               .read(timelineProvider.notifier)
-                                              .computeLayout(width);
+                                              .computeLayout(
+                                                width,
+                                                height: height,
+                                                horizontal: useHorizontal,
+                                              );
                                         });
                                   }
 
@@ -495,6 +510,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                       return false;
                                     },
                                     child: SingleChildScrollView(
+                                      scrollDirection: layout.isHorizontal
+                                          ? Axis.horizontal
+                                          : Axis.vertical,
                                       controller: _scrollController,
                                       physics:
                                           const AlwaysScrollableScrollPhysics(),
@@ -502,7 +520,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                         children: [
                                           GestureDetector(
                                             onTap: () {
-                                              if (timeline
+                                              if (_sidePanelPostId != null) {
+                                                setState(
+                                                  () => _sidePanelPostId = null,
+                                                );
+                                              } else if (timeline
                                                       .constellationPostIds !=
                                                   null) {
                                                 ref
@@ -518,7 +540,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                               }
                                             },
                                             child: SizedBox(
-                                              height: layout.totalHeight,
+                                              height: layout.isHorizontal
+                                                  ? constraints.maxHeight
+                                                  : layout.totalHeight,
+                                              width: layout.isHorizontal
+                                                  ? layout.totalWidth
+                                                  : null,
                                               child: Stack(
                                                 children: [
                                                   // Background: spine + synapses + travelling dot
@@ -544,11 +571,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                                     ),
                                                   ),
                                                   // Day labels on the spine
-                                                  // Find the one day closest above the midpoint
                                                   ..._buildDateLabels(
-                                                    layout.days,
+                                                    layout,
                                                     _scrollOffset,
-                                                    constraints.maxHeight,
+                                                    layout.isHorizontal
+                                                        ? constraints.maxWidth
+                                                        : constraints.maxHeight,
                                                   ),
                                                   // Nodes (focused node rendered last for z-order)
                                                   ..._buildNodes(
@@ -637,24 +665,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                 ),
                 SizedBox(
                   width: sidePanelWidth,
-                  child: _DesktopDetailPanel(
-                    postId: _sidePanelPostId!,
-                    posts: timeline.posts,
-                    isOwn: isOwn,
-                    onClose: () => setState(() => _sidePanelPostId = null),
-                    onToggleReaction: (id, emoji) => ref
-                        .read(timelineProvider.notifier)
-                        .toggleReaction(id, emoji),
-                    onReactionsChanged: (id, counts, myReactions) => ref
-                        .read(timelineProvider.notifier)
-                        .updatePostReactions(id, counts, myReactions),
-                    onEdit: isOwn
-                        ? (post) {
-                            setState(() => _sidePanelPostId = null);
-                            context.push('/edit-post', extra: post);
-                          }
-                        : null,
-                  ),
+                  child: _buildSidePanel(timeline, isOwn),
                 ),
               ],
             ],
@@ -724,7 +735,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
       }
 
       final positioned = Positioned(
-        left: ConstellationLayout.spineWidth + node.x,
+        left: layout.isHorizontal
+            ? node.x
+            : ConstellationLayout.spineWidth + node.x,
         top: node.y,
         width: node.width,
         child: dimmed
@@ -770,6 +783,141 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     _showDetailBottomSheet(postId);
   }
 
+  /// Open edit post — dialog on desktop, push navigation on mobile.
+  void _openEditPost(Post post) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    if (isDesktop(screenWidth)) {
+      showDialog(
+        context: context,
+        builder: (dialogContext) => Dialog(
+          backgroundColor: colorSurface0,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 80,
+            vertical: 40,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.all(Radius.circular(radiusLg)),
+              child: EditPostScreen(
+                post: post,
+                onSaved: (_) {
+                  Navigator.of(dialogContext).pop();
+                  ref.read(timelineProvider.notifier).refresh();
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      context.push('/edit-post', extra: post);
+    }
+  }
+
+  /// Build the desktop side panel with full PostDetailContent.
+  Widget _buildSidePanel(TimelineState timeline, bool isOwn) {
+    final post = timeline.posts
+        .where((p) => p.id == _sidePanelPostId)
+        .firstOrNull;
+    if (post == null) return const SizedBox.shrink();
+
+    final notifier = ref.read(timelineProvider.notifier);
+
+    return Container(
+      color: colorSurface1,
+      child: Column(
+        children: [
+          // Header with close + edit buttons
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: spaceLg,
+              vertical: spaceSm,
+            ),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: colorBorder)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    post.title ?? 'Untitled',
+                    style: const TextStyle(
+                      color: colorTextPrimary,
+                      fontSize: fontSizeLg,
+                      fontWeight: weightSemibold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isOwn)
+                  IconButton(
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      size: 18,
+                      color: colorInteractive,
+                    ),
+                    onPressed: () {
+                      setState(() => _sidePanelPostId = null);
+                      _openEditPost(post);
+                    },
+                    tooltip: 'Edit',
+                  ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.close,
+                    size: 18,
+                    color: colorInteractive,
+                  ),
+                  onPressed: () => setState(() => _sidePanelPostId = null),
+                  tooltip: 'Close',
+                ),
+              ],
+            ),
+          ),
+          // Shared content
+          Expanded(
+            child: PostDetailContent(
+              post: post,
+              onToggleReaction: (id, emoji) =>
+                  notifier.toggleReaction(id, emoji),
+              onReactionsChanged: (id, counts, myReactions) =>
+                  notifier.updatePostReactions(id, counts, myReactions),
+              onCreateConnection: isOwn
+                  ? (sourceId, targetId, type) => notifier.createConnection(
+                      sourceId,
+                      targetId,
+                      connectionType: type,
+                    )
+                  : null,
+              onDeleteConnection: isOwn
+                  ? (connectionId) => notifier.deleteConnection(connectionId)
+                  : null,
+              onConnectionAdded: isOwn
+                  ? (conn) => notifier.addConnectionToState(conn)
+                  : null,
+              onConnectionRemoved: isOwn
+                  ? (conn) => notifier.removeConnectionFromState(conn)
+                  : null,
+              onViewConstellation: (ids) => notifier.showConstellation(ids),
+              onNameConstellation: isOwn
+                  ? (postId, name) => notifier.nameConstellation(postId, name)
+                  : null,
+              onEdit: isOwn
+                  ? () {
+                      setState(() => _sidePanelPostId = null);
+                      _openEditPost(post);
+                    }
+                  : null,
+              allPosts: timeline.posts,
+              embedded: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showDetailBottomSheet(String postId) {
     final post = ref
         .read(timelineProvider)
@@ -808,7 +956,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
       onEdit: isOwn
           ? () {
               Navigator.pop(context); // Close detail sheet
-              context.push('/edit-post', extra: post);
+              _openEditPost(post);
             }
           : null,
       allPosts: ref.read(timelineProvider).posts,
@@ -861,27 +1009,43 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
   }
 
   List<Positioned> _buildDateLabels(
-    List<DaySection> days,
+    LayoutResult layout,
     double scrollOffset,
-    double viewportHeight,
+    double viewportSize,
   ) {
-    // Determine which single day to highlight.
-    // - If not scrolled (or scrolled back to top), only "today" highlights
-    //   (via its own isToday styling) — no other day gets isHighlighted.
-    // - Once scrolled, the last non-today day above the midpoint highlights,
-    //   and today loses its special brightness (handled by isHighlighted being
-    //   assigned to a different index).
-    final midpoint = viewportHeight * 0.67;
+    final days = layout.days;
+    final horizontal = layout.isHorizontal;
+
+    final midpoint = viewportSize * 0.67;
     final hasScrolled = scrollOffset > 4;
     int? highlightedIndex;
     if (hasScrolled) {
       for (int i = 0; i < days.length; i++) {
         if (days[i].isToday) continue;
-        final screenY = days[i].top + 6 - scrollOffset;
-        if (screenY < midpoint) {
+        final screenPos = horizontal
+            ? days[i].left + 6 - scrollOffset
+            : days[i].top + 6 - scrollOffset;
+        if (screenPos < midpoint) {
           highlightedIndex = i;
         }
       }
+    }
+
+    if (horizontal) {
+      return [
+        for (int i = 0; i < days.length; i++)
+          Positioned(
+            left: days[i].left + 6,
+            top: 0,
+            child: _DateLabel(
+              day: days[i],
+              isHighlighted: i == highlightedIndex,
+              dimToday: highlightedIndex != null,
+              showYear: _shouldShowYear(days, i),
+              horizontal: true,
+            ),
+          ),
+      ];
     }
 
     return [
@@ -916,12 +1080,14 @@ class _DateLabel extends StatelessWidget {
   final bool isHighlighted;
   final bool dimToday;
   final bool showYear;
+  final bool horizontal;
 
   const _DateLabel({
     required this.day,
     this.isHighlighted = false,
     this.dimToday = false,
     this.showYear = false,
+    this.horizontal = false,
   });
 
   @override
@@ -941,6 +1107,45 @@ class _DateLabel extends StatelessWidget {
     } else {
       dayColor = colorInteractiveMuted;
       monthColor = colorInteractiveMuted;
+    }
+
+    if (horizontal) {
+      return SizedBox(
+        height: ConstellationLayout.spineHeight,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isToday)
+              Container(
+                width: 7,
+                height: 7,
+                margin: const EdgeInsets.only(right: 4),
+                decoration: const BoxDecoration(
+                  color: colorError,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            Text(
+              '${_shortMonth(day.date.month)} ${day.date.day}',
+              style: TextStyle(
+                color: dayColor,
+                fontSize: fontSizeSm,
+                fontWeight: FontWeight.w700,
+                height: 1.1,
+              ),
+            ),
+            if (showYear)
+              Text(
+                " '${(day.date.year % 100).toString().padLeft(2, '0')}",
+                style: TextStyle(
+                  color: monthColor,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
+        ),
+      );
     }
 
     return SizedBox(
@@ -1197,240 +1402,6 @@ class _GlowingStarButtonState extends State<_GlowingStarButton>
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Desktop-only side panel showing post detail inline.
-class _DesktopDetailPanel extends StatelessWidget {
-  final String postId;
-  final List<Post> posts;
-  final bool isOwn;
-  final VoidCallback onClose;
-  final Future<bool> Function(String, String) onToggleReaction;
-  final void Function(String, List<ReactionCount>, List<String>)
-  onReactionsChanged;
-  final void Function(Post)? onEdit;
-
-  const _DesktopDetailPanel({
-    required this.postId,
-    required this.posts,
-    required this.isOwn,
-    required this.onClose,
-    required this.onToggleReaction,
-    required this.onReactionsChanged,
-    this.onEdit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final post = posts.where((p) => p.id == postId).firstOrNull;
-    if (post == null) return const SizedBox.shrink();
-
-    return Container(
-      color: colorSurface1,
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: spaceLg,
-              vertical: spaceSm,
-            ),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: colorBorder)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    post.title ?? 'Untitled',
-                    style: const TextStyle(
-                      color: colorTextPrimary,
-                      fontSize: fontSizeLg,
-                      fontWeight: weightSemibold,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (onEdit != null)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.edit_outlined,
-                      size: 18,
-                      color: colorInteractive,
-                    ),
-                    onPressed: () => onEdit!(post),
-                    tooltip: 'Edit',
-                  ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.close,
-                    size: 18,
-                    color: colorInteractive,
-                  ),
-                  onPressed: onClose,
-                  tooltip: 'Close',
-                ),
-              ],
-            ),
-          ),
-          // Content
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(spaceLg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Image: show directly
-                  if (post.mediaUrl != null &&
-                      post.mediaType == MediaType.image)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: spaceLg),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(radiusMd),
-                        child: Image.network(
-                          post.mediaUrl!,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          cacheWidth: 800,
-                          errorBuilder: (_, _, _) => Container(
-                            height: 120,
-                            color: colorSurface2,
-                            child: const Center(
-                              child: Icon(
-                                Icons.broken_image,
-                                color: colorInteractiveMuted,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  // Video: show thumbnail if available, else placeholder
-                  if (post.mediaType == MediaType.video)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: spaceLg),
-                      child: Container(
-                        height: 160,
-                        decoration: BoxDecoration(
-                          color: colorSurface2,
-                          borderRadius: BorderRadius.circular(radiusMd),
-                          image: post.thumbnailUrl != null
-                              ? DecorationImage(
-                                  image: NetworkImage(post.thumbnailUrl!),
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
-                        ),
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.play_circle_outline,
-                                size: 40,
-                                color: colorTextPrimary,
-                              ),
-                              if (post.duration != null)
-                                Text(
-                                  '${post.duration! ~/ 60}:${(post.duration! % 60).toString().padLeft(2, '0')}',
-                                  style: const TextStyle(
-                                    color: colorTextSecondary,
-                                    fontSize: fontSizeSm,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  // Audio: show placeholder with duration
-                  if (post.mediaType == MediaType.audio)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: spaceLg),
-                      child: Container(
-                        padding: const EdgeInsets.all(spaceLg),
-                        decoration: BoxDecoration(
-                          color: colorSurface2,
-                          borderRadius: BorderRadius.circular(radiusMd),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.audiotrack,
-                              size: 24,
-                              color: colorInteractive,
-                            ),
-                            const SizedBox(width: spaceMd),
-                            Text(
-                              post.duration != null
-                                  ? '${post.duration! ~/ 60}:${(post.duration! % 60).toString().padLeft(2, '0')}'
-                                  : 'Audio',
-                              style: const TextStyle(
-                                color: colorTextSecondary,
-                                fontSize: fontSizeMd,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  if (post.body != null && post.body!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: spaceLg),
-                      child: Text(
-                        post.body!,
-                        style: const TextStyle(
-                          color: colorTextSecondary,
-                          fontSize: fontSizeMd,
-                          height: 1.6,
-                        ),
-                      ),
-                    ),
-                  Text(
-                    '${post.mediaType.name} · ${formatDate(post.createdAt)}',
-                    style: const TextStyle(
-                      color: colorTextMuted,
-                      fontSize: fontSizeSm,
-                    ),
-                  ),
-                  if (post.reactionCounts.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: spaceLg),
-                      child: Wrap(
-                        spacing: spaceSm,
-                        runSpacing: spaceXs,
-                        children: post.reactionCounts.map((rc) {
-                          final isMine = post.myReactions.contains(rc.emoji);
-                          return ActionChip(
-                            label: Text(
-                              '${rc.emoji} ${rc.count}',
-                              style: TextStyle(
-                                fontSize: fontSizeSm,
-                                color: isMine
-                                    ? colorAccentGold
-                                    : colorTextSecondary,
-                              ),
-                            ),
-                            backgroundColor: isMine
-                                ? colorSurface2
-                                : colorSurface0,
-                            side: BorderSide(
-                              color: isMine ? colorAccentGold : colorBorder,
-                            ),
-                            onPressed: () =>
-                                onToggleReaction(post.id, rc.emoji),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
