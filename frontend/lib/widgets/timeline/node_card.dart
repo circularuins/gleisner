@@ -312,74 +312,66 @@ class _ThoughtContent extends StatelessWidget {
     final preview = post.plainTextPreview ?? '';
     final isLarge = node.nodeSize > 110;
 
-    return Stack(
-      children: [
-        // Bubble body with extra bottom padding for tail circles
-        Container(
-          padding: EdgeInsets.fromLTRB(
-            isLarge ? spaceMd : spaceSm,
-            isLarge ? spaceMd : spaceSm,
-            isLarge ? spaceMd : spaceSm,
-            (isLarge ? spaceMd : spaceSm) + 14,
+    final bubbleColor = trackColor.withValues(alpha: 0.12);
+
+    return CustomPaint(
+      painter: _BubbleTailPainter(color: bubbleColor),
+      child: Container(
+        padding: EdgeInsets.fromLTRB(
+          isLarge ? spaceMd : spaceSm,
+          isLarge ? spaceMd : spaceSm,
+          isLarge ? spaceMd : spaceSm,
+          (isLarge ? spaceMd : spaceSm) + 10,
+        ),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [trackColor.withValues(alpha: 0.06), bubbleColor],
           ),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                trackColor.withValues(alpha: 0.06),
-                trackColor.withValues(alpha: 0.12),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(radiusXl),
-            border: Border.all(
-              color: trackColor.withValues(alpha: 0.15),
-              width: 0.5,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              preview,
-              style: TextStyle(
-                color: colorTextPrimary.withValues(alpha: 0.85),
-                fontSize: isLarge ? fontSizeSm : fontSizeXs,
-                height: 1.4,
-                fontStyle: FontStyle.italic,
-              ),
-              maxLines: isLarge ? 5 : 3,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
+          borderRadius: BorderRadius.circular(radiusXl),
+          border: Border.all(
+            color: trackColor.withValues(alpha: 0.15),
+            width: 0.5,
           ),
         ),
-        // Bubble tail (small circles inside bottom-left area)
-        Positioned(
-          bottom: 8,
-          left: isLarge ? spaceMd : spaceSm,
-          child: Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color: trackColor.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
+        child: Center(
+          child: Text(
+            preview,
+            style: TextStyle(
+              color: colorTextPrimary.withValues(alpha: 0.85),
+              fontSize: isLarge ? fontSizeSm : fontSizeXs,
+              height: 1.4,
+              fontStyle: FontStyle.italic,
             ),
+            maxLines: isLarge ? 5 : 3,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
           ),
         ),
-        Positioned(
-          bottom: 2,
-          left: isLarge ? spaceSm : spaceXs,
-          child: Container(
-            width: 4,
-            height: 4,
-            decoration: BoxDecoration(
-              color: trackColor.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
+}
+
+/// Paints a small triangular tail at the bottom-left of the thought bubble.
+class _BubbleTailPainter extends CustomPainter {
+  final Color color;
+  const _BubbleTailPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final path = Path()
+      ..moveTo(14, size.height - 10)
+      ..lineTo(8, size.height)
+      ..lineTo(22, size.height - 6)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_BubbleTailPainter old) => color != old.color;
 }
 
 // --- Text: body preview, no seed art ---
