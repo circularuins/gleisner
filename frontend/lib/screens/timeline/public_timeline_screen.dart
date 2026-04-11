@@ -31,6 +31,7 @@ class PublicTimelineScreen extends ConsumerStatefulWidget {
 
 class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
   double? _lastWidth;
+  double? _lastHeight;
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _scrollOffset = ValueNotifier(0);
   String? _focusedPostId;
@@ -169,13 +170,21 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final width = constraints.maxWidth;
-                        if (_lastWidth != width) {
+                        final height = constraints.maxHeight;
+                        final screenWidth = MediaQuery.of(context).size.width;
+                        final useHorizontal = isDesktop(screenWidth);
+                        if (_lastWidth != width || _lastHeight != height) {
                           _lastWidth = width;
+                          _lastHeight = height;
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             if (!context.mounted) return;
                             ref
                                 .read(publicTimelineProvider.notifier)
-                                .computeLayout(width);
+                                .computeLayout(
+                                  width,
+                                  height: height,
+                                  horizontal: useHorizontal,
+                                );
                           });
                         }
 
@@ -192,6 +201,9 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
                             return false;
                           },
                           child: SingleChildScrollView(
+                            scrollDirection: layout.isHorizontal
+                                ? Axis.horizontal
+                                : Axis.vertical,
                             controller: _scrollController,
                             physics: const AlwaysScrollableScrollPhysics(),
                             child: GestureDetector(
@@ -205,7 +217,12 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
                                 }
                               },
                               child: SizedBox(
-                                height: layout.totalHeight,
+                                height: layout.isHorizontal
+                                    ? constraints.maxHeight
+                                    : layout.totalHeight,
+                                width: layout.isHorizontal
+                                    ? layout.totalWidth
+                                    : null,
                                 child: Stack(
                                   children: [
                                     Positioned.fill(
@@ -223,9 +240,11 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
                                       builder: (context, offset, _) {
                                         return Stack(
                                           children: _buildDateLabels(
-                                            layout.days,
+                                            layout,
                                             offset,
-                                            constraints.maxHeight,
+                                            layout.isHorizontal
+                                                ? constraints.maxWidth
+                                                : constraints.maxHeight,
                                           ),
                                         );
                                       },
@@ -373,7 +392,9 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
       }
 
       final positioned = Positioned(
-        left: ConstellationLayout.spineWidth + node.x,
+        left: layout.isHorizontal
+            ? node.x
+            : ConstellationLayout.spineWidth + node.x,
         top: node.y,
         width: node.width,
         child: dimmed
@@ -456,21 +477,42 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
   }
 
   List<Positioned> _buildDateLabels(
-    List<DaySection> days,
+    LayoutResult layout,
     double scrollOffset,
-    double viewportHeight,
+    double viewportSize,
   ) {
-    final midpoint = viewportHeight * 0.67;
+    final days = layout.days;
+    final horizontal = layout.isHorizontal;
+    final midpoint = viewportSize * 0.67;
     final hasScrolled = scrollOffset > 4;
     int? highlightedIndex;
     if (hasScrolled) {
       for (int i = 0; i < days.length; i++) {
         if (days[i].isToday) continue;
-        final screenY = days[i].top + 6 - scrollOffset;
-        if (screenY < midpoint) {
+        final screenPos = horizontal
+            ? days[i].left + 6 - scrollOffset
+            : days[i].top + 6 - scrollOffset;
+        if (screenPos < midpoint) {
           highlightedIndex = i;
         }
       }
+    }
+
+    if (horizontal) {
+      return [
+        for (int i = 0; i < days.length; i++)
+          Positioned(
+            left: days[i].left + 6,
+            top: 0,
+            child: _DateLabel(
+              day: days[i],
+              isHighlighted: i == highlightedIndex,
+              dimToday: highlightedIndex != null,
+              showYear: _shouldShowYear(days, i),
+              horizontal: true,
+            ),
+          ),
+      ];
     }
 
     return [
@@ -500,12 +542,14 @@ class _DateLabel extends StatelessWidget {
   final bool isHighlighted;
   final bool dimToday;
   final bool showYear;
+  final bool horizontal;
 
   const _DateLabel({
     required this.day,
     this.isHighlighted = false,
     this.dimToday = false,
     this.showYear = false,
+    this.horizontal = false,
   });
 
   @override
@@ -524,6 +568,45 @@ class _DateLabel extends StatelessWidget {
     } else {
       dayColor = colorInteractiveMuted;
       monthColor = colorInteractiveMuted;
+    }
+
+    if (horizontal) {
+      return SizedBox(
+        height: ConstellationLayout.spineHeight,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isToday)
+              Container(
+                width: 7,
+                height: 7,
+                margin: const EdgeInsets.only(right: 4),
+                decoration: const BoxDecoration(
+                  color: colorError,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            Text(
+              '${_shortMonth(day.date.month)} ${day.date.day}',
+              style: TextStyle(
+                color: dayColor,
+                fontSize: fontSizeSm,
+                fontWeight: FontWeight.w700,
+                height: 1.1,
+              ),
+            ),
+            if (showYear)
+              Text(
+                " '${(day.date.year % 100).toString().padLeft(2, '0')}",
+                style: TextStyle(
+                  color: monthColor,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
+        ),
+      );
     }
 
     return SizedBox(
