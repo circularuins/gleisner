@@ -912,6 +912,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                     }
                   : null,
               allPosts: timeline.posts,
+              embedded: true,
             ),
           ),
         ],

@@ -113,7 +113,11 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
             ),
           ),
           Expanded(
-            child: PostDetailContent(post: post, allPosts: state.recentPosts),
+            child: PostDetailContent(
+              post: post,
+              allPosts: state.recentPosts,
+              embedded: true,
+            ),
           ),
         ],
       ),

@@ -126,6 +126,11 @@ class PostDetailContent extends StatefulWidget {
   onNameConstellation;
   final VoidCallback? onEdit;
   final List<Post> allPosts;
+
+  /// When true, this widget is embedded in a side panel (not a modal sheet).
+  /// Navigator.pop calls are skipped since there is no modal to dismiss.
+  final bool embedded;
+
   const PostDetailContent({
     super.key,
     required this.post,
@@ -140,6 +145,7 @@ class PostDetailContent extends StatefulWidget {
     this.onNameConstellation,
     this.onEdit,
     this.allPosts = const [],
+    this.embedded = false,
   });
 
   @override
@@ -895,7 +901,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
                 Navigator.pop(dialogContext);
                 await widget.onNameConstellation?.call(widget.post.id, name);
                 if (mounted) {
-                  Navigator.pop(context);
+                  if (!widget.embedded) Navigator.pop(context);
                   widget.onViewConstellation?.call(constellationIds);
                 }
               },
@@ -1011,7 +1017,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
               ),
             GestureDetector(
               onTap: () {
-                Navigator.pop(context);
+                if (!widget.embedded) Navigator.pop(context);
                 widget.onViewConstellation?.call(constellationIds);
               },
               child: Row(
