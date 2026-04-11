@@ -20,8 +20,25 @@ import { fetchOgpMetadata } from "../../ogp/fetcher.js";
 const MEDIA_FILE_REQUIRED_TYPES = ["image", "video", "audio"];
 
 const MediaTypeEnum = builder.enumType("MediaType", {
-  values: ["text", "image", "video", "audio", "link"] as const,
+  values: ["thought", "article", "image", "video", "audio", "link"] as const,
 });
+
+const ArticleGenreEnum = builder.enumType("ArticleGenre", {
+  values: [
+    "fiction",
+    "poetry",
+    "essay",
+    "technical",
+    "opinion",
+    "diary",
+    "review",
+    "travel",
+    "other",
+  ] as const,
+});
+
+/** Maximum body length for thought posts (characters). */
+const MAX_THOUGHT_BODY_LENGTH = 280;
 
 /**
  * Fetch author's publicKey and verify an Ed25519 signature against a contentHash.
@@ -58,7 +75,7 @@ type PostShape = {
   id: string;
   trackId: string | null;
   authorId: string;
-  mediaType: "text" | "image" | "video" | "audio" | "link";
+  mediaType: "thought" | "article" | "image" | "video" | "audio" | "link";
   title: string | null;
   body: unknown; // jsonb: string (plain) or Delta ops array (delta)
   bodyFormat: string;
@@ -74,6 +91,8 @@ type PostShape = {
   ogImage: string | null;
   ogSiteName: string | null;
   ogFetchedAt: Date | null;
+  articleGenre: string | null;
+  externalPublish: boolean;
   eventAt: Date | null;
   layoutX: number;
   layoutY: number;
@@ -121,6 +140,13 @@ PostType.implement({
     ogDescription: t.exposeString("ogDescription", { nullable: true }),
     ogImage: t.exposeString("ogImage", { nullable: true }),
     ogSiteName: t.exposeString("ogSiteName", { nullable: true }),
+    articleGenre: t.field({
+      type: ArticleGenreEnum,
+      nullable: true,
+      resolve: (post) =>
+        post.articleGenre as (typeof ArticleGenreEnum)["$inferType"] | null,
+    }),
+    externalPublish: t.exposeBoolean("externalPublish"),
     eventAt: t.string({
       nullable: true,
       resolve: (post) => post.eventAt?.toISOString() ?? null,
@@ -178,6 +204,8 @@ builder.mutationFields((t) => ({
       importance: t.arg.float(),
       visibility: t.arg.string(),
       eventAt: t.arg.string(),
+      articleGenre: t.arg({ type: ArticleGenreEnum }),
+      externalPublish: t.arg.boolean(),
       layoutX: t.arg.int(),
       layoutY: t.arg.int(),
       signature: t.arg.string(),
@@ -213,6 +241,32 @@ builder.mutationFields((t) => ({
       // Validate title
       if (args.title != null && args.title.length > 100) {
         throw new GraphQLError("Title must be 100 characters or less");
+      }
+
+      // Thought-specific validation
+      if (args.mediaType === "thought") {
+        if (args.title != null && args.title.trim() !== "") {
+          throw new GraphQLError("Thought posts cannot have a title");
+        }
+        if (args.bodyFormat === "delta") {
+          throw new GraphQLError(
+            "Thought posts use plain text only (no rich text)",
+          );
+        }
+        if (args.articleGenre != null) {
+          throw new GraphQLError("articleGenre is only for article posts");
+        }
+      }
+
+      // Article-specific: externalPublish only when visibility is public
+      if (args.externalPublish && args.mediaType !== "article") {
+        throw new GraphQLError("externalPublish is only for article posts");
+      }
+      const effectiveVisibility = args.visibility ?? "public";
+      if (args.externalPublish && effectiveVisibility !== "public") {
+        throw new GraphQLError(
+          "externalPublish requires visibility to be public",
+        );
       }
 
       // Validate body + bodyFormat
@@ -260,14 +314,18 @@ builder.mutationFields((t) => ({
           }
           bodyValue = ops;
         } else {
-          if (args.body.length > 10000) {
-            throw new GraphQLError("Body must be 10000 characters or less");
+          const maxBody =
+            args.mediaType === "thought" ? MAX_THOUGHT_BODY_LENGTH : 10000;
+          if (args.body.length > maxBody) {
+            throw new GraphQLError(
+              `Body must be ${maxBody} characters or less`,
+            );
           }
           bodyValue = args.body;
         }
       }
 
-      // Require mediaUrl for image, video, audio types (not text or link)
+      // Require mediaUrl for image, video, audio types
       const mediaFileTypes = MEDIA_FILE_REQUIRED_TYPES;
       if (
         mediaFileTypes.includes(args.mediaType) &&
@@ -357,6 +415,12 @@ builder.mutationFields((t) => ({
           ...(args.importance != null ? { importance: args.importance } : {}),
           ...(args.layoutX != null ? { layoutX: args.layoutX } : {}),
           ...(args.layoutY != null ? { layoutY: args.layoutY } : {}),
+          ...(args.articleGenre != null
+            ? { articleGenre: args.articleGenre }
+            : {}),
+          ...(args.externalPublish != null
+            ? { externalPublish: args.externalPublish }
+            : {}),
         })
         .returning();
 
@@ -406,6 +470,9 @@ builder.mutationFields((t) => ({
       importance: t.arg.float(),
       visibility: t.arg.string(),
       eventAt: t.arg.string(),
+      articleGenre: t.arg({ type: ArticleGenreEnum }),
+      clearArticleGenre: t.arg.boolean(),
+      externalPublish: t.arg.boolean(),
       layoutX: t.arg.int(),
       layoutY: t.arg.int(),
       signature: t.arg.string(),
@@ -603,6 +670,11 @@ builder.mutationFields((t) => ({
         updateData.visibility = args.visibility;
       if (args.layoutX !== undefined) updateData.layoutX = args.layoutX;
       if (args.layoutY !== undefined) updateData.layoutY = args.layoutY;
+      if (args.articleGenre !== undefined)
+        updateData.articleGenre = args.articleGenre;
+      if (args.clearArticleGenre) updateData.articleGenre = null;
+      if (args.externalPublish !== undefined)
+        updateData.externalPublish = args.externalPublish;
 
       // Recompute contentHash if content fields changed.
       // layoutX/Y are presentation-only and intentionally excluded from the
