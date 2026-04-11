@@ -534,6 +534,8 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
           days: layout.days,
           connections: layout.connections,
           totalHeight: layout.totalHeight,
+          totalWidth: layout.totalWidth,
+          isHorizontal: layout.isHorizontal,
         ),
       );
     } else {
