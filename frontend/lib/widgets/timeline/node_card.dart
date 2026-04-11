@@ -313,11 +313,15 @@ class _ThoughtContent extends StatelessWidget {
     final isLarge = node.nodeSize > 110;
 
     return Stack(
-      clipBehavior: Clip.none,
       children: [
-        // Bubble body
+        // Bubble body with extra bottom padding for tail circles
         Container(
-          padding: EdgeInsets.all(isLarge ? spaceMd : spaceSm),
+          padding: EdgeInsets.fromLTRB(
+            isLarge ? spaceMd : spaceSm,
+            isLarge ? spaceMd : spaceSm,
+            isLarge ? spaceMd : spaceSm,
+            (isLarge ? spaceMd : spaceSm) + 14,
+          ),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -348,31 +352,27 @@ class _ThoughtContent extends StatelessWidget {
             ),
           ),
         ),
-        // Bubble tail (small circles below bottom-left)
+        // Bubble tail (small circles inside bottom-left area)
         Positioned(
-          bottom: -6,
+          bottom: 8,
           left: isLarge ? spaceMd : spaceSm,
           child: Container(
-            width: 8,
-            height: 8,
+            width: 7,
+            height: 7,
             decoration: BoxDecoration(
-              color: trackColor.withValues(alpha: 0.10),
+              color: trackColor.withValues(alpha: 0.18),
               shape: BoxShape.circle,
-              border: Border.all(
-                color: trackColor.withValues(alpha: 0.15),
-                width: 0.5,
-              ),
             ),
           ),
         ),
         Positioned(
-          bottom: -12,
+          bottom: 2,
           left: isLarge ? spaceSm : spaceXs,
           child: Container(
             width: 4,
             height: 4,
             decoration: BoxDecoration(
-              color: trackColor.withValues(alpha: 0.08),
+              color: trackColor.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
           ),
