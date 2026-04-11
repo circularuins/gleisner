@@ -83,6 +83,21 @@ create_post() {
   sleep 0.3
 }
 
+# Check if posts already exist (skip creation if so)
+EXISTING_POSTS=$(docker exec gleisner-db psql -U gleisner -d gleisner -t -c \
+  "SELECT count(*) FROM posts WHERE author_id = (SELECT id FROM users WHERE username = '$USERNAME');" \
+  | tr -d ' ' | grep -v '^$')
+
+if [ "$EXISTING_POSTS" -gt 0 ] 2>/dev/null; then
+  echo "==> $EXISTING_POSTS posts already exist — skipping post creation"
+  echo "    To re-seed: TRUNCATE users CASCADE first, then re-run"
+  # Jump to discover data seeding
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  "$SCRIPT_DIR/seed-discover-data.sh" "$API" "$AUTH"
+  echo "==> Done (existing data preserved)"
+  exit 0
+fi
+
 # Media URL prefix: use R2 public URL if configured, otherwise localhost
 # Source .env to check R2 configuration (same dir as backend)
 SCRIPT_DIR_EARLY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

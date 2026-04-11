@@ -484,7 +484,7 @@ class ConstellationLayout {
     final totalHeight = max(nodeBottomY, dayBottomY) + 40;
 
     // Build synapse connections from backend data
-    final connections = _buildSynapses(nodes);
+    final connections = _buildSynapses(nodes, isHorizontal: false);
 
     return LayoutResult(
       nodes: nodes,
@@ -830,7 +830,7 @@ class ConstellationLayout {
     final dayRightX = days.isEmpty ? 0.0 : days.last.left + days.last.width;
     final totalWidth = max(nodeRightX, dayRightX) + 40;
 
-    final connections = _buildSynapses(nodes);
+    final connections = _buildSynapses(nodes, isHorizontal: true);
 
     return LayoutResult(
       nodes: nodes,
@@ -862,7 +862,10 @@ class ConstellationLayout {
   /// Build synapse connections from backend connection data.
   /// Uses outgoingConnections on each post to find connected pairs.
   /// Milestones are skipped — they have no connections.
-  static List<SynapseConnection> _buildSynapses(List<PlacedNode> nodes) {
+  static List<SynapseConnection> _buildSynapses(
+    List<PlacedNode> nodes, {
+    bool isHorizontal = false,
+  }) {
     final connections = <SynapseConnection>[];
     final nodeById = <String, PlacedNode>{};
     for (final node in nodes) {
@@ -884,7 +887,9 @@ class ConstellationLayout {
         final target = nodeById[conn.targetId];
         if (target == null) continue;
 
-        connections.add(_makeSynapse(node, target, conn.connectionType));
+        connections.add(
+          _makeSynapse(node, target, conn.connectionType, isHorizontal),
+        );
       }
 
       for (final conn in post.incomingConnections) {
@@ -894,7 +899,9 @@ class ConstellationLayout {
         final source = nodeById[conn.sourceId];
         if (source == null) continue;
 
-        connections.add(_makeSynapse(source, node, conn.connectionType));
+        connections.add(
+          _makeSynapse(source, node, conn.connectionType, isHorizontal),
+        );
       }
     }
 
@@ -906,6 +913,7 @@ class ConstellationLayout {
     PlacedNode a,
     PlacedNode b,
     ConnectionType connectionType,
+    bool isHorizontal,
   ) {
     final postA = (a.item as PostItem).post;
     final postB = (b.item as PostItem).post;
@@ -920,11 +928,22 @@ class ConstellationLayout {
     final opacity = min(0.08 + postA.importance * 0.32, 0.4) * distFade;
     final width = (0.8 + min(postA.importance * 2.5, 2.5)) * distFade;
 
-    final dy = b.centerY - a.centerY;
-    final cx1 = a.centerX + (b.centerX - a.centerX) * 0.25 + dy * 0.15;
-    final cy1 = a.centerY + (b.centerY - a.centerY) * 0.25;
-    final cx2 = a.centerX + (b.centerX - a.centerX) * 0.75 - dy * 0.15;
-    final cy2 = a.centerY + (b.centerY - a.centerY) * 0.75;
+    final double cx1, cy1, cx2, cy2;
+    if (isHorizontal) {
+      // Horizontal: primary axis is X, curve perpendicular via dx
+      final dx = b.centerX - a.centerX;
+      cx1 = a.centerX + (b.centerX - a.centerX) * 0.25;
+      cy1 = a.centerY + (b.centerY - a.centerY) * 0.25 + dx * 0.15;
+      cx2 = a.centerX + (b.centerX - a.centerX) * 0.75;
+      cy2 = a.centerY + (b.centerY - a.centerY) * 0.75 - dx * 0.15;
+    } else {
+      // Vertical: primary axis is Y, curve perpendicular via dy
+      final dy = b.centerY - a.centerY;
+      cx1 = a.centerX + (b.centerX - a.centerX) * 0.25 + dy * 0.15;
+      cy1 = a.centerY + (b.centerY - a.centerY) * 0.25;
+      cx2 = a.centerX + (b.centerX - a.centerX) * 0.75 - dy * 0.15;
+      cy2 = a.centerY + (b.centerY - a.centerY) * 0.75;
+    }
 
     return SynapseConnection(
       sourcePostId: postA.id,
