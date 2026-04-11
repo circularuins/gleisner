@@ -501,6 +501,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
       const SizedBox(height: spaceMd),
       // External publish toggle
       _buildExternalPublishToggle(),
+      const SizedBox(height: spaceLg),
     ];
   }
 

@@ -830,6 +830,7 @@ class _FormStep extends ConsumerWidget {
       const SizedBox(height: spaceMd),
       // External publish toggle (only when visibility is public)
       _ExternalPublishToggle(ref: ref),
+      const SizedBox(height: spaceLg),
     ];
   }
 
