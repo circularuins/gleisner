@@ -501,10 +501,13 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
             reactionCount: updated.totalReactions,
           );
           final isAudio = updated.mediaType == MediaType.audio;
+          final maxW = _useHorizontal
+              ? _lastWidth * 0.4
+              : _lastWidth - ConstellationLayout.spineWidth - 20;
           final w = isAudio
-              ? min(sz * 1.8, _lastWidth - ConstellationLayout.spineWidth - 20)
+              ? min(sz * 1.8, maxW)
               : sz > 110
-              ? min(sz * 1.25, _lastWidth - ConstellationLayout.spineWidth - 20)
+              ? min(sz * 1.25, maxW)
               : sz;
           final mediaH = isAudio
               ? sz * 0.45

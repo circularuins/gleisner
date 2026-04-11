@@ -637,27 +637,28 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                       ),
                                       const SizedBox(height: spaceMd),
                                       const SizedBox(height: spaceSm),
-                                      Wrap(
-                                        spacing: spaceSm,
-                                        runSpacing: spaceSm,
-                                        children: state.recentPosts
-                                            .map(
-                                              (p) => SizedBox(
-                                                width:
-                                                    (MediaQuery.of(
-                                                          context,
-                                                        ).size.width -
-                                                        spaceXl * 2 -
-                                                        spaceSm) /
-                                                    2,
-                                                child: _RecentPostCard(
-                                                  post: p,
-                                                  onTap: () =>
-                                                      _openPostDetail(p),
-                                                ),
-                                              ),
-                                            )
-                                            .toList(),
+                                      LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          final cardWidth =
+                                              (constraints.maxWidth - spaceSm) /
+                                              2;
+                                          return Wrap(
+                                            spacing: spaceSm,
+                                            runSpacing: spaceSm,
+                                            children: state.recentPosts
+                                                .map(
+                                                  (p) => SizedBox(
+                                                    width: cardWidth,
+                                                    child: _RecentPostCard(
+                                                      post: p,
+                                                      onTap: () =>
+                                                          _openPostDetail(p),
+                                                    ),
+                                                  ),
+                                                )
+                                                .toList(),
+                                          );
+                                        },
                                       ),
                                     ],
 
