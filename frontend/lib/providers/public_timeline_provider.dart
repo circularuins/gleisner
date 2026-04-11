@@ -108,6 +108,7 @@ class PublicTimelineNotifier extends Notifier<TimelineState>
     await _loadSelectedPosts();
   }
 
+  // TODO: Move to Isolate.run() for large datasets (O(n^2) overlap check)
   void computeLayout(
     double width, {
     double height = 0,

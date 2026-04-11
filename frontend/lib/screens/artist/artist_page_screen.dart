@@ -51,6 +51,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
       ref.read(analyticsProvider.notifier).trackPageView('/artist/:username');
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(artistPageProvider.notifier).loadArtist(widget.username);
       // Only load unassigned posts when viewing own artist page
       final myArtist = ref.read(myArtistProvider);

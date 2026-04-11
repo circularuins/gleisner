@@ -475,16 +475,14 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                 builder: (context, constraints) {
                                   final width = constraints.maxWidth;
                                   final height = constraints.maxHeight;
-                                  final screenWidth = MediaQuery.of(
-                                    context,
-                                  ).size.width;
-                                  final useHorizontal = isDesktop(screenWidth);
+                                  final useHorizontal = isDesktop(width);
                                   if (_lastWidth != width ||
                                       _lastHeight != height) {
                                     _lastWidth = width;
                                     _lastHeight = height;
                                     WidgetsBinding.instance
                                         .addPostFrameCallback((_) {
+                                          if (!context.mounted) return;
                                           ref
                                               .read(timelineProvider.notifier)
                                               .computeLayout(
