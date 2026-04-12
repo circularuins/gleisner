@@ -495,9 +495,40 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Not authorized to update this post");
       }
 
+      // Effective media type (args override or existing)
+      const effectiveMediaType =
+        (args.mediaType as string | undefined) ?? post.mediaType;
+
       // Validate title
       if (args.title != null && args.title.length > 100) {
         throw new GraphQLError("Title must be 100 characters or less");
+      }
+
+      // Thought-specific validation
+      if (effectiveMediaType === "thought") {
+        if (args.title != null && args.title.trim() !== "") {
+          throw new GraphQLError("Thought posts cannot have a title");
+        }
+        if ((args.bodyFormat ?? post.bodyFormat) === "delta") {
+          throw new GraphQLError(
+            "Thought posts use plain text only (no rich text)",
+          );
+        }
+        if (args.articleGenre != null) {
+          throw new GraphQLError("articleGenre is only for article posts");
+        }
+      }
+
+      // Article-specific: externalPublish only when visibility is public
+      if (args.externalPublish && effectiveMediaType !== "article") {
+        throw new GraphQLError("externalPublish is only for article posts");
+      }
+      const effectiveVisibility =
+        (args.visibility as string | undefined) ?? post.visibility;
+      if (args.externalPublish && effectiveVisibility !== "public") {
+        throw new GraphQLError(
+          "externalPublish requires visibility to be public",
+        );
       }
 
       // Validate body + bodyFormat
@@ -552,8 +583,14 @@ builder.mutationFields((t) => ({
               }
               updateBodyValue = ops;
             } else {
-              if (args.body.length > 10000) {
-                throw new GraphQLError("Body must be 10000 characters or less");
+              const maxBody =
+                effectiveMediaType === "thought"
+                  ? MAX_THOUGHT_BODY_LENGTH
+                  : 10000;
+              if (args.body.length > maxBody) {
+                throw new GraphQLError(
+                  `Body must be ${maxBody} characters or less`,
+                );
               }
               updateBodyValue = args.body;
             }
@@ -688,7 +725,9 @@ builder.mutationFields((t) => ({
         args.mediaUrl !== undefined ||
         args.mediaType !== undefined ||
         args.importance !== undefined ||
-        args.duration !== undefined;
+        args.duration !== undefined ||
+        args.articleGenre !== undefined ||
+        args.clearArticleGenre;
 
       if (!contentChanged && args.signature !== undefined) {
         throw new GraphQLError(
@@ -723,6 +762,11 @@ builder.mutationFields((t) => ({
           importance:
             args.importance != null ? args.importance : post.importance,
           duration: args.duration !== undefined ? args.duration : post.duration,
+          articleGenre: args.clearArticleGenre
+            ? null
+            : args.articleGenre !== undefined
+              ? args.articleGenre
+              : post.articleGenre,
         });
 
         // Verify signature before committing any hash/signature to updateData

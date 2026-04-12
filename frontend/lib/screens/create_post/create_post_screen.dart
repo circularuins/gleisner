@@ -826,10 +826,10 @@ class _FormStep extends ConsumerWidget {
       TextBodyCounter(controller: quillController),
       const SizedBox(height: spaceMd),
       // Article genre picker
-      _ArticleGenrePicker(ref: ref),
+      const _ArticleGenrePicker(),
       const SizedBox(height: spaceMd),
       // External publish toggle (only when visibility is public)
-      _ExternalPublishToggle(ref: ref),
+      const _ExternalPublishToggle(),
       const SizedBox(height: spaceLg),
     ];
   }
@@ -1530,12 +1530,11 @@ IconData _mediaTypeIcon(MediaType type) {
 }
 
 /// Genre picker for article posts.
-class _ArticleGenrePicker extends StatelessWidget {
-  final WidgetRef ref;
-  const _ArticleGenrePicker({required this.ref});
+class _ArticleGenrePicker extends ConsumerWidget {
+  const _ArticleGenrePicker();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(
       createPostProvider.select((s) => s.articleGenre),
     );
@@ -1585,12 +1584,11 @@ class _ArticleGenrePicker extends StatelessWidget {
 }
 
 /// External publish toggle for article posts (only when visibility is public).
-class _ExternalPublishToggle extends StatelessWidget {
-  final WidgetRef ref;
-  const _ExternalPublishToggle({required this.ref});
+class _ExternalPublishToggle extends ConsumerWidget {
+  const _ExternalPublishToggle();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final visibility = ref.watch(
       createPostProvider.select((s) => s.visibility),
     );
