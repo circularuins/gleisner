@@ -558,6 +558,9 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     bool clearEventAt = false,
     double? importance,
     String? visibility,
+    String? articleGenre,
+    bool clearArticleGenre = false,
+    bool? externalPublish,
   }) async {
     if (thumbnailUrl != null && clearThumbnail) {
       debugPrint(
@@ -602,6 +605,9 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
             if (eventAt != null) 'eventAt': eventAt,
             if (clearEventAt) 'eventAt': null,
             if (importance != null) 'importance': importance,
+            if (articleGenre != null) 'articleGenre': articleGenre,
+            if (clearArticleGenre) 'clearArticleGenre': true,
+            if (externalPublish != null) 'externalPublish': externalPublish,
           },
         ),
       );

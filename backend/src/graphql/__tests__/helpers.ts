@@ -103,8 +103,8 @@ export const CREATE_TRACK_MUTATION = `
 `;
 
 export const CREATE_POST_MUTATION = `
-  mutation CreatePost($trackId: String!, $mediaType: MediaType!, $title: String, $body: String, $mediaUrl: String, $thumbnailUrl: String, $importance: Float, $layoutX: Int, $layoutY: Int, $eventAt: String, $visibility: String) {
-    createPost(trackId: $trackId, mediaType: $mediaType, title: $title, body: $body, mediaUrl: $mediaUrl, thumbnailUrl: $thumbnailUrl, importance: $importance, layoutX: $layoutX, layoutY: $layoutY, eventAt: $eventAt, visibility: $visibility) {
+  mutation CreatePost($trackId: String!, $mediaType: MediaType!, $title: String, $body: String, $bodyFormat: String, $mediaUrl: String, $thumbnailUrl: String, $importance: Float, $layoutX: Int, $layoutY: Int, $eventAt: String, $visibility: String, $articleGenre: ArticleGenre, $externalPublish: Boolean) {
+    createPost(trackId: $trackId, mediaType: $mediaType, title: $title, body: $body, bodyFormat: $bodyFormat, mediaUrl: $mediaUrl, thumbnailUrl: $thumbnailUrl, importance: $importance, layoutX: $layoutX, layoutY: $layoutY, eventAt: $eventAt, visibility: $visibility, articleGenre: $articleGenre, externalPublish: $externalPublish) {
       id mediaType title body mediaUrl thumbnailUrl importance layoutX layoutY visibility createdAt
     }
   }
@@ -247,7 +247,7 @@ export async function createPostForTest(
   const postResult = await gql(
     testApp,
     CREATE_POST_MUTATION,
-    { trackId, mediaType: "text" },
+    { trackId, mediaType: "thought" },
     token,
   );
   return (postResult.data!.createPost as { id: string }).id;

@@ -13,6 +13,8 @@ const postFields = '''
   layoutX
   layoutY
   contentHash
+  articleGenre
+  externalPublish
   ogTitle
   ogDescription
   ogImage

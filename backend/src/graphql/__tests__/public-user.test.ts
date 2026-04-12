@@ -220,7 +220,7 @@ describe("PublicUserType email exposure prevention", () => {
     const postResult = await gql(
       app,
       CREATE_POST_MUTATION,
-      { trackId, mediaType: "text" },
+      { trackId, mediaType: "thought" },
       token,
     );
     const postId = (postResult.data!.createPost as { id: string }).id;
@@ -267,7 +267,7 @@ describe("PublicUserType email exposure prevention", () => {
     const postResult = await gql(
       app,
       CREATE_POST_MUTATION,
-      { trackId, mediaType: "text" },
+      { trackId, mediaType: "thought" },
       token,
     );
     const postId = (postResult.data!.createPost as { id: string }).id;
@@ -313,7 +313,7 @@ describe("PublicUserType email exposure prevention", () => {
     const postResult = await gql(
       app,
       CREATE_POST_MUTATION,
-      { trackId, mediaType: "text" },
+      { trackId, mediaType: "thought" },
       token,
     );
     const postId = (postResult.data!.createPost as { id: string }).id;
@@ -353,7 +353,7 @@ describe("PublicUserType email exposure prevention", () => {
     const postResult = await gql(
       app,
       CREATE_POST_MUTATION,
-      { trackId, mediaType: "text" },
+      { trackId, mediaType: "thought" },
       token,
     );
     const postId = (postResult.data!.createPost as { id: string }).id;

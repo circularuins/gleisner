@@ -36,6 +36,7 @@ export function computeContentHash(fields: {
   mediaType: string;
   importance: number;
   duration?: number | null;
+  articleGenre?: string | null;
 }): string {
   // Normalize body to plain text for format-independent hashing
   let bodyText = "";
@@ -52,6 +53,7 @@ export function computeContentHash(fields: {
     mediaType: fields.mediaType,
     importance: fields.importance,
     duration: fields.duration ?? null,
+    articleGenre: fields.articleGenre ?? null,
   });
   return createHash("sha256").update(canonical).digest("hex");
 }

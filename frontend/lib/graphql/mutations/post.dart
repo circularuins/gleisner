@@ -13,7 +13,9 @@ const createPostMutation =
     \$duration: Int,
     \$importance: Float,
     \$visibility: String,
-    \$eventAt: String
+    \$eventAt: String,
+    \$articleGenre: ArticleGenre,
+    \$externalPublish: Boolean
   ) {
     createPost(
       trackId: \$trackId,
@@ -26,7 +28,9 @@ const createPostMutation =
       duration: \$duration,
       importance: \$importance,
       visibility: \$visibility,
-      eventAt: \$eventAt
+      eventAt: \$eventAt,
+      articleGenre: \$articleGenre,
+      externalPublish: \$externalPublish
     ) {
       $postFields
     }
@@ -46,7 +50,10 @@ const updatePostMutation =
     \$duration: Int,
     \$importance: Float,
     \$visibility: String,
-    \$eventAt: String
+    \$eventAt: String,
+    \$articleGenre: ArticleGenre,
+    \$clearArticleGenre: Boolean,
+    \$externalPublish: Boolean
   ) {
     updatePost(
       id: \$id,
@@ -59,7 +66,10 @@ const updatePostMutation =
       duration: \$duration,
       importance: \$importance,
       visibility: \$visibility,
-      eventAt: \$eventAt
+      eventAt: \$eventAt,
+      articleGenre: \$articleGenre,
+      clearArticleGenre: \$clearArticleGenre,
+      externalPublish: \$externalPublish
     ) {
       $postFields
     }

@@ -56,6 +56,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   String? _thumbnailUrl;
   int? _durationSeconds;
   DateTime? _eventAt;
+  ArticleGenre? _articleGenre;
+  late bool _externalPublish;
   // IME-safe FocusNodes — block Tab during composition
   late final FocusNode _titleFocusNode;
   late final FocusNode _bodyFocusNode;
@@ -76,7 +78,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         document: Document.fromJson(widget.post.bodyDelta!),
         selection: const TextSelection.collapsed(offset: 0),
       );
-    } else if (widget.post.mediaType == MediaType.text &&
+    } else if (widget.post.mediaType == MediaType.article &&
         widget.post.body != null) {
       // Convert plain text to Delta for editing
       _quillController = QuillController(
@@ -95,6 +97,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     _thumbnailUrl = widget.post.thumbnailUrl;
     _durationSeconds = widget.post.duration;
     _eventAt = widget.post.eventAt;
+    _articleGenre = widget.post.articleGenre;
+    _externalPublish = widget.post.externalPublish;
   }
 
   @override
@@ -112,8 +116,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Prevent clearing media file for non-text types
-    if (widget.post.mediaType != MediaType.text &&
+    // Prevent clearing media file for media types (not thought/article/link)
+    if (widget.post.mediaType != MediaType.article &&
+        widget.post.mediaType != MediaType.thought &&
         _mediaUrlController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -132,10 +137,10 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     final title = _titleController.text.trim();
     final mediaUrl = _mediaUrlController.text.trim();
 
-    // For text type, use Quill Delta; for others, use plain body
+    // Article: use Quill Delta; Thought + others: use plain body
     String body;
     String? bodyFormat;
-    if (widget.post.mediaType == MediaType.text) {
+    if (widget.post.mediaType == MediaType.article) {
       final delta = _quillController.document.toDelta().toJson();
       body = jsonEncode(delta);
       bodyFormat = 'delta';
@@ -174,6 +179,10 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,
             visibility: _visibility,
+            articleGenre: _articleGenre?.name,
+            clearArticleGenre:
+                _articleGenre == null && widget.post.articleGenre != null,
+            externalPublish: _externalPublish,
           );
     } else {
       updated = await ref
@@ -195,6 +204,10 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,
             visibility: _visibility,
+            articleGenre: _articleGenre?.name,
+            clearArticleGenre:
+                _articleGenre == null && widget.post.articleGenre != null,
+            externalPublish: _externalPublish,
           );
     }
 
@@ -394,7 +407,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
 
   List<Widget> _buildContentFields() {
     switch (widget.post.mediaType) {
-      case MediaType.text:
+      case MediaType.thought:
+        return _buildThoughtFields();
+      case MediaType.article:
         return _buildTextFields();
       case MediaType.image:
       case MediaType.video:
@@ -403,6 +418,38 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
       case MediaType.link:
         return _buildLinkFields();
     }
+  }
+
+  List<Widget> _buildThoughtFields() {
+    return [
+      Container(
+        decoration: BoxDecoration(
+          color: colorSurface1,
+          borderRadius: BorderRadius.circular(radiusLg),
+          border: Border.all(color: colorBorder),
+        ),
+        child: TextField(
+          controller: _bodyController,
+          maxLines: 6,
+          maxLength: 280,
+          style: const TextStyle(
+            color: colorTextPrimary,
+            fontSize: fontSizeMd,
+            height: 1.5,
+          ),
+          decoration: const InputDecoration(
+            hintText: "What's on your mind?",
+            hintStyle: TextStyle(color: colorInteractiveMuted),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.all(spaceLg),
+            counterStyle: TextStyle(
+              color: colorTextMuted,
+              fontSize: fontSizeXs,
+            ),
+          ),
+        ),
+      ),
+    ];
   }
 
   List<Widget> _buildTextFields() {
@@ -448,7 +495,90 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         ),
       ),
       TextBodyCounter(controller: _quillController),
+      const SizedBox(height: spaceMd),
+      // Article genre picker
+      _buildArticleGenrePicker(),
+      const SizedBox(height: spaceMd),
+      // External publish toggle
+      _buildExternalPublishToggle(),
+      const SizedBox(height: spaceLg),
     ];
+  }
+
+  Widget _buildArticleGenrePicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Genre',
+          style: TextStyle(
+            color: colorTextMuted,
+            fontSize: fontSizeSm,
+            fontWeight: weightSemibold,
+          ),
+        ),
+        const SizedBox(height: spaceXs),
+        Wrap(
+          spacing: spaceSm,
+          runSpacing: spaceXs,
+          children: ArticleGenre.values.map((genre) {
+            final isSelected = genre == _articleGenre;
+            return ChoiceChip(
+              label: Text(
+                genre.label,
+                style: TextStyle(
+                  fontSize: fontSizeSm,
+                  color: isSelected ? colorSurface0 : colorTextSecondary,
+                ),
+              ),
+              selected: isSelected,
+              selectedColor: colorAccentGold,
+              backgroundColor: colorSurface1,
+              side: BorderSide(
+                color: isSelected ? colorAccentGold : colorBorder,
+              ),
+              onSelected: (on) {
+                setState(() => _articleGenre = on ? genre : null);
+              },
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExternalPublishToggle() {
+    if (_visibility != 'public') return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                'Publish externally',
+                style: TextStyle(
+                  color: colorTextSecondary,
+                  fontSize: fontSizeSm,
+                  fontWeight: weightMedium,
+                ),
+              ),
+              SizedBox(height: spaceXxs),
+              Text(
+                'Make available on the public article site',
+                style: TextStyle(color: colorTextMuted, fontSize: fontSizeXs),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          value: _externalPublish,
+          activeColor: colorAccentGold,
+          onChanged: (v) => setState(() => _externalPublish = v),
+        ),
+      ],
+    );
   }
 
   List<Widget> _buildMediaFields() {

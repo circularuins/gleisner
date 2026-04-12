@@ -65,19 +65,19 @@ describe("Constellation GraphQL integration", () => {
     const postA = await gql(
       app,
       CREATE_POST_MUTATION,
-      { trackId, mediaType: "text" },
+      { trackId, mediaType: "thought" },
       token,
     );
     const postB = await gql(
       app,
       CREATE_POST_MUTATION,
-      { trackId, mediaType: "text" },
+      { trackId, mediaType: "thought" },
       token,
     );
     const postC = await gql(
       app,
       CREATE_POST_MUTATION,
-      { trackId, mediaType: "text" },
+      { trackId, mediaType: "thought" },
       token,
     );
     const idA = (postA.data!.createPost as { id: string }).id;

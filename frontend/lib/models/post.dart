@@ -31,7 +31,31 @@ class PostAuthor {
   }
 }
 
-enum MediaType { text, image, video, audio, link }
+enum MediaType { thought, article, image, video, audio, link }
+
+enum ArticleGenre {
+  fiction,
+  poetry,
+  essay,
+  technical,
+  opinion,
+  diary,
+  review,
+  travel,
+  other;
+
+  String get label => switch (this) {
+    fiction => 'Fiction',
+    poetry => 'Poetry',
+    essay => 'Essay',
+    technical => 'Technical',
+    opinion => 'Opinion',
+    diary => 'Diary',
+    review => 'Review',
+    travel => 'Travel',
+    other => 'Other',
+  };
+}
 
 class ReactionCount {
   final String emoji;
@@ -148,6 +172,9 @@ class Post {
   final List<PostConnection> outgoingConnections;
   final List<PostConnection> incomingConnections;
   final PostConstellation? constellation;
+  // Article metadata
+  final ArticleGenre? articleGenre;
+  final bool externalPublish;
   // OGP metadata (link-type posts only)
   final String? ogTitle;
   final String? ogDescription;
@@ -181,6 +208,8 @@ class Post {
     this.outgoingConnections = const [],
     this.incomingConnections = const [],
     this.constellation,
+    this.articleGenre,
+    this.externalPublish = false,
     this.ogTitle,
     this.ogDescription,
     this.ogImage,
@@ -209,6 +238,8 @@ class Post {
     List<PostConnection>? outgoingConnections,
     List<PostConnection>? incomingConnections,
     Object? constellation = sentinel,
+    Object? articleGenre = sentinel,
+    Object? externalPublish = sentinel,
     Object? ogTitle = sentinel,
     Object? ogDescription = sentinel,
     Object? ogImage = sentinel,
@@ -251,6 +282,12 @@ class Post {
       constellation: constellation == sentinel
           ? this.constellation
           : constellation as PostConstellation?,
+      articleGenre: articleGenre == sentinel
+          ? this.articleGenre
+          : articleGenre as ArticleGenre?,
+      externalPublish: externalPublish == sentinel
+          ? this.externalPublish
+          : externalPublish as bool,
       ogTitle: ogTitle == sentinel ? this.ogTitle : ogTitle as String?,
       ogDescription: ogDescription == sentinel
           ? this.ogDescription
@@ -377,6 +414,8 @@ class Post {
               json['constellation'] as Map<String, dynamic>,
             )
           : null,
+      articleGenre: _parseArticleGenre(json['articleGenre'] as String?),
+      externalPublish: json['externalPublish'] as bool? ?? false,
       ogTitle: json['ogTitle'] as String?,
       ogDescription: json['ogDescription'] as String?,
       ogImage: json['ogImage'] as String?,
@@ -386,10 +425,20 @@ class Post {
 }
 
 MediaType _parseMediaType(String value) {
+  // Backward compatibility: 'text' → 'article'
+  if (value == 'text') return MediaType.article;
   for (final type in MediaType.values) {
     if (type.name == value) return type;
   }
-  return MediaType.text;
+  return MediaType.article;
+}
+
+ArticleGenre? _parseArticleGenre(String? value) {
+  if (value == null) return null;
+  for (final genre in ArticleGenre.values) {
+    if (genre.name == value) return genre;
+  }
+  return null;
 }
 
 /// Parse Delta ops from body string when bodyFormat is 'delta'.

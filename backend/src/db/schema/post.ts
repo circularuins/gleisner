@@ -5,6 +5,7 @@ import {
   text,
   real,
   integer,
+  boolean,
   timestamp,
   pgEnum,
   jsonb,
@@ -14,7 +15,8 @@ import { tracks } from "./track.js";
 import { users } from "./user.js";
 
 export const mediaTypeEnum = pgEnum("media_type", [
-  "text",
+  "thought",
+  "article",
   "image",
   "video",
   "audio",
@@ -52,6 +54,8 @@ export const posts = pgTable(
     ogImage: text("og_image"),
     ogSiteName: varchar("og_site_name", { length: 100 }),
     ogFetchedAt: timestamp("og_fetched_at", { withTimezone: true }),
+    articleGenre: varchar("article_genre", { length: 20 }),
+    externalPublish: boolean("external_publish").default(false).notNull(),
     eventAt: timestamp("event_at", { withTimezone: true }),
     layoutX: integer("layout_x").default(0).notNull(),
     layoutY: integer("layout_y").default(0).notNull(),

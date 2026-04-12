@@ -181,7 +181,7 @@ async function createPostForTest(
   const postResult = await gql(
     app,
     CREATE_POST_MUTATION,
-    { trackId, mediaType: "text" },
+    { trackId, mediaType: "thought" },
     token,
   );
   return (postResult.data!.createPost as { id: string }).id;

@@ -114,17 +114,23 @@ fi
 create_post "$PLAY" "Flamenco-session" 1.0 video 55 "$MEDIA_URL/flamenco.mp4"
 create_post "$PLAY" "Chord-melody-practice" 0.6 video 48 "$MEDIA_URL/chord-melody.mp4"
 create_post "$PLAY" "Blues-scale-workout" 0.25 audio 150 "$MEDIA_URL/blues-scale.mp3"
-create_post "$PLAY" "New-rasgueado-pattern" 0.8 text "" "" "Been working on a new rasgueado technique all week. The key insight: instead of fanning all four fingers evenly, I delay the ring finger slightly to create a triplet feel against the strummed bass. It sounds almost like two guitarists playing at once. Still need to clean up the transition back into picado, but the core pattern is solid. Going to try it on the Bulerias piece next."
+create_post "$PLAY" "New-rasgueado-pattern" 0.8 article "" "" "Been working on a new rasgueado technique all week. The key insight: instead of fanning all four fingers evenly, I delay the ring finger slightly to create a triplet feel against the strummed bass. It sounds almost like two guitarists playing at once. Still need to clean up the transition back into picado, but the core pattern is solid. Going to try it on the Bulerias piece next."
 create_post "$PLAY" "Fingerpicking-exercise" 0.15 audio 290 "$MEDIA_URL/fingerpicking.mp3"
-create_post "$PLAY" "Jazz-improv-notes" 0.4 text "" "" "Transcribed the Wes Montgomery solo from Four on Six today. His octave technique is deceptively simple — the real magic is in the rhythmic displacement. He anticipates the chord changes by a half beat, creating this floating feeling over the groove. Tried applying the same concept to my own ii-V-I lines and it immediately made everything sound more musical. Less notes, more intention."
+create_post "$PLAY" "Jazz-improv-notes" 0.4 article "" "" "Transcribed the Wes Montgomery solo from Four on Six today. His octave technique is deceptively simple — the real magic is in the rhythmic displacement. He anticipates the chord changes by a half beat, creating this floating feeling over the groove. Tried applying the same concept to my own ii-V-I lines and it immediately made everything sound more musical. Less notes, more intention."
+# Thought posts (short, no title, max 280 chars)
+create_post "$PLAY" "" 0.2 thought "" "" "Finally nailed that rasgueado pattern. Fingers are sore but the sound is worth it."
+create_post "$COMPOSE" "" 0.15 thought "" "" "3am and the melody won't leave my head. Recording a voice memo before I forget."
+create_post "$LIFE" "" 0.05 thought "" "" "Coffee, guitar, sunrise. Perfect morning."
+create_post "$ENGLISH" "" 0.1 thought "" "" "TIL the word 'serendipity' — finding something good without looking for it. That's basically how I write music."
+
 create_post "$PLAY" "Live-at-open-mic" 0.95 video 58 "$MEDIA_URL/open-mic.mp4"
 
 # Compose track
 create_post "$COMPOSE" "Final-mix-Sunrise" 0.8 audio 222 "$MEDIA_URL/sunrise-final.mp3"
 create_post "$COMPOSE" "Sidechain-experiment" 0.3 audio 48 "$MEDIA_URL/sidechain.mp3"
 create_post "$COMPOSE" "WIP-Sunrise-Protocol" 0.65 audio 107 "$MEDIA_URL/sunrise-wip.mp3"
-create_post "$COMPOSE" "Mix-notes" 0.1 text "" "" "Mixing session notes: The kick and bass are finally sitting right after sidechain compression at 3:1 ratio with 20ms attack. Vocals need more air around 12kHz — shelf boost maybe +2dB. The bridge section still feels empty. Thinking about adding a reversed reverb swell from the guitar hook. Also the snare sounds papery on laptop speakers, need to check the 200Hz region."
-create_post "$COMPOSE" "Lyrics-Digital-Citizen" 0.4 text "" "" "Draft lyrics for Digital Citizen (verse 2):\n\nWe built our homes on borrowed ground\nServers hum where roots should grow\nEvery memory a rented room\nEvery voice an echo of the algorithm\n\nBut I remember the sound of rain on a real window\nAnd the weight of a letter that someone actually wrote\n\nStill working on the chorus. The theme is about reclaiming authenticity in digital spaces — which is literally what this platform is about."
+create_post "$COMPOSE" "Mix-notes" 0.1 article "" "" "Mixing session notes: The kick and bass are finally sitting right after sidechain compression at 3:1 ratio with 20ms attack. Vocals need more air around 12kHz — shelf boost maybe +2dB. The bridge section still feels empty. Thinking about adding a reversed reverb swell from the guitar hook. Also the snare sounds papery on laptop speakers, need to check the 200Hz region."
+create_post "$COMPOSE" "Lyrics-Digital-Citizen" 0.4 article "" "" "Draft lyrics for Digital Citizen (verse 2):\n\nWe built our homes on borrowed ground\nServers hum where roots should grow\nEvery memory a rented room\nEvery voice an echo of the algorithm\n\nBut I remember the sound of rain on a real window\nAnd the weight of a letter that someone actually wrote\n\nStill working on the chorus. The theme is about reclaiming authenticity in digital spaces — which is literally what this platform is about."
 create_post "$COMPOSE" "Beat-tape-vol3" 0.55 audio 295 "$MEDIA_URL/beat-tape-v3.mp3"
 
 # Life track
@@ -137,7 +143,7 @@ create_post "$LIFE" "Birthday" 0.6 image "" "$MEDIA_URL/birthday.jpg"
 # English track
 create_post "$ENGLISH" "1K-followers-thankyou" 0.9 video 42 "$MEDIA_URL/1k-thankyou.mp4"
 create_post "$ENGLISH" "QA-How-I-started" 0.6 video 56 "$MEDIA_URL/qa-how-started.mp4"
-create_post "$ENGLISH" "English-diary-5" 0.15 text "" "" "English diary day 5. Today I tried explaining my music production process in English to a friend from Berlin. I kept mixing up past tense and present tense when talking about the creative process. She said my English is getting much better though. New words I learned: resonance, overtone, sustain (I knew these in a music context but not how to use them in casual conversation). Going to try writing my next song bio in English first instead of translating from Japanese."
+create_post "$ENGLISH" "English-diary-5" 0.15 article "" "" "English diary day 5. Today I tried explaining my music production process in English to a friend from Berlin. I kept mixing up past tense and present tense when talking about the creative process. She said my English is getting much better though. New words I learned: resonance, overtone, sustain (I knew these in a music context but not how to use them in casual conversation). Going to try writing my next song bio in English first instead of translating from Japanese."
 create_post "$ENGLISH" "Studio-tour" 0.55 video 50 "$MEDIA_URL/studio-tour.mp4"
 
 # Live track
@@ -148,26 +154,26 @@ create_post "$LIVE" "Evening-jam-circle" 0.85 audio 280 "$MEDIA_URL/evening-jam.
 
 # Studio track
 create_post "$STUDIO" "Sketch-Neon-Garden" 0.35 audio 72 "$MEDIA_URL/neon-garden.mp3"
-create_post "$STUDIO" "EP-structure" 0.1 text "" "" "EP track listing draft:\n\n1. Glass Ocean (intro, 1:30) — ambient pads + reversed guitar\n2. Neon Garden (3:45) — uptempo, main single candidate\n3. Sunrise Protocol (4:12) — the one with the sidechain experiment\n4. Digital Citizen (3:58) — lyrics almost done\n5. Midnight Drift (outro, 2:15) — stripped back, just guitar + delay\n\nTotal runtime ~15:40. Might be too short? But I like the idea of a tight, focused EP rather than padding it out. Quality over quantity."
+create_post "$STUDIO" "EP-structure" 0.1 article "" "" "EP track listing draft:\n\n1. Glass Ocean (intro, 1:30) — ambient pads + reversed guitar\n2. Neon Garden (3:45) — uptempo, main single candidate\n3. Sunrise Protocol (4:12) — the one with the sidechain experiment\n4. Digital Citizen (3:58) — lyrics almost done\n5. Midnight Drift (outro, 2:15) — stripped back, just guitar + delay\n\nTotal runtime ~15:40. Might be too short? But I like the idea of a tight, focused EP rather than padding it out. Quality over quantity."
 create_post "$STUDIO" "Collab-sketch" 0.7 audio 93 "$MEDIA_URL/collab.mp3"
 create_post "$STUDIO" "Demo-Glass-Ocean" 0.65 audio 178 "$MEDIA_URL/glass-ocean.mp3"
 create_post "$STUDIO" "cool-guitar-lesson" 0.45 link "" "https://www.youtube.com/watch?v=example"
 create_post "$STUDIO" "music-theory-resource" 0.2 link "" "https://musictheory.net"
 
 # Rich text (delta format) posts — blog/essay style
-create_post "$COMPOSE" "Why-I-Chose-Flamenco" 0.75 text "" "" \
+create_post "$COMPOSE" "Why-I-Chose-Flamenco" 0.75 article "" "" \
   '[{"insert":"Why I Chose Flamenco Over Classical\n","attributes":{"header":1}},{"insert":"\nI get asked this a lot. The short answer: "},{"insert":"flamenco chose me","attributes":{"bold":true}},{"insert":".\n\nI spent eight years studying classical guitar. Scales, arpeggios, sight-reading — the whole conservatory path. And I was good at it. But something always felt "},{"insert":"missing","attributes":{"italic":true}},{"insert":".\n\n"},{"insert":"The turning point","attributes":{"header":2}},{"insert":"\nIt was a Tuesday night in Seville. I wandered into a bar where an old man was playing. No sheet music, no fancy technique — just raw emotion flowing through six strings.\n\n"},{"insert":"That moment changed everything.","attributes":{"bold":true}},{"insert":"\n\nHe played one "},{"insert":"falseta","attributes":{"italic":true}},{"insert":" that made the whole room hold its breath. When I asked him how long he had been playing, he laughed and said:\n\n"},{"insert":"You don'\''t play flamenco. You live it.","attributes":{"blockquote":true}},{"insert":"\n\n"},{"insert":"What flamenco taught me","attributes":{"header":2}},{"insert":"\n"},{"insert":"Rhythm is a conversation, not a metronome","attributes":{"list":"bullet"}},{"insert":"\n"},{"insert":"Imperfection is part of the beauty","attributes":{"list":"bullet"}},{"insert":"\n"},{"insert":"Music exists in the silence between notes","attributes":{"list":"bullet"}},{"insert":"\n\nI still practice classical exercises for technique. But when I perform, when I "},{"insert":"create","attributes":{"italic":true}},{"insert":" — it'\''s always flamenco.\n"}]' \
   "delta"
 
-create_post "$LIFE" "Morning-Pages" 0.1 text "" "" \
+create_post "$LIFE" "Morning-Pages" 0.1 article "" "" \
   '[{"insert":"Morning pages — stream of consciousness\n","attributes":{"header":3}},{"insert":"\nWoke up at 5:30 again. The birds outside are getting louder as spring settles in. Made coffee, sat on the balcony.\n\nThree things I'\''m grateful for today:\n"},{"insert":"The new strings I put on yesterday — they ring so bright","attributes":{"list":"ordered"}},{"insert":"\n"},{"insert":"That message from the fan in Brazil who covered my song","attributes":{"list":"ordered"}},{"insert":"\n"},{"insert":"Simple mornings like this one","attributes":{"list":"ordered"}},{"insert":"\n\nToday'\''s plan: finish the bridge section for "},{"insert":"Digital Citizen","attributes":{"bold":true}},{"insert":", then head to the park for some fresh air. Maybe bring the ukulele.\n"}]' \
   "delta"
 
-create_post "$ENGLISH" "Learning-Log-Week12" 0.3 text "" "" \
+create_post "$ENGLISH" "Learning-Log-Week12" 0.3 article "" "" \
   '[{"insert":"English Learning Log — Week 12\n","attributes":{"header":1}},{"insert":"\n"},{"insert":"New vocabulary","attributes":{"header":2}},{"insert":"\n"},{"insert":"resonance","attributes":{"bold":true}},{"insert":" — the quality of being deep and full (used it to describe my guitar tone in a podcast interview)\n"},{"insert":"serendipity","attributes":{"bold":true}},{"insert":" — finding something good without looking for it\n"},{"insert":"ephemeral","attributes":{"bold":true}},{"insert":" — lasting for a very short time (perfect word for live performances)\n\n"},{"insert":"Grammar note","attributes":{"header":2}},{"insert":"\nStill struggling with the present perfect vs past simple:\n\n"},{"insert":"I have played guitar for 15 years","attributes":{"code":true}},{"insert":" (correct — still playing)\n"},{"insert":"I played guitar yesterday","attributes":{"code":true}},{"insert":" (correct — specific past time)\n\nThe trick: if the time period is "},{"insert":"still ongoing","attributes":{"italic":true}},{"insert":", use present perfect.\n\n"},{"insert":"Next week'\''s goal: write a full blog post in English without checking the dictionary more than 3 times.","attributes":{"bold":true}},{"insert":"\n"}]' \
   "delta"
 
-echo "==> 35 posts created (32 plain + 3 rich text)"
+echo "==> 39 posts created (4 thought + 6 article + 3 rich text article + 12 media + 2 link)"
 
 # 7. Spread dates across 2 weeks
 docker exec gleisner-db psql -U gleisner -d gleisner -q -c "

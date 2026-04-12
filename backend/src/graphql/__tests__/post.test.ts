@@ -296,13 +296,13 @@ describe("Post GraphQL integration", () => {
       const result = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text" },
+        { trackId, mediaType: "thought" },
         token,
       );
 
       expect(result.errors).toBeUndefined();
       const post = result.data!.createPost as Record<string, unknown>;
-      expect(post.mediaType).toBe("text");
+      expect(post.mediaType).toBe("thought");
       expect(post.title).toBeNull();
       expect(post.body).toBeNull();
       expect(post.mediaUrl).toBeNull();
@@ -314,7 +314,7 @@ describe("Post GraphQL integration", () => {
     it("rejects unauthenticated request", async () => {
       const result = await gql(app, CREATE_POST_MUTATION, {
         trackId: "00000000-0000-0000-0000-000000000000",
-        mediaType: "text",
+        mediaType: "thought",
       });
 
       expect(result.errors).toBeDefined();
@@ -374,7 +374,7 @@ describe("Post GraphQL integration", () => {
       const result = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "Text Only" },
+        { trackId, mediaType: "article", title: "Text Only" },
         token,
       );
 
@@ -412,7 +412,7 @@ describe("Post GraphQL integration", () => {
         CREATE_POST_MUTATION,
         {
           trackId: "00000000-0000-0000-0000-000000000000",
-          mediaType: "text",
+          mediaType: "thought",
         },
         token,
       );
@@ -440,7 +440,7 @@ describe("Post GraphQL integration", () => {
       const result = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text" },
+        { trackId, mediaType: "thought" },
         otherToken,
       );
 
@@ -461,7 +461,7 @@ describe("Post GraphQL integration", () => {
       const result = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "a".repeat(101) },
+        { trackId, mediaType: "article", title: "a".repeat(101) },
         token,
       );
 
@@ -482,7 +482,7 @@ describe("Post GraphQL integration", () => {
       const result = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", importance: 1.5 },
+        { trackId, mediaType: "thought", importance: 1.5 },
         token,
       );
 
@@ -503,13 +503,90 @@ describe("Post GraphQL integration", () => {
       const result = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", body: "a".repeat(10001) },
+        { trackId, mediaType: "thought", body: "a".repeat(281) },
         token,
       );
 
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toContain(
-        "Body must be 10000 characters or less",
+        "Body must be 280 characters or less",
+      );
+    });
+
+    it("rejects thought post with title", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "thoughttitle@example.com",
+        "thoughttitleuser",
+        "thoughttitleartist",
+      );
+      const result = await gql(
+        app,
+        CREATE_POST_MUTATION,
+        { trackId, mediaType: "thought", title: "Not allowed", body: "Hi" },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "Thought posts cannot have a title",
+      );
+    });
+
+    it("rejects thought post with delta bodyFormat", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "thoughtdelta@example.com",
+        "thoughtdeltauser",
+        "thoughtdeltaartist",
+      );
+      const THOUGHT_DELTA_MUTATION = `
+        mutation($trackId: String!, $mediaType: MediaType!, $body: String, $bodyFormat: String) {
+          createPost(trackId: $trackId, mediaType: $mediaType, body: $body, bodyFormat: $bodyFormat) { id }
+        }
+      `;
+      const result = await gql(
+        app,
+        THOUGHT_DELTA_MUTATION,
+        {
+          trackId,
+          mediaType: "thought",
+          body: '[{"insert":"hi"}]',
+          bodyFormat: "delta",
+        },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "Thought posts use plain text only (no rich text)",
+      );
+    });
+
+    it("rejects externalPublish on non-article type", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "thoughtext@example.com",
+        "thoughtextuser",
+        "thoughtextartist",
+      );
+      const EXT_PUBLISH_MUTATION = `
+        mutation($trackId: String!, $mediaType: MediaType!, $body: String, $externalPublish: Boolean) {
+          createPost(trackId: $trackId, mediaType: $mediaType, body: $body, externalPublish: $externalPublish) { id }
+        }
+      `;
+      const result = await gql(
+        app,
+        EXT_PUBLISH_MUTATION,
+        {
+          trackId,
+          mediaType: "thought",
+          body: "Hi",
+          externalPublish: true,
+        },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "externalPublish is only for article posts",
       );
     });
   });
@@ -526,7 +603,7 @@ describe("Post GraphQL integration", () => {
       const createResult = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "Original" },
+        { trackId, mediaType: "article", title: "Original" },
         token,
       );
       const postId = (createResult.data!.createPost as { id: string }).id;
@@ -563,7 +640,7 @@ describe("Post GraphQL integration", () => {
       const createResult = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "Text Post" },
+        { trackId, mediaType: "article", title: "Text Post" },
         token,
       );
       const postId = (createResult.data!.createPost as { id: string }).id;
@@ -631,7 +708,7 @@ describe("Post GraphQL integration", () => {
       const createResult = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "Mine" },
+        { trackId, mediaType: "article", title: "Mine" },
         token,
       );
       const postId = (createResult.data!.createPost as { id: string }).id;
@@ -670,7 +747,7 @@ describe("Post GraphQL integration", () => {
       const createResult = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "Original" },
+        { trackId, mediaType: "article", title: "Original" },
         token,
       );
       const postId = (createResult.data!.createPost as { id: string }).id;
@@ -699,7 +776,7 @@ describe("Post GraphQL integration", () => {
       const createResult = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "Original" },
+        { trackId, mediaType: "article", title: "Original" },
         token,
       );
       const postId = (createResult.data!.createPost as { id: string }).id;
@@ -730,7 +807,7 @@ describe("Post GraphQL integration", () => {
       const createResult = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "ToDelete" },
+        { trackId, mediaType: "article", title: "ToDelete" },
         token,
       );
       const postId = (createResult.data!.createPost as { id: string }).id;
@@ -768,7 +845,7 @@ describe("Post GraphQL integration", () => {
       const createResult = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "NotYours" },
+        { trackId, mediaType: "article", title: "NotYours" },
         token,
       );
       const postId = (createResult.data!.createPost as { id: string }).id;
@@ -839,7 +916,7 @@ describe("Post GraphQL integration", () => {
       await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "Post A" },
+        { trackId, mediaType: "article", title: "Post A" },
         token,
       );
       await gql(
@@ -885,7 +962,7 @@ describe("Post GraphQL integration", () => {
       await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "Nested Post" },
+        { trackId, mediaType: "article", title: "Nested Post" },
         token,
       );
 
@@ -911,7 +988,7 @@ describe("Post GraphQL integration", () => {
       const createResult = await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "With Relations" },
+        { trackId, mediaType: "article", title: "With Relations" },
         token,
       );
       const postId = (createResult.data!.createPost as { id: string }).id;
@@ -971,7 +1048,7 @@ describe("Post GraphQL integration", () => {
       await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "Orphan A" },
+        { trackId, mediaType: "article", title: "Orphan A" },
         token,
       );
       await gql(
@@ -1022,7 +1099,7 @@ describe("Post GraphQL integration", () => {
       await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "User1 Post" },
+        { trackId, mediaType: "article", title: "User1 Post" },
         token1,
       );
       await gql(app, DELETE_TRACK_MUTATION_LOCAL, { id: trackId }, token1);
@@ -1046,7 +1123,7 @@ describe("Post GraphQL integration", () => {
       await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId, mediaType: "text", title: "Will Vanish" },
+        { trackId, mediaType: "article", title: "Will Vanish" },
         token,
       );
       await gql(app, DELETE_TRACK_MUTATION_LOCAL, { id: trackId }, token);
@@ -1063,7 +1140,7 @@ describe("Post GraphQL integration", () => {
       await gql(
         app,
         CREATE_POST_MUTATION,
-        { trackId: newTrackId, mediaType: "text", title: "Visible Post" },
+        { trackId: newTrackId, mediaType: "article", title: "Visible Post" },
         token,
       );
 
@@ -1122,7 +1199,7 @@ describe("Post GraphQL integration", () => {
       const result = await gql(
         app,
         CREATE_POST_WITH_HASH,
-        { trackId, mediaType: "text", title: "Hash Test", body: "Body" },
+        { trackId, mediaType: "article", title: "Hash Test", body: "Body" },
         token,
       );
 
@@ -1145,7 +1222,7 @@ describe("Post GraphQL integration", () => {
       const createResult = await gql(
         app,
         CREATE_POST_WITH_HASH,
-        { trackId, mediaType: "text", title: "Original" },
+        { trackId, mediaType: "article", title: "Original" },
         token,
       );
       const created = createResult.data!.createPost as Record<string, unknown>;
@@ -1208,7 +1285,7 @@ describe("Post GraphQL integration", () => {
         title: "Signed Post",
         body: null,
         mediaUrl: null,
-        mediaType: "text",
+        mediaType: "article",
         importance: 0.5,
       });
       const sigBuf = sign(null, Buffer.from(contentHash), testPrivKey);
@@ -1219,7 +1296,7 @@ describe("Post GraphQL integration", () => {
         CREATE_POST_WITH_HASH,
         {
           trackId,
-          mediaType: "text",
+          mediaType: "article",
           title: "Signed Post",
           signature: signatureB64,
         },
@@ -1245,7 +1322,7 @@ describe("Post GraphQL integration", () => {
         CREATE_POST_WITH_HASH,
         {
           trackId,
-          mediaType: "text",
+          mediaType: "article",
           title: "Bad Sig",
           signature:
             "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
@@ -1295,7 +1372,7 @@ describe("Post GraphQL integration", () => {
         title: "Signed Original",
         body: null,
         mediaUrl: null,
-        mediaType: "text",
+        mediaType: "article",
         importance: 0.5,
       });
       const { sign } = await import("node:crypto");
@@ -1307,7 +1384,7 @@ describe("Post GraphQL integration", () => {
         CREATE_POST_WITH_HASH,
         {
           trackId,
-          mediaType: "text",
+          mediaType: "article",
           title: "Signed Original",
           signature: signatureB64,
         },
@@ -1436,7 +1513,7 @@ describe("Post GraphQL integration", () => {
       const result = await gql(
         app,
         CREATE_POST_WITH_DURATION,
-        { trackId, mediaType: "text", duration: 3600 },
+        { trackId, mediaType: "thought", duration: 3600 },
         token,
       );
       expect(result.errors).toBeUndefined();
@@ -1491,7 +1568,7 @@ describe("Post GraphQL integration", () => {
       const createResult = await gql(
         app,
         CREATE_POST_WITH_DURATION,
-        { trackId, mediaType: "text", duration: 120 },
+        { trackId, mediaType: "thought", duration: 120 },
         token,
       );
       const postId = (createResult.data!.createPost as { id: string }).id;
@@ -1551,7 +1628,7 @@ describe("Post GraphQL integration", () => {
       const createResult = await gql(
         app,
         CREATE_POST_WITH_DURATION,
-        { trackId, mediaType: "text", duration: 120 },
+        { trackId, mediaType: "thought", duration: 120 },
         token,
       );
       const postId = (createResult.data!.createPost as { id: string }).id;

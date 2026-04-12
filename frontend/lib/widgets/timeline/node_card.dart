@@ -13,7 +13,8 @@ import 'seed_art_painter.dart';
 /// Border radius by media type.
 BorderRadius _borderForType(MediaType type) {
   return switch (type) {
-    MediaType.text => BorderRadius.circular(radiusMd),
+    MediaType.thought => BorderRadius.circular(radiusXl),
+    MediaType.article => BorderRadius.circular(radiusMd),
     MediaType.image => BorderRadius.circular(radiusXl),
     MediaType.video => const BorderRadius.only(
       topLeft: Radius.circular(radiusLg),
@@ -288,12 +289,63 @@ class _NodeCardState extends State<NodeCard>
 
   Widget _buildContent(PlacedNode node, Color trackColor) {
     return switch ((node.item as PostItem).post.mediaType) {
-      MediaType.text => _TextContent(node: node, trackColor: trackColor),
+      MediaType.thought => _ThoughtContent(node: node, trackColor: trackColor),
+      MediaType.article => _TextContent(node: node, trackColor: trackColor),
       MediaType.image => _ImageContent(node: node, trackColor: trackColor),
       MediaType.video => _VideoContent(node: node, trackColor: trackColor),
       MediaType.audio => _AudioContent(node: node, trackColor: trackColor),
       MediaType.link => _LinkContent(node: node, trackColor: trackColor),
     };
+  }
+}
+
+// --- Thought: bubble with body text, no title ---
+class _ThoughtContent extends StatelessWidget {
+  final PlacedNode node;
+  final Color trackColor;
+
+  const _ThoughtContent({required this.node, required this.trackColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final post = (node.item as PostItem).post;
+    final preview = post.plainTextPreview ?? '';
+    final isLarge = node.nodeSize > 110;
+
+    final pad = isLarge ? spaceMd : spaceSm;
+
+    return Container(
+      padding: EdgeInsets.all(pad),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            trackColor.withValues(alpha: 0.06),
+            trackColor.withValues(alpha: 0.12),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(radiusXl),
+        border: Border.all(
+          color: trackColor.withValues(alpha: 0.15),
+          width: 0.5,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          preview,
+          style: TextStyle(
+            color: colorTextPrimary.withValues(alpha: 0.85),
+            fontSize: isLarge ? fontSizeSm : fontSizeXs,
+            height: 1.4,
+            fontStyle: FontStyle.italic,
+          ),
+          maxLines: isLarge ? 5 : 3,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
   }
 }
 

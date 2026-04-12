@@ -66,6 +66,9 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
     bool clearEventAt = false,
     double? importance,
     String? visibility,
+    String? articleGenre,
+    bool clearArticleGenre = false,
+    bool? externalPublish,
   }) async {
     if (thumbnailUrl != null && clearThumbnail) {
       debugPrint(
@@ -104,6 +107,9 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
             if (clearEventAt) 'eventAt': null,
             if (importance != null) 'importance': importance,
             if (visibility != null) 'visibility': visibility,
+            if (articleGenre != null) 'articleGenre': articleGenre,
+            if (clearArticleGenre) 'clearArticleGenre': true,
+            if (externalPublish != null) 'externalPublish': externalPublish,
           },
         ),
       );

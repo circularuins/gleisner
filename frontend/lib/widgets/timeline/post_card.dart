@@ -10,7 +10,8 @@ class PostCard extends StatelessWidget {
   const PostCard({super.key, required this.post, required this.trackColor});
 
   IconData get _mediaIcon => switch (post.mediaType) {
-    MediaType.text => Icons.article_outlined,
+    MediaType.thought => Icons.chat_bubble_outline,
+    MediaType.article => Icons.description_outlined,
     MediaType.image => Icons.image_outlined,
     MediaType.video => Icons.videocam_outlined,
     MediaType.audio => Icons.audiotrack_outlined,
