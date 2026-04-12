@@ -425,3 +425,78 @@ seed スクリプトの `create_post` は `> /dev/null` でエラーを握り潰
 - [ ] 新しい必須フィールドを追加した場合 → seed の `create_post` にフィールドを追加
 
 PR #197 の教訓: PR #195 で動画60秒/音声300秒制限を追加したが seed データ未更新 → 12件の投稿が無言で失敗 → 17件の connection が全滅。
+
+### MediaType enum 値の追加/変更チェックリスト
+
+**⚠ MediaType の enum 値を追加・変更・削除する場合、以下を同時に更新すること:**
+
+バックエンド:
+1. `src/db/schema/post.ts` の `mediaTypeEnum` 配列
+2. `src/graphql/types/post.ts` の `MediaTypeEnum` + `PostShape` の `mediaType` 型
+3. `src/graphql/types/post.ts` の `createPost` バリデーション（型固有の制約）
+4. `src/graphql/types/post.ts` の `updatePost` バリデーション（**createPost と同等の制約を漏れなく**）
+5. `src/auth/signing.ts` の `computeContentHash`（型固有フィールドがある場合）
+6. `src/graphql/__tests__/helpers.ts` の `CREATE_POST_MUTATION` 文字列（新引数追加時）
+7. `src/graphql/__tests__/post.test.ts` の全テストで旧 enum 値を新値に置換
+8. マイグレーション SQL（既存データの変換 + enum 再作成）
+9. `scripts/seed-test-data.sh` + `scripts/seed-discover-data.sh` の投稿データ
+
+フロントエンド:
+10. `lib/models/post.dart` の `MediaType` enum + `_parseMediaType` + backward compat
+11. `lib/graphql/queries/post.dart` の `postFields`（型固有フィールド追加時）
+12. `lib/graphql/mutations/post.dart` の `createPostMutation` / `updatePostMutation`（新引数）
+13. 全 switch expression（`dart analyze` で exhaustive check エラーとして検出可能）
+14. `create_post_screen.dart` の型選択 UI + フォーム分岐
+15. `edit_post_screen.dart` のフォーム分岐
+16. `node_card.dart` のノード表示分岐
+17. `post_detail_sheet.dart` のメディアエリア + コンテンツセクション分岐
+
+PR #202 の教訓: text → thought + article の分割で 20箇所以上の同時更新が必要だった。switch exhaustive check のおかげでフロントエンドのコンパイルエラーは検出できたが、バックエンドのバリデーション漏れは3回のレビューで段階的に発見。
+
+### updatePost のバリデーションは createPost と完全同等にする
+
+**createPost に型固有のバリデーションを追加した場合、updatePost にも同じバリデーションを effective value パターンで追加すること。**
+
+「effective value パターン」とは、`args` の値だけでなく既存の `post` の値も組み合わせてバリデーションすること。mediaType を変更する場合、変更後の型の制約を既存データにも適用する必要がある。
+
+```typescript
+// ❌ args のみチェック — mediaType 変更時に既存データをバイパス
+if (args.mediaType === "thought") {
+  if (args.title != null) throw ...;  // 既存の title は見ていない
+}
+
+// ✅ effective value で既存値も再チェック
+const effectiveMediaType = args.mediaType ?? post.mediaType;
+if (effectiveMediaType === "thought") {
+  const effectiveTitle = args.title !== undefined ? args.title : post.title;
+  if (effectiveTitle != null && effectiveTitle.trim() !== "") throw ...;
+}
+```
+
+対象: mediaType 固有のバリデーション、フィールド間の cross-check（externalPublish × visibility 等）。
+
+PR #202 の教訓: createPost に thought の制約を追加 → updatePost に忘れ → effective value も漏れ → 3回のレビューで段階的に修正。
+
+### テスト helpers の mutation 文字列は引数追加時に必ず更新
+
+**GraphQL mutation/query に新しい引数を追加した場合、`src/graphql/__tests__/helpers.ts` の対応する mutation 文字列にも同じ引数を追加すること。**
+
+helpers の mutation 文字列に引数がないと、テストで変数として渡しても GraphQL が無視する（`undefined` として resolver に届く）。結果、バリデーションテストが空振りして通過してしまう。
+
+```typescript
+// ❌ helpers に bodyFormat がない → テストで bodyFormat: "delta" を渡しても無視される
+const CREATE_POST_MUTATION = `
+  mutation($trackId: String!, $mediaType: MediaType!, $body: String) {
+    createPost(trackId: $trackId, mediaType: $mediaType, body: $body) { id }
+  }
+`;
+
+// ✅ 新引数を追加
+const CREATE_POST_MUTATION = `
+  mutation($trackId: String!, $mediaType: MediaType!, $body: String, $bodyFormat: String) {
+    createPost(trackId: $trackId, mediaType: $mediaType, body: $body, bodyFormat: $bodyFormat) { id }
+  }
+`;
+```
+
+PR #202 の教訓: `bodyFormat` と `externalPublish` を helpers に追加し忘れ、thought のバリデーションテストが空振り。インライン mutation で通ったことで原因が判明。
