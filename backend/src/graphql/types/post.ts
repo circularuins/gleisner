@@ -373,6 +373,7 @@ builder.mutationFields((t) => ({
         mediaType: args.mediaType,
         importance: args.importance ?? 0.5,
         duration: args.duration ?? null,
+        articleGenre: args.articleGenre ?? null,
       });
 
       // Signature is optional for MVP: clients that support Ed25519 signing
@@ -504,9 +505,12 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Title must be 100 characters or less");
       }
 
-      // Thought-specific validation
+      // Thought-specific validation (effective value pattern)
       if (effectiveMediaType === "thought") {
-        if (args.title != null && args.title.trim() !== "") {
+        // Title: check both args and existing
+        const effectiveTitle =
+          args.title !== undefined ? args.title : post.title;
+        if (effectiveTitle != null && effectiveTitle.trim() !== "") {
           throw new GraphQLError("Thought posts cannot have a title");
         }
         if ((args.bodyFormat ?? post.bodyFormat) === "delta") {
@@ -514,18 +518,28 @@ builder.mutationFields((t) => ({
             "Thought posts use plain text only (no rich text)",
           );
         }
-        if (args.articleGenre != null) {
+        // articleGenre: check both args and existing
+        const effectiveGenre = args.clearArticleGenre
+          ? null
+          : args.articleGenre !== undefined
+            ? args.articleGenre
+            : post.articleGenre;
+        if (effectiveGenre != null) {
           throw new GraphQLError("articleGenre is only for article posts");
         }
       }
 
-      // Article-specific: externalPublish only when visibility is public
-      if (args.externalPublish && effectiveMediaType !== "article") {
-        throw new GraphQLError("externalPublish is only for article posts");
-      }
+      // externalPublish: effective value pattern
+      const effectiveExternalPublish =
+        args.externalPublish !== undefined
+          ? args.externalPublish
+          : post.externalPublish;
       const effectiveVisibility =
         (args.visibility as string | undefined) ?? post.visibility;
-      if (args.externalPublish && effectiveVisibility !== "public") {
+      if (effectiveExternalPublish && effectiveMediaType !== "article") {
+        throw new GraphQLError("externalPublish is only for article posts");
+      }
+      if (effectiveExternalPublish && effectiveVisibility !== "public") {
         throw new GraphQLError(
           "externalPublish requires visibility to be public",
         );
