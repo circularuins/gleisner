@@ -527,6 +527,19 @@ builder.mutationFields((t) => ({
         if (effectiveGenre != null) {
           throw new GraphQLError("articleGenre is only for article posts");
         }
+        // Body length: check effective value (existing body may exceed 280 chars
+        // when mediaType is changed from article to thought without updating body)
+        const effectiveBody =
+          args.body !== undefined ? args.body : (post.body as string | null);
+        if (
+          effectiveBody != null &&
+          typeof effectiveBody === "string" &&
+          effectiveBody.length > MAX_THOUGHT_BODY_LENGTH
+        ) {
+          throw new GraphQLError(
+            `Body must be ${MAX_THOUGHT_BODY_LENGTH} characters or less`,
+          );
+        }
       }
 
       // externalPublish: effective value pattern

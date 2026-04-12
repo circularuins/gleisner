@@ -512,6 +512,83 @@ describe("Post GraphQL integration", () => {
         "Body must be 280 characters or less",
       );
     });
+
+    it("rejects thought post with title", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "thoughttitle@example.com",
+        "thoughttitleuser",
+        "thoughttitleartist",
+      );
+      const result = await gql(
+        app,
+        CREATE_POST_MUTATION,
+        { trackId, mediaType: "thought", title: "Not allowed", body: "Hi" },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "Thought posts cannot have a title",
+      );
+    });
+
+    it("rejects thought post with delta bodyFormat", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "thoughtdelta@example.com",
+        "thoughtdeltauser",
+        "thoughtdeltaartist",
+      );
+      const THOUGHT_DELTA_MUTATION = `
+        mutation($trackId: String!, $mediaType: MediaType!, $body: String, $bodyFormat: String) {
+          createPost(trackId: $trackId, mediaType: $mediaType, body: $body, bodyFormat: $bodyFormat) { id }
+        }
+      `;
+      const result = await gql(
+        app,
+        THOUGHT_DELTA_MUTATION,
+        {
+          trackId,
+          mediaType: "thought",
+          body: '[{"insert":"hi"}]',
+          bodyFormat: "delta",
+        },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "Thought posts use plain text only (no rich text)",
+      );
+    });
+
+    it("rejects externalPublish on non-article type", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "thoughtext@example.com",
+        "thoughtextuser",
+        "thoughtextartist",
+      );
+      const EXT_PUBLISH_MUTATION = `
+        mutation($trackId: String!, $mediaType: MediaType!, $body: String, $externalPublish: Boolean) {
+          createPost(trackId: $trackId, mediaType: $mediaType, body: $body, externalPublish: $externalPublish) { id }
+        }
+      `;
+      const result = await gql(
+        app,
+        EXT_PUBLISH_MUTATION,
+        {
+          trackId,
+          mediaType: "thought",
+          body: "Hi",
+          externalPublish: true,
+        },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "externalPublish is only for article posts",
+      );
+    });
   });
 
   describe("updatePost", () => {
