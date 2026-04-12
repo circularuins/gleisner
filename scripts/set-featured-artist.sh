@@ -24,14 +24,13 @@ fi
 
 DB_CONTAINER="gleisner-db"
 
-echo "==> Clearing previous featured artist..."
-docker exec "$DB_CONTAINER" psql -U gleisner -d gleisner -c \
-  "UPDATE artists SET is_featured = false WHERE is_featured = true;"
-
 echo "==> Setting '$USERNAME' as featured artist..."
 # USERNAME is validated above (alphanumeric + underscore only), safe to embed in SQL.
 # psql -v/:'var' parameterization doesn't work reliably through docker exec.
-RESULT=$(docker exec "$DB_CONTAINER" psql -U gleisner -d gleisner -t -c \
+# Both UPDATEs run in a single transaction (--single-transaction) to avoid
+# a window where no artist is featured.
+RESULT=$(docker exec "$DB_CONTAINER" psql -U gleisner -d gleisner -t --single-transaction -c \
+  "UPDATE artists SET is_featured = false WHERE is_featured = true;" -c \
   "UPDATE artists SET is_featured = true WHERE artist_username = '$USERNAME' AND profile_visibility = 'public' RETURNING artist_username;")
 
 if [ -z "$(echo "$RESULT" | tr -d '[:space:]')" ]; then

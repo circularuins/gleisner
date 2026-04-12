@@ -7,6 +7,7 @@ interface Env {
   ASSETS: Fetcher;
 }
 
+// Keep in sync with backend/src/routes/ogp.ts
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{1,30}$/;
 
 const BOT_USER_AGENTS = [

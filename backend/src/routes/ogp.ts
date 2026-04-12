@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 
 const ogp = new Hono();
 
+// Keep in sync with frontend/functions/[[path]].ts
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{1,30}$/;
 
 function escapeHtml(str: string): string {
