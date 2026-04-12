@@ -29,9 +29,10 @@ docker exec "$DB_CONTAINER" psql -U gleisner -d gleisner -c \
   "UPDATE artists SET is_featured = false WHERE is_featured = true;"
 
 echo "==> Setting '$USERNAME' as featured artist..."
-RESULT=$(docker exec "$DB_CONTAINER" psql -U gleisner -d gleisner -t \
-  -v username="$USERNAME" \
-  -c "UPDATE artists SET is_featured = true WHERE artist_username = :'username' AND profile_visibility = 'public' RETURNING artist_username;")
+# USERNAME is validated above (alphanumeric + underscore only), safe to embed in SQL.
+# psql -v/:'var' parameterization doesn't work reliably through docker exec.
+RESULT=$(docker exec "$DB_CONTAINER" psql -U gleisner -d gleisner -t -c \
+  "UPDATE artists SET is_featured = true WHERE artist_username = '$USERNAME' AND profile_visibility = 'public' RETURNING artist_username;")
 
 if [ -z "$(echo "$RESULT" | tr -d '[:space:]')" ]; then
   echo "Error: Artist '$USERNAME' not found or profile is not public."
