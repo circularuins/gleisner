@@ -71,6 +71,20 @@
       "when": 1775929456355,
       "tag": "0009_wide_human_fly",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775973025280,
+      "tag": "0010_melodic_red_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1775974604594,
+      "tag": "0011_strong_obadiah_stane",
+      "breakpoints": true
     }
   ]
 }

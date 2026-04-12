@@ -1,0 +1,1 @@
+CREATE INDEX "artists_featured_visibility_idx" ON "artists" USING btree ("is_featured","profile_visibility");

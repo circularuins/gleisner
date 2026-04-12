@@ -2,7 +2,7 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, artistGenres } from "../../db/schema/index.js";
-import { and, eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, asc, sql } from "drizzle-orm";
 import { validateProfileVisibility, validateMediaUrl } from "../validators.js";
 import { checkArtistAccess } from "../access.js";
 
@@ -228,6 +228,40 @@ builder.mutationFields((t) => ({
 }));
 
 builder.queryFields((t) => ({
+  featuredArtist: t.field({
+    type: ArtistType,
+    nullable: true,
+    resolve: async () => {
+      const [artist] = await db
+        .select({
+          id: artists.id,
+          userId: artists.userId,
+          artistUsername: artists.artistUsername,
+          displayName: artists.displayName,
+          bio: artists.bio,
+          tagline: artists.tagline,
+          location: artists.location,
+          activeSince: artists.activeSince,
+          avatarUrl: artists.avatarUrl,
+          coverImageUrl: artists.coverImageUrl,
+          profileVisibility: artists.profileVisibility,
+          tunedInCount: artists.tunedInCount,
+          createdAt: artists.createdAt,
+          updatedAt: artists.updatedAt,
+        })
+        .from(artists)
+        .where(
+          and(
+            eq(artists.isFeatured, true),
+            eq(artists.profileVisibility, "public"),
+          ),
+        )
+        .orderBy(asc(artists.createdAt))
+        .limit(1);
+      return artist ?? null;
+    },
+  }),
+
   artist: t.field({
     type: ArtistType,
     nullable: true,
