@@ -186,7 +186,10 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                   imageUrl: artist.coverImageUrl,
                                   seed: artist.artistUsername,
                                   onTap: isSelf
-                                      ? () => _uploadCoverImage(context)
+                                      ? () => _showCoverMenu(
+                                          context,
+                                          artist.coverImageUrl != null,
+                                        )
                                       : null,
                                 ),
                                 // Gradient fade at bottom (IgnorePointer so taps pass through to CoverImage)
@@ -235,7 +238,10 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                       seed: artist.artistUsername,
                                       size: 72,
                                       onTap: isSelf
-                                          ? () => _uploadAvatarImage(context)
+                                          ? () => _showAvatarMenu(
+                                              context,
+                                              artist.avatarUrl != null,
+                                            )
                                           : null,
                                     ),
                                     const SizedBox(height: spaceMd),
@@ -785,6 +791,86 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                 ],
               ],
             ),
+    );
+  }
+
+  void _showAvatarMenu(BuildContext context, bool hasAvatar) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colorSurface1,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: colorTextPrimary),
+              title: const Text(
+                'Change avatar',
+                style: TextStyle(color: colorTextPrimary),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _uploadAvatarImage(context);
+              },
+            ),
+            if (hasAvatar)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: colorError),
+                title: const Text(
+                  'Remove avatar',
+                  style: TextStyle(color: colorError),
+                ),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await ref
+                      .read(editArtistProvider.notifier)
+                      .updateArtist(clearAvatarUrl: true);
+                  if (context.mounted) _refreshAfterUpload();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCoverMenu(BuildContext context, bool hasCover) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colorSurface1,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: colorTextPrimary),
+              title: const Text(
+                'Change cover',
+                style: TextStyle(color: colorTextPrimary),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _uploadCoverImage(context);
+              },
+            ),
+            if (hasCover)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: colorError),
+                title: const Text(
+                  'Remove cover',
+                  style: TextStyle(color: colorError),
+                ),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await ref
+                      .read(editArtistProvider.notifier)
+                      .updateArtist(clearCoverImageUrl: true);
+                  if (context.mounted) _refreshAfterUpload();
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 

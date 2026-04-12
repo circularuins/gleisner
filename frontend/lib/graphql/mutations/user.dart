@@ -10,3 +10,9 @@ const updateMeMutation = r'''
     }
   }
 ''';
+
+const deleteAccountMutation = r'''
+  mutation DeleteAccount($password: String!) {
+    deleteAccount(password: $password)
+  }
+''';

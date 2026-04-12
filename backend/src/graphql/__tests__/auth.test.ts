@@ -293,4 +293,118 @@ describe("Auth GraphQL integration", () => {
       expect(result.data!.me).toBeNull();
     });
   });
+
+  async function signupAndGetToken(email: string, username: string) {
+    const result = await gql(app, SIGNUP_MUTATION, {
+      email,
+      password: "password123",
+      username,
+      birthYearMonth: "1990-01",
+    });
+    return (result.data!.signup as { token: string }).token;
+  }
+
+  const CREATE_CHILD = `
+    mutation CreateChildAccount($username: String!, $birthYearMonth: String!, $guardianPassword: String!) {
+      createChildAccount(username: $username, birthYearMonth: $birthYearMonth, guardianPassword: $guardianPassword) {
+        id username
+      }
+    }
+  `;
+
+  const SWITCH_TO_CHILD = `
+    mutation SwitchToChild($childId: String!) {
+      switchToChild(childId: $childId) {
+        token
+        user { id username isChildAccount }
+      }
+    }
+  `;
+
+  describe("deleteAccount", () => {
+    const DELETE_ACCOUNT = `
+      mutation DeleteAccount($password: String!) {
+        deleteAccount(password: $password)
+      }
+    `;
+
+    it("deletes account with correct password", async () => {
+      const token = await signupAndGetToken("del@test.com", "deluser");
+
+      const result = await gql(
+        app,
+        DELETE_ACCOUNT,
+        { password: "password123" },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data!.deleteAccount).toBe(true);
+
+      // Verify user is gone
+      const me = await gql(app, ME_QUERY, {}, token);
+      expect(me.data!.me).toBeNull();
+    });
+
+    it("rejects with wrong password", async () => {
+      const token = await signupAndGetToken("del2@test.com", "deluser2");
+
+      const result = await gql(
+        app,
+        DELETE_ACCOUNT,
+        { password: "wrong_password" },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe("Invalid password");
+    });
+
+    it("rejects child account deletion", async () => {
+      const guardianToken = await signupAndGetToken(
+        "delguard@test.com",
+        "delguard",
+      );
+
+      const childResult = await gql(
+        app,
+        CREATE_CHILD,
+        {
+          username: "delchild",
+          birthYearMonth: "2020-01",
+          guardianPassword: "password123",
+        },
+        guardianToken,
+      );
+      const childId = (childResult.data!.createChildAccount as { id: string })
+        .id;
+
+      const switchResult = await gql(
+        app,
+        SWITCH_TO_CHILD,
+        { childId },
+        guardianToken,
+      );
+      const childToken = (switchResult.data!.switchToChild as { token: string })
+        .token;
+
+      const result = await gql(
+        app,
+        DELETE_ACCOUNT,
+        { password: "anything" },
+        childToken,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("Child accounts");
+    });
+
+    it("requires authentication", async () => {
+      const result = await gql(app, DELETE_ACCOUNT, {
+        password: "password123",
+      });
+
+      expect(result.errors).toBeDefined();
+    });
+  });
 });

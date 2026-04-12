@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
 import '../../graphql/client.dart';
+import '../../graphql/mutations/user.dart';
 import '../../models/user.dart';
 import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -384,11 +386,109 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 },
                 child: const Text('Logout'),
               ),
+
+              const SizedBox(height: spaceXxl),
+
+              // Delete Account
+              if (!authState.user!.isChildAccount)
+                TextButton(
+                  onPressed: () => _showDeleteAccountDialog(context, ref),
+                  child: const Text(
+                    'Delete Account',
+                    style: TextStyle(color: colorError, fontSize: fontSizeSm),
+                  ),
+                ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _showDeleteAccountDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final passwordController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colorSurface1,
+        title: const Text(
+          'Delete your account?',
+          style: TextStyle(color: colorTextPrimary),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This action is permanent and cannot be undone. All your posts, tracks, connections, and media will be deleted.',
+              style: TextStyle(color: colorTextSecondary),
+            ),
+            const SizedBox(height: spaceLg),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Enter your password to confirm',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Delete Account',
+              style: TextStyle(color: colorError),
+            ),
+          ),
+        ],
+      ),
+    );
+    final password = passwordController.text;
+    passwordController.dispose();
+
+    if (confirmed != true || !context.mounted) return;
+    if (password.isEmpty) return;
+
+    final client = ref.read(graphqlClientProvider);
+    final result = await client.mutate(
+      MutationOptions(
+        document: gql(deleteAccountMutation),
+        variables: {'password': password},
+      ),
+    );
+
+    if (!context.mounted) return;
+
+    if (result.hasException) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete account. Check your password.'),
+        ),
+      );
+      return;
+    }
+
+    // Clear all state and navigate to login
+    await ref.read(authProvider.notifier).logout();
+    ref.invalidate(graphqlClientProvider);
+    ref.invalidate(timelineProvider);
+    ref.invalidate(myArtistProvider);
+    ref.invalidate(tuneInProvider);
+    ref.invalidate(discoverProvider);
+    ref.invalidate(unassignedPostsProvider);
+    ref.invalidate(analyticsProvider);
+    ref.invalidate(guardianProvider);
+    await ref.read(tutorialProvider.notifier).reset();
+    ref.invalidate(tutorialProvider);
   }
 
   Widget _buildChildCard(User child) {

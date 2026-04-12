@@ -2,7 +2,7 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { constellations, artists, posts } from "../../db/schema/index.js";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { PostType } from "./post.js";
 import {
   findConstellationPostIds,
@@ -153,6 +153,38 @@ builder.mutationFields((t) => ({
         .where(eq(constellations.id, args.id))
         .returning();
       return updated;
+    },
+  }),
+
+  deleteConstellation: t.field({
+    type: "Boolean",
+    args: {
+      id: t.arg.string({ required: true }),
+    },
+    resolve: async (_parent, args, ctx) => {
+      if (!ctx.authUser) {
+        throw new GraphQLError("Authentication required");
+      }
+
+      // Auth + existence check in a single JOIN query
+      const [result] = await db
+        .select({ constellationId: constellations.id })
+        .from(constellations)
+        .innerJoin(artists, eq(constellations.artistId, artists.id))
+        .where(
+          and(
+            eq(constellations.id, args.id),
+            eq(artists.userId, ctx.authUser.userId),
+          ),
+        )
+        .limit(1);
+
+      if (!result) {
+        throw new GraphQLError("Constellation not found or not authorized");
+      }
+
+      await db.delete(constellations).where(eq(constellations.id, args.id));
+      return true;
     },
   }),
 }));

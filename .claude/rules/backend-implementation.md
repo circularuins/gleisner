@@ -500,3 +500,66 @@ const CREATE_POST_MUTATION = `
 ```
 
 PR #202 の教訓: `bodyFormat` と `externalPublish` を helpers に追加し忘れ、thought のバリデーションテストが空振り。インライン mutation で通ったことで原因が判明。
+
+### Hono ルーティングで `@` を含むパスパラメータ
+
+**`/@:param` パターンは Hono で動作しない。** `@` がルーターに正しく解釈されず、ルートハンドラーに到達しない（404 が返る）。`/:param` でセグメント全体をキャプチャし、`startsWith("@")` でバリデーションすること。
+
+```typescript
+// ❌ ルートハンドラーに到達しない
+ogp.get("/@:username", async (c) => {
+  const username = c.req.param("username");
+  // ...
+});
+
+// ✅ セグメント全体をキャプチャして @ をスライス
+ogp.get("/:atUsername", async (c) => {
+  const atUsername = c.req.param("atUsername") as string;
+  if (!atUsername.startsWith("@")) return c.notFound();
+  const username = atUsername.slice(1);
+  // ...
+});
+```
+
+PR #203 の教訓: テストで 404 が返り続け、デバッグログ → 直接ルーターテスト → パターン変更と 4 回のサイクルを要した。
+
+### `docker exec` 経由の psql パラメータ化が動作しない
+
+**`docker exec` 経由で psql の `-v`/`:'var'` パラメータ束縛を使うと、クォート処理の差異で構文エラーになる。** バリデーション済み（`^[a-zA-Z0-9_]+$` 等）の入力に限り、直接埋め込み + コメント明記で対応する。
+
+```bash
+# ❌ docker exec 経由では :'var' が壊れる
+docker exec "$CONTAINER" psql -U user -d db -t \
+  -v username="$USERNAME" \
+  -c "SELECT * FROM t WHERE name = :'username';"
+# → ERROR: syntax error at or near ":"
+
+# ✅ バリデーション通過済みの値を直接埋め込み（理由をコメントで明記）
+# USERNAME is validated above (alphanumeric + underscore only), safe to embed.
+# psql -v/:'var' parameterization doesn't work reliably through docker exec.
+docker exec "$CONTAINER" psql -U user -d db -t -c \
+  "SELECT * FROM t WHERE name = '$USERNAME';"
+```
+
+PR #203 の教訓: セキュリティレビューで psql パラメータ化に修正 → docker exec で構文エラー → バリデーション + コメントで解決。
+
+### REST エンドポイントのテスト方法
+
+**GraphQL 以外の REST エンドポイント（OGP 等）をテストする場合、テストデータの作成は GraphQL signup 経由で行うこと。** `users` テーブルへの直接 INSERT は NOT NULL 制約（`did`, `publicKey`, `passwordSalt` 等）で失敗する。
+
+```typescript
+// ❌ 直接 INSERT — NOT NULL 制約で失敗
+await db.execute(
+  sql`INSERT INTO users (username, email, password_hash) VALUES (...)`,
+);
+
+// ✅ GraphQL signup ヘルパーでユーザー作成 → REST エンドポイントをテスト
+const token = await signupAndGetToken(app, "ogp@test.com", "ogpuser");
+await gql(app, REGISTER_ARTIST_MUTATION, { ... }, token);
+const res = await app.request("/ogp/@ogpartist");
+expect(res.status).toBe(200);
+```
+
+テスト用 Hono app は `app.route("/ogp", ogp)` で REST ルートも mount し、同一インスタンスで GraphQL + REST の両方をテストする。
+
+PR #203 の教訓: users テーブルの直接 INSERT で `did` NOT NULL 違反 → GraphQL 経由に切り替えて解決。

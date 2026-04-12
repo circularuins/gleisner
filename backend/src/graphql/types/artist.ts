@@ -5,6 +5,7 @@ import { artists, artistGenres } from "../../db/schema/index.js";
 import { and, eq, desc, asc, sql } from "drizzle-orm";
 import { validateProfileVisibility, validateMediaUrl } from "../validators.js";
 import { checkArtistAccess } from "../access.js";
+import { deleteR2Object } from "../../storage/r2.js";
 
 export const ArtistType = builder.objectRef<{
   id: string;
@@ -151,7 +152,9 @@ builder.mutationFields((t) => ({
       location: t.arg.string(),
       activeSince: t.arg.int(),
       avatarUrl: t.arg.string(),
+      clearAvatarUrl: t.arg.boolean(),
       coverImageUrl: t.arg.string(),
+      clearCoverImageUrl: t.arg.boolean(),
       profileVisibility: t.arg.string(),
     },
     resolve: async (_parent, args, ctx) => {
@@ -208,9 +211,24 @@ builder.mutationFields((t) => ({
       if (args.location !== undefined) updateData.location = args.location;
       if (args.activeSince !== undefined)
         updateData.activeSince = args.activeSince;
-      if (args.avatarUrl !== undefined) updateData.avatarUrl = args.avatarUrl;
-      if (args.coverImageUrl !== undefined)
+      if (args.clearAvatarUrl && args.avatarUrl != null) {
+        throw new GraphQLError("Cannot set and clear avatarUrl simultaneously");
+      }
+      if (args.clearCoverImageUrl && args.coverImageUrl != null) {
+        throw new GraphQLError(
+          "Cannot set and clear coverImageUrl simultaneously",
+        );
+      }
+      if (args.clearAvatarUrl) {
+        updateData.avatarUrl = null;
+      } else if (args.avatarUrl !== undefined) {
+        updateData.avatarUrl = args.avatarUrl;
+      }
+      if (args.clearCoverImageUrl) {
+        updateData.coverImageUrl = null;
+      } else if (args.coverImageUrl !== undefined) {
         updateData.coverImageUrl = args.coverImageUrl;
+      }
       if (args.profileVisibility !== undefined) {
         validateProfileVisibility(args.profileVisibility as string);
         updateData.profileVisibility = args.profileVisibility;
@@ -221,6 +239,19 @@ builder.mutationFields((t) => ({
         .set(updateData)
         .where(eq(artists.id, existing.id))
         .returning();
+
+      // R2 fire-and-forget: clean up old files when avatar/cover changes
+      // Auth confirmed: existing is the current user's artist (userId check above)
+      if (updateData.avatarUrl !== undefined && existing.avatarUrl) {
+        deleteR2Object(existing.avatarUrl).catch((err) =>
+          console.error("[updateArtist] R2 avatar cleanup failed:", err),
+        );
+      }
+      if (updateData.coverImageUrl !== undefined && existing.coverImageUrl) {
+        deleteR2Object(existing.coverImageUrl).catch((err) =>
+          console.error("[updateArtist] R2 cover cleanup failed:", err),
+        );
+      }
 
       return updated;
     },

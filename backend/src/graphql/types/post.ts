@@ -15,6 +15,7 @@ import {
 } from "../validators.js";
 import { checkArtistAccess } from "../access.js";
 import { fetchOgpMetadata } from "../../ogp/fetcher.js";
+import { deleteR2Object } from "../../storage/r2.js";
 
 /** Media types that require a file upload (mediaUrl must be non-null). */
 const MEDIA_FILE_REQUIRED_TYPES = ["image", "video", "audio"];
@@ -833,7 +834,11 @@ builder.mutationFields((t) => ({
       }
 
       const [post] = await db
-        .select()
+        .select({
+          authorId: posts.authorId,
+          mediaUrl: posts.mediaUrl,
+          thumbnailUrl: posts.thumbnailUrl,
+        })
         .from(posts)
         .where(eq(posts.id, args.id))
         .limit(1);
@@ -849,6 +854,18 @@ builder.mutationFields((t) => ({
         .delete(posts)
         .where(eq(posts.id, args.id))
         .returning();
+
+      // R2 fire-and-forget: DB deletion takes priority, R2 orphans are acceptable
+      if (post.mediaUrl) {
+        deleteR2Object(post.mediaUrl).catch((err) =>
+          console.error("[deletePost] R2 media cleanup failed:", err),
+        );
+      }
+      if (post.thumbnailUrl) {
+        deleteR2Object(post.thumbnailUrl).catch((err) =>
+          console.error("[deletePost] R2 thumbnail cleanup failed:", err),
+        );
+      }
 
       return deleted;
     },
