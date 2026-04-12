@@ -30,15 +30,20 @@ class PublicTimelineScreen extends ConsumerStatefulWidget {
       _PublicTimelineScreenState();
 }
 
-class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
+class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen>
+    with SingleTickerProviderStateMixin {
   double? _lastWidth;
   double? _lastHeight;
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _scrollOffset = ValueNotifier(0);
   String? _focusedPostId;
 
+  // Synapse dot animation — same as timeline_screen
+  late final AnimationController _dotController;
+
   @override
   void dispose() {
+    _dotController.dispose();
     _scrollController.dispose();
     _scrollOffset.dispose();
     super.dispose();
@@ -51,6 +56,10 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
       if (!mounted) return;
       ref.read(analyticsProvider.notifier).trackPageView('/@:username');
     });
+    _dotController = AnimationController(
+      duration: const Duration(seconds: 35),
+      vsync: this,
+    )..repeat();
     Future.microtask(() {
       ref.read(publicTimelineProvider.notifier).loadArtist(widget.username);
     });
@@ -226,11 +235,19 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
                                 child: Stack(
                                   children: [
                                     Positioned.fill(
-                                      child: CustomPaint(
-                                        painter: ConstellationPainter(
-                                          layout: layout,
-                                          constellationPostIds:
-                                              timeline.constellationPostIds,
+                                      child: AnimatedBuilder(
+                                        animation: _dotController,
+                                        builder: (context, _) => CustomPaint(
+                                          painter: ConstellationPainter(
+                                            layout: layout,
+                                            constellationPostIds:
+                                                timeline.constellationPostIds,
+                                            animationValue:
+                                                _dotController.value,
+                                            scrollOffset: _scrollOffset.value,
+                                            viewportHeight:
+                                                constraints.maxHeight,
+                                          ),
                                         ),
                                       ),
                                     ),
