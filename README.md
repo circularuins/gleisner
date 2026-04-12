@@ -129,6 +129,41 @@ docker compose up -d   # Start PostgreSQL
 docker compose down    # Stop PostgreSQL
 ```
 
+### Using mise (optional)
+
+If you have [mise](https://mise.jdx.dev/) installed, you can use the defined tasks instead of running commands manually. Tasks handle dependencies automatically (e.g., `mise run test` builds first).
+
+```bash
+mise run <task>        # run from project root or backend/frontend directory
+mise tasks             # list all available tasks
+```
+
+#### Backend tasks (`cd backend`)
+
+| Task | What it does | Auto-runs |
+|------|-------------|-----------|
+| `start_dev` | Start dev server (`pnpm dev`) | `start_db` |
+| `start_db` | Start PostgreSQL (`docker compose up -d --wait`) | — |
+| `stop_db` | Stop PostgreSQL | — |
+| `build` | TypeScript build | — |
+| `lint` | ESLint + Prettier check | — |
+| `test` | Integration tests | `build` |
+| `seed_dev` | Push schema to DB (`db:push`) | `build` |
+| `seed_init_dev` | Seed discover data (4 artists, 20 genres) | — |
+| `setup_new_local` | First-time setup: copy `.env`, start DB, seed | — |
+| `clean_cache_build` | Remove `node_modules` and `dist` | — |
+| `clean_docker` | Remove all Docker containers/images/volumes | — |
+
+#### Frontend tasks (`cd frontend`)
+
+| Task | What it does | Auto-runs |
+|------|-------------|-----------|
+| `pub_get` | `flutter pub get` | — |
+| `lint` | Format + static analysis | `pub_get` |
+| `run_web` | `flutter run` | — |
+| `build` | `flutter build web` | — |
+| `test` | `flutter test` | — |
+
 ### Important notes
 
 - **After `pnpm test`**: Seed data is truncated. Re-run seed scripts before manual testing.
