@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/featured_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/validators.dart';
 import '../../widgets/auth/auth_layout.dart';
@@ -29,6 +30,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(analyticsProvider.notifier).trackPageView('/login');
+      ref.read(featuredArtistProvider.notifier).load();
     });
   }
 
@@ -56,10 +58,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    final featuredUsername = ref.watch(featuredArtistProvider);
 
     return AuthLayout(
-      // TODO(featured-artist): Replace with featured/demo artist from API
-      onTryIt: () => context.go('/@seeduser'),
+      onTryIt: featuredUsername != null
+          ? () => context.go('/@$featuredUsername')
+          : null,
       onAboutTap: () => context.push('/about'),
       form: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),

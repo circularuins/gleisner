@@ -16,6 +16,7 @@ import '../../providers/pending_artist_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../providers/media_upload_provider.dart';
+import '../../widgets/common/artist_not_found_view.dart';
 import '../../widgets/media/avatar_image.dart';
 import '../../widgets/media/cover_image.dart';
 import '../../providers/unassigned_posts_provider.dart';
@@ -154,7 +155,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                   .loadArtist(widget.username),
             )
           : artist == null
-          ? _ErrorView(error: 'Artist not found', onRetry: null)
+          ? const ArtistNotFoundView()
           : Row(
               children: [
                 Expanded(
