@@ -4,6 +4,7 @@ import { logger } from "hono/logger";
 import { serve } from "@hono/node-server";
 import { env } from "./env.js";
 import { health } from "./routes/health.js";
+import { ogp } from "./routes/ogp.js";
 import { yoga } from "./graphql/index.js";
 import { authMiddleware, type AuthUser } from "./auth/middleware.js";
 import { initJwtKeys } from "./auth/jwt.js";
@@ -27,6 +28,7 @@ app.use(
 );
 app.use(authMiddleware);
 app.route("/", health);
+app.route("/ogp", ogp);
 app.on(["GET", "POST"], "/graphql", async (c) => {
   const authUser = c.get("authUser");
   const response = await yoga.handleRequest(c.req.raw, { authUser });

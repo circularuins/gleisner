@@ -455,4 +455,78 @@ describe("Artist GraphQL integration", () => {
       expect(result.data!.artist).toBeNull();
     });
   });
+
+  describe("featuredArtist", () => {
+    const FEATURED_ARTIST_QUERY = `
+      query FeaturedArtist {
+        featuredArtist {
+          artistUsername
+        }
+      }
+    `;
+
+    it("returns null when no featured artist exists", async () => {
+      const result = await gql(app, FEATURED_ARTIST_QUERY);
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data!.featuredArtist).toBeNull();
+    });
+
+    it("returns featured public artist", async () => {
+      const token = await signupAndGetToken(
+        app,
+        "feat@example.com",
+        "featuser",
+      );
+      await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        { artistUsername: "featartist", displayName: "Featured One" },
+        token,
+      );
+
+      // Set as featured via direct DB update
+      await db.execute(
+        sql`UPDATE artists SET is_featured = true WHERE artist_username = 'featartist'`,
+      );
+
+      const result = await gql(app, FEATURED_ARTIST_QUERY);
+
+      expect(result.errors).toBeUndefined();
+      const artist = result.data!.featuredArtist as Record<string, unknown>;
+      expect(artist.artistUsername).toBe("featartist");
+    });
+
+    it("does not return featured artist with private visibility", async () => {
+      const token = await signupAndGetToken(
+        app,
+        "priv@example.com",
+        "privuser",
+      );
+      await gql(
+        app,
+        REGISTER_ARTIST_MUTATION,
+        { artistUsername: "privartist", displayName: "Private One" },
+        token,
+      );
+
+      // Set as featured but private
+      await db.execute(
+        sql`UPDATE artists SET is_featured = true, profile_visibility = 'private' WHERE artist_username = 'privartist'`,
+      );
+
+      const result = await gql(app, FEATURED_ARTIST_QUERY);
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data!.featuredArtist).toBeNull();
+    });
+
+    it("works without authentication", async () => {
+      // No token — should still work
+      const result = await gql(app, FEATURED_ARTIST_QUERY);
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data!.featuredArtist).toBeNull();
+    });
+  });
 });

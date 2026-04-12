@@ -18,6 +18,7 @@ import '../../widgets/timeline/node_card.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
 import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../widgets/common/artist_not_found_view.dart';
 
 class PublicTimelineScreen extends ConsumerStatefulWidget {
   final String username;
@@ -154,15 +155,15 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : timeline.posts.isEmpty
                 ? Center(
-                    child: Text(
-                      timeline.artist == null
-                          ? 'Artist not found'
-                          : 'No posts yet',
-                      style: TextStyle(
-                        color: colorInteractive,
-                        fontSize: theme.textTheme.bodyLarge?.fontSize,
-                      ),
-                    ),
+                    child: timeline.artist == null
+                        ? const ArtistNotFoundView(showBackButton: false)
+                        : Text(
+                            'No posts yet',
+                            style: TextStyle(
+                              color: colorInteractive,
+                              fontSize: theme.textTheme.bodyLarge?.fontSize,
+                            ),
+                          ),
                   )
                 : RefreshIndicator(
                     onRefresh: () =>

@@ -141,4 +141,12 @@ const myTuneInsQuery = r'''
   }
 ''';
 
+const featuredArtistQuery = r'''
+  query FeaturedArtist {
+    featuredArtist {
+      artistUsername
+    }
+  }
+''';
+
 // artistRecentPostsQuery removed — recentPosts is now a field on ArtistType (#63)

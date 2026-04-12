@@ -228,6 +228,24 @@ builder.mutationFields((t) => ({
 }));
 
 builder.queryFields((t) => ({
+  featuredArtist: t.field({
+    type: ArtistType,
+    nullable: true,
+    resolve: async () => {
+      const [artist] = await db
+        .select()
+        .from(artists)
+        .where(
+          and(
+            eq(artists.isFeatured, true),
+            eq(artists.profileVisibility, "public"),
+          ),
+        )
+        .limit(1);
+      return artist ?? null;
+    },
+  }),
+
   artist: t.field({
     type: ArtistType,
     nullable: true,
