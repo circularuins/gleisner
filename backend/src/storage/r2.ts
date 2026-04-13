@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -184,6 +185,9 @@ export async function deleteR2Object(publicUrl: string): Promise<void> {
   const prefix = env.R2_PUBLIC_URL + "/";
   const key = publicUrl.slice(prefix.length);
 
+  // Path traversal guard: reject keys with .. or leading /
+  if (key.includes("..") || key.startsWith("/") || key.length === 0) return;
+
   await getS3Client().send(
     new DeleteObjectCommand({
       Bucket: env.R2_BUCKET_NAME,
@@ -215,16 +219,18 @@ export async function deleteR2ObjectsByPrefix(prefix: string): Promise<number> {
       }),
     );
 
-    for (const obj of list.Contents ?? []) {
-      if (obj.Key) {
-        await getS3Client().send(
-          new DeleteObjectCommand({
-            Bucket: env.R2_BUCKET_NAME,
-            Key: obj.Key,
-          }),
-        );
-        deleted++;
-      }
+    const keys = (list.Contents ?? [])
+      .filter((obj) => obj.Key)
+      .map((obj) => ({ Key: obj.Key! }));
+
+    if (keys.length > 0) {
+      await getS3Client().send(
+        new DeleteObjectsCommand({
+          Bucket: env.R2_BUCKET_NAME,
+          Delete: { Objects: keys },
+        }),
+      );
+      deleted += keys.length;
     }
 
     continuationToken = list.NextContinuationToken;

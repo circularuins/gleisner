@@ -217,6 +217,30 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
     _client.cache.store.reset();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
+
+  /// Delete the current user's account. Requires password re-confirmation.
+  /// Returns true on success, error message on failure.
+  Future<String?> deleteAccount(String password) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(deleteAccountMutation),
+          variables: {'password': password},
+        ),
+      );
+      if (result.hasException) {
+        final message =
+            result.exception?.graphqlErrors.firstOrNull?.message ??
+                'Failed to delete account';
+        return message;
+      }
+      await logout();
+      return null; // success
+    } catch (e) {
+      debugPrint('[Auth] deleteAccount error: $e');
+      return 'Something went wrong. Please try again.';
+    }
+  }
 }
 
 final authProvider = NotifierProvider<AuthNotifier, AuthState>(

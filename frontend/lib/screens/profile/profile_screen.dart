@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:graphql_flutter/graphql_flutter.dart';
 import '../../graphql/client.dart';
-import '../../graphql/mutations/user.dart';
 import '../../models/user.dart';
 import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -458,27 +456,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (confirmed != true || !context.mounted) return;
     if (password.isEmpty) return;
 
-    final client = ref.read(graphqlClientProvider);
-    final result = await client.mutate(
-      MutationOptions(
-        document: gql(deleteAccountMutation),
-        variables: {'password': password},
-      ),
-    );
+    final error =
+        await ref.read(authProvider.notifier).deleteAccount(password);
 
     if (!context.mounted) return;
 
-    if (result.hasException) {
+    if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to delete account. Check your password.'),
-        ),
+        SnackBar(content: Text('Failed to delete account. Check your password.')),
       );
       return;
     }
 
-    // Clear all state and navigate to login
-    await ref.read(authProvider.notifier).logout();
+    // Clear all state (authProvider.deleteAccount already called logout)
     ref.invalidate(graphqlClientProvider);
     ref.invalidate(timelineProvider);
     ref.invalidate(myArtistProvider);
