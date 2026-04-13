@@ -6,6 +6,7 @@ import '../../models/user.dart';
 import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/discover_provider.dart';
+import '../../providers/featured_artist_provider.dart';
 import '../../providers/edit_artist_provider.dart';
 import '../../providers/guardian_provider.dart';
 import '../../providers/my_artist_provider.dart';
@@ -456,14 +457,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (confirmed != true || !context.mounted) return;
     if (password.isEmpty) return;
 
-    final error =
-        await ref.read(authProvider.notifier).deleteAccount(password);
+    final error = await ref.read(authProvider.notifier).deleteAccount(password);
 
     if (!context.mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete account. Check your password.')),
+        SnackBar(
+          content: Text('Failed to delete account. Check your password.'),
+        ),
       );
       return;
     }
@@ -477,6 +479,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ref.invalidate(unassignedPostsProvider);
     ref.invalidate(analyticsProvider);
     ref.invalidate(guardianProvider);
+    ref.invalidate(featuredArtistProvider);
     await ref.read(tutorialProvider.notifier).reset();
     ref.invalidate(tutorialProvider);
   }

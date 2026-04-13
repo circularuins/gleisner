@@ -240,8 +240,11 @@ builder.mutationFields((t) => ({
         .where(eq(artists.id, existing.id))
         .returning();
 
-      // R2 fire-and-forget: clean up old files when avatar/cover changes
-      // Auth confirmed: existing is the current user's artist (userId check above)
+      // R2 fire-and-forget: clean up old files when avatar/cover changes.
+      // Auth confirmed: existing is the current user's artist (userId check above).
+      // updateData.avatarUrl !== undefined means the field was explicitly sent
+      // (null = clear via clearAvatarUrl, value = new upload). Either way, the old
+      // R2 file is no longer referenced and should be cleaned up.
       if (updateData.avatarUrl !== undefined && existing.avatarUrl) {
         deleteR2Object(existing.avatarUrl).catch((err) =>
           console.error("[updateArtist] R2 avatar cleanup failed:", err),

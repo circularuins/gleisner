@@ -229,10 +229,8 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
         ),
       );
       if (result.hasException) {
-        final message =
-            result.exception?.graphqlErrors.firstOrNull?.message ??
-                'Failed to delete account';
-        return message;
+        debugPrint('[Auth] deleteAccount error: ${result.exception}');
+        return 'Failed to delete account';
       }
       await logout();
       return null; // success

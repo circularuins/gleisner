@@ -224,13 +224,19 @@ export async function deleteR2ObjectsByPrefix(prefix: string): Promise<number> {
       .map((obj) => ({ Key: obj.Key! }));
 
     if (keys.length > 0) {
-      await getS3Client().send(
+      const response = await getS3Client().send(
         new DeleteObjectsCommand({
           Bucket: env.R2_BUCKET_NAME,
           Delete: { Objects: keys },
         }),
       );
-      deleted += keys.length;
+      const errorCount = response.Errors?.length ?? 0;
+      if (errorCount > 0) {
+        console.error(
+          `[deleteR2ObjectsByPrefix] ${errorCount} objects failed to delete`,
+        );
+      }
+      deleted += keys.length - errorCount;
     }
 
     continuationToken = list.NextContinuationToken;
