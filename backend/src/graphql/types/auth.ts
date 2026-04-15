@@ -253,16 +253,28 @@ builder.mutationType({
 
         const userId = ctx.authUser.userId;
 
-        // DB deletion first (CASCADE removes all related data).
+        // Collect child account IDs BEFORE DB deletion so we can clean up
+        // their R2 files too (CASCADE will delete child rows but not R2 objects).
+        const children = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.guardianId, userId));
+        const userIdsToCleanup = [userId, ...children.map((c) => c.id)];
+
+        // DB deletion first (CASCADE removes all related data: artists,
+        // tracks, posts, comments, reactions, child accounts, etc.)
         // DB is authoritative; R2 is best-effort (same design as deletePost).
         await db.delete(users).where(eq(users.id, userId));
 
-        // R2 cleanup: fire-and-forget (orphans are acceptable)
-        Promise.all([
-          deleteR2ObjectsByPrefix(`avatars/${userId}/`),
-          deleteR2ObjectsByPrefix(`covers/${userId}/`),
-          deleteR2ObjectsByPrefix(`media/${userId}/`),
-        ]).catch((err) =>
+        // R2 cleanup: fire-and-forget (orphans are acceptable).
+        // Clean up both the guardian's files and all child accounts' files.
+        Promise.all(
+          userIdsToCleanup.flatMap((uid) => [
+            deleteR2ObjectsByPrefix(`avatars/${uid}/`),
+            deleteR2ObjectsByPrefix(`covers/${uid}/`),
+            deleteR2ObjectsByPrefix(`media/${uid}/`),
+          ]),
+        ).catch((err) =>
           console.error("[deleteAccount] R2 cleanup failed:", err),
         );
 

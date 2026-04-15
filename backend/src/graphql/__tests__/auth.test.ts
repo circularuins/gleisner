@@ -406,5 +406,47 @@ describe("Auth GraphQL integration", () => {
 
       expect(result.errors).toBeDefined();
     });
+
+    it("cascades to child accounts when guardian is deleted", async () => {
+      const guardianToken = await signupAndGetToken(
+        "cascguard@test.com",
+        "cascguard",
+      );
+
+      const childResult = await gql(
+        app,
+        CREATE_CHILD,
+        {
+          username: "cascchild",
+          birthYearMonth: "2020-01",
+          guardianPassword: "password123",
+        },
+        guardianToken,
+      );
+      const childId = (childResult.data!.createChildAccount as { id: string })
+        .id;
+
+      // Verify child exists before deletion
+      const beforeDelete = await db.execute(
+        sql`SELECT id FROM users WHERE id = ${childId}`,
+      );
+      expect(beforeDelete.length).toBe(1);
+
+      // Delete guardian account
+      const result = await gql(
+        app,
+        DELETE_ACCOUNT,
+        { password: "password123" },
+        guardianToken,
+      );
+      expect(result.errors).toBeUndefined();
+      expect(result.data!.deleteAccount).toBe(true);
+
+      // Child account should be CASCADE deleted
+      const afterDelete = await db.execute(
+        sql`SELECT id FROM users WHERE id = ${childId}`,
+      );
+      expect(afterDelete.length).toBe(0);
+    });
   });
 });
