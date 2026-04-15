@@ -422,8 +422,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'This action is permanent and cannot be undone. All your posts, tracks, connections, and media will be deleted.',
+              'This action is permanent and cannot be undone.',
+              style: TextStyle(
+                color: colorTextPrimary,
+                fontWeight: weightSemibold,
+              ),
+            ),
+            const SizedBox(height: spaceSm),
+            const Text(
+              'The following will be permanently deleted:',
               style: TextStyle(color: colorTextSecondary),
+            ),
+            const SizedBox(height: spaceXs),
+            const Text(
+              '• Your account and profile\n'
+              '• Your artist profile (if any)\n'
+              '• All your posts, tracks, and connections\n'
+              '• All uploaded media (images, videos, audio)\n'
+              '• All child accounts under your management,\n'
+              '  including their artist profiles and media',
+              style: TextStyle(
+                color: colorTextSecondary,
+                fontSize: fontSizeSm,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: spaceLg),
             TextField(
