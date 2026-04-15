@@ -165,6 +165,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
   late Set<String> _myReactions;
   late List<PostConnection> _outgoingConnections;
   late List<PostConnection> _incomingConnections;
+  final Set<String> _removedConstellationIds = {};
   bool _isToggling = false;
   bool _isConnecting = false;
   List<Post>? _cachedSyncedPosts;
@@ -315,7 +316,9 @@ class _PostDetailContentState extends State<PostDetailContent> {
 
     final success = await widget.onDeleteConstellation!(constellationId);
     if (!mounted) return;
-    if (!success) {
+    if (success) {
+      setState(() => _removedConstellationIds.add(constellationId));
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to remove constellation. Please try again.'),
@@ -1061,12 +1064,18 @@ class _PostDetailContentState extends State<PostDetailContent> {
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    final namedConstellation =
+    final rawNamedConstellation =
         widget.post.constellation ??
         members
             .where((p) => p.constellation != null)
             .map((p) => p.constellation!)
             .firstOrNull;
+    // Hide constellation name if it was deleted locally (optimistic UI update)
+    final namedConstellation =
+        rawNamedConstellation != null &&
+            _removedConstellationIds.contains(rawNamedConstellation.id)
+        ? null
+        : rawNamedConstellation;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
