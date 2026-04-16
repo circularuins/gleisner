@@ -8,7 +8,9 @@ import "./artist.js";
 import "./track.js";
 import "./post.js";
 import "./reaction.js";
-import "./comment.js";
+// Comments are disabled for Phase 0 to avoid 電気通信事業法 "通信の媒介" implications.
+// Re-enable by restoring this import after legal review (Phase 1+).
+// import "./comment.js";
 import "./connection.js";
 import "./constellation.js";
 import "./follow.js";

@@ -10,6 +10,9 @@ import { authMiddleware, type AuthUser } from "../../auth/middleware.js";
 
 import { builder } from "../builder.js";
 import "../types/index.js";
+// Comments are disabled in production schema (see types/index.ts).
+// Re-register for tests so the Phase 0 disablement is covered by integration coverage.
+import "../types/comment.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL)

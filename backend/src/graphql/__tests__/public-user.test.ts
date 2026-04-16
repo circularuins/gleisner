@@ -291,7 +291,9 @@ describe("PublicUserType email exposure prevention", () => {
     expect(user.createdAt).toBeDefined();
   });
 
-  it("comments query user does not expose email", async () => {
+  // Comments are disabled in the production schema for Phase 0 (see types/index.ts).
+  // Re-enable this test when comments are restored after legal review.
+  it.skip("comments query user does not expose email", async () => {
     const { token } = await signupAndGetTokenAndId(
       app,
       "pub5@example.com",
