@@ -459,6 +459,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'Fans Tune In to your timeline and receive your creative updates.';
 
   @override
+  String get whatAreTracks => 'What are Tracks?';
+
+  @override
+  String get whatAreTracksDesc =>
+      'Tracks are themed channels within your Artist Page. Fans can follow individual Tracks to only see what interests them.\n\nExample: A musician might have Play, Compose, and Life tracks.';
+
+  @override
+  String get chooseTemplate => 'Choose a template';
+
+  @override
+  String get yourTracks => 'Your tracks';
+
+  @override
+  String addTrackCount(int count) {
+    return 'Add Track ($count/10)';
+  }
+
+  @override
+  String get templateCustom => 'Custom';
+
+  @override
   String get newPost => 'New Post';
 
   @override

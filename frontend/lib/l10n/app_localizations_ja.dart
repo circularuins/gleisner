@@ -451,6 +451,27 @@ class AppLocalizationsJa extends AppLocalizations {
       'ファンがタイムラインをチューンインし、あなたの創作をリアルタイムで受け取ります。';
 
   @override
+  String get whatAreTracks => 'トラックとは？';
+
+  @override
+  String get whatAreTracksDesc =>
+      'トラックは、アーティストページ内のテーマ別チャンネルです。ファンは興味のあるトラックだけをフォローできます。\n\n例: ミュージシャンなら「演奏」「作曲」「日常」のように分けられます。';
+
+  @override
+  String get chooseTemplate => 'テンプレートを選択';
+
+  @override
+  String get yourTracks => 'あなたのトラック';
+
+  @override
+  String addTrackCount(int count) {
+    return 'トラックを追加（$count/10）';
+  }
+
+  @override
+  String get templateCustom => 'カスタム';
+
+  @override
   String get newPost => '新規投稿';
 
   @override

@@ -150,6 +150,13 @@
   "featureBroadcastingTitle": "ブロードキャスト",
   "featureBroadcastingDesc": "ファンがタイムラインをチューンインし、あなたの創作をリアルタイムで受け取ります。",
 
+  "whatAreTracks": "トラックとは？",
+  "whatAreTracksDesc": "トラックは、アーティストページ内のテーマ別チャンネルです。ファンは興味のあるトラックだけをフォローできます。\n\n例: ミュージシャンなら「演奏」「作曲」「日常」のように分けられます。",
+  "chooseTemplate": "テンプレートを選択",
+  "yourTracks": "あなたのトラック",
+  "addTrackCount": "トラックを追加（{count}/10）",
+  "templateCustom": "カスタム",
+
   "newPost": "新規投稿",
   "selectTrack": "トラックを選択",
   "contentType": "コンテンツタイプ",

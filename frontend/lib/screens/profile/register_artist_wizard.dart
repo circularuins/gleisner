@@ -729,29 +729,43 @@ class _TrackDraft {
   _TrackDraft({required this.name, required this.color});
 }
 
+/// Template key → tracks. Keys are resolved to localized labels via
+/// [_templateLabel] at the call site.
 const _templates = {
-  'Musician': [
+  'musician': [
     _TemplateTrack('Play', '#f97316'),
     _TemplateTrack('Compose', '#a78bfa'),
     _TemplateTrack('Life', '#22d3ee'),
   ],
-  'Visual Artist': [
+  'visual_artist': [
     _TemplateTrack('Works', '#e11d48'),
     _TemplateTrack('Process', '#7c3aed'),
     _TemplateTrack('Thoughts', '#0ea5e9'),
   ],
-  'Writer': [
+  'writer': [
     _TemplateTrack('Writing', '#f59e0b'),
     _TemplateTrack('Notes', '#6366f1'),
     _TemplateTrack('Life', '#10b981'),
   ],
-  'Filmmaker': [
+  'filmmaker': [
     _TemplateTrack('Films', '#dc2626'),
     _TemplateTrack('BTS', '#ea580c'),
     _TemplateTrack('Stills', '#8b5cf6'),
   ],
-  'Custom': <_TemplateTrack>[],
+  'custom': <_TemplateTrack>[],
 };
+
+String _templateLabel(BuildContext context, String key) {
+  final l10n = context.l10n;
+  return switch (key) {
+    'musician' => l10n.musicianTemplate,
+    'visual_artist' => l10n.visualArtistTemplate,
+    'writer' => l10n.writerTemplate,
+    'filmmaker' => l10n.filmmakerTemplate,
+    'custom' => l10n.templateCustom,
+    _ => key,
+  };
+}
 
 class _TemplateTrack {
   final String name;
@@ -798,9 +812,9 @@ class _StepTracks extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'What are Tracks?',
-                  style: TextStyle(
+                Text(
+                  context.l10n.whatAreTracks,
+                  style: const TextStyle(
                     color: colorTextPrimary,
                     fontSize: fontSizeMd,
                     fontWeight: weightSemibold,
@@ -808,9 +822,7 @@ class _StepTracks extends StatelessWidget {
                 ),
                 const SizedBox(height: spaceSm),
                 Text(
-                  'Tracks are themed channels within your Artist Page. '
-                  'Fans can follow individual Tracks to only see what interests them.\n\n'
-                  'Example: A musician might have Play, Compose, and Life tracks.',
+                  context.l10n.whatAreTracksDesc,
                   style: textCaption.copyWith(height: 1.5),
                 ),
               ],
@@ -819,9 +831,9 @@ class _StepTracks extends StatelessWidget {
           const SizedBox(height: spaceXl),
 
           // Template selector
-          const Text(
-            'Choose a template',
-            style: TextStyle(
+          Text(
+            context.l10n.chooseTemplate,
+            style: const TextStyle(
               color: colorTextPrimary,
               fontSize: fontSizeMd,
               fontWeight: weightSemibold,
@@ -837,7 +849,7 @@ class _StepTracks extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(right: spaceSm),
                     child: _TemplateChip(
-                      label: entry.key,
+                      label: _templateLabel(context, entry.key),
                       isSelected: selectedTemplate == entry.key,
                       onTap: () {
                         final drafts = entry.value
@@ -856,9 +868,9 @@ class _StepTracks extends StatelessWidget {
 
           // Track list
           if (tracks.isNotEmpty) ...[
-            const Text(
-              'Your tracks',
-              style: TextStyle(
+            Text(
+              context.l10n.yourTracks,
+              style: const TextStyle(
                 color: colorTextPrimary,
                 fontSize: fontSizeMd,
                 fontWeight: weightSemibold,
@@ -892,14 +904,14 @@ class _StepTracks extends StatelessWidget {
                 final updated = List<_TrackDraft>.from(tracks)
                   ..add(
                     _TrackDraft(
-                      name: 'Track ${tracks.length + 1}',
+                      name: '${context.l10n.newTrack} ${tracks.length + 1}',
                       color: trackColorPresets[colorIndex],
                     ),
                   );
                 onTracksChanged(updated);
               },
               icon: const Icon(Icons.add, size: 16),
-              label: Text('Add Track (${tracks.length}/10)'),
+              label: Text(context.l10n.addTrackCount(tracks.length)),
             ),
 
           if (error != null) ...[

@@ -159,6 +159,14 @@
   "featureBroadcastingTitle": "Broadcasting",
   "featureBroadcastingDesc": "Fans Tune In to your timeline and receive your creative updates.",
 
+  "whatAreTracks": "What are Tracks?",
+  "whatAreTracksDesc": "Tracks are themed channels within your Artist Page. Fans can follow individual Tracks to only see what interests them.\n\nExample: A musician might have Play, Compose, and Life tracks.",
+  "chooseTemplate": "Choose a template",
+  "yourTracks": "Your tracks",
+  "addTrackCount": "Add Track ({count}/10)",
+  "@addTrackCount": { "placeholders": { "count": { "type": "int" } } },
+  "templateCustom": "Custom",
+
   "newPost": "New Post",
   "selectTrack": "Select a Track",
   "contentType": "Content Type",

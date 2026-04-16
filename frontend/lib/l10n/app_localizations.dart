@@ -920,6 +920,42 @@ abstract class AppLocalizations {
   /// **'Fans Tune In to your timeline and receive your creative updates.'**
   String get featureBroadcastingDesc;
 
+  /// No description provided for @whatAreTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'What are Tracks?'**
+  String get whatAreTracks;
+
+  /// No description provided for @whatAreTracksDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracks are themed channels within your Artist Page. Fans can follow individual Tracks to only see what interests them.\n\nExample: A musician might have Play, Compose, and Life tracks.'**
+  String get whatAreTracksDesc;
+
+  /// No description provided for @chooseTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a template'**
+  String get chooseTemplate;
+
+  /// No description provided for @yourTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'Your tracks'**
+  String get yourTracks;
+
+  /// No description provided for @addTrackCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Track ({count}/10)'**
+  String addTrackCount(int count);
+
+  /// No description provided for @templateCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get templateCustom;
+
   /// No description provided for @newPost.
   ///
   /// In en, this message translates to:
