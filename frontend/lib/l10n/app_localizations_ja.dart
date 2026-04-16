@@ -628,6 +628,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tutorialFirstPostSubtitle => '投稿のひとつひとつが、あなたの創作宇宙の光になります。';
 
   @override
+  String get tapAnywhereToContinue => 'どこかをタップして続ける';
+
+  @override
   String get artistBadge => 'アーティスト';
 
   @override

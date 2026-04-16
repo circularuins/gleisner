@@ -1256,6 +1256,12 @@ abstract class AppLocalizations {
   /// **'Every post becomes a point of light in your creative universe.'**
   String get tutorialFirstPostSubtitle;
 
+  /// No description provided for @tapAnywhereToContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap anywhere to continue'**
+  String get tapAnywhereToContinue;
+
   /// No description provided for @artistBadge.
   ///
   /// In en, this message translates to:

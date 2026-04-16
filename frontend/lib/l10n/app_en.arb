@@ -222,6 +222,7 @@
   "discoverToFillTimeline": "Discover artists and tune in to fill your timeline",
   "tutorialFirstPostMessage": "Add your first star to the constellation",
   "tutorialFirstPostSubtitle": "Every post becomes a point of light in your creative universe.",
+  "tapAnywhereToContinue": "Tap anywhere to continue",
   "artistBadge": "ARTIST",
   "tunedInBadge": "TUNED IN",
   "constellationNamedPostCount": "{name} \u00b7 {count} posts",

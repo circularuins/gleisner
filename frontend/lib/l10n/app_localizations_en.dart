@@ -640,6 +640,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Every post becomes a point of light in your creative universe.';
 
   @override
+  String get tapAnywhereToContinue => 'Tap anywhere to continue';
+
+  @override
   String get artistBadge => 'ARTIST';
 
   @override

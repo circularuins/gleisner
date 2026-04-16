@@ -209,6 +209,7 @@
   "discoverToFillTimeline": "アーティストを見つけてチューンインしよう",
   "tutorialFirstPostMessage": "最初の星をコンステレーションに加えよう",
   "tutorialFirstPostSubtitle": "投稿のひとつひとつが、あなたの創作宇宙の光になります。",
+  "tapAnywhereToContinue": "どこかをタップして続ける",
   "artistBadge": "アーティスト",
   "tunedInBadge": "チューンイン中",
   "constellationNamedPostCount": "{name} · {count} 投稿",
