@@ -2,6 +2,7 @@ import { GraphQLError } from "graphql";
 import { isR2Configured, isR2Url, isLocalDevUrl } from "../storage/r2.js";
 
 export const MAX_PASSWORD_LENGTH = 128;
+export const MAX_IMAGES_PER_POST = 10;
 
 /** Media duration limits in seconds (ADR 025) */
 export const MAX_VIDEO_DURATION_SECONDS = 60; // 1 minute
@@ -61,6 +62,24 @@ export function validateMediaUrl(url: string): void {
         "Media URLs must point to localhost when storage is not configured",
       );
     }
+  }
+}
+
+/**
+ * Validate an array of media URLs for multi-image posts.
+ * Checks count limit and validates each URL against R2 domain.
+ */
+export function validateMediaUrls(urls: string[]): void {
+  if (urls.length === 0) {
+    throw new GraphQLError("At least one image is required");
+  }
+  if (urls.length > MAX_IMAGES_PER_POST) {
+    throw new GraphQLError(
+      `A post can have at most ${MAX_IMAGES_PER_POST} images`,
+    );
+  }
+  for (const url of urls) {
+    validateMediaUrl(url);
   }
 }
 
