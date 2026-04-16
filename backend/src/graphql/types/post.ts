@@ -929,7 +929,10 @@ builder.mutationFields((t) => ({
           if (updateMediaUrls) {
             hashMediaUrls = updateMediaUrls;
           } else {
-            // Fallback: fetch existing post_media URLs
+            // Fallback: fetch existing post_media URLs for accurate hash recomputation.
+            // This runs when content fields (title, body, etc.) change on an image post
+            // without mediaUrls being updated. Acceptable cost for correctness;
+            // could be optimized by pre-fetching _media on the post object.
             const existingMedia = await db
               .select({ mediaUrl: postMedia.mediaUrl })
               .from(postMedia)
@@ -992,6 +995,7 @@ builder.mutationFields((t) => ({
 
       // Use transaction when post_media needs updating
       let updated: PostShape;
+      let removedMediaUrls: string[] = [];
       if (
         updateMediaUrls ||
         (args.mediaType !== undefined &&
@@ -1027,18 +1031,23 @@ builder.mutationFields((t) => ({
             .where(eq(posts.id, args.id))
             .returning();
 
-          // R2 cleanup: fire-and-forget for removed URLs
+          // Collect removed URLs for R2 cleanup after transaction commits
           const newUrlSet = new Set(updateMediaUrls ?? []);
-          for (const old of oldMedia) {
-            if (!newUrlSet.has(old.mediaUrl)) {
-              deleteR2Object(old.mediaUrl).catch((err) =>
-                console.error("[updatePost] R2 media cleanup failed:", err),
-              );
-            }
-          }
+          removedMediaUrls = oldMedia
+            .filter((m) => !newUrlSet.has(m.mediaUrl))
+            .map((m) => m.mediaUrl);
 
           return result;
         });
+
+        // R2 cleanup AFTER transaction commit (fire-and-forget).
+        // Moved outside transaction to prevent data loss if DB commit fails
+        // after R2 files are already deleted.
+        for (const url of removedMediaUrls) {
+          deleteR2Object(url).catch((err) =>
+            console.error("[updatePost] R2 media cleanup failed:", err),
+          );
+        }
       } else {
         const [result] = await db
           .update(posts)

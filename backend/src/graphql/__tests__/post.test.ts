@@ -1661,4 +1661,205 @@ describe("Post GraphQL integration", () => {
       expect(result.errors![0].message).toContain("60-second limit");
     });
   });
+
+  describe("multi-image (post_media)", () => {
+    const CREATE_IMAGE_POST = `
+      mutation($trackId: String!, $mediaUrls: [String!]) {
+        createPost(trackId: $trackId, mediaType: image, mediaUrls: $mediaUrls) {
+          id mediaType mediaUrl media { id mediaUrl position }
+        }
+      }
+    `;
+
+    it("creates multi-image post with correct position order", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "mi1@test.com",
+        "miuser1",
+        "miartist1",
+      );
+
+      const urls = [
+        "http://localhost:4000/img1.jpg",
+        "http://localhost:4000/img2.jpg",
+        "http://localhost:4000/img3.jpg",
+      ];
+      const result = await gql(
+        app,
+        CREATE_IMAGE_POST,
+        { trackId, mediaUrls: urls },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+      const post = result.data!.createPost as Record<string, unknown>;
+      expect(post.mediaUrl).toBeNull();
+      const media = post.media as {
+        id: string;
+        mediaUrl: string;
+        position: number;
+      }[];
+      expect(media).toHaveLength(3);
+      expect(media[0].mediaUrl).toBe(urls[0]);
+      expect(media[0].position).toBe(0);
+      expect(media[1].mediaUrl).toBe(urls[1]);
+      expect(media[1].position).toBe(1);
+      expect(media[2].mediaUrl).toBe(urls[2]);
+      expect(media[2].position).toBe(2);
+    });
+
+    it("rejects more than 10 images", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "mi2@test.com",
+        "miuser2",
+        "miartist2",
+      );
+
+      const urls = Array.from(
+        { length: 11 },
+        (_, i) => `http://localhost:4000/img${i}.jpg`,
+      );
+      const result = await gql(
+        app,
+        CREATE_IMAGE_POST,
+        { trackId, mediaUrls: urls },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("at most 10");
+    });
+
+    it("rejects mediaUrls on non-image type", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "mi3@test.com",
+        "miuser3",
+        "miartist3",
+      );
+
+      const INLINE = `
+        mutation($trackId: String!, $mediaUrls: [String!]) {
+          createPost(trackId: $trackId, mediaType: thought, mediaUrls: $mediaUrls) { id }
+        }
+      `;
+      const result = await gql(
+        app,
+        INLINE,
+        { trackId, mediaUrls: ["http://localhost:4000/img.jpg"] },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "mediaUrls is only valid for image type posts",
+      );
+    });
+
+    it("backward compat: single mediaUrl creates 1-element post_media", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "mi4@test.com",
+        "miuser4",
+        "miartist4",
+      );
+
+      const INLINE = `
+        mutation($trackId: String!, $mediaUrl: String) {
+          createPost(trackId: $trackId, mediaType: image, mediaUrl: $mediaUrl) {
+            id mediaUrl media { id mediaUrl position }
+          }
+        }
+      `;
+      const result = await gql(
+        app,
+        INLINE,
+        { trackId, mediaUrl: "http://localhost:4000/single.jpg" },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+      const post = result.data!.createPost as Record<string, unknown>;
+      expect(post.mediaUrl).toBeNull();
+      const media = post.media as { mediaUrl: string; position: number }[];
+      expect(media).toHaveLength(1);
+      expect(media[0].mediaUrl).toBe("http://localhost:4000/single.jpg");
+    });
+
+    it("updatePost replaces post_media rows", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "mi5@test.com",
+        "miuser5",
+        "miartist5",
+      );
+
+      const createResult = await gql(
+        app,
+        CREATE_IMAGE_POST,
+        {
+          trackId,
+          mediaUrls: [
+            "http://localhost:4000/old1.jpg",
+            "http://localhost:4000/old2.jpg",
+          ],
+        },
+        token,
+      );
+      const postId = (createResult.data!.createPost as { id: string }).id;
+
+      const newUrls = [
+        "http://localhost:4000/new1.jpg",
+        "http://localhost:4000/new2.jpg",
+        "http://localhost:4000/new3.jpg",
+      ];
+      const result = await gql(
+        app,
+        UPDATE_POST_MUTATION,
+        { id: postId, mediaUrls: newUrls },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+      const post = result.data!.updatePost as Record<string, unknown>;
+      const media = post.media as { mediaUrl: string; position: number }[];
+      expect(media).toHaveLength(3);
+      expect(media[0].mediaUrl).toBe(newUrls[0]);
+      expect(media[1].mediaUrl).toBe(newUrls[1]);
+      expect(media[2].mediaUrl).toBe(newUrls[2]);
+    });
+
+    it("deletePost cascades to post_media", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "mi6@test.com",
+        "miuser6",
+        "miartist6",
+      );
+
+      const createResult = await gql(
+        app,
+        CREATE_IMAGE_POST,
+        {
+          trackId,
+          mediaUrls: ["http://localhost:4000/del1.jpg"],
+        },
+        token,
+      );
+      const postId = (createResult.data!.createPost as { id: string }).id;
+
+      const deleteResult = await gql(
+        app,
+        DELETE_POST_MUTATION,
+        { id: postId },
+        token,
+      );
+      expect(deleteResult.errors).toBeUndefined();
+
+      // Verify post is gone
+      const queryResult = await gql(app, POST_QUERY, { id: postId }, token);
+      expect(queryResult.data!.post).toBeNull();
+    });
+  });
 });
