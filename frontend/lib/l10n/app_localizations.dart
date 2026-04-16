@@ -1310,6 +1310,12 @@ abstract class AppLocalizations {
   /// **'Untitled'**
   String get untitled;
 
+  /// No description provided for @editCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Cover'**
+  String get editCover;
+
   /// No description provided for @editAbout.
   ///
   /// In en, this message translates to:

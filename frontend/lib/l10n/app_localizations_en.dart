@@ -661,6 +661,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get untitled => 'Untitled';
 
   @override
+  String get editCover => 'Edit Cover';
+
+  @override
   String get editAbout => 'Edit About';
 
   @override

@@ -653,6 +653,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get untitled => '無題';
 
   @override
+  String get editCover => 'カバーを編集';
+
+  @override
   String get editAbout => '概要を編集';
 
   @override
