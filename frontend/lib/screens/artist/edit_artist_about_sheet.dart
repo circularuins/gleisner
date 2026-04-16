@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/artist.dart';
 import '../../providers/artist_page_provider.dart';
+import '../../l10n/l10n.dart';
 import '../../providers/edit_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 
@@ -126,7 +127,7 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
                 ),
                 const SizedBox(height: spaceLg),
 
-                Text('Edit About', style: textTitle),
+                Text(context.l10n.editAbout, style: textTitle),
                 const SizedBox(height: spaceXl),
 
                 if (_error != null) ...[
@@ -149,7 +150,7 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
                   controller: _taglineController,
                   maxLength: 80,
                   style: const TextStyle(color: colorTextPrimary),
-                  decoration: _inputDecoration('Tagline'),
+                  decoration: _inputDecoration(context.l10n.tagline),
                 ),
                 const SizedBox(height: spaceLg),
 
@@ -160,7 +161,7 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
                   maxLines: 4,
                   minLines: 2,
                   style: const TextStyle(color: colorTextPrimary),
-                  decoration: _inputDecoration('Bio'),
+                  decoration: _inputDecoration(context.l10n.bio),
                 ),
                 const SizedBox(height: spaceLg),
 
@@ -169,7 +170,7 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
                   controller: _locationController,
                   maxLength: 100,
                   style: const TextStyle(color: colorTextPrimary),
-                  decoration: _inputDecoration('Location'),
+                  decoration: _inputDecoration(context.l10n.location),
                 ),
                 const SizedBox(height: spaceLg),
 
@@ -178,7 +179,7 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
                   controller: _activeSinceController,
                   keyboardType: TextInputType.number,
                   style: const TextStyle(color: colorTextPrimary),
-                  decoration: _inputDecoration('Active Since (year)'),
+                  decoration: _inputDecoration(context.l10n.activeSinceYear),
                   validator: (value) {
                     if (value != null && value.trim().isNotEmpty) {
                       final year = int.tryParse(value.trim());
@@ -209,7 +210,7 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Save'),
+                        : Text(context.l10n.save),
                   ),
                 ),
               ],

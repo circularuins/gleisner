@@ -23,6 +23,7 @@ import '../../providers/media_upload_provider.dart';
 import '../../utils/media_limits.dart' show maxImagesPerPost;
 import '../../widgets/common/image_grid_widgets.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
+import '../../l10n/l10n.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
   /// Optional callback invoked after successful post creation (e.g. from Dialog).
@@ -111,8 +112,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     final mediaType = ref.read(createPostProvider).selectedMediaType;
     if (mediaType == MediaType.image && _mediaUrls.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please upload at least one image before posting'),
+        SnackBar(
+          content: Text(context.l10n.uploadImageBeforePosting),
           backgroundColor: colorError,
         ),
       );
@@ -124,8 +125,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         mediaType != MediaType.thought &&
         _mediaUrlController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please upload a file before posting'),
+        SnackBar(
+          content: Text(context.l10n.uploadFileBeforePosting),
           backgroundColor: colorError,
         ),
       );
@@ -144,8 +145,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       // Validate non-empty
       if (_quillController.document.isEmpty()) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Text is required'),
+          SnackBar(
+            content: Text(context.l10n.textRequired),
             backgroundColor: colorError,
           ),
         );
@@ -226,7 +227,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             }
           },
         ),
-        title: const Text('New Post'),
+        title: Text(context.l10n.newPost),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4),
           child: LinearProgressIndicator(
@@ -290,7 +291,10 @@ class _TrackStep extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Select a track', style: theme.textTheme.headlineSmall),
+            Text(
+              context.l10n.selectTrack,
+              style: theme.textTheme.headlineSmall,
+            ),
             const SizedBox(height: spaceXl),
             Wrap(
               spacing: 12,
@@ -319,9 +323,9 @@ class _TrackStep extends ConsumerWidget {
                 }),
                 if (canAddTrack)
                   ActionChip(
-                    label: const Text(
-                      '+ New Track',
-                      style: TextStyle(fontSize: 16),
+                    label: Text(
+                      '+ ${context.l10n.newTrack}',
+                      style: const TextStyle(fontSize: 16),
                     ),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -338,7 +342,7 @@ class _TrackStep extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(
-                  'Maximum $_maxTracks tracks',
+                  context.l10n.maxTracks(_maxTracks),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSurface.withAlpha(100),
                   ),
@@ -351,6 +355,7 @@ class _TrackStep extends ConsumerWidget {
   }
 
   void _showCreateTrackDialog(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final controller = TextEditingController();
     final existingColors = tracks.map((t) => t.color.toLowerCase()).toSet();
     final autoColor = _trackColorPresets.firstWhere(
@@ -369,11 +374,13 @@ class _TrackStep extends ConsumerWidget {
         Future<void> submit(StateSetter setDialogState) async {
           final name = controller.text.trim();
           if (name.isEmpty) {
-            setDialogState(() => errorText = 'Track name is required');
+            setDialogState(
+              () => errorText = l10n.fieldRequired(l10n.trackName),
+            );
             return;
           }
           if (tracks.any((t) => t.name.toLowerCase() == name.toLowerCase())) {
-            setDialogState(() => errorText = 'Track "$name" already exists');
+            setDialogState(() => errorText = l10n.trackAlreadyExists(name));
             return;
           }
 
@@ -389,7 +396,7 @@ class _TrackStep extends ConsumerWidget {
             if (dialogContext.mounted) {
               setDialogState(() {
                 isCreating = false;
-                errorText = error ?? 'Failed to create track';
+                errorText = error ?? l10n.failedCreateTrack;
               });
             }
           }
@@ -398,7 +405,7 @@ class _TrackStep extends ConsumerWidget {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('New Track'),
+              title: Text(l10n.newTrack),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -407,7 +414,7 @@ class _TrackStep extends ConsumerWidget {
                     autofocus: true,
                     maxLength: 30,
                     decoration: InputDecoration(
-                      labelText: 'Track name',
+                      labelText: l10n.trackName,
                       border: const OutlineInputBorder(),
                       errorText: errorText,
                     ),
@@ -428,7 +435,7 @@ class _TrackStep extends ConsumerWidget {
                       ),
                       const SizedBox(width: spaceSm),
                       Text(
-                        'Color: auto-assigned',
+                        l10n.colorAutoAssigned,
                         style: Theme.of(context).textTheme.labelSmall,
                       ),
                     ],
@@ -438,7 +445,7 @@ class _TrackStep extends ConsumerWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
+                  child: Text(l10n.cancel),
                 ),
                 FilledButton(
                   onPressed: isCreating ? null : () => submit(setDialogState),
@@ -448,7 +455,7 @@ class _TrackStep extends ConsumerWidget {
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Create'),
+                      : Text(l10n.create),
                 ),
               ],
             );
@@ -463,14 +470,26 @@ class _TrackStep extends ConsumerWidget {
 class _MediaTypeStep extends ConsumerWidget {
   const _MediaTypeStep();
 
-  static const _mediaTypeOptions = [
-    (MediaType.thought, Icons.chat_bubble_outline, 'Thought'),
-    (MediaType.article, Icons.description_outlined, 'Article'),
-    (MediaType.image, Icons.image, 'Image'),
-    (MediaType.video, Icons.videocam, 'Video'),
-    (MediaType.audio, Icons.audiotrack, 'Audio'),
-    (MediaType.link, Icons.link, 'Link'),
+  static const _mediaTypeIcons = [
+    (MediaType.thought, Icons.chat_bubble_outline),
+    (MediaType.article, Icons.description_outlined),
+    (MediaType.image, Icons.image),
+    (MediaType.video, Icons.videocam),
+    (MediaType.audio, Icons.audiotrack),
+    (MediaType.link, Icons.link),
   ];
+
+  static String _mediaTypeName(BuildContext context, MediaType type) {
+    final l10n = context.l10n;
+    return switch (type) {
+      MediaType.thought => l10n.mediaTypeThought,
+      MediaType.article => l10n.mediaTypeArticle,
+      MediaType.image => l10n.mediaTypeImage,
+      MediaType.video => l10n.mediaTypeVideo,
+      MediaType.audio => l10n.mediaTypeAudio,
+      MediaType.link => l10n.mediaTypeLink,
+    };
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -482,14 +501,17 @@ class _MediaTypeStep extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Content type', style: theme.textTheme.headlineSmall),
+            Text(
+              context.l10n.contentType,
+              style: theme.textTheme.headlineSmall,
+            ),
             const SizedBox(height: spaceXxl),
             Wrap(
               spacing: 20,
               runSpacing: 16,
               alignment: WrapAlignment.center,
-              children: _mediaTypeOptions.map((option) {
-                final (type, icon, label) = option;
+              children: _mediaTypeIcons.map((option) {
+                final (type, icon) = option;
                 return SizedBox(
                   width: 88,
                   child: Column(
@@ -505,7 +527,10 @@ class _MediaTypeStep extends ConsumerWidget {
                         icon: Icon(icon),
                       ),
                       const SizedBox(height: spaceXs),
-                      Text(label, style: theme.textTheme.labelMedium),
+                      Text(
+                        _mediaTypeName(context, type),
+                        style: theme.textTheme.labelMedium,
+                      ),
                     ],
                   ),
                 );
@@ -621,7 +646,9 @@ class _FormStep extends ConsumerWidget {
                         ),
                         const SizedBox(width: spaceXs),
                         Text(
-                          state.visibility == 'public' ? 'Public' : 'Draft',
+                          state.visibility == 'public'
+                              ? context.l10n.public
+                              : context.l10n.draft,
                           style: TextStyle(
                             fontSize: fontSizeSm,
                             color: state.visibility == 'public'
@@ -638,7 +665,7 @@ class _FormStep extends ConsumerWidget {
             const SizedBox(height: spaceMd),
 
             // Media-type-specific fields
-            ..._buildContentFields(mediaType, theme, ref),
+            ..._buildContentFields(context, mediaType, theme, ref),
 
             // Event date (when did this happen?)
             EventAtPicker(eventAt: eventAt, onChanged: onEventAtChanged),
@@ -659,11 +686,14 @@ class _FormStep extends ConsumerWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Importance', style: theme.textTheme.titleSmall),
+                Text(
+                  context.l10n.importance,
+                  style: theme.textTheme.titleSmall,
+                ),
                 Row(
                   children: [
                     Text(
-                      'quiet note',
+                      context.l10n.quietNote,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurface.withAlpha(128),
                       ),
@@ -677,7 +707,7 @@ class _FormStep extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      'hero moment',
+                      context.l10n.heroMoment,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurface.withAlpha(128),
                       ),
@@ -731,9 +761,9 @@ class _FormStep extends ConsumerWidget {
                           color: colorSurface0,
                         ),
                       )
-                    : const Text(
-                        'Post',
-                        style: TextStyle(
+                    : Text(
+                        context.l10n.post,
+                        style: const TextStyle(
                           fontWeight: weightSemibold,
                           fontSize: fontSizeMd,
                         ),
@@ -772,26 +802,28 @@ class _FormStep extends ConsumerWidget {
   }
 
   List<Widget> _buildContentFields(
+    BuildContext context,
     MediaType mediaType,
     ThemeData theme,
     WidgetRef ref,
   ) {
     switch (mediaType) {
       case MediaType.thought:
-        return _buildThoughtFields(theme);
+        return _buildThoughtFields(context, theme);
       case MediaType.article:
-        return _buildTextFields(theme, ref);
+        return _buildTextFields(context, theme, ref);
       case MediaType.image:
       case MediaType.video:
       case MediaType.audio:
-        return _buildMediaFields(mediaType, theme, ref);
+        return _buildMediaFields(context, mediaType, theme, ref);
       case MediaType.link:
-        return _buildLinkFields(theme);
+        return _buildLinkFields(context, theme);
     }
   }
 
   // thought: plain text body only, 280 char limit, no title
-  List<Widget> _buildThoughtFields(ThemeData theme) {
+  List<Widget> _buildThoughtFields(BuildContext context, ThemeData theme) {
+    final l10n = context.l10n;
     return [
       Container(
         decoration: BoxDecoration(
@@ -808,12 +840,12 @@ class _FormStep extends ConsumerWidget {
             fontSize: fontSizeMd,
             height: 1.5,
           ),
-          decoration: const InputDecoration(
-            hintText: "What's on your mind?",
-            hintStyle: TextStyle(color: colorInteractiveMuted),
+          decoration: InputDecoration(
+            hintText: l10n.whatsOnYourMind,
+            hintStyle: const TextStyle(color: colorInteractiveMuted),
             border: InputBorder.none,
-            contentPadding: EdgeInsets.all(spaceLg),
-            counterStyle: TextStyle(
+            contentPadding: const EdgeInsets.all(spaceLg),
+            counterStyle: const TextStyle(
               color: colorTextMuted,
               fontSize: fontSizeXs,
             ),
@@ -824,7 +856,12 @@ class _FormStep extends ConsumerWidget {
   }
 
   // article: title (optional) + rich text editor
-  List<Widget> _buildTextFields(ThemeData theme, WidgetRef ref) {
+  List<Widget> _buildTextFields(
+    BuildContext context,
+    ThemeData theme,
+    WidgetRef ref,
+  ) {
+    final l10n = context.l10n;
     return [
       Container(
         decoration: const BoxDecoration(
@@ -837,7 +874,7 @@ class _FormStep extends ConsumerWidget {
           maxLength: 100,
           maxLengthEnforcement: MaxLengthEnforcement.enforced,
           decoration: InputDecoration(
-            hintText: 'Title',
+            hintText: l10n.title,
             hintStyle: const TextStyle(
               color: colorTextMuted,
               fontSize: fontSizeLg,
@@ -863,7 +900,7 @@ class _FormStep extends ConsumerWidget {
         height: 400,
         child: RichTextEditor(
           controller: quillController,
-          placeholder: "What's on your mind?",
+          placeholder: l10n.whatsOnYourMind,
           autofocus: true,
           toolbarCollapsed: true,
         ),
@@ -882,6 +919,7 @@ class _FormStep extends ConsumerWidget {
 
   // image/video/audio: upload area (hero) + title + caption
   List<Widget> _buildMediaFields(
+    BuildContext context,
     MediaType mediaType,
     ThemeData theme,
     WidgetRef ref,
@@ -921,7 +959,7 @@ class _FormStep extends ConsumerWidget {
                 ),
               )
             : hasMedia
-            ? _buildMediaPreview(mediaType)
+            ? _buildMediaPreview(context, mediaType)
             : Container(
                 height: 200,
                 decoration: BoxDecoration(
@@ -958,7 +996,7 @@ class _FormStep extends ConsumerWidget {
           maxLength: 100,
           maxLengthEnforcement: MaxLengthEnforcement.enforced,
           decoration: InputDecoration(
-            hintText: 'Title',
+            hintText: context.l10n.title,
             hintStyle: const TextStyle(
               color: colorTextMuted,
               fontSize: fontSizeLg,
@@ -994,7 +1032,7 @@ class _FormStep extends ConsumerWidget {
           maxLength: 500,
           maxLengthEnforcement: MaxLengthEnforcement.enforced,
           decoration: InputDecoration(
-            hintText: 'Write a caption...',
+            hintText: context.l10n.writeCaption,
             hintStyle: const TextStyle(
               color: colorTextMuted,
               fontSize: fontSizeMd,
@@ -1023,10 +1061,10 @@ class _FormStep extends ConsumerWidget {
     return '$m:${s.toString().padLeft(2, '0')}';
   }
 
-  Widget _buildMediaPreview(MediaType mediaType) {
+  Widget _buildMediaPreview(BuildContext context, MediaType mediaType) {
     // Audio: dedicated preview card
     if (mediaType == MediaType.audio) {
-      return _buildAudioPreview();
+      return _buildAudioPreview(context);
     }
 
     // Image: multi-image grid
@@ -1104,14 +1142,17 @@ class _FormStep extends ConsumerWidget {
               color: Colors.black.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(radiusSm),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
-                SizedBox(width: spaceXs),
+                const Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
+                const SizedBox(width: spaceXs),
                 Text(
-                  'Replace',
-                  style: TextStyle(color: Colors.white70, fontSize: fontSizeXs),
+                  context.l10n.replace,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: fontSizeXs,
+                  ),
                 ),
               ],
             ),
@@ -1161,7 +1202,7 @@ class _FormStep extends ConsumerWidget {
     );
   }
 
-  Widget _buildAudioPreview() {
+  Widget _buildAudioPreview(BuildContext context) {
     return Stack(
       children: [
         Container(
@@ -1192,9 +1233,9 @@ class _FormStep extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Audio uploaded',
-                      style: TextStyle(
+                    Text(
+                      context.l10n.audioUploaded,
+                      style: const TextStyle(
                         color: colorTextPrimary,
                         fontSize: fontSizeSm,
                         fontWeight: weightMedium,
@@ -1229,14 +1270,17 @@ class _FormStep extends ConsumerWidget {
               color: Colors.black.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(radiusSm),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
-                SizedBox(width: spaceXs),
+                const Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
+                const SizedBox(width: spaceXs),
                 Text(
-                  'Replace',
-                  style: TextStyle(color: Colors.white70, fontSize: fontSizeXs),
+                  context.l10n.replace,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: fontSizeXs,
+                  ),
                 ),
               ],
             ),
@@ -1247,7 +1291,8 @@ class _FormStep extends ConsumerWidget {
   }
 
   // link: URL (required) + title + caption
-  List<Widget> _buildLinkFields(ThemeData theme) {
+  List<Widget> _buildLinkFields(BuildContext context, ThemeData theme) {
+    final l10n = context.l10n;
     return [
       // Wrap in FocusTraversalGroup to keep Tab navigation within these fields
       // and prevent Flutter Web IME assertion on focus change.
@@ -1274,7 +1319,7 @@ class _FormStep extends ConsumerWidget {
                   fontFamily: monoFontFamily,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'https://',
+                  hintText: l10n.urlPlaceholder,
                   hintStyle: TextStyle(
                     color: colorTextMuted.withValues(alpha: 0.4),
                     fontSize: fontSizeMd,
@@ -1290,11 +1335,11 @@ class _FormStep extends ConsumerWidget {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'URL is required';
+                    return l10n.fieldRequired('URL');
                   }
                   final uri = Uri.tryParse(value);
                   if (uri == null || !['http', 'https'].contains(uri.scheme)) {
-                    return 'Enter a valid http(s) URL';
+                    return l10n.invalidUrl;
                   }
                   return null;
                 },
@@ -1320,7 +1365,7 @@ class _FormStep extends ConsumerWidget {
                   fontWeight: weightMedium,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Title (auto-filled from link if empty)',
+                  hintText: l10n.titleAutoFilled,
                   hintStyle: const TextStyle(
                     color: colorTextMuted,
                     fontSize: fontSizeLg,
@@ -1357,7 +1402,7 @@ class _FormStep extends ConsumerWidget {
                   height: 1.5,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Add a note...',
+                  hintText: l10n.addNote,
                   hintStyle: const TextStyle(
                     color: colorTextMuted,
                     fontSize: fontSizeMd,
@@ -1495,7 +1540,7 @@ class _ConnectionsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Connections', style: theme.textTheme.titleSmall),
+        Text(context.l10n.connections, style: theme.textTheme.titleSmall),
         const SizedBox(height: spaceSm),
         ...connections.map((c) {
           final post = c.post;
@@ -1547,8 +1592,8 @@ class _ConnectionsSection extends StatelessWidget {
             icon: const Icon(Icons.link, size: 18),
             label: Text(
               connections.isEmpty
-                  ? 'Link to existing post'
-                  : 'Add another connection',
+                  ? context.l10n.linkToExistingPost
+                  : context.l10n.addAnotherConnection,
             ),
             style: OutlinedButton.styleFrom(
               foregroundColor: theme.colorScheme.onSurface.withAlpha(180),
@@ -1631,9 +1676,9 @@ class _ArticleGenrePicker extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Genre',
-          style: TextStyle(
+        Text(
+          context.l10n.genre,
+          style: const TextStyle(
             color: colorTextMuted,
             fontSize: fontSizeSm,
             fontWeight: weightSemibold,
@@ -1693,9 +1738,9 @@ class _ExternalPublishToggle extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Publish externally',
-                style: TextStyle(
+              Text(
+                context.l10n.publishExternally,
+                style: const TextStyle(
                   color: colorTextSecondary,
                   fontSize: fontSizeSm,
                   fontWeight: weightMedium,
@@ -1703,7 +1748,7 @@ class _ExternalPublishToggle extends ConsumerWidget {
               ),
               const SizedBox(height: spaceXxs),
               Text(
-                'Make available on the public article site',
+                context.l10n.publishExternallyDescription,
                 style: TextStyle(color: colorTextMuted, fontSize: fontSizeXs),
               ),
             ],

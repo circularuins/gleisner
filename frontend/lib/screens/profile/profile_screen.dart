@@ -13,6 +13,7 @@ import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../providers/tutorial_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
+import '../../l10n/l10n.dart';
 import '../../utils/account_switch_helper.dart';
 import '../../theme/gleisner_tokens.dart';
 import 'create_child_sheet.dart';
@@ -60,7 +61,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       backgroundColor: colorSurface0,
       appBar: AppBar(
         backgroundColor: colorSurface0,
-        title: const Text('Profile', style: TextStyle(color: colorTextPrimary)),
+        title: Text(
+          context.l10n.profile,
+          style: const TextStyle(color: colorTextPrimary),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined, color: colorTextSecondary),
@@ -117,12 +121,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 spacing: spaceLg,
                 children: [
                   Text(
-                    'Joined ${_formatJoinDate(user.createdAt)}',
+                    context.l10n.joinedDate(_formatJoinDate(user.createdAt)),
                     style: textCaption.copyWith(color: colorTextMuted),
                   ),
                   if (tuneInState.tunedInArtists.isNotEmpty)
                     Text(
-                      '${tuneInState.tunedInArtists.length} Tuned In',
+                      context.l10n.tunedInCount(
+                        tuneInState.tunedInArtists.length,
+                      ),
                       style: textCaption.copyWith(color: colorTextMuted),
                     ),
                 ],
@@ -151,7 +157,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                           const SizedBox(width: spaceSm),
                           Text(
-                            'Artist',
+                            context.l10n.artist,
                             style: textLabel.copyWith(color: colorAccentGold),
                           ),
                         ],
@@ -169,7 +175,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       if (artist.tracks.isNotEmpty) ...[
                         const SizedBox(height: spaceMd),
                         Text(
-                          '${artist.tracks.length} track${artist.tracks.length == 1 ? '' : 's'}',
+                          context.l10n.trackCount(artist.tracks.length),
                           style: textCaption.copyWith(
                             color: colorTextSecondary,
                           ),
@@ -189,8 +195,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           const SizedBox(width: spaceXs),
                           Text(
                             artist.profileVisibility == 'private'
-                                ? 'Private'
-                                : 'Public',
+                                ? context.l10n.private
+                                : context.l10n.public,
                             style: textCaption.copyWith(color: colorTextMuted),
                           ),
                           const Spacer(),
@@ -211,8 +217,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         padding: const EdgeInsets.only(bottom: spaceSm),
                         child: Text(
                           artist.profileVisibility == 'private'
-                              ? 'Your artist page is hidden from Discover and search. Only existing fans and direct links can access it.'
-                              : 'Your artist page is visible in Discover and search. Anyone can view your profile and Tune In.',
+                              ? context.l10n.artistVisibilityPrivateDesc
+                              : context.l10n.artistVisibilityPublicDesc,
                           style: textCaption.copyWith(
                             color: colorTextMuted,
                             fontStyle: FontStyle.italic,
@@ -226,7 +232,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           onPressed: () =>
                               context.push('/artist/${artist.artistUsername}'),
                           icon: const Icon(Icons.person, size: 16),
-                          label: const Text('View Artist Page'),
+                          label: Text(context.l10n.viewArtistPage),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: colorAccentGold,
                             side: BorderSide(
@@ -270,10 +276,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Become an Artist', style: textHeading),
+                              Text(
+                                context.l10n.becomeAnArtist,
+                                style: textHeading,
+                              ),
                               const SizedBox(height: spaceXxs),
                               Text(
-                                'Start sharing your creative journey',
+                                context.l10n.startSharingCreativeJourney,
                                 style: textCaption.copyWith(
                                   color: colorTextSecondary,
                                 ),
@@ -303,7 +312,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     const SizedBox(width: spaceSm),
                     Text(
-                      'Child Accounts',
+                      context.l10n.addChildAccount,
                       style: textHeading.copyWith(fontSize: 16),
                     ),
                   ],
@@ -328,7 +337,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   OutlinedButton.icon(
                     onPressed: () => _showCreateChildSheet(context),
                     icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Add Child Account'),
+                    label: Text(context.l10n.addChildAccount),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: colorTextSecondary,
                       side: const BorderSide(color: colorBorder),
@@ -346,7 +355,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: FilledButton.icon(
                     onPressed: _switchBackToGuardian,
                     icon: const Icon(Icons.swap_horiz, size: 16),
-                    label: const Text('Return to My Account'),
+                    label: Text(context.l10n.returnToMyAccount),
                     style: FilledButton.styleFrom(
                       backgroundColor: colorAccentGold,
                       foregroundColor: colorSurface0,
@@ -361,7 +370,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               TextButton(
                 onPressed: () => context.push('/about'),
                 child: Text(
-                  'About Gleisner',
+                  context.l10n.aboutGleisner,
                   style: textCaption.copyWith(color: colorTextMuted),
                 ),
               ),
@@ -382,7 +391,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   await ref.read(tutorialProvider.notifier).reset();
                   ref.invalidate(tutorialProvider);
                 },
-                child: const Text('Logout'),
+                child: Text(context.l10n.logout),
               ),
 
               const SizedBox(height: spaceXxl),
@@ -391,9 +400,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               if (!authState.user!.isChildAccount)
                 TextButton(
                   onPressed: () => _showDeleteAccountDialog(context, ref),
-                  child: const Text(
-                    'Delete Account',
-                    style: TextStyle(color: colorError, fontSize: fontSizeSm),
+                  child: Text(
+                    context.l10n.deleteAccount,
+                    style: const TextStyle(
+                      color: colorError,
+                      fontSize: fontSizeSm,
+                    ),
                   ),
                 ),
             ],
@@ -412,17 +424,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colorSurface1,
-        title: const Text(
-          'Delete your account?',
-          style: TextStyle(color: colorTextPrimary),
+        title: Text(
+          context.l10n.deleteAccountConfirmTitle,
+          style: const TextStyle(color: colorTextPrimary),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'This action is permanent and cannot be undone.',
-              style: TextStyle(
+            Text(
+              context.l10n.cannotBeUndone,
+              style: const TextStyle(
                 color: colorTextPrimary,
                 fontWeight: weightSemibold,
               ),
@@ -450,9 +462,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             TextField(
               controller: passwordController,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Enter your password to confirm',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: context.l10n.enterPasswordToConfirm,
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -460,13 +472,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Delete Account',
-              style: TextStyle(color: colorError),
+            child: Text(
+              context.l10n.deleteAccount,
+              style: const TextStyle(color: colorError),
             ),
           ),
         ],
@@ -483,11 +495,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!context.mounted) return;
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to delete account. Check your password.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.deleteAccountFailed)));
       return;
     }
 
@@ -532,7 +542,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           TextButton(
             onPressed: () => _switchToChild(child.id),
             child: Text(
-              'Switch',
+              context.l10n.switchToChild(child.displayName ?? child.username),
               style: textLabel.copyWith(color: colorAccentGold),
             ),
           ),

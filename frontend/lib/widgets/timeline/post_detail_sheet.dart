@@ -15,6 +15,7 @@ import '../common/connection_type_picker.dart';
 import '../common/image_grid_widgets.dart';
 import '../common/related_post_picker.dart';
 import 'seed_art_painter.dart';
+import '../../l10n/l10n.dart';
 
 const _reactionPresets = ['🔥', '❤️', '👏', '✨', '😍', '🎵', '💪', '🎸'];
 
@@ -306,26 +307,27 @@ class _PostDetailContentState extends State<PostDetailContent> {
   }
 
   Future<void> _confirmDeleteConstellation(String constellationId) async {
+    final l10n = context.l10n;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colorSurface1,
-        title: const Text(
-          'Remove constellation name?',
-          style: TextStyle(color: colorTextPrimary),
+        title: Text(
+          l10n.removeConstellationName,
+          style: const TextStyle(color: colorTextPrimary),
         ),
-        content: const Text(
-          'The posts will remain but the constellation grouping will be removed.',
-          style: TextStyle(color: colorTextSecondary),
+        content: Text(
+          l10n.removeConstellationDescription,
+          style: const TextStyle(color: colorTextSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Remove', style: TextStyle(color: colorError)),
+            child: Text(l10n.remove, style: const TextStyle(color: colorError)),
           ),
         ],
       ),
@@ -337,35 +339,34 @@ class _PostDetailContentState extends State<PostDetailContent> {
     if (success) {
       setState(() => _removedConstellationIds.add(constellationId));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to remove constellation. Please try again.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.failedRemoveConstellation)));
     }
   }
 
   Future<void> _confirmDeletePost() async {
+    final l10n = context.l10n;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colorSurface1,
-        title: const Text(
-          'Delete post?',
-          style: TextStyle(color: colorTextPrimary),
+        title: Text(
+          l10n.deletePostConfirm,
+          style: const TextStyle(color: colorTextPrimary),
         ),
-        content: const Text(
-          'This action cannot be undone. The post and its media will be permanently deleted.',
-          style: TextStyle(color: colorTextSecondary),
+        content: Text(
+          l10n.cannotBeUndone,
+          style: const TextStyle(color: colorTextSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: colorError)),
+            child: Text(l10n.delete, style: const TextStyle(color: colorError)),
           ),
         ],
       ),
@@ -377,11 +378,9 @@ class _PostDetailContentState extends State<PostDetailContent> {
     if (success) {
       if (!widget.embedded) Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to delete post. Please try again.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.failedDeletePost)));
     }
   }
 
@@ -482,11 +481,11 @@ class _PostDetailContentState extends State<PostDetailContent> {
                 height: 1,
               ),
               const SizedBox(height: spaceMd),
-              Text('Comments', style: textLabel),
+              Text(context.l10n.comments, style: textLabel),
               const SizedBox(height: spaceXs),
-              const Text(
-                'Coming soon',
-                style: TextStyle(
+              Text(
+                context.l10n.comingSoon,
+                style: const TextStyle(
                   color: colorInteractiveMuted,
                   fontSize: fontSizeSm,
                 ),
@@ -648,9 +647,9 @@ class _PostDetailContentState extends State<PostDetailContent> {
                     color: colorTextMuted.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(radiusSm),
                   ),
-                  child: const Text(
-                    'DRAFT',
-                    style: TextStyle(
+                  child: Text(
+                    context.l10n.draft.toUpperCase(),
+                    style: const TextStyle(
                       color: colorSurface0,
                       fontSize: fontSizeXs,
                       fontWeight: weightSemibold,
@@ -670,7 +669,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
               color: colorTextMuted,
             ),
             onPressed: widget.onEdit,
-            tooltip: 'Edit post',
+            tooltip: context.l10n.editPostTooltip,
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -683,7 +682,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
               color: colorTextMuted,
             ),
             onPressed: _confirmDeletePost,
-            tooltip: 'Delete post',
+            tooltip: context.l10n.deletePostTooltip,
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -841,7 +840,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
           height: 1,
         ),
         const SizedBox(height: spaceMd),
-        Text('Connections', style: textLabel),
+        Text(context.l10n.connections, style: textLabel),
         const SizedBox(height: spaceSm),
         if (connectedPosts.isNotEmpty)
           Wrap(
@@ -930,7 +929,9 @@ class _PostDetailContentState extends State<PostDetailContent> {
                   ),
                   const SizedBox(width: spaceXs),
                   Text(
-                    _isConnecting ? 'Linking...' : 'Link post',
+                    _isConnecting
+                        ? context.l10n.linking
+                        : context.l10n.linkPost,
                     style: TextStyle(
                       color: _isConnecting
                           ? colorInteractiveMuted
@@ -1018,8 +1019,8 @@ class _PostDetailContentState extends State<PostDetailContent> {
           backgroundColor: colorBorder,
           title: Text(
             existing != null
-                ? 'Rename constellation'
-                : 'Name this constellation',
+                ? context.l10n.nameConstellation
+                : context.l10n.nameConstellation,
             style: const TextStyle(
               color: colorTextPrimary,
               fontSize: fontSizeXl,
@@ -1048,7 +1049,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
+              child: Text(context.l10n.cancel),
             ),
             TextButton(
               onPressed: () async {
@@ -1061,7 +1062,10 @@ class _PostDetailContentState extends State<PostDetailContent> {
                   widget.onViewConstellation?.call(constellationIds);
                 }
               },
-              child: Text('Save', style: TextStyle(color: trackColor)),
+              child: Text(
+                context.l10n.save,
+                style: TextStyle(color: trackColor),
+              ),
             ),
           ],
         );
@@ -1154,7 +1158,9 @@ class _PostDetailContentState extends State<PostDetailContent> {
                     Text(
                       namedConstellation != null
                           ? '${constellationIds.length} posts'
-                          : 'Constellation · ${constellationIds.length} posts',
+                          : context.l10n.constellationPostCount(
+                              constellationIds.length,
+                            ),
                       style: const TextStyle(
                         color: colorInteractiveMuted,
                         fontSize: fontSizeSm,
@@ -1180,7 +1186,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
                       ),
                       const SizedBox(width: spaceXs),
                       Text(
-                        'Name',
+                        context.l10n.nameConstellation,
                         style: TextStyle(
                           color: trackColor.withValues(alpha: opacityOverlay),
                           fontSize: fontSizeSm,
@@ -1205,7 +1211,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
                   ),
                   const SizedBox(width: spaceXs),
                   Text(
-                    'View',
+                    context.l10n.view,
                     style: TextStyle(
                       color: trackColor.withValues(alpha: 0.7),
                       fontSize: fontSizeMd,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/artist.dart';
 import '../../providers/artist_page_provider.dart';
+import '../../l10n/l10n.dart';
 import '../../providers/edit_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/milestone_category.dart';
@@ -99,19 +100,25 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colorSurface1,
-        title: const Text('Delete?', style: TextStyle(color: colorTextPrimary)),
+        title: Text(
+          context.l10n.deleteConfirmation,
+          style: const TextStyle(color: colorTextPrimary),
+        ),
         content: Text(
-          'Remove "${milestone.title}"?',
+          '${context.l10n.remove} "${milestone.title}"?',
           style: const TextStyle(color: colorTextSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(
+              context.l10n.delete,
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -140,9 +147,9 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: colorSurface1,
-          title: const Text(
-            'Edit Milestone',
-            style: TextStyle(color: colorTextPrimary),
+          title: Text(
+            context.l10n.editMilestone,
+            style: const TextStyle(color: colorTextPrimary),
           ),
           content: SingleChildScrollView(
             child: Column(
@@ -167,9 +174,9 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                 TextField(
                   controller: titleCtl,
                   style: const TextStyle(color: colorTextPrimary),
-                  decoration: const InputDecoration(
-                    labelText: 'Title',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.title,
+                    border: const OutlineInputBorder(),
                   ),
                   maxLength: 255,
                 ),
@@ -177,9 +184,9 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                 TextField(
                   controller: descCtl,
                   style: const TextStyle(color: colorTextPrimary),
-                  decoration: const InputDecoration(
-                    labelText: 'Description (optional)',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.descriptionOptional,
+                    border: const OutlineInputBorder(),
                   ),
                   maxLines: 2,
                 ),
@@ -207,7 +214,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(context.l10n.cancel),
             ),
             TextButton(
               onPressed: () async {
@@ -229,9 +236,9 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                   Navigator.pop(ctx, result);
                 }
               },
-              child: const Text(
-                'Save',
-                style: TextStyle(color: colorAccentGold),
+              child: Text(
+                context.l10n.save,
+                style: const TextStyle(color: colorAccentGold),
               ),
             ),
           ],
@@ -297,9 +304,9 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
               padding: const EdgeInsets.symmetric(horizontal: spaceLg),
               child: Row(
                 children: [
-                  const Text(
-                    'Career',
-                    style: TextStyle(
+                  Text(
+                    context.l10n.milestones,
+                    style: const TextStyle(
                       color: colorTextPrimary,
                       fontSize: fontSizeLg,
                       fontWeight: weightBold,
@@ -307,7 +314,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                   ),
                   const SizedBox(width: spaceSm),
                   Text(
-                    '${_milestones.length}/200',
+                    context.l10n.milestonesCountOf(_milestones.length),
                     style: const TextStyle(
                       color: colorTextMuted,
                       fontSize: fontSizeSm,
@@ -366,10 +373,9 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                     TextFormField(
                       controller: _titleController,
                       style: const TextStyle(color: colorTextPrimary),
-                      decoration: const InputDecoration(
-                        labelText: 'Title',
-                        hintText: 'e.g. Grammy Award, First Album Release',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: context.l10n.title,
+                        border: const OutlineInputBorder(),
                       ),
                       maxLength: 255,
                     ),
@@ -377,9 +383,9 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                     TextFormField(
                       controller: _descriptionController,
                       style: const TextStyle(color: colorTextPrimary),
-                      decoration: const InputDecoration(
-                        labelText: 'Description (optional)',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: context.l10n.descriptionOptional,
+                        border: const OutlineInputBorder(),
                       ),
                       maxLines: 2,
                     ),
@@ -400,7 +406,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                               width: 16,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('Add'),
+                          : Text(context.l10n.add),
                     ),
                   ],
                 ),
@@ -409,10 +415,10 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
             // Milestones list
             Expanded(
               child: _milestones.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
-                        'No career milestones yet',
-                        style: TextStyle(color: colorTextMuted),
+                        context.l10n.milestones,
+                        style: const TextStyle(color: colorTextMuted),
                       ),
                     )
                   : ListView.separated(

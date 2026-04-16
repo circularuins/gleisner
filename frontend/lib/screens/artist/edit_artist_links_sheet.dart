@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/artist.dart';
 import '../../providers/artist_page_provider.dart';
+import '../../l10n/l10n.dart';
 import '../../providers/edit_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 
@@ -93,23 +94,23 @@ class _EditArtistLinksSheetState extends ConsumerState<EditArtistLinksSheet> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: colorSurface1,
-        title: const Text(
-          'Delete Link',
-          style: TextStyle(color: colorTextPrimary),
+        title: Text(
+          context.l10n.deleteConfirmation,
+          style: const TextStyle(color: colorTextPrimary),
         ),
         content: Text(
-          'Remove ${link.platform}?',
+          '${context.l10n.remove} ${link.platform}?',
           style: const TextStyle(color: colorTextSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: colorError),
-            child: const Text('Delete'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -168,7 +169,9 @@ class _EditArtistLinksSheetState extends ConsumerState<EditArtistLinksSheet> {
 
               Row(
                 children: [
-                  Expanded(child: Text('Manage Links', style: textTitle)),
+                  Expanded(
+                    child: Text(context.l10n.manageLinks, style: textTitle),
+                  ),
                   if (!_showAddForm)
                     IconButton(
                       icon: const Icon(Icons.add, color: colorAccentGold),
@@ -203,7 +206,7 @@ class _EditArtistLinksSheetState extends ConsumerState<EditArtistLinksSheet> {
                   padding: const EdgeInsets.symmetric(vertical: spaceXl),
                   child: Center(
                     child: Text(
-                      'No links yet. Tap + to add one.',
+                      context.l10n.noLinksYet,
                       style: textCaption.copyWith(color: colorTextMuted),
                     ),
                   ),
@@ -350,7 +353,7 @@ class _AddLinkForm extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Add Link',
+            context.l10n.addLink,
             style: textHeading.copyWith(color: colorTextPrimary),
           ),
           const SizedBox(height: spaceMd),
@@ -378,7 +381,7 @@ class _AddLinkForm extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    cat,
+                    _localizedCategory(context, cat),
                     style: TextStyle(
                       color: isSelected ? colorAccentGold : colorTextSecondary,
                       fontSize: fontSizeSm,
@@ -395,7 +398,7 @@ class _AddLinkForm extends StatelessWidget {
             controller: platformController,
             maxLength: 50,
             style: const TextStyle(color: colorTextPrimary),
-            decoration: _inputDecoration('Platform (e.g. Spotify, Instagram)'),
+            decoration: _inputDecoration(context.l10n.platform),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Platform name is required';
@@ -409,14 +412,14 @@ class _AddLinkForm extends StatelessWidget {
           TextFormField(
             controller: urlController,
             style: const TextStyle(color: colorTextPrimary),
-            decoration: _inputDecoration('URL'),
+            decoration: _inputDecoration(context.l10n.url),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'URL is required';
               }
               final uri = Uri.tryParse(value.trim());
               if (uri == null || !['http', 'https'].contains(uri.scheme)) {
-                return 'Enter a valid URL (https://...)';
+                return context.l10n.invalidUrl;
               }
               return null;
             },
@@ -433,7 +436,7 @@ class _AddLinkForm extends StatelessWidget {
                     foregroundColor: colorTextSecondary,
                     side: const BorderSide(color: colorBorder),
                   ),
-                  child: const Text('Cancel'),
+                  child: Text(context.l10n.cancel),
                 ),
               ),
               const SizedBox(width: spaceMd),
@@ -450,7 +453,7 @@ class _AddLinkForm extends StatelessWidget {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Add'),
+                      : Text(context.l10n.add),
                 ),
               ),
             ],
@@ -458,6 +461,18 @@ class _AddLinkForm extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static String _localizedCategory(BuildContext context, String cat) {
+    return switch (cat) {
+      'music' => context.l10n.linkCategoryMusic,
+      'social' => context.l10n.linkCategorySocial,
+      'video' => context.l10n.linkCategoryVideo,
+      'website' => context.l10n.linkCategoryWebsite,
+      'store' => context.l10n.linkCategoryStore,
+      'other' => context.l10n.linkCategoryOther,
+      _ => cat,
+    };
   }
 
   InputDecoration _inputDecoration(String label) {

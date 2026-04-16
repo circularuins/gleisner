@@ -19,6 +19,7 @@ import '../../widgets/timeline/post_detail_sheet.dart';
 import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../widgets/common/artist_not_found_view.dart';
+import '../../l10n/l10n.dart';
 
 class PublicTimelineScreen extends ConsumerStatefulWidget {
   final String username;
@@ -167,7 +168,7 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen>
                     child: timeline.artist == null
                         ? const ArtistNotFoundView(showBackButton: false)
                         : Text(
-                            'No posts yet',
+                            context.l10n.noPostsYet,
                             style: TextStyle(
                               color: colorInteractive,
                               fontSize: theme.textTheme.bodyLarge?.fontSize,
@@ -335,18 +336,18 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen>
                   const SizedBox(width: spaceMd),
                   Expanded(
                     child: Text(
-                      'Discover more artists',
+                      context.l10n.discoverMoreArtists,
                       style: textHeading.copyWith(fontSize: 13),
                     ),
                   ),
                   FilledButton.tonal(
                     onPressed: () => context.go('/signup'),
-                    child: const Text('Sign up'),
+                    child: Text(context.l10n.signUp),
                   ),
                   const SizedBox(width: spaceSm),
                   TextButton(
                     onPressed: () => context.go('/login'),
-                    child: const Text('Login'),
+                    child: Text(context.l10n.login),
                   ),
                 ],
               ),
@@ -368,7 +369,7 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen>
     final count = timeline.constellationPostIds!.length;
     return name != null
         ? '$name · $count posts'
-        : 'Constellation · $count posts';
+        : context.l10n.constellationPostCount(count);
   }
 
   List<Positioned> _buildNodes(
@@ -734,7 +735,7 @@ class _TuneInButton extends StatelessWidget {
             ),
             const SizedBox(width: spaceXs),
             Text(
-              isTunedIn ? 'Tuned In' : 'Tune In',
+              isTunedIn ? context.l10n.tunedIn : context.l10n.tuneIn,
               style: TextStyle(
                 color: isTunedIn ? colorAccentGold : colorSurface0,
                 fontSize: fontSizeSm,
@@ -774,7 +775,7 @@ class _TrackSelector extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: _chip(
-              label: 'All',
+              label: context.l10n.all,
               selected: allSelected,
               onTap: onToggleAll,
               selectedColor: colorInteractive,

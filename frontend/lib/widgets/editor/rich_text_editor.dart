@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 
 import '../../theme/gleisner_tokens.dart';
+import '../../l10n/l10n.dart';
 
 /// A WYSIWYG rich text editor wrapping flutter_quill.
 ///
@@ -100,7 +101,7 @@ class _RichTextEditorState extends State<RichTextEditor> {
             ),
             const SizedBox(width: spaceSm),
             Text(
-              'Formatting',
+              context.l10n.formatting,
               style: TextStyle(
                 color: colorInteractiveMuted,
                 fontSize: fontSizeSm,
@@ -171,7 +172,7 @@ class _RichTextEditorState extends State<RichTextEditor> {
                         size: 18,
                         color: colorInteractive,
                       ),
-                      tooltip: 'Insert image',
+                      tooltip: context.l10n.insertImage,
                       onPressed: widget.onImageInsert!,
                     ),
                 ],
@@ -190,7 +191,7 @@ class _RichTextEditorState extends State<RichTextEditor> {
               onPressed: () => setState(() => _toolbarExpanded = false),
               icon: const Icon(Icons.keyboard_arrow_up, size: 18),
               color: colorInteractiveMuted,
-              tooltip: 'Hide formatting',
+              tooltip: context.l10n.hideFormatting,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),

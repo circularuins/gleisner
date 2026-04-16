@@ -8,6 +8,7 @@ import '../../graphql/mutations/genre.dart';
 import '../../graphql/mutations/track.dart';
 import '../../graphql/queries/artist.dart';
 import '../../models/genre.dart';
+import '../../l10n/l10n.dart';
 import '../../providers/my_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 
@@ -95,7 +96,7 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
                 onPressed: () => setState(() => _step--),
               ),
         title: Text(
-          _stepTitle,
+          _stepTitle(context),
           style: const TextStyle(color: colorTextPrimary, fontSize: fontSizeLg),
         ),
         actions: [
@@ -103,7 +104,7 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
             padding: const EdgeInsets.only(right: spaceMd),
             child: Center(
               child: Text(
-                '${_step + 1}/4',
+                context.l10n.wizardStepOf(_step + 1),
                 style: const TextStyle(
                   color: colorTextMuted,
                   fontSize: fontSizeSm,
@@ -119,11 +120,11 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
     );
   }
 
-  String get _stepTitle => switch (_step) {
-    0 => 'Become an Artist',
-    1 => 'Artist Profile',
-    2 => 'Set Up Tracks',
-    3 => 'Welcome!',
+  String _stepTitle(BuildContext context) => switch (_step) {
+    0 => context.l10n.becomeAnArtist,
+    1 => context.l10n.createArtistProfile,
+    2 => context.l10n.selectTracksProfile,
+    3 => context.l10n.youreAllSet,
     _ => '',
   };
 
@@ -362,7 +363,7 @@ class _StepIntro extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Your artist profile is separate from your personal account.',
+            context.l10n.artistUpgradeExplain,
             style: textBody.copyWith(color: colorTextSecondary),
           ),
           const SizedBox(height: spaceXl),
@@ -394,7 +395,7 @@ class _StepIntro extends StatelessWidget {
               foregroundColor: colorSurface0,
               padding: const EdgeInsets.symmetric(vertical: spaceLg),
             ),
-            child: const Text('Get Started'),
+            child: Text(context.l10n.getStarted),
           ),
         ],
       ),
@@ -526,11 +527,11 @@ class _StepProfile extends StatelessWidget {
             TextFormField(
               controller: usernameController,
               style: const TextStyle(color: colorTextPrimary),
-              decoration: const InputDecoration(
-                labelText: 'Artist Username *',
-                hintText: 'e.g. myjazzjourney',
-                border: OutlineInputBorder(),
-                helperText: 'Letters, numbers, underscores. 2-30 chars.',
+              decoration: InputDecoration(
+                labelText: '${context.l10n.artistUsername} *',
+                hintText: context.l10n.chooseUniqueHandle,
+                border: const OutlineInputBorder(),
+                helperText: context.l10n.usernameFormat,
               ),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Required';
@@ -547,10 +548,10 @@ class _StepProfile extends StatelessWidget {
             TextFormField(
               controller: displayNameController,
               style: const TextStyle(color: colorTextPrimary),
-              decoration: const InputDecoration(
-                labelText: 'Display Name *',
-                hintText: 'e.g. Jazz Journey',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: '${context.l10n.displayName} *',
+                hintText: context.l10n.yourProfessionalName,
+                border: const OutlineInputBorder(),
               ),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Required';
@@ -562,10 +563,10 @@ class _StepProfile extends StatelessWidget {
             TextFormField(
               controller: taglineController,
               style: const TextStyle(color: colorTextPrimary),
-              decoration: const InputDecoration(
-                labelText: 'Tagline (optional)',
-                hintText: 'A short creative tagline (max 80 chars)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: context.l10n.tagline,
+                hintText: context.l10n.oneLiners,
+                border: const OutlineInputBorder(),
               ),
               maxLength: 80,
             ),
@@ -573,10 +574,10 @@ class _StepProfile extends StatelessWidget {
             TextFormField(
               controller: locationController,
               style: const TextStyle(color: colorTextPrimary),
-              decoration: const InputDecoration(
-                labelText: 'Location (optional)',
-                hintText: 'e.g. Osaka, Japan',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: context.l10n.location,
+                hintText: context.l10n.whereYouCreate,
+                border: const OutlineInputBorder(),
               ),
               maxLength: 100,
             ),
@@ -585,8 +586,8 @@ class _StepProfile extends StatelessWidget {
               controller: activeSinceController,
               style: const TextStyle(color: colorTextPrimary),
               decoration: InputDecoration(
-                labelText: 'Active Since (optional)',
-                hintText: 'e.g. 2019 (1900–${DateTime.now().year})',
+                labelText: context.l10n.activeSinceYear,
+                hintText: context.l10n.yearYouStarted,
                 border: const OutlineInputBorder(),
               ),
               keyboardType: TextInputType.number,
@@ -604,7 +605,7 @@ class _StepProfile extends StatelessWidget {
             if (availableGenres.isNotEmpty) ...[
               const SizedBox(height: spaceXl),
               Text(
-                'Genres (up to 5)',
+                context.l10n.genres,
                 style: TextStyle(
                   color: colorTextPrimary,
                   fontSize: fontSizeMd,
@@ -657,28 +658,27 @@ class _StepProfile extends StatelessWidget {
                         context: context,
                         builder: (ctx) => AlertDialog(
                           backgroundColor: colorSurface1,
-                          title: const Text(
-                            'Create Genre',
-                            style: TextStyle(color: colorTextPrimary),
+                          title: Text(
+                            context.l10n.createOwnGenre,
+                            style: const TextStyle(color: colorTextPrimary),
                           ),
                           content: TextField(
                             controller: controller,
                             autofocus: true,
                             style: const TextStyle(color: colorTextPrimary),
                             decoration: const InputDecoration(
-                              hintText: 'e.g. Ambient Pop',
                               border: OutlineInputBorder(),
                             ),
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx),
-                              child: const Text('Cancel'),
+                              child: Text(context.l10n.cancel),
                             ),
                             TextButton(
                               onPressed: () =>
                                   Navigator.pop(ctx, controller.text.trim()),
-                              child: const Text('Create'),
+                              child: Text(context.l10n.create),
                             ),
                           ],
                         ),
@@ -696,7 +696,7 @@ class _StepProfile extends StatelessWidget {
                       Icon(Icons.add, size: 14, color: colorInteractiveMuted),
                       const SizedBox(width: spaceXs),
                       Text(
-                        'Create custom genre',
+                        context.l10n.createOwnGenre,
                         style: TextStyle(
                           color: colorInteractiveMuted,
                           fontSize: fontSizeSm,
@@ -714,7 +714,7 @@ class _StepProfile extends StatelessWidget {
                 foregroundColor: colorSurface0,
                 padding: const EdgeInsets.symmetric(vertical: spaceLg),
               ),
-              child: const Text('Next: Set Up Tracks'),
+              child: Text(context.l10n.next),
             ),
           ],
         ),
@@ -929,7 +929,7 @@ class _StepTracks extends StatelessWidget {
                       color: colorSurface0,
                     ),
                   )
-                : const Text('Create Artist Profile'),
+                : Text(context.l10n.createArtistProfile),
           ),
         ],
       ),
@@ -1020,9 +1020,9 @@ class _TrackChip extends StatelessWidget {
                       context: context,
                       builder: (ctx) => AlertDialog(
                         backgroundColor: colorSurface1,
-                        title: const Text(
-                          'Rename Track',
-                          style: TextStyle(color: colorTextPrimary),
+                        title: Text(
+                          context.l10n.trackName,
+                          style: const TextStyle(color: colorTextPrimary),
                         ),
                         content: TextField(
                           controller: controller,
@@ -1035,12 +1035,12 @@ class _TrackChip extends StatelessWidget {
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx),
-                            child: const Text('Cancel'),
+                            child: Text(context.l10n.cancel),
                           ),
                           TextButton(
                             onPressed: () =>
                                 Navigator.pop(ctx, controller.text.trim()),
-                            child: const Text('Save'),
+                            child: Text(context.l10n.save),
                           ),
                         ],
                       ),
@@ -1120,7 +1120,7 @@ class _StepComplete extends StatelessWidget {
           const Icon(Icons.check_circle, color: colorAccentGold, size: 64),
           const SizedBox(height: spaceXl),
           Text(
-            'Your Artist Page is ready!',
+            context.l10n.artistProfileLive,
             style: textTitle.copyWith(fontSize: fontSizeTitle),
             textAlign: TextAlign.center,
           ),
@@ -1189,7 +1189,7 @@ class _StepComplete extends StatelessWidget {
               foregroundColor: colorSurface0,
               padding: const EdgeInsets.symmetric(vertical: spaceLg),
             ),
-            child: const Text('View Your Timeline'),
+            child: Text(context.l10n.viewYourTimeline),
           ),
         ],
       ),
