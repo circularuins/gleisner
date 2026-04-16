@@ -6,7 +6,6 @@ import '../../models/user.dart';
 import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/discover_provider.dart';
-import '../../providers/featured_artist_provider.dart';
 import '../../providers/edit_artist_provider.dart';
 import '../../providers/guardian_provider.dart';
 import '../../providers/my_artist_provider.dart';
@@ -492,18 +491,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
-    // Clear all state (authProvider.deleteAccount already called logout)
-    ref.invalidate(graphqlClientProvider);
-    ref.invalidate(timelineProvider);
-    ref.invalidate(myArtistProvider);
-    ref.invalidate(tuneInProvider);
-    ref.invalidate(discoverProvider);
-    ref.invalidate(unassignedPostsProvider);
-    ref.invalidate(analyticsProvider);
-    ref.invalidate(guardianProvider);
-    ref.invalidate(featuredArtistProvider);
+    // Navigate to login BEFORE invalidating providers.
+    // If we invalidate while ProfileScreen is still mounted, Riverpod triggers
+    // a rebuild of disposed/disposing widgets → RenderFlex overflow +
+    // Duplicate GlobalKeys + LateInitializationError cascade.
+    // authProvider.deleteAccount already called logout() which clears
+    // the GraphQL cache and JWT storage.
+    context.go('/login');
     await ref.read(tutorialProvider.notifier).reset();
-    ref.invalidate(tutorialProvider);
   }
 
   Widget _buildChildCard(User child) {
