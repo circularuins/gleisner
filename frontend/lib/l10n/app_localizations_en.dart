@@ -438,6 +438,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'Start sharing your creative journey';
 
   @override
+  String get featureArtistPageTitle => 'Artist Page';
+
+  @override
+  String get featureArtistPageDesc =>
+      'A public creative identity with its own name, avatar, and cover image.';
+
+  @override
+  String get featureTracksTitle => 'Tracks';
+
+  @override
+  String get featureTracksDesc =>
+      'Organize your posts into themed streams — like channels on a mixing board.';
+
+  @override
+  String get featureBroadcastingTitle => 'Broadcasting';
+
+  @override
+  String get featureBroadcastingDesc =>
+      'Fans Tune In to your timeline and receive your creative updates.';
+
+  @override
   String get newPost => 'New Post';
 
   @override

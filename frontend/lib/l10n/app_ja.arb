@@ -69,7 +69,7 @@
   "featureDiscover": "アーティストを発見",
   "featureTuneIn": "アーティストをチューンイン",
   "readyToShare": "作品を共有する準備はできましたか？",
-  "artistUpgradeExplain": "パーソナルアカウントはそのまま — アーティストプロフィールは独立したクリエイティブ・アイデンティティです。",
+  "artistUpgradeExplain": "今のアカウントはそのまま使えます。アーティストプロフィールは、創作活動専用の「もうひとつの顔」です。",
   "becomeAnArtist": "アーティストになる",
   "exploreGleisner": "Gleisner を探索する",
 
@@ -143,6 +143,12 @@
   "startSharingPosts": "投稿を始める",
   "skipForNow": "スキップ",
   "startSharingCreativeJourney": "クリエイティブな旅を始めましょう",
+  "featureArtistPageTitle": "アーティストページ",
+  "featureArtistPageDesc": "名前・アバター・カバー画像を持つ、あなた専用のクリエイター名刺。",
+  "featureTracksTitle": "トラック",
+  "featureTracksDesc": "投稿をテーマごとに整理 — ミキサーのチャンネルのように。",
+  "featureBroadcastingTitle": "ブロードキャスト",
+  "featureBroadcastingDesc": "ファンがタイムラインをチューンインし、あなたの創作をリアルタイムで受け取ります。",
 
   "newPost": "新規投稿",
   "selectTrack": "トラックを選択",

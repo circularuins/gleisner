@@ -369,23 +369,20 @@ class _StepIntro extends StatelessWidget {
           const SizedBox(height: spaceXl),
           _FeatureCard(
             icon: Icons.person,
-            title: 'Artist Page',
-            description:
-                'A public creative identity with its own name, avatar, and cover image.',
+            title: context.l10n.featureArtistPageTitle,
+            description: context.l10n.featureArtistPageDesc,
           ),
           const SizedBox(height: spaceMd),
           _FeatureCard(
             icon: Icons.graphic_eq,
-            title: 'Tracks',
-            description:
-                'Organize your posts into themed streams — like channels on a mixing board.',
+            title: context.l10n.featureTracksTitle,
+            description: context.l10n.featureTracksDesc,
           ),
           const SizedBox(height: spaceMd),
           _FeatureCard(
             icon: Icons.cell_tower,
-            title: 'Broadcasting',
-            description:
-                'Fans Tune In to your timeline and receive your creative updates.',
+            title: context.l10n.featureBroadcastingTitle,
+            description: context.l10n.featureBroadcastingDesc,
           ),
           const Spacer(),
           FilledButton(

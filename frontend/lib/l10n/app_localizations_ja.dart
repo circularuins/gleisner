@@ -204,7 +204,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get artistUpgradeExplain =>
-      'パーソナルアカウントはそのまま — アーティストプロフィールは独立したクリエイティブ・アイデンティティです。';
+      '今のアカウントはそのまま使えます。アーティストプロフィールは、創作活動専用の「もうひとつの顔」です。';
 
   @override
   String get becomeAnArtist => 'アーティストになる';
@@ -430,6 +430,25 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get startSharingCreativeJourney => 'クリエイティブな旅を始めましょう';
+
+  @override
+  String get featureArtistPageTitle => 'アーティストページ';
+
+  @override
+  String get featureArtistPageDesc => '名前・アバター・カバー画像を持つ、あなた専用のクリエイター名刺。';
+
+  @override
+  String get featureTracksTitle => 'トラック';
+
+  @override
+  String get featureTracksDesc => '投稿をテーマごとに整理 — ミキサーのチャンネルのように。';
+
+  @override
+  String get featureBroadcastingTitle => 'ブロードキャスト';
+
+  @override
+  String get featureBroadcastingDesc =>
+      'ファンがタイムラインをチューンインし、あなたの創作をリアルタイムで受け取ります。';
 
   @override
   String get newPost => '新規投稿';

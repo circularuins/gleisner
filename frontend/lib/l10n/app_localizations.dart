@@ -884,6 +884,42 @@ abstract class AppLocalizations {
   /// **'Start sharing your creative journey'**
   String get startSharingCreativeJourney;
 
+  /// No description provided for @featureArtistPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Artist Page'**
+  String get featureArtistPageTitle;
+
+  /// No description provided for @featureArtistPageDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'A public creative identity with its own name, avatar, and cover image.'**
+  String get featureArtistPageDesc;
+
+  /// No description provided for @featureTracksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracks'**
+  String get featureTracksTitle;
+
+  /// No description provided for @featureTracksDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize your posts into themed streams — like channels on a mixing board.'**
+  String get featureTracksDesc;
+
+  /// No description provided for @featureBroadcastingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcasting'**
+  String get featureBroadcastingTitle;
+
+  /// No description provided for @featureBroadcastingDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Fans Tune In to your timeline and receive your creative updates.'**
+  String get featureBroadcastingDesc;
+
   /// No description provided for @newPost.
   ///
   /// In en, this message translates to:

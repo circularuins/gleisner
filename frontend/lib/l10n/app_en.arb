@@ -152,6 +152,12 @@
   "startSharingPosts": "Start Sharing Posts",
   "skipForNow": "Skip for Now",
   "startSharingCreativeJourney": "Start sharing your creative journey",
+  "featureArtistPageTitle": "Artist Page",
+  "featureArtistPageDesc": "A public creative identity with its own name, avatar, and cover image.",
+  "featureTracksTitle": "Tracks",
+  "featureTracksDesc": "Organize your posts into themed streams \u2014 like channels on a mixing board.",
+  "featureBroadcastingTitle": "Broadcasting",
+  "featureBroadcastingDesc": "Fans Tune In to your timeline and receive your creative updates.",
 
   "newPost": "New Post",
   "selectTrack": "Select a Track",
