@@ -33,6 +33,7 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
+      expand: false,
       initialChildSize: 0.7,
       minChildSize: 0.4,
       maxChildSize: 0.9,
