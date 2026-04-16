@@ -17,3 +17,9 @@ const renameConstellationMutation = '''
     }
   }
 ''';
+
+const deleteConstellationMutation = r'''
+  mutation DeleteConstellation($id: String!) {
+    deleteConstellation(id: $id)
+  }
+''';

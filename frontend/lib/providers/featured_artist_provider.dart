@@ -32,6 +32,7 @@ class FeaturedArtistNotifier extends Notifier<String?> with DisposableNotifier {
       if (disposed) return;
       if (result.exception != null) {
         debugPrint('[FeaturedArtist] GraphQL error: ${result.exception}');
+        _loaded = true; // Don't retry on error (avoid infinite requests)
         return;
       }
       final data = result.data?['featuredArtist'];
@@ -41,6 +42,7 @@ class FeaturedArtistNotifier extends Notifier<String?> with DisposableNotifier {
       _loaded = true;
     } catch (e) {
       debugPrint('[FeaturedArtist] load error: $e');
+      _loaded = true; // Don't retry on error
     }
   }
 }

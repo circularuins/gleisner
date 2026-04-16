@@ -374,4 +374,99 @@ describe("Constellation GraphQL integration", () => {
       expect(post.constellation).toBeNull();
     });
   });
+
+  describe("deleteConstellation", () => {
+    const DELETE_CONSTELLATION = `
+      mutation DeleteConstellation($id: String!) {
+        deleteConstellation(id: $id)
+      }
+    `;
+
+    it("deletes an owned constellation", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "del1@test.com",
+        "deluser1",
+        "delartist1",
+      );
+      const { idA } = await setupConnectedPosts(token);
+
+      // Name it first
+      const nameResult = await gql(
+        app,
+        NAME_CONSTELLATION_MUTATION,
+        { postId: idA, name: "ToDelete" },
+        token,
+      );
+      const constellationId = (
+        nameResult.data!.nameConstellation as { id: string }
+      ).id;
+
+      // Delete it
+      const result = await gql(
+        app,
+        DELETE_CONSTELLATION,
+        { id: constellationId },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data!.deleteConstellation).toBe(true);
+    });
+
+    it("rejects deletion by non-owner", async () => {
+      const token1 = await signupAndRegisterArtist(
+        app,
+        "del2@test.com",
+        "deluser2",
+        "delartist2",
+      );
+      const token2 = await signupAndRegisterArtist(
+        app,
+        "del3@test.com",
+        "deluser3",
+        "delartist3",
+      );
+      const { idA } = await setupConnectedPosts(token1);
+
+      const nameResult = await gql(
+        app,
+        NAME_CONSTELLATION_MUTATION,
+        { postId: idA, name: "NotYours" },
+        token1,
+      );
+      const constellationId = (
+        nameResult.data!.nameConstellation as { id: string }
+      ).id;
+
+      // Try to delete with different user
+      const result = await gql(
+        app,
+        DELETE_CONSTELLATION,
+        { id: constellationId },
+        token2,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("not authorized");
+    });
+
+    it("returns error for non-existent constellation", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "del4@test.com",
+        "deluser4",
+        "delartist4",
+      );
+
+      const result = await gql(
+        app,
+        DELETE_CONSTELLATION,
+        { id: "00000000-0000-0000-0000-000000000000" },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+    });
+  });
 });

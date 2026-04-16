@@ -76,6 +76,14 @@ const updatePostMutation =
   }
 ''';
 
+const deletePostMutation = r'''
+  mutation DeletePost($id: String!) {
+    deletePost(id: $id) {
+      id
+    }
+  }
+''';
+
 const fetchOgpMutation =
     '''
   mutation FetchOgp(\$postId: String!) {

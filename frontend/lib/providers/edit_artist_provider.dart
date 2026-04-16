@@ -28,7 +28,9 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
     String? location,
     int? activeSince,
     String? avatarUrl,
+    bool clearAvatarUrl = false,
     String? coverImageUrl,
+    bool clearCoverImageUrl = false,
     String? profileVisibility,
   }) async {
     state = const AsyncLoading();
@@ -37,16 +39,15 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
         MutationOptions(
           document: gql(updateArtistMutation),
           variables: {
-            // Always send provided fields (empty string clears the value).
-            // Only omit truly unset fields (null means "don't change"
-            // only for fields not passed by the caller).
             if (displayName != null) 'displayName': displayName,
             if (bio != null) 'bio': bio,
             if (tagline != null) 'tagline': tagline,
             if (location != null) 'location': location,
             if (activeSince != null) 'activeSince': activeSince,
             if (avatarUrl != null) 'avatarUrl': avatarUrl,
+            if (clearAvatarUrl) 'clearAvatarUrl': true,
             if (coverImageUrl != null) 'coverImageUrl': coverImageUrl,
+            if (clearCoverImageUrl) 'clearCoverImageUrl': true,
             if (profileVisibility != null)
               'profileVisibility': profileVisibility,
           },

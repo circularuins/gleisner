@@ -294,6 +294,28 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     }
   }
 
+  /// Delete a post. Returns true on success.
+  Future<bool> deletePost(String postId) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(deletePostMutation),
+          variables: {'id': postId},
+        ),
+      );
+      if (result.hasException) return false;
+
+      // Remove from local state and recompute layout
+      state = state.copyWith(
+        posts: state.posts.where((p) => p.id != postId).toList(),
+      );
+      _recomputeLayout();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Toggle a reaction on a milestone.
   /// Returns `true` = added, `null` = removed, `false` = failed.
   /// Callers can use this to sync local UI state with the server result.
@@ -793,6 +815,23 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
       }
     } catch (_) {}
     return null;
+  }
+
+  Future<bool> deleteConstellation(String constellationId) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(deleteConstellationMutation),
+          variables: {'id': constellationId},
+        ),
+      );
+      if (result.hasException) return false;
+      // Refresh to clear constellation data from posts
+      await _loadSelectedPosts();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   void showConstellation(Set<String> postIds) {

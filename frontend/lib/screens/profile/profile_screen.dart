@@ -384,11 +384,118 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 },
                 child: const Text('Logout'),
               ),
+
+              const SizedBox(height: spaceXxl),
+
+              // Delete Account
+              if (!authState.user!.isChildAccount)
+                TextButton(
+                  onPressed: () => _showDeleteAccountDialog(context, ref),
+                  child: const Text(
+                    'Delete Account',
+                    style: TextStyle(color: colorError, fontSize: fontSizeSm),
+                  ),
+                ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _showDeleteAccountDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final passwordController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colorSurface1,
+        title: const Text(
+          'Delete your account?',
+          style: TextStyle(color: colorTextPrimary),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This action is permanent and cannot be undone.',
+              style: TextStyle(
+                color: colorTextPrimary,
+                fontWeight: weightSemibold,
+              ),
+            ),
+            const SizedBox(height: spaceSm),
+            const Text(
+              'The following will be permanently deleted:',
+              style: TextStyle(color: colorTextSecondary),
+            ),
+            const SizedBox(height: spaceXs),
+            const Text(
+              '• Your account and profile\n'
+              '• Your artist profile (if any)\n'
+              '• All your posts, tracks, and connections\n'
+              '• All uploaded media (images, videos, audio)\n'
+              '• All child accounts under your management,\n'
+              '  including their artist profiles and media',
+              style: TextStyle(
+                color: colorTextSecondary,
+                fontSize: fontSizeSm,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: spaceLg),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Enter your password to confirm',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Delete Account',
+              style: TextStyle(color: colorError),
+            ),
+          ),
+        ],
+      ),
+    );
+    final password = passwordController.text;
+    passwordController.dispose();
+
+    if (confirmed != true || !context.mounted) return;
+    if (password.isEmpty) return;
+
+    final error = await ref.read(authProvider.notifier).deleteAccount(password);
+
+    if (!context.mounted) return;
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete account. Check your password.'),
+        ),
+      );
+      return;
+    }
+
+    // authProvider.deleteAccount() calls logout() internally, which sets
+    // authState to unauthenticated. The router redirect detects this and
+    // navigates to /login automatically. No manual navigation or provider
+    // invalidation needed — the original crash was caused by 9 explicit
+    // ref.invalidate() calls that triggered rebuilds during disposal.
   }
 
   Widget _buildChildCard(User child) {

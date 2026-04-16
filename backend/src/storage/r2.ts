@@ -1,4 +1,10 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  DeleteObjectsCommand,
+  ListObjectsV2Command,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "../env.js";
 
@@ -165,4 +171,76 @@ export function isLocalDevUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Delete an object from R2 by its public URL.
+ * Extracts the key from the URL and sends a DeleteObjectCommand.
+ * No-op if R2 is not configured (local dev) or URL is not an R2 URL.
+ * Idempotent: does not throw if the object doesn't exist (S3/R2 spec).
+ */
+export async function deleteR2Object(publicUrl: string): Promise<void> {
+  if (!isR2Configured() || !isR2Url(publicUrl)) return;
+
+  const prefix = env.R2_PUBLIC_URL + "/";
+  const key = publicUrl.slice(prefix.length);
+
+  // Path traversal guard: reject keys with .. or leading /
+  if (key.includes("..") || key.startsWith("/") || key.length === 0) return;
+
+  await getS3Client().send(
+    new DeleteObjectCommand({
+      Bucket: env.R2_BUCKET_NAME,
+      Key: key,
+    }),
+  );
+}
+
+/**
+ * Delete all R2 objects under a prefix (e.g. "media/{userId}/").
+ * Used for account deletion to clean up all user's media files.
+ * Prefix must end with "/" to prevent cross-user prefix matching.
+ */
+export async function deleteR2ObjectsByPrefix(prefix: string): Promise<number> {
+  if (!isR2Configured()) return 0;
+  if (!prefix.endsWith("/")) {
+    throw new Error("prefix must end with '/' to prevent cross-user matching");
+  }
+
+  let deleted = 0;
+  let continuationToken: string | undefined;
+
+  do {
+    const list = await getS3Client().send(
+      new ListObjectsV2Command({
+        Bucket: env.R2_BUCKET_NAME,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      }),
+    );
+
+    const keys = (list.Contents ?? [])
+      .filter((obj) => obj.Key)
+      .map((obj) => ({ Key: obj.Key! }));
+
+    if (keys.length > 0) {
+      const response = await getS3Client().send(
+        new DeleteObjectsCommand({
+          Bucket: env.R2_BUCKET_NAME,
+          Delete: { Objects: keys },
+        }),
+      );
+      const errorCount = response.Errors?.length ?? 0;
+      if (errorCount > 0) {
+        console.error(
+          `[deleteR2ObjectsByPrefix] ${errorCount} objects failed to delete`,
+        );
+      }
+      deleted += keys.length - errorCount;
+    }
+
+    continuationToken = list.NextContinuationToken;
+  } while (continuationToken);
+
+  return deleted;
 }

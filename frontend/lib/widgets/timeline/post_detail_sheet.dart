@@ -39,7 +39,9 @@ void showPostDetailSheet(
   void Function(Set<String> postIds)? onViewConstellation,
   Future<PostConstellation?> Function(String postId, String name)?
   onNameConstellation,
+  Future<bool> Function(String constellationId)? onDeleteConstellation,
   VoidCallback? onEdit,
+  Future<bool> Function()? onDeletePost,
   List<Post> allPosts = const [],
 }) {
   showModalBottomSheet<void>(
@@ -84,7 +86,9 @@ void showPostDetailSheet(
                 onConnectionRemoved: onConnectionRemoved,
                 onViewConstellation: onViewConstellation,
                 onNameConstellation: onNameConstellation,
+                onDeleteConstellation: onDeleteConstellation,
                 onEdit: onEdit,
+                onDeletePost: onDeletePost,
                 allPosts: allPosts,
               ),
             ),
@@ -124,7 +128,9 @@ class PostDetailContent extends StatefulWidget {
   final void Function(Set<String> postIds)? onViewConstellation;
   final Future<PostConstellation?> Function(String postId, String name)?
   onNameConstellation;
+  final Future<bool> Function(String constellationId)? onDeleteConstellation;
   final VoidCallback? onEdit;
+  final Future<bool> Function()? onDeletePost;
   final List<Post> allPosts;
 
   /// When true, this widget is embedded in a side panel (not a modal sheet).
@@ -143,7 +149,9 @@ class PostDetailContent extends StatefulWidget {
     this.onConnectionRemoved,
     this.onViewConstellation,
     this.onNameConstellation,
+    this.onDeleteConstellation,
     this.onEdit,
+    this.onDeletePost,
     this.allPosts = const [],
     this.embedded = false,
   });
@@ -157,6 +165,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
   late Set<String> _myReactions;
   late List<PostConnection> _outgoingConnections;
   late List<PostConnection> _incomingConnections;
+  final Set<String> _removedConstellationIds = {};
   bool _isToggling = false;
   bool _isConnecting = false;
   List<Post>? _cachedSyncedPosts;
@@ -276,6 +285,86 @@ class _PostDetailContentState extends State<PostDetailContent> {
     _quillFocusNode?.dispose();
     _quillScrollController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _confirmDeleteConstellation(String constellationId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colorSurface1,
+        title: const Text(
+          'Remove constellation name?',
+          style: TextStyle(color: colorTextPrimary),
+        ),
+        content: const Text(
+          'The posts will remain but the constellation grouping will be removed.',
+          style: TextStyle(color: colorTextSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Remove', style: TextStyle(color: colorError)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    final success = await widget.onDeleteConstellation!(constellationId);
+    if (!mounted) return;
+    if (success) {
+      setState(() => _removedConstellationIds.add(constellationId));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to remove constellation. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmDeletePost() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colorSurface1,
+        title: const Text(
+          'Delete post?',
+          style: TextStyle(color: colorTextPrimary),
+        ),
+        content: const Text(
+          'This action cannot be undone. The post and its media will be permanently deleted.',
+          style: TextStyle(color: colorTextSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: colorError)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    final success = await widget.onDeletePost!();
+    if (!mounted) return;
+    if (success) {
+      if (!widget.embedded) Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete post. Please try again.'),
+        ),
+      );
+    }
   }
 
   Future<void> _toggleReaction(String emoji) async {
@@ -564,6 +653,19 @@ class _PostDetailContentState extends State<PostDetailContent> {
             ),
             onPressed: widget.onEdit,
             tooltip: 'Edit post',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        if (widget.onDeletePost != null)
+          IconButton(
+            icon: const Icon(
+              Icons.delete_outline,
+              size: 18,
+              color: colorTextMuted,
+            ),
+            onPressed: _confirmDeletePost,
+            tooltip: 'Delete post',
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -962,12 +1064,18 @@ class _PostDetailContentState extends State<PostDetailContent> {
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    final namedConstellation =
+    final rawNamedConstellation =
         widget.post.constellation ??
         members
             .where((p) => p.constellation != null)
             .map((p) => p.constellation!)
             .firstOrNull;
+    // Hide constellation name if it was deleted locally (optimistic UI update)
+    final namedConstellation =
+        rawNamedConstellation != null &&
+            _removedConstellationIds.contains(rawNamedConstellation.id)
+        ? null
+        : rawNamedConstellation;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1010,6 +1118,19 @@ class _PostDetailContentState extends State<PostDetailContent> {
                             size: fontSizeLg,
                             color: trackColor.withValues(alpha: opacityOverlay),
                           ),
+                          if (widget.onDeleteConstellation != null) ...[
+                            const SizedBox(width: spaceSm),
+                            GestureDetector(
+                              onTap: () => _confirmDeleteConstellation(
+                                namedConstellation.id,
+                              ),
+                              child: Icon(
+                                Icons.close,
+                                size: fontSizeLg,
+                                color: colorTextMuted,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     Text(

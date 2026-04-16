@@ -3,6 +3,7 @@ import { builder } from "../builder.js";
 import { UserType, type UserShape, userColumns } from "./user.js";
 import { db } from "../../db/index.js";
 import { users, invites } from "../../db/schema/index.js";
+import { deleteR2ObjectsByPrefix } from "../../storage/r2.js";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { env } from "../../env.js";
 import {
@@ -209,6 +210,75 @@ builder.mutationType({
         const { passwordSalt: _ps, passwordHash: _ph, ...user } = row;
         const token = await signToken(user.id);
         return { token, user };
+      },
+    }),
+
+    deleteAccount: t.field({
+      type: "Boolean",
+      args: {
+        password: t.arg.string({ required: true }),
+      },
+      resolve: async (_parent, args, ctx) => {
+        if (!ctx.authUser) {
+          throw new GraphQLError("Authentication required");
+        }
+
+        const [user] = await db
+          .select({
+            guardianId: users.guardianId,
+            passwordHash: users.passwordHash,
+            passwordSalt: users.passwordSalt,
+          })
+          .from(users)
+          .where(eq(users.id, ctx.authUser.userId))
+          .limit(1);
+        if (!user) {
+          throw new GraphQLError("User not found");
+        }
+
+        // Child accounts cannot be deleted directly (guardian manages)
+        if (user.guardianId) {
+          throw new GraphQLError("Child accounts cannot be deleted directly");
+        }
+
+        // Re-confirm password for destructive operation
+        const valid = verifyPassword(
+          args.password,
+          user.passwordSalt,
+          user.passwordHash,
+        );
+        if (!valid) {
+          throw new GraphQLError("Invalid password");
+        }
+
+        const userId = ctx.authUser.userId;
+
+        // Collect child account IDs BEFORE DB deletion so we can clean up
+        // their R2 files too (CASCADE will delete child rows but not R2 objects).
+        const children = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.guardianId, userId));
+        const userIdsToCleanup = [userId, ...children.map((c) => c.id)];
+
+        // DB deletion first (CASCADE removes all related data: artists,
+        // tracks, posts, comments, reactions, child accounts, etc.)
+        // DB is authoritative; R2 is best-effort (same design as deletePost).
+        await db.delete(users).where(eq(users.id, userId));
+
+        // R2 cleanup: fire-and-forget (orphans are acceptable).
+        // Clean up both the guardian's files and all child accounts' files.
+        Promise.all(
+          userIdsToCleanup.flatMap((uid) => [
+            deleteR2ObjectsByPrefix(`avatars/${uid}/`),
+            deleteR2ObjectsByPrefix(`covers/${uid}/`),
+            deleteR2ObjectsByPrefix(`media/${uid}/`),
+          ]),
+        ).catch((err) =>
+          console.error("[deleteAccount] R2 cleanup failed:", err),
+        );
+
+        return true;
       },
     }),
   }),

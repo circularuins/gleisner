@@ -5,6 +5,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
 import 'disposable_notifier.dart';
+import 'featured_artist_provider.dart';
 import '../graphql/queries/auth.dart';
 import '../graphql/mutations/user.dart';
 import '../models/user.dart';
@@ -215,7 +216,31 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
   Future<void> logout() async {
     await _storage.delete(key: 'jwt');
     _client.cache.store.reset();
+    ref.invalidate(featuredArtistProvider);
     state = const AuthState(status: AuthStatus.unauthenticated);
+  }
+
+  /// Delete the current user's account. Requires password re-confirmation.
+  /// Returns null on success, error message on failure.
+  /// Calls logout() on success — router redirect handles navigation to /login.
+  Future<String?> deleteAccount(String password) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(deleteAccountMutation),
+          variables: {'password': password},
+        ),
+      );
+      if (result.hasException) {
+        debugPrint('[Auth] deleteAccount error: ${result.exception}');
+        return 'Failed to delete account';
+      }
+      await logout();
+      return null;
+    } catch (e) {
+      debugPrint('[Auth] deleteAccount error: $e');
+      return 'Something went wrong. Please try again.';
+    }
   }
 }
 
