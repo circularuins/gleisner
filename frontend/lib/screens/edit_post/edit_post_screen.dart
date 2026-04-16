@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../models/post.dart';
 import '../../models/track.dart';
 import '../../providers/media_upload_provider.dart';
+import '../../utils/media_limits.dart' show maxImagesPerPost;
 import '../../providers/timeline_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
@@ -60,6 +61,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   late bool _externalPublish;
   // Multi-image support for image type posts
   late List<String> _mediaUrls;
+  int _addImageGeneration = 0;
   // IME-safe FocusNodes — block Tab during composition
   late final FocusNode _titleFocusNode;
   late final FocusNode _bodyFocusNode;
@@ -1011,7 +1013,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                     ],
                   ),
                 ),
-              if (_mediaUrls.length < 10)
+              if (_mediaUrls.length < maxImagesPerPost)
                 GestureDetector(
                   onTap: _addMoreImages,
                   child: Container(
@@ -1057,7 +1059,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
           Padding(
             padding: const EdgeInsets.only(top: spaceXs),
             child: Text(
-              '${_mediaUrls.length}/10',
+              '${_mediaUrls.length}/$maxImagesPerPost',
               style: const TextStyle(
                 color: colorTextMuted,
                 fontSize: fontSizeXs,
@@ -1069,7 +1071,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   }
 
   Future<void> _addMoreImages() async {
-    final remaining = 10 - _mediaUrls.length;
+    final generation = ++_addImageGeneration;
+    final remaining = maxImagesPerPost - _mediaUrls.length;
     if (remaining <= 0) return;
     final urls = await ref
         .read(mediaUploadProvider.notifier)
@@ -1077,7 +1080,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
           category: UploadCategory.media,
           maxCount: remaining,
         );
-    if (urls != null && mounted) {
+    if (urls != null && mounted && generation == _addImageGeneration) {
       setState(() {
         _mediaUrls = [..._mediaUrls, ...urls];
       });

@@ -574,6 +574,8 @@ builder.mutationFields((t) => ({
           });
       }
 
+      // Attach post_media for the response (avoids N+1 fallback query)
+      await attachPostMedia([post]);
       return post;
     },
   }),
@@ -1057,6 +1059,8 @@ builder.mutationFields((t) => ({
         updated = result;
       }
 
+      // Attach post_media for the response (avoids N+1 fallback query)
+      await attachPostMedia([updated]);
       return updated;
     },
   }),

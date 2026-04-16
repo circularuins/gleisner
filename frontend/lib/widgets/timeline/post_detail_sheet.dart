@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:video_player/video_player.dart';
@@ -170,8 +171,8 @@ class _PostDetailContentState extends State<PostDetailContent> {
   bool _isConnecting = false;
   List<Post>? _cachedSyncedPosts;
 
-  // Multi-image carousel
-  PageController? _pageController;
+  // Multi-image carousel (initialized in initState, reset in didUpdateWidget)
+  late PageController _pageController;
   int _currentPage = 0;
 
   // Quill resources for delta body rendering (disposed in dispose())
@@ -270,6 +271,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
     _myReactions = Set.from(widget.post.myReactions);
     _outgoingConnections = List.from(widget.post.outgoingConnections);
     _incomingConnections = List.from(widget.post.incomingConnections);
+    _pageController = PageController();
     // Initialize Quill resources for delta posts
     if (widget.post.bodyFormat == BodyFormat.delta &&
         widget.post.bodyDelta != null) {
@@ -284,8 +286,18 @@ class _PostDetailContentState extends State<PostDetailContent> {
   }
 
   @override
+  void didUpdateWidget(PostDetailContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.post.id != oldWidget.post.id) {
+      _pageController.dispose();
+      _pageController = PageController();
+      _currentPage = 0;
+    }
+  }
+
+  @override
   void dispose() {
-    _pageController?.dispose();
+    _pageController.dispose();
     _quillController?.dispose();
     _quillFocusNode?.dispose();
     _quillScrollController?.dispose();
@@ -1322,29 +1334,120 @@ class _PostDetailContentState extends State<PostDetailContent> {
     Widget imageWidget;
     if (hasImage && urls.length > 1) {
       // Multi-image carousel
-      _pageController ??= PageController();
+      final total = urls.length;
       imageWidget = SizedBox(
         width: width,
         height: imageHeight,
         child: Stack(
           children: [
-            PageView.builder(
-              controller: _pageController,
-              itemCount: urls.length,
-              onPageChanged: (i) => setState(() => _currentPage = i),
-              itemBuilder: (context, i) => GestureDetector(
-                onTap: () => _openImageFullScreen(context, urls[i]),
-                child: Image.network(
-                  urls[i],
-                  width: width,
-                  height: imageHeight,
-                  fit: BoxFit.cover,
-                  cacheWidth: 800,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(color: colorSurface2);
-                  },
-                  errorBuilder: (_, _, _) => Container(color: colorSurface2),
+            ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
+                  PointerDeviceKind.trackpad,
+                },
+              ),
+              child: PageView.builder(
+                controller: _pageController,
+                itemCount: total,
+                onPageChanged: (i) => setState(() => _currentPage = i),
+                itemBuilder: (context, i) => GestureDetector(
+                  onTap: () => _openImageFullScreen(
+                    context,
+                    urls[i],
+                    allUrls: urls,
+                    initialIndex: i,
+                  ),
+                  child: Image.network(
+                    urls[i],
+                    width: width,
+                    height: imageHeight,
+                    fit: BoxFit.cover,
+                    cacheWidth: 800,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(color: colorSurface2);
+                    },
+                    errorBuilder: (_, _, _) => Container(color: colorSurface2),
+                  ),
+                ),
+              ),
+            ),
+            // Left arrow
+            if (_currentPage > 0)
+              Positioned(
+                left: spaceSm,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: GestureDetector(
+                    onTap: () => _pageController?.previousPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(spaceXs),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.chevron_left,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            // Right arrow
+            if (_currentPage < total - 1)
+              Positioned(
+                right: spaceSm,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: GestureDetector(
+                    onTap: () => _pageController?.nextPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(spaceXs),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.chevron_right,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            // Counter badge (e.g. "1/5")
+            Positioned(
+              top: spaceSm,
+              right: spaceSm,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: spaceSm,
+                  vertical: spaceXxs,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(radiusSm),
+                ),
+                child: Text(
+                  '${_currentPage + 1}/$total',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: fontSizeXs,
+                    fontWeight: weightSemibold,
+                  ),
                 ),
               ),
             ),
@@ -1355,7 +1458,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
               bottom: spaceSm + 40, // above gradient area
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(urls.length, (i) {
+                children: List.generate(total, (i) {
                   final isActive = i == _currentPage;
                   return Container(
                     width: isActive ? 8 : 6,
@@ -2549,18 +2652,33 @@ class _WaveProgressPainter extends CustomPainter {
 
 // ── Image Full Screen ──
 
-void _openImageFullScreen(BuildContext context, String imageUrl) {
+void _openImageFullScreen(
+  BuildContext context,
+  String imageUrl, {
+  List<String>? allUrls,
+  int initialIndex = 0,
+}) {
   Navigator.of(context).push(
     MaterialPageRoute<void>(
       fullscreenDialog: true,
-      builder: (_) => _FullScreenImage(url: imageUrl),
+      builder: (_) => _FullScreenImage(
+        url: imageUrl,
+        allUrls: allUrls,
+        initialIndex: initialIndex,
+      ),
     ),
   );
 }
 
 class _FullScreenImage extends StatefulWidget {
   final String url;
-  const _FullScreenImage({required this.url});
+  final List<String>? allUrls;
+  final int initialIndex;
+  const _FullScreenImage({
+    required this.url,
+    this.allUrls,
+    this.initialIndex = 0,
+  });
 
   @override
   State<_FullScreenImage> createState() => _FullScreenImageState();
@@ -2573,6 +2691,13 @@ class _FullScreenImageState extends State<_FullScreenImage>
   Animation<Matrix4>? _zoomAnimation;
   double _dragOffsetY = 0;
   bool _isDragging = false;
+  late PageController _fsPageController;
+  late int _currentIndex;
+
+  bool get _isMulti => widget.allUrls != null && widget.allUrls!.length > 1;
+
+  String get _currentUrl =>
+      _isMulti ? widget.allUrls![_currentIndex] : widget.url;
 
   bool get _isZoomed {
     final scale = _transformController.value.getMaxScaleOnAxis();
@@ -2582,6 +2707,8 @@ class _FullScreenImageState extends State<_FullScreenImage>
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex;
+    _fsPageController = PageController(initialPage: _currentIndex);
     _animController =
         AnimationController(
           vsync: this,
@@ -2595,6 +2722,7 @@ class _FullScreenImageState extends State<_FullScreenImage>
 
   @override
   void dispose() {
+    _fsPageController.dispose();
     _animController.dispose();
     _transformController.dispose();
     super.dispose();
@@ -2630,78 +2758,173 @@ class _FullScreenImageState extends State<_FullScreenImage>
     _animController.forward(from: 0);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      extendBodyBehindAppBar: true,
-      body: GestureDetector(
-        onDoubleTap: _handleDoubleTap,
-        onVerticalDragStart: _isZoomed
-            ? null
-            : (_) {
-                _isDragging = true;
-              },
-        onVerticalDragUpdate: _isZoomed
-            ? null
-            : (details) {
+  Widget _buildSingleImage(String url) {
+    return GestureDetector(
+      onDoubleTap: _handleDoubleTap,
+      onVerticalDragStart: _isZoomed
+          ? null
+          : (_) {
+              _isDragging = true;
+            },
+      onVerticalDragUpdate: _isZoomed
+          ? null
+          : (details) {
+              setState(() {
+                _dragOffsetY += details.delta.dy;
+              });
+            },
+      onVerticalDragEnd: _isZoomed
+          ? null
+          : (details) {
+              final velocity = details.primaryVelocity?.abs() ?? 0;
+              if (_dragOffsetY.abs() > 100 || velocity > 800) {
+                _isDragging = false;
+                Navigator.of(context).pop();
+              } else {
                 setState(() {
-                  _dragOffsetY += details.delta.dy;
-                });
-              },
-        onVerticalDragEnd: _isZoomed
-            ? null
-            : (details) {
-                final velocity = details.primaryVelocity?.abs() ?? 0;
-                if (_dragOffsetY.abs() > 100 || velocity > 800) {
+                  _dragOffsetY = 0;
                   _isDragging = false;
-                  Navigator.of(context).pop();
-                } else {
-                  setState(() {
-                    _dragOffsetY = 0;
-                    _isDragging = false;
-                  });
-                }
+                });
+              }
+            },
+      child: AnimatedContainer(
+        duration: _isDragging
+            ? Duration.zero
+            : const Duration(milliseconds: 200),
+        transform: Matrix4.translationValues(0, _dragOffsetY, 0),
+        color: Colors.black.withValues(
+          alpha: (1 - (_dragOffsetY.abs() / 300)).clamp(0.3, 1),
+        ),
+        child: InteractiveViewer(
+          transformationController: _transformController,
+          minScale: 1.0,
+          maxScale: 4.0,
+          child: Center(
+            child: Image.network(
+              url,
+              fit: BoxFit.contain,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.white54,
+                    strokeWidth: 2,
+                  ),
+                );
               },
-        child: AnimatedContainer(
-          duration: _isDragging
-              ? Duration.zero
-              : const Duration(milliseconds: 200),
-          transform: Matrix4.translationValues(0, _dragOffsetY, 0),
-          color: Colors.black.withValues(
-            alpha: (1 - (_dragOffsetY.abs() / 300)).clamp(0.3, 1),
-          ),
-          child: InteractiveViewer(
-            transformationController: _transformController,
-            minScale: 1.0,
-            maxScale: 4.0,
-            child: Center(
-              child: Image.network(
-                widget.url,
-                fit: BoxFit.contain,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.white54,
-                      strokeWidth: 2,
-                    ),
-                  );
-                },
-                errorBuilder: (_, _, _) => const Icon(
-                  Icons.broken_image,
-                  color: Colors.white54,
-                  size: 64,
-                ),
+              errorBuilder: (_, _, _) => const Icon(
+                Icons.broken_image,
+                color: Colors.white54,
+                size: 64,
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final urls = widget.allUrls;
+    final isMulti = _isMulti;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: isMulti
+            ? Text(
+                '${_currentIndex + 1}/${urls!.length}',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: fontSizeMd,
+                ),
+              )
+            : null,
+        centerTitle: true,
+      ),
+      extendBodyBehindAppBar: true,
+      body: isMulti
+          ? Stack(
+              children: [
+                ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: {
+                      PointerDeviceKind.touch,
+                      PointerDeviceKind.mouse,
+                      PointerDeviceKind.trackpad,
+                    },
+                  ),
+                  child: PageView.builder(
+                    controller: _fsPageController,
+                    itemCount: urls!.length,
+                    onPageChanged: (i) {
+                      // Reset zoom when switching pages
+                      _transformController.value = Matrix4.identity();
+                      setState(() => _currentIndex = i);
+                    },
+                    itemBuilder: (context, i) => _buildSingleImage(urls[i]),
+                  ),
+                ),
+                // Left arrow
+                if (_currentIndex > 0)
+                  Positioned(
+                    left: spaceSm,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () => _fsPageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(spaceSm),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.4),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.chevron_left,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // Right arrow
+                if (_currentIndex < urls.length - 1)
+                  Positioned(
+                    right: spaceSm,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () => _fsPageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(spaceSm),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.4),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.chevron_right,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            )
+          : _buildSingleImage(_currentUrl),
     );
   }
 }

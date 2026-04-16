@@ -210,7 +210,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
   /// Uploads are sequential to maintain accurate isUploading state.
   Future<List<String>?> pickAndUploadMultipleImages({
     required UploadCategory category,
-    int maxCount = 10,
+    int maxCount = maxImagesPerPost,
     double? maxWidth,
     double? maxHeight,
     int? imageQuality,

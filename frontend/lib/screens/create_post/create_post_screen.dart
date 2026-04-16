@@ -20,6 +20,7 @@ import '../../widgets/editor/rich_text_editor.dart';
 import '../../widgets/editor/text_body_counter.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../providers/media_upload_provider.dart';
+import '../../utils/media_limits.dart' show maxImagesPerPost;
 import '../../widgets/timeline/seed_art_painter.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
@@ -86,7 +87,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   Future<void> _pickMultipleImages(int generation) async {
-    final remaining = 10 - _mediaUrls.length;
+    final remaining = maxImagesPerPost - _mediaUrls.length;
     if (remaining <= 0) return;
     final urls = await ref
         .read(mediaUploadProvider.notifier)
@@ -1138,7 +1139,7 @@ class _FormStep extends ConsumerWidget {
                     ]);
                   },
                 ),
-              if (mediaUrls.length < 10)
+              if (mediaUrls.length < maxImagesPerPost)
                 _AddImageTile(onTap: () => onPickMedia(MediaType.image)),
             ],
           )
@@ -1148,7 +1149,7 @@ class _FormStep extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(top: spaceXs),
             child: Text(
-              '${mediaUrls.length}/10',
+              '${mediaUrls.length}/$maxImagesPerPost',
               style: const TextStyle(
                 color: colorTextMuted,
                 fontSize: fontSizeXs,
