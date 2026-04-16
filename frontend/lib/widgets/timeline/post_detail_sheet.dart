@@ -12,6 +12,7 @@ import '../../utils/constellation_graph.dart';
 import '../../utils/open_url.dart';
 import '../../utils/reading_time.dart';
 import '../common/connection_type_picker.dart';
+import '../common/image_grid_widgets.dart';
 import '../common/related_post_picker.dart';
 import 'seed_art_painter.dart';
 
@@ -1381,22 +1382,11 @@ class _PostDetailContentState extends State<PostDetailContent> {
                 top: 0,
                 bottom: 0,
                 child: Center(
-                  child: GestureDetector(
-                    onTap: () => _pageController?.previousPage(
+                  child: CarouselArrow(
+                    icon: Icons.chevron_left,
+                    onTap: () => _pageController.previousPage(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.all(spaceXs),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.chevron_left,
-                        color: Colors.white,
-                        size: 24,
-                      ),
                     ),
                   ),
                 ),
@@ -1408,22 +1398,11 @@ class _PostDetailContentState extends State<PostDetailContent> {
                 top: 0,
                 bottom: 0,
                 child: Center(
-                  child: GestureDetector(
-                    onTap: () => _pageController?.nextPage(
+                  child: CarouselArrow(
+                    icon: Icons.chevron_right,
+                    onTap: () => _pageController.nextPage(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.all(spaceXs),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.chevron_right,
-                        color: Colors.white,
-                        size: 24,
-                      ),
                     ),
                   ),
                 ),
@@ -2875,22 +2854,13 @@ class _FullScreenImageState extends State<_FullScreenImage>
                     top: 0,
                     bottom: 0,
                     child: Center(
-                      child: GestureDetector(
+                      child: CarouselArrow(
+                        icon: Icons.chevron_left,
+                        size: 28,
+                        padding: spaceSm,
                         onTap: () => _fsPageController.previousPage(
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(spaceSm),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.4),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.chevron_left,
-                            color: Colors.white,
-                            size: 28,
-                          ),
                         ),
                       ),
                     ),
@@ -2902,22 +2872,13 @@ class _FullScreenImageState extends State<_FullScreenImage>
                     top: 0,
                     bottom: 0,
                     child: Center(
-                      child: GestureDetector(
+                      child: CarouselArrow(
+                        icon: Icons.chevron_right,
+                        size: 28,
+                        padding: spaceSm,
                         onTap: () => _fsPageController.nextPage(
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(spaceSm),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.4),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.chevron_right,
-                            color: Colors.white,
-                            size: 28,
-                          ),
                         ),
                       ),
                     ),

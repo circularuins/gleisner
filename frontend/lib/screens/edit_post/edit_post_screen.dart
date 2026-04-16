@@ -10,6 +10,7 @@ import '../../models/post.dart';
 import '../../models/track.dart';
 import '../../providers/media_upload_provider.dart';
 import '../../utils/media_limits.dart' show maxImagesPerPost;
+import '../../widgets/common/image_grid_widgets.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
@@ -959,102 +960,23 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             runSpacing: spaceSm,
             children: [
               for (int i = 0; i < _mediaUrls.length; i++)
-                SizedBox(
-                  width: 100,
-                  height: 100,
-                  child: Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(radiusMd),
-                        child: Image.network(
-                          _mediaUrls[i],
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.cover,
-                          cacheWidth: 200,
-                          errorBuilder: (_, _, _) => Container(
-                            color: colorSurface2,
-                            child: const Center(
-                              child: Icon(
-                                Icons.broken_image_outlined,
-                                size: 24,
-                                color: colorTextMuted,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 2,
-                        right: 2,
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _mediaUrls = [
-                                ..._mediaUrls.sublist(0, i),
-                                ..._mediaUrls.sublist(i + 1),
-                              ];
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 14,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                ImageTile(
+                  url: _mediaUrls[i],
+                  onRemove: () {
+                    setState(() {
+                      _mediaUrls = [
+                        ..._mediaUrls.sublist(0, i),
+                        ..._mediaUrls.sublist(i + 1),
+                      ];
+                    });
+                  },
                 ),
               if (_mediaUrls.length < maxImagesPerPost)
-                GestureDetector(
-                  onTap: _addMoreImages,
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: colorSurface2,
-                      borderRadius: BorderRadius.circular(radiusMd),
-                      border: Border.all(color: colorBorder),
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.add_photo_alternate_outlined,
-                        size: 32,
-                        color: colorInteractive,
-                      ),
-                    ),
-                  ),
-                ),
+                AddImageTile(onTap: _addMoreImages),
             ],
           )
         else
-          GestureDetector(
-            onTap: _addMoreImages,
-            child: Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: colorSurface2,
-                borderRadius: BorderRadius.circular(radiusMd),
-                border: Border.all(color: colorBorder),
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.add_photo_alternate_outlined,
-                  size: 32,
-                  color: colorInteractive,
-                ),
-              ),
-            ),
-          ),
+          AddImageTile(onTap: _addMoreImages),
         if (_mediaUrls.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: spaceXs),

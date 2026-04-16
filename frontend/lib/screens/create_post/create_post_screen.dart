@@ -21,6 +21,7 @@ import '../../widgets/editor/text_body_counter.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../providers/media_upload_provider.dart';
 import '../../utils/media_limits.dart' show maxImagesPerPost;
+import '../../widgets/common/image_grid_widgets.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
@@ -1130,7 +1131,7 @@ class _FormStep extends ConsumerWidget {
             runSpacing: spaceSm,
             children: [
               for (int i = 0; i < mediaUrls.length; i++)
-                _ImageTile(
+                ImageTile(
                   url: mediaUrls[i],
                   onRemove: () {
                     onMediaUrlsChanged([
@@ -1140,11 +1141,11 @@ class _FormStep extends ConsumerWidget {
                   },
                 ),
               if (mediaUrls.length < maxImagesPerPost)
-                _AddImageTile(onTap: () => onPickMedia(MediaType.image)),
+                AddImageTile(onTap: () => onPickMedia(MediaType.image)),
             ],
           )
         else
-          _AddImageTile(onTap: () => onPickMedia(MediaType.image)),
+          AddImageTile(onTap: () => onPickMedia(MediaType.image)),
         if (mediaUrls.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: spaceXs),
@@ -1715,91 +1716,6 @@ class _ExternalPublishToggle extends ConsumerWidget {
               ref.read(createPostProvider.notifier).setExternalPublish(v),
         ),
       ],
-    );
-  }
-}
-
-/// A thumbnail tile for an uploaded image with a remove button.
-class _ImageTile extends StatelessWidget {
-  final String url;
-  final VoidCallback onRemove;
-
-  const _ImageTile({required this.url, required this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 100,
-      height: 100,
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(radiusMd),
-            child: Image.network(
-              url,
-              width: 100,
-              height: 100,
-              fit: BoxFit.cover,
-              cacheWidth: 200,
-              errorBuilder: (_, _, _) => Container(
-                color: colorSurface2,
-                child: const Center(
-                  child: Icon(
-                    Icons.broken_image_outlined,
-                    size: 24,
-                    color: colorTextMuted,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 2,
-            right: 2,
-            child: GestureDetector(
-              onTap: onRemove,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: Colors.black54,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.close, size: 14, color: Colors.white),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A tile with a "+" icon to add more images.
-class _AddImageTile extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _AddImageTile({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 100,
-        height: 100,
-        decoration: BoxDecoration(
-          color: colorSurface2,
-          borderRadius: BorderRadius.circular(radiusMd),
-          border: Border.all(color: colorBorder),
-        ),
-        child: const Center(
-          child: Icon(
-            Icons.add_photo_alternate_outlined,
-            size: 32,
-            color: colorInteractive,
-          ),
-        ),
-      ),
     );
   }
 }

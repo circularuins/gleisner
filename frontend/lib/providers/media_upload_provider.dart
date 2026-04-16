@@ -280,6 +280,11 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         );
         if (url == null) return null;
         urls.add(url);
+        // Re-assert isUploading after each _upload() completes,
+        // because _upload() resets isUploading: false internally.
+        if (!disposed) {
+          state = const MediaUploadState(isUploading: true);
+        }
       }
 
       state = const MediaUploadState();
