@@ -344,9 +344,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get birthDate => 'Birth Date';
 
   @override
-  String get passwordsMustMatch => 'Passwords must match';
-
-  @override
   String get invalidPasswordMinimum =>
       'Invalid password. Minimum 8 characters.';
 
@@ -572,9 +569,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get urlRequired => 'URL is required';
-
-  @override
-  String get enterValidUrl => 'Enter a valid http(s) URL';
 
   @override
   String get addLink => 'Add Link';

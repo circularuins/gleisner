@@ -368,7 +368,7 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen>
         .firstOrNull;
     final count = timeline.constellationPostIds!.length;
     return name != null
-        ? '$name · $count posts'
+        ? context.l10n.constellationNamedPostCount(name, count)
         : context.l10n.constellationPostCount(count);
   }
 

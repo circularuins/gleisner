@@ -1157,7 +1157,10 @@ class _PostDetailContentState extends State<PostDetailContent> {
                       ),
                     Text(
                       namedConstellation != null
-                          ? '${constellationIds.length} posts'
+                          ? context.l10n.constellationNamedPostCount(
+                              namedConstellation.name,
+                              constellationIds.length,
+                            )
                           : context.l10n.constellationPostCount(
                               constellationIds.length,
                             ),

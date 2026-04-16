@@ -120,7 +120,6 @@
   "childAccountPrivateNote": "Child accounts have private profiles by default and cannot be changed.",
   "firstName": "First Name",
   "birthDate": "Birth Date",
-  "passwordsMustMatch": "Passwords must match",
   "invalidPasswordMinimum": "Invalid password. Minimum 8 characters.",
 
   "yourCreativeJourney": "Your Creative Journey",
@@ -199,7 +198,6 @@
   "titleAutoFilled": "Title (auto-filled from link if empty)",
   "urlPlaceholder": "https://",
   "urlRequired": "URL is required",
-  "enterValidUrl": "Enter a valid http(s) URL",
   "addLink": "Add Link",
   "addConstellation": "Add Constellation",
   "eventDateOptional": "Event date (optional)",

@@ -112,7 +112,6 @@
   "childAccountPrivateNote": "子アカウントのプロフィールはデフォルトで非公開であり、変更できません。",
   "firstName": "名前",
   "birthDate": "生年月日",
-  "passwordsMustMatch": "パスワードが一致する必要があります",
   "invalidPasswordMinimum": "パスワードが無効です。8文字以上で入力してください。",
 
   "yourCreativeJourney": "あなたのクリエイティブ・ジャーニー",
@@ -187,7 +186,6 @@
   "titleAutoFilled": "タイトル（リンクから自動入力）",
   "urlPlaceholder": "https://",
   "urlRequired": "URLは必須です",
-  "enterValidUrl": "有効なURL（http/https）を入力してください",
   "addLink": "リンクを追加",
   "addConstellation": "コンステレーションを追加",
   "eventDateOptional": "イベント日時（任意）",

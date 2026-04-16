@@ -340,9 +340,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get birthDate => '生年月日';
 
   @override
-  String get passwordsMustMatch => 'パスワードが一致する必要があります';
-
-  @override
   String get invalidPasswordMinimum => 'パスワードが無効です。8文字以上で入力してください。';
 
   @override
@@ -564,9 +561,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get urlRequired => 'URLは必須です';
-
-  @override
-  String get enterValidUrl => '有効なURL（http/https）を入力してください';
 
   @override
   String get addLink => 'リンクを追加';

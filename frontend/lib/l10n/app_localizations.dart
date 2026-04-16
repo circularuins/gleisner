@@ -704,12 +704,6 @@ abstract class AppLocalizations {
   /// **'Birth Date'**
   String get birthDate;
 
-  /// No description provided for @passwordsMustMatch.
-  ///
-  /// In en, this message translates to:
-  /// **'Passwords must match'**
-  String get passwordsMustMatch;
-
   /// No description provided for @invalidPasswordMinimum.
   ///
   /// In en, this message translates to:
@@ -1135,12 +1129,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'URL is required'**
   String get urlRequired;
-
-  /// No description provided for @enterValidUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter a valid http(s) URL'**
-  String get enterValidUrl;
 
   /// No description provided for @addLink.
   ///
