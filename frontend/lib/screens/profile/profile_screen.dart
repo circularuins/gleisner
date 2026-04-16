@@ -491,14 +491,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
-    // Navigate to login BEFORE invalidating providers.
-    // If we invalidate while ProfileScreen is still mounted, Riverpod triggers
-    // a rebuild of disposed/disposing widgets → RenderFlex overflow +
-    // Duplicate GlobalKeys + LateInitializationError cascade.
-    // authProvider.deleteAccount already called logout() which clears
-    // the GraphQL cache and JWT storage.
+    // Navigate FIRST, then logout. This order is critical:
+    // logout() sets authState to unauthenticated, which triggers router
+    // redirect. If that happens while ProfileScreen is still mounted,
+    // Riverpod tries to rebuild widgets being disposed → crash.
+    // By navigating first, ProfileScreen is unmounted cleanly.
     context.go('/login');
-    await ref.read(tutorialProvider.notifier).reset();
+    ref.read(authProvider.notifier).logout();
+    ref.read(tutorialProvider.notifier).reset();
   }
 
   Widget _buildChildCard(User child) {

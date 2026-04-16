@@ -219,7 +219,11 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
   }
 
   /// Delete the current user's account. Requires password re-confirmation.
-  /// Returns true on success, error message on failure.
+  /// Returns null on success, error message on failure.
+  ///
+  /// Does NOT call logout() — the caller must navigate away first,
+  /// then call logout() to avoid triggering a rebuild of the current
+  /// screen while it's being disposed (see PR #204 crash fix).
   Future<String?> deleteAccount(String password) async {
     try {
       final result = await _client.mutate(
@@ -232,8 +236,7 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
         debugPrint('[Auth] deleteAccount error: ${result.exception}');
         return 'Failed to delete account';
       }
-      await logout();
-      return null; // success
+      return null; // success — caller handles navigation + logout
     } catch (e) {
       debugPrint('[Auth] deleteAccount error: $e');
       return 'Something went wrong. Please try again.';
