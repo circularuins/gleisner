@@ -1826,8 +1826,11 @@ describe("Post GraphQL integration", () => {
       const media = post.media as { mediaUrl: string; position: number }[];
       expect(media).toHaveLength(3);
       expect(media[0].mediaUrl).toBe(newUrls[0]);
+      expect(media[0].position).toBe(0);
       expect(media[1].mediaUrl).toBe(newUrls[1]);
+      expect(media[1].position).toBe(1);
       expect(media[2].mediaUrl).toBe(newUrls[2]);
+      expect(media[2].position).toBe(2);
     });
 
     it("deletePost cascades to post_media", async () => {

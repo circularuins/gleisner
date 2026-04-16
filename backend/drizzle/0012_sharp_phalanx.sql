@@ -11,4 +11,7 @@ CREATE INDEX "post_media_post_id_position_idx" ON "post_media" USING btree ("pos
 -- Backfill: migrate existing image posts' mediaUrl to post_media
 INSERT INTO "post_media" ("post_id", "media_url", "position")
 SELECT "id", "media_url", 0 FROM "posts"
+WHERE "media_type" = 'image' AND "media_url" IS NOT NULL;--> statement-breakpoint
+-- Clear posts.media_url for image posts (images now live in post_media)
+UPDATE "posts" SET "media_url" = NULL
 WHERE "media_type" = 'image' AND "media_url" IS NOT NULL;

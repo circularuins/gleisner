@@ -1,5 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ageFromBirthYearMonth } from "../validators.js";
+
+// Mock R2 so validateMediaUrl accepts localhost URLs
+vi.mock("../../storage/r2.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../storage/r2.js")>();
+  return {
+    ...actual,
+    isR2Configured: vi.fn(() => false),
+  };
+});
+
+import {
+  ageFromBirthYearMonth,
+  validateMediaUrls,
+  MAX_IMAGES_PER_POST,
+} from "../validators.js";
 
 describe("ageFromBirthYearMonth", () => {
   beforeEach(() => {
@@ -50,5 +64,37 @@ describe("ageFromBirthYearMonth", () => {
     // 2026-06-15, birth: 2013-06 → age 13
     vi.setSystemTime(new Date("2026-06-15"));
     expect(ageFromBirthYearMonth("2013-06")).toBe(13);
+  });
+});
+
+describe("validateMediaUrls", () => {
+  it("accepts a single valid URL", () => {
+    expect(() =>
+      validateMediaUrls(["http://localhost:4000/img.jpg"]),
+    ).not.toThrow();
+  });
+
+  it("accepts exactly MAX_IMAGES_PER_POST URLs", () => {
+    const urls = Array.from(
+      { length: MAX_IMAGES_PER_POST },
+      (_, i) => `http://localhost:4000/img${i}.jpg`,
+    );
+    expect(() => validateMediaUrls(urls)).not.toThrow();
+  });
+
+  it("rejects empty array", () => {
+    expect(() => validateMediaUrls([])).toThrow("At least one image");
+  });
+
+  it("rejects more than MAX_IMAGES_PER_POST URLs", () => {
+    const urls = Array.from(
+      { length: MAX_IMAGES_PER_POST + 1 },
+      (_, i) => `http://localhost:4000/img${i}.jpg`,
+    );
+    expect(() => validateMediaUrls(urls)).toThrow("at most");
+  });
+
+  it("rejects invalid URL in array", () => {
+    expect(() => validateMediaUrls(["not-a-url"])).toThrow();
   });
 });
