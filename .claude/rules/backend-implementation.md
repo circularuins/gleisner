@@ -563,3 +563,43 @@ expect(res.status).toBe(200);
 テスト用 Hono app は `app.route("/ogp", ogp)` で REST ルートも mount し、同一インスタンスで GraphQL + REST の両方をテストする。
 
 PR #203 の教訓: users テーブルの直接 INSERT で `did` NOT NULL 違反 → GraphQL 経由に切り替えて解決。
+
+### R2 ファイル削除は fire-and-forget で DB 削除を優先
+
+**エンティティ削除時の R2 クリーンアップは、DB 削除成功後に fire-and-forget で実行すること。** R2 削除の失敗でユーザー操作（投稿削除・退会等）がブロックされてはならない。orphan ファイルは許容し、将来の cleanup バッチで対応する。
+
+```typescript
+// ✅ DB 削除を先に → R2 は fire-and-forget
+const [deleted] = await db.delete(posts).where(eq(posts.id, args.id)).returning();
+
+if (post.mediaUrl) {
+  deleteR2Object(post.mediaUrl).catch((err) =>
+    console.error("[deletePost] R2 media cleanup failed:", err),
+  );
+}
+
+// ❌ R2 削除を先に → 失敗するとユーザーが退会できない
+await deleteR2ObjectsByPrefix(`media/${userId}/`); // ← ネットワークエラーで例外
+await db.delete(users).where(eq(users.id, userId)); // ← 到達しない
+```
+
+**子アカウントの R2 も忘れない**: `deleteAccount` で Guardian を削除すると CASCADE で子アカウントの DB 行は消えるが、R2 ファイルは別経路。**DB 削除前に子アカウント一覧を取得**して、R2 cleanup 対象に含めること。
+
+```typescript
+// ✅ 子アカウントの R2 も cleanup 対象
+const children = await db.select({ id: users.id }).from(users)
+  .where(eq(users.guardianId, userId));
+const userIdsToCleanup = [userId, ...children.map((c) => c.id)];
+
+await db.delete(users).where(eq(users.id, userId)); // CASCADE で子も削除
+
+Promise.all(
+  userIdsToCleanup.flatMap((uid) => [
+    deleteR2ObjectsByPrefix(`avatars/${uid}/`),
+    deleteR2ObjectsByPrefix(`covers/${uid}/`),
+    deleteR2ObjectsByPrefix(`media/${uid}/`),
+  ]),
+).catch((err) => console.error("[deleteAccount] R2 cleanup failed:", err));
+```
+
+PR #204 の教訓: Guardian 本人の R2 しか消さず、子アカウントの R2 が orphan 化していた。

@@ -822,3 +822,37 @@ builder: (context, constraints) {
 ```
 
 PR #197 の教訓: `_RecentPostCard` の幅計算と `isDesktop` 判定の両方で `MediaQuery` を使用し、サイドパネル時のレイアウト崩れと不要な rebuild を引き起こした。
+
+### logout / アカウント削除後に画面側で ref.invalidate しない
+
+**認証状態の変更（logout / deleteAccount）後に、画面（Screen）側で `ref.invalidate()` を連鎖的に呼ばないこと。** GoRouter redirect が `authState` の変更を検知して StatefulShellRoute のルートツリーを再構築する最中に、画面側の `ref.invalidate()` が dispose 中の Widget リビルドをトリガーし、以下のエラーが連鎖する:
+
+- `Tried to build dirty widget in the wrong build scope`
+- `Duplicate GlobalKeys detected in widget tree`
+- `RenderFlex overflowed by 99534 pixels on the bottom`
+- `LateInitializationError: Field '_children' has not been initialized`
+
+```dart
+// ❌ 画面側で invalidate → クラッシュ
+final error = await ref.read(authProvider.notifier).deleteAccount(password);
+if (error == null) {
+  ref.invalidate(timelineProvider);   // ← dispose 中にリビルド
+  ref.invalidate(myArtistProvider);   // ← 連鎖クラッシュ
+  ref.invalidate(discoverProvider);
+  // ...
+}
+
+// ✅ Notifier 内で必要な invalidate を行い、画面側では何もしない
+// auth_provider.dart
+Future<void> logout() async {
+  await _storage.delete(key: 'jwt');
+  _client.cache.store.reset();          // GraphQL キャッシュクリア
+  ref.invalidate(featuredArtistProvider); // 必要な Provider のみ
+  state = const AuthState(status: AuthStatus.unauthenticated);
+  // → router redirect が /login に遷移（画面の unmount は Framework に任せる）
+}
+```
+
+**通常のログアウトボタン**（Profile 画面に留まるケース）では `ref.invalidate` が安全に動作する。問題はアカウント削除のように**画面遷移を伴う場合のみ**。
+
+PR #204 の教訓: 4回の修正試行（手動 context.go → addPostFrameCallback → deferred logout → router redirect のみ）を経て、「Notifier 内で invalidate、画面側は何もしない」パターンに落ち着いた。
