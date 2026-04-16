@@ -1154,6 +1154,54 @@ abstract class AppLocalizations {
   /// **'No posts yet'**
   String get noPostsYet;
 
+  /// No description provided for @yourTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Timeline'**
+  String get yourTimeline;
+
+  /// No description provided for @noPostsFromArtist.
+  ///
+  /// In en, this message translates to:
+  /// **'No posts from this artist yet'**
+  String get noPostsFromArtist;
+
+  /// No description provided for @discoverToFillTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover artists and tune in to fill your timeline'**
+  String get discoverToFillTimeline;
+
+  /// No description provided for @tutorialFirstPostMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your first star to the constellation'**
+  String get tutorialFirstPostMessage;
+
+  /// No description provided for @tutorialFirstPostSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Every post becomes a point of light in your creative universe.'**
+  String get tutorialFirstPostSubtitle;
+
+  /// No description provided for @artistBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'ARTIST'**
+  String get artistBadge;
+
+  /// No description provided for @tunedInBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'TUNED IN'**
+  String get tunedInBadge;
+
+  /// No description provided for @constellationNamedPostCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · {count} posts'**
+  String constellationNamedPostCount(String name, int count);
+
   /// No description provided for @joinCreativeUniverse.
   ///
   /// In en, this message translates to:

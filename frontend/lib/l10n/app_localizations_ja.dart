@@ -573,6 +573,32 @@ class AppLocalizationsJa extends AppLocalizations {
   String get noPostsYet => 'まだ投稿がありません';
 
   @override
+  String get yourTimeline => 'マイタイムライン';
+
+  @override
+  String get noPostsFromArtist => 'このアーティストの投稿はまだありません';
+
+  @override
+  String get discoverToFillTimeline => 'アーティストを見つけてチューンインしよう';
+
+  @override
+  String get tutorialFirstPostMessage => '最初の星をコンステレーションに加えよう';
+
+  @override
+  String get tutorialFirstPostSubtitle => '投稿のひとつひとつが、あなたの創作宇宙の光になります。';
+
+  @override
+  String get artistBadge => 'アーティスト';
+
+  @override
+  String get tunedInBadge => 'チューンイン中';
+
+  @override
+  String constellationNamedPostCount(String name, int count) {
+    return '$name · $count 投稿';
+  }
+
+  @override
   String get joinCreativeUniverse => 'クリエイティブな宇宙に参加しよう';
 
   @override

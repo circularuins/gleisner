@@ -580,6 +580,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noPostsYet => 'No posts yet';
 
   @override
+  String get yourTimeline => 'Your Timeline';
+
+  @override
+  String get noPostsFromArtist => 'No posts from this artist yet';
+
+  @override
+  String get discoverToFillTimeline =>
+      'Discover artists and tune in to fill your timeline';
+
+  @override
+  String get tutorialFirstPostMessage =>
+      'Add your first star to the constellation';
+
+  @override
+  String get tutorialFirstPostSubtitle =>
+      'Every post becomes a point of light in your creative universe.';
+
+  @override
+  String get artistBadge => 'ARTIST';
+
+  @override
+  String get tunedInBadge => 'TUNED IN';
+
+  @override
+  String constellationNamedPostCount(String name, int count) {
+    return '$name · $count posts';
+  }
+
+  @override
   String get joinCreativeUniverse => 'Join the creative universe';
 
   @override
