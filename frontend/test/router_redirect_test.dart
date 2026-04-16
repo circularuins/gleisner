@@ -93,6 +93,10 @@ void main() {
       expect(redirect(path: '/discover', status: 'unauthenticated'), isNull);
     });
 
+    test('loading redirects /discover to splash', () {
+      expect(redirect(path: '/discover', status: 'loading'), '/splash');
+    });
+
     test('unauthenticated cannot access protected routes', () {
       expect(redirect(path: '/timeline', status: 'unauthenticated'), '/login');
       expect(

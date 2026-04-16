@@ -42,6 +42,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     // If auth is still loading (e.g. JWT user landing on /discover directly),
     // wait for auth to resolve before loading tune-ins.
     ref.listenManual(authProvider, (prev, next) {
+      // Reset on logout so a subsequent login reloads tune-ins.
+      if (next.status == AuthStatus.unauthenticated) {
+        _tuneInsLoaded = false;
+      }
       if (!_tuneInsLoaded && next.status == AuthStatus.authenticated) {
         _tryLoadTuneIns();
       }
