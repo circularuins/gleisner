@@ -25,6 +25,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   final _searchController = TextEditingController();
   Timer? _debounceTimer;
   bool _initialized = false;
+  bool _tuneInsLoaded = false;
 
   @override
   void initState() {
@@ -35,13 +36,25 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       if (!_initialized && context.mounted) {
         _initialized = true;
         ref.read(discoverProvider.notifier).loadInitial();
-        // Tune-in state is only relevant for authenticated users
-        final authStatus = ref.read(authProvider).status;
-        if (authStatus == AuthStatus.authenticated) {
-          ref.read(tuneInProvider.notifier).loadMyTuneIns();
-        }
+        _tryLoadTuneIns();
       }
     });
+    // If auth is still loading (e.g. JWT user landing on /discover directly),
+    // wait for auth to resolve before loading tune-ins.
+    ref.listenManual(authProvider, (prev, next) {
+      if (!_tuneInsLoaded && next.status == AuthStatus.authenticated) {
+        _tryLoadTuneIns();
+      }
+    });
+  }
+
+  void _tryLoadTuneIns() {
+    if (_tuneInsLoaded) return;
+    final authStatus = ref.read(authProvider).status;
+    if (authStatus == AuthStatus.authenticated) {
+      _tuneInsLoaded = true;
+      ref.read(tuneInProvider.notifier).loadMyTuneIns();
+    }
   }
 
   @override
