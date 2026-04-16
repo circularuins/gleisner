@@ -26,7 +26,21 @@
 - バリデーション関数は `lib/utils/validators_l10n.dart` の `xxxL10n(context.l10n)` パターンを使う
 - `debugPrint` やログメッセージは翻訳不要（英語のまま）
 
+翻訳品質:
+- UI ラベル（Cancel, Save 等）は直訳で OK
+- マーケティング・説明文（ヒーローコピー、オンボーディング、機能紹介）は意訳すること。英語の意図を日本語として自然に伝わる表現にする
+- 法的要件テキスト（About ページ等）は正確性を優先
+
 **⚠ ARB にキーを追加したら `flutter gen-l10n` を忘れない。** 生成ファイル（`lib/l10n/app_localizations*.dart`）も git にコミットすること。
+
+**⚠ i18n 大量変更後は残存ハードコード英語を Grep で網羅チェックすること。**
+
+PR #216 の教訓: 4つの並列エージェントで ~170 文字列を置換したが、共通ウィジェット内（`EventAtPicker`, `CoverImage`, `TutorialSpotlight`, `milestone_category.dart` の static リスト等）に多数の未翻訳が残り、11回のコミットで段階的に修正した。エージェントの「完了」報告を過信せず、以下のコマンドで確認すること:
+
+```bash
+# lib/ 内のハードコード英語文字列を検索（debugPrint/import/comment 除外）
+grep -rn "'[A-Z][a-z]" lib/screens/ lib/widgets/ --include="*.dart" | grep -v debugPrint | grep -v import | grep -v "^\s*//"
+```
 
 ### データ操作・ビジネスロジックは Provider/Notifier 層で
 
