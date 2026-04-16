@@ -89,6 +89,8 @@
   "deleteAccountConfirmTitle": "このアカウントを削除しますか？",
   "cannotBeUndone": "この操作は取り消せません。",
   "enterPasswordToConfirm": "確認のためパスワードを入力してください",
+  "deleteAccountWarning": "以下のデータが完全に削除されます：",
+  "deleteAccountDetails": "\u2022 アカウントとプロフィール\n\u2022 アーティストプロフィール（存在する場合）\n\u2022 すべての投稿、トラック、つながり\n\u2022 アップロードしたすべてのメディア（画像・動画・音声）\n\u2022 管理下のすべての子アカウント\n　（アーティストプロフィールとメディアを含む）",
   "deleteAccountFailed": "アカウントの削除に失敗しました。パスワードを確認してください。",
 
   "editProfile": "プロフィール編集",

@@ -440,19 +440,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             const SizedBox(height: spaceSm),
-            const Text(
-              'The following will be permanently deleted:',
-              style: TextStyle(color: colorTextSecondary),
+            Text(
+              context.l10n.deleteAccountWarning,
+              style: const TextStyle(color: colorTextSecondary),
             ),
             const SizedBox(height: spaceXs),
-            const Text(
-              '• Your account and profile\n'
-              '• Your artist profile (if any)\n'
-              '• All your posts, tracks, and connections\n'
-              '• All uploaded media (images, videos, audio)\n'
-              '• All child accounts under your management,\n'
-              '  including their artist profiles and media',
-              style: TextStyle(
+            Text(
+              context.l10n.deleteAccountDetails,
+              style: const TextStyle(
                 color: colorTextSecondary,
                 fontSize: fontSizeSm,
                 height: 1.5,

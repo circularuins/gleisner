@@ -277,6 +277,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enterPasswordToConfirm => 'Enter your password to confirm';
 
   @override
+  String get deleteAccountWarning =>
+      'The following will be permanently deleted:';
+
+  @override
+  String get deleteAccountDetails =>
+      '• Your account and profile\n• Your artist profile (if any)\n• All your posts, tracks, and connections\n• All uploaded media (images, videos, audio)\n• All child accounts under your management,\n  including their artist profiles and media';
+
+  @override
   String get deleteAccountFailed =>
       'Failed to delete account. Check your password.';
 

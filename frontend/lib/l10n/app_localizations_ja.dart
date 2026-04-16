@@ -276,6 +276,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get enterPasswordToConfirm => '確認のためパスワードを入力してください';
 
   @override
+  String get deleteAccountWarning => '以下のデータが完全に削除されます：';
+
+  @override
+  String get deleteAccountDetails =>
+      '• アカウントとプロフィール\n• アーティストプロフィール（存在する場合）\n• すべての投稿、トラック、つながり\n• アップロードしたすべてのメディア（画像・動画・音声）\n• 管理下のすべての子アカウント\n　（アーティストプロフィールとメディアを含む）';
+
+  @override
   String get deleteAccountFailed => 'アカウントの削除に失敗しました。パスワードを確認してください。';
 
   @override

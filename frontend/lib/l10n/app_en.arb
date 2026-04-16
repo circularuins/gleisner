@@ -97,6 +97,8 @@
   "deleteAccountConfirmTitle": "Delete this account?",
   "cannotBeUndone": "This action cannot be undone.",
   "enterPasswordToConfirm": "Enter your password to confirm",
+  "deleteAccountWarning": "The following will be permanently deleted:",
+  "deleteAccountDetails": "\u2022 Your account and profile\n\u2022 Your artist profile (if any)\n\u2022 All your posts, tracks, and connections\n\u2022 All uploaded media (images, videos, audio)\n\u2022 All child accounts under your management,\n  including their artist profiles and media",
   "deleteAccountFailed": "Failed to delete account. Check your password.",
 
   "editProfile": "Edit Profile",

@@ -584,6 +584,18 @@ abstract class AppLocalizations {
   /// **'Enter your password to confirm'**
   String get enterPasswordToConfirm;
 
+  /// No description provided for @deleteAccountWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'The following will be permanently deleted:'**
+  String get deleteAccountWarning;
+
+  /// No description provided for @deleteAccountDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'• Your account and profile\n• Your artist profile (if any)\n• All your posts, tracks, and connections\n• All uploaded media (images, videos, audio)\n• All child accounts under your management,\n  including their artist profiles and media'**
+  String get deleteAccountDetails;
+
   /// No description provided for @deleteAccountFailed.
   ///
   /// In en, this message translates to:
