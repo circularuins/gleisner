@@ -5,6 +5,7 @@ import '../../models/artist.dart';
 import '../../models/track.dart';
 import '../../providers/artist_page_provider.dart';
 import '../../providers/edit_artist_provider.dart';
+import '../../l10n/l10n.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 
@@ -84,23 +85,20 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: colorSurface1,
-        title: const Text(
-          'Delete Track',
-          style: TextStyle(color: colorTextPrimary),
+        title: Text(
+          context.l10n.deleteTrackConfirm(track.name),
+          style: const TextStyle(color: colorTextPrimary),
         ),
-        content: Text(
-          'Delete "${track.name}"? Posts in this track will be removed from the timeline. You can reassign them to another track later from your profile.',
-          style: const TextStyle(color: colorTextSecondary),
-        ),
+        content: null,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: colorError),
-            child: const Text('Delete'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -163,7 +161,9 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
 
               Row(
                 children: [
-                  Expanded(child: Text('Manage Tracks', style: textTitle)),
+                  Expanded(
+                    child: Text(context.l10n.manageTracks, style: textTitle),
+                  ),
                   if (!_showAddForm && _tracks.length < 10)
                     IconButton(
                       icon: const Icon(Icons.add, color: colorAccentGold),
@@ -187,7 +187,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
               ),
               const SizedBox(height: spaceXs),
               Text(
-                '${_tracks.length}/10 tracks',
+                context.l10n.tracksCount(_tracks.length),
                 style: textCaption.copyWith(color: colorTextMuted),
               ),
               const SizedBox(height: spaceLg),
@@ -220,7 +220,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
                   padding: const EdgeInsets.symmetric(vertical: spaceXl),
                   child: Center(
                     child: Text(
-                      'No tracks yet. Tap + to add one.',
+                      context.l10n.noTracksYet,
                       style: textCaption.copyWith(color: colorTextMuted),
                     ),
                   ),
@@ -237,7 +237,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'New Track',
+                        context.l10n.newTrack,
                         style: textHeading.copyWith(color: colorTextPrimary),
                       ),
                       const SizedBox(height: spaceMd),
@@ -246,7 +246,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
                         maxLength: 30,
                         style: const TextStyle(color: colorTextPrimary),
                         decoration: InputDecoration(
-                          labelText: 'Track Name',
+                          labelText: context.l10n.trackName,
                           labelStyle: const TextStyle(color: colorTextMuted),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(radiusMd),
@@ -295,7 +295,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
                                 foregroundColor: colorTextSecondary,
                                 side: const BorderSide(color: colorBorder),
                               ),
-                              child: const Text('Cancel'),
+                              child: Text(context.l10n.cancel),
                             ),
                           ),
                           const SizedBox(width: spaceMd),
@@ -314,7 +314,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
                                         strokeWidth: 2,
                                       ),
                                     )
-                                  : const Text('Add'),
+                                  : Text(context.l10n.add),
                             ),
                           ),
                         ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/l10n.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 
@@ -63,9 +64,9 @@ class _WelcomeStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Spacer(),
-        const Text(
-          'Welcome to Gleisner',
-          style: TextStyle(
+        Text(
+          context.l10n.welcomeToGleisner,
+          style: const TextStyle(
             color: colorTextPrimary,
             fontSize: fontSizeTitle,
             fontWeight: weightBold,
@@ -73,9 +74,9 @@ class _WelcomeStep extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: spaceSm),
-        const Text(
-          'Your creative universe awaits',
-          style: TextStyle(color: colorTextMuted, fontSize: fontSizeLg),
+        Text(
+          context.l10n.yourCreativeUniverseAwaits,
+          style: const TextStyle(color: colorTextMuted, fontSize: fontSizeLg),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: spaceXxl),
@@ -83,10 +84,8 @@ class _WelcomeStep extends StatelessWidget {
         // Personal Account card
         _InfoCard(
           icon: Icons.person,
-          title: 'Personal Account',
-          description:
-              'Discover artists, follow tracks, build your timeline. '
-              'This is your personal identity on Gleisner.',
+          title: context.l10n.personalAccountTitle,
+          description: context.l10n.personalAccountDesc,
           color: colorInteractive,
         ),
         const SizedBox(height: spaceLg),
@@ -94,10 +93,8 @@ class _WelcomeStep extends StatelessWidget {
         // Artist Upgrade card
         _InfoCard(
           icon: Icons.auto_awesome,
-          title: '+ Artist Upgrade',
-          description:
-              'Create an Artist Page, set up tracks, and broadcast your work. '
-              'You can upgrade anytime after signup.',
+          title: context.l10n.artistUpgradeTitle,
+          description: context.l10n.artistUpgradeDesc,
           color: colorAccentGold,
         ),
 
@@ -109,7 +106,7 @@ class _WelcomeStep extends StatelessWidget {
             foregroundColor: colorSurface0,
             padding: const EdgeInsets.symmetric(vertical: spaceLg),
           ),
-          child: const Text('Get Started'),
+          child: Text(context.l10n.getStarted),
         ),
       ],
     );
@@ -204,7 +201,7 @@ class _CompleteStep extends StatelessWidget {
         const Icon(Icons.check_circle, color: colorAccentGold, size: 64),
         const SizedBox(height: spaceXl),
         Text(
-          'Welcome, $displayName!',
+          context.l10n.welcomeUser(displayName),
           style: const TextStyle(
             color: colorTextPrimary,
             fontSize: fontSizeTitle,
@@ -213,19 +210,19 @@ class _CompleteStep extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: spaceMd),
-        const Text(
-          'Your personal account is ready.',
-          style: TextStyle(color: colorTextMuted, fontSize: fontSizeLg),
+        Text(
+          context.l10n.accountReady,
+          style: const TextStyle(color: colorTextMuted, fontSize: fontSizeLg),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: spaceXxl),
 
         // What's included
-        const _FeatureRow(icon: Icons.grid_view, label: 'Timeline'),
+        _FeatureRow(icon: Icons.grid_view, label: context.l10n.featureTimeline),
         const SizedBox(height: spaceMd),
-        const _FeatureRow(icon: Icons.search, label: 'Discover artists'),
+        _FeatureRow(icon: Icons.search, label: context.l10n.featureDiscover),
         const SizedBox(height: spaceMd),
-        const _FeatureRow(icon: Icons.headphones, label: 'Tune In to artists'),
+        _FeatureRow(icon: Icons.headphones, label: context.l10n.featureTuneIn),
 
         const SizedBox(height: spaceXxl),
 
@@ -239,18 +236,18 @@ class _CompleteStep extends StatelessWidget {
           ),
           child: Column(
             children: [
-              const Text(
-                'Ready to share your work?',
-                style: TextStyle(
+              Text(
+                context.l10n.readyToShare,
+                style: const TextStyle(
                   color: colorTextPrimary,
                   fontSize: fontSizeMd,
                   fontWeight: weightSemibold,
                 ),
               ),
               const SizedBox(height: spaceXs),
-              const Text(
-                'Your personal account stays — the artist profile is a separate creative identity.',
-                style: TextStyle(
+              Text(
+                context.l10n.artistUpgradeExplain,
+                style: const TextStyle(
                   color: colorTextMuted,
                   fontSize: fontSizeSm,
                   height: 1.4,
@@ -263,7 +260,7 @@ class _CompleteStep extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: onBecomeArtist,
                   icon: const Icon(Icons.auto_awesome, size: 16),
-                  label: const Text('Become an Artist'),
+                  label: Text(context.l10n.becomeAnArtist),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: colorAccentGold,
                     side: BorderSide(
@@ -285,7 +282,7 @@ class _CompleteStep extends StatelessWidget {
             foregroundColor: colorSurface0,
             padding: const EdgeInsets.symmetric(vertical: spaceLg),
           ),
-          child: const Text('Explore Gleisner'),
+          child: Text(context.l10n.exploreGleisner),
         ),
       ],
     );

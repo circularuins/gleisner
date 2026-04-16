@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../l10n/l10n.dart';
 import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
 
@@ -101,9 +102,9 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               backgroundColor: colorSurface0,
               floating: true,
               snap: true,
-              title: const Text(
-                'Discover',
-                style: TextStyle(
+              title: Text(
+                context.l10n.discover,
+                style: const TextStyle(
                   color: colorTextPrimary,
                   fontSize: fontSizeTitle,
                   fontWeight: weightBold,
@@ -166,9 +167,9 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                       TextButton(
                         onPressed: () =>
                             ref.read(discoverProvider.notifier).refresh(),
-                        child: const Text(
-                          'Retry',
-                          style: TextStyle(color: colorAccentGold),
+                        child: Text(
+                          context.l10n.retry,
+                          style: const TextStyle(color: colorAccentGold),
                         ),
                       ),
                     ],
@@ -177,20 +178,20 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               )
             // Empty state
             else if (!state.isLoading && state.artists.isEmpty)
-              const SliverFillRemaining(
+              SliverFillRemaining(
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.search_off,
                         color: colorInteractiveMuted,
                         size: 48,
                       ),
-                      SizedBox(height: spaceLg),
+                      const SizedBox(height: spaceLg),
                       Text(
-                        'No artists found',
-                        style: TextStyle(
+                        context.l10n.noArtistsFound,
+                        style: const TextStyle(
                           color: colorTextMuted,
                           fontSize: fontSizeLg,
                         ),
@@ -219,8 +220,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                         final artist = state.artists[index];
                         return _ArtistCard(
                           artist: artist,
-                          onTap: () =>
-                              _onArtistTap(artist.artistUsername),
+                          onTap: () => _onArtistTap(artist.artistUsername),
                         );
                       }, childCount: state.artists.length),
                     ),
@@ -249,7 +249,7 @@ class _SearchBar extends StatelessWidget {
       onChanged: onChanged,
       style: const TextStyle(color: colorTextPrimary, fontSize: fontSizeMd),
       decoration: InputDecoration(
-        hintText: 'Search artists...',
+        hintText: context.l10n.searchArtists,
         hintStyle: const TextStyle(color: colorTextMuted),
         prefixIcon: const Icon(
           Icons.search,

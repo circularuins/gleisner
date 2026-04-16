@@ -6,7 +6,8 @@ import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/featured_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
-import '../../utils/validators.dart';
+import '../../l10n/l10n.dart';
+import '../../utils/validators_l10n.dart';
 import '../../widgets/auth/auth_layout.dart';
 import '../../widgets/common/auth_header.dart';
 import '../../widgets/common/error_banner.dart';
@@ -102,7 +103,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const AuthHeader(subtitle: 'Create your account'),
+                  AuthHeader(subtitle: context.l10n.signupSubtitle),
                   const SizedBox(height: spaceXxl),
                   if (authState.error != null) ...[
                     ErrorBanner(message: authState.error!),
@@ -110,62 +111,62 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   ],
                   TextFormField(
                     controller: _displayNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Display Name',
-                      hintText: 'How you want to be known',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: context.l10n.displayName,
+                      hintText: context.l10n.displayNameHint,
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: spaceLg),
                   TextFormField(
                     controller: _usernameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Username',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: context.l10n.username,
+                      border: const OutlineInputBorder(),
                     ),
-                    validator: validateUsername,
+                    validator: validateUsernameL10n(context.l10n),
                   ),
                   const SizedBox(height: spaceLg),
                   TextFormField(
                     controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: context.l10n.email,
+                      border: const OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.emailAddress,
-                    validator: validateEmail,
+                    validator: validateEmailL10n(context.l10n),
                   ),
                   const SizedBox(height: spaceLg),
                   TextFormField(
                     controller: _passwordController,
-                    decoration: const InputDecoration(
-                      labelText: 'Password',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: context.l10n.password,
+                      border: const OutlineInputBorder(),
                     ),
                     obscureText: true,
-                    validator: validatePassword,
+                    validator: validatePasswordL10n(context.l10n),
                   ),
                   const SizedBox(height: spaceLg),
                   TextFormField(
                     controller: _passwordConfirmController,
-                    decoration: const InputDecoration(
-                      labelText: 'Confirm Password',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: context.l10n.confirmPassword,
+                      border: const OutlineInputBorder(),
                     ),
                     obscureText: true,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please confirm your password';
+                        return context.l10n.pleaseConfirmPassword;
                       }
                       if (value != _passwordController.text) {
-                        return 'Passwords do not match';
+                        return context.l10n.passwordsDoNotMatch;
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: spaceLg),
                   Text(
-                    'Birth Year & Month',
+                    context.l10n.birthYearMonth,
                     style: Theme.of(
                       context,
                     ).textTheme.bodySmall?.copyWith(color: colorTextMuted),
@@ -177,9 +178,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         flex: 2,
                         child: DropdownButtonFormField<int>(
                           initialValue: _birthYear,
-                          decoration: const InputDecoration(
-                            labelText: 'Year',
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: context.l10n.year,
+                            border: const OutlineInputBorder(),
                           ),
                           items: List.generate(DateTime.now().year - 1900 + 1, (
                             i,
@@ -197,9 +198,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       Expanded(
                         child: DropdownButtonFormField<int>(
                           initialValue: _birthMonth,
-                          decoration: const InputDecoration(
-                            labelText: 'Month',
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: context.l10n.month,
+                            border: const OutlineInputBorder(),
                           ),
                           items: List.generate(
                             12,
@@ -216,13 +217,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   const SizedBox(height: spaceLg),
                   TextFormField(
                     controller: _inviteCodeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Invite Code',
-                      hintText: 'Enter your invite code',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: context.l10n.inviteCode,
+                      hintText: context.l10n.inviteCodeHint,
+                      border: const OutlineInputBorder(),
                     ),
                     maxLength: 20,
-                    validator: validateInviteCode,
+                    validator: validateInviteCodeL10n(context.l10n),
                   ),
                   const SizedBox(height: spaceXl),
                   FilledButton(
@@ -233,12 +234,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Create Account'),
+                        : Text(context.l10n.createAccount),
                   ),
                   const SizedBox(height: spaceLg),
                   TextButton(
                     onPressed: () => context.go('/login'),
-                    child: const Text('Already have an account? Sign in'),
+                    child: Text(context.l10n.alreadyHaveAccount),
                   ),
                 ],
               ),

@@ -6,7 +6,8 @@ import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/featured_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
-import '../../utils/validators.dart';
+import '../../l10n/l10n.dart';
+import '../../utils/validators_l10n.dart';
 import '../../widgets/auth/auth_layout.dart';
 import '../../widgets/common/auth_header.dart';
 import '../../widgets/common/error_banner.dart';
@@ -75,7 +76,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const AuthHeader(subtitle: 'Sign in to your account'),
+                AuthHeader(subtitle: context.l10n.loginSubtitle),
                 const SizedBox(height: spaceXxl),
                 if (authState.error != null) ...[
                   ErrorBanner(message: authState.error!),
@@ -83,22 +84,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ],
                 TextFormField(
                   controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.email,
+                    border: const OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.emailAddress,
-                  validator: validateEmail,
+                  validator: validateEmailL10n(context.l10n),
                 ),
                 const SizedBox(height: spaceLg),
                 TextFormField(
                   controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.password,
+                    border: const OutlineInputBorder(),
                   ),
                   obscureText: true,
-                  validator: (v) => validateRequired(v, 'Password'),
+                  validator: validateRequiredL10n(
+                    context.l10n,
+                    context.l10n.password,
+                  ),
                 ),
                 const SizedBox(height: spaceXl),
                 FilledButton(
@@ -109,12 +113,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Sign In'),
+                      : Text(context.l10n.signIn),
                 ),
                 const SizedBox(height: spaceLg),
                 TextButton(
                   onPressed: () => context.go('/signup'),
-                  child: const Text("Don't have an account? Sign up"),
+                  child: Text(context.l10n.noAccount),
                 ),
               ],
             ),

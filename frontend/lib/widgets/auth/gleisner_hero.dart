@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 
@@ -20,11 +21,11 @@ class GleisnerHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (compact) return _buildCompact();
-    return _buildFull();
+    if (compact) return _buildCompact(context);
+    return _buildFull(context);
   }
 
-  Widget _buildFull() {
+  Widget _buildFull(BuildContext context) {
     return Container(
       color: colorSurface0,
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
@@ -38,14 +39,14 @@ class GleisnerHero extends StatelessWidget {
               SvgPicture.asset(
                 GleisnerAssets.logoFull,
                 height: 80,
-                semanticsLabel: 'Gleisner logo',
+                semanticsLabel: context.l10n.gleisnerLogoLabel,
               ),
               const SizedBox(width: spaceLg),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Gleisner',
+                    context.l10n.appTitle,
                     style: GoogleFonts.urbanist(
                       fontSize: 36,
                       fontWeight: FontWeight.w700,
@@ -54,7 +55,7 @@ class GleisnerHero extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Your creative universe',
+                    context.l10n.yourCreativeUniverse,
                     style: GoogleFonts.urbanist(
                       fontSize: 16,
                       fontWeight: FontWeight.w400,
@@ -66,7 +67,9 @@ class GleisnerHero extends StatelessWidget {
             ],
           ),
           const SizedBox(height: spaceXxl + spaceLg),
-          ..._propositions.expand((p) => [p, const SizedBox(height: spaceXl)]),
+          ..._propositions(
+            context,
+          ).expand((p) => [p, const SizedBox(height: spaceXl)]),
           if (onTryIt != null) ...[
             const SizedBox(height: spaceLg),
             _TryItLink(onTap: onTryIt!),
@@ -76,7 +79,7 @@ class GleisnerHero extends StatelessWidget {
     );
   }
 
-  Widget _buildCompact() {
+  Widget _buildCompact(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: spaceXl,
@@ -87,7 +90,7 @@ class GleisnerHero extends StatelessWidget {
         children: [
           const Divider(color: colorBorder, height: 1),
           const SizedBox(height: spaceLg),
-          ..._propositions.map(
+          ..._propositions(context).map(
             (p) => Padding(
               padding: const EdgeInsets.only(bottom: spaceMd),
               child: p,
@@ -102,24 +105,21 @@ class GleisnerHero extends StatelessWidget {
     );
   }
 
-  List<Widget> get _propositions => const [
+  List<Widget> _propositions(BuildContext context) => [
     _Proposition(
       icon: Icons.shield_outlined,
-      title: 'Own your creative identity',
-      description:
-          'Your data, your connections, your rules. No platform lock-in. (Pro)',
+      title: context.l10n.ownCreativeIdentity,
+      description: context.l10n.keepArtKeepControl,
     ),
     _Proposition(
       icon: Icons.auto_awesome,
-      title: 'Map your journey across infinite tracks',
-      description:
-          'Music, writing, visual art — each track tells a different story.',
+      title: context.l10n.mapYourJourney,
+      description: context.l10n.multipleProjectsOnePlaceTitle,
     ),
     _Proposition(
       icon: Icons.hub_outlined,
-      title: 'Watch connections emerge between ideas',
-      description:
-          'Synapses link related posts into constellations automatically.',
+      title: context.l10n.watchConnectionsEmerge,
+      description: context.l10n.seeHowIdeasRelate,
     ),
   ];
 }
@@ -184,7 +184,7 @@ class _TryItLink extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Try it first',
+            context.l10n.tryItFirst,
             style: textBody.copyWith(color: colorInteractive, fontSize: 14),
           ),
           const SizedBox(width: spaceXs),

@@ -20,6 +20,7 @@ import '../../widgets/editor/text_body_counter.dart';
 import '../../utils/constellation_layout.dart';
 import '../../utils/ime_safe_focus.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
+import '../../l10n/l10n.dart';
 
 class EditPostScreen extends ConsumerStatefulWidget {
   final Post post;
@@ -125,8 +126,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     // Prevent clearing media file for media types (not thought/article/link)
     if (widget.post.mediaType == MediaType.image && _mediaUrls.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('At least one image is required'),
+        SnackBar(
+          content: Text(context.l10n.imageRequired),
           backgroundColor: colorError,
         ),
       );
@@ -137,8 +138,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         widget.post.mediaType != MediaType.thought &&
         _mediaUrlController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Media file is required for this post type'),
+        SnackBar(
+          content: Text(context.l10n.mediaFileRequired),
           backgroundColor: colorError,
         ),
       );
@@ -245,7 +246,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     } else {
       setState(() {
         _isSubmitting = false;
-        _error = 'Failed to update post. Please try again.';
+        _error = context.l10n.failedUpdatePost;
       });
     }
   }
@@ -262,9 +263,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
       backgroundColor: colorSurface0,
       appBar: AppBar(
         backgroundColor: colorSurface0,
-        title: const Text(
-          'Edit Post',
-          style: TextStyle(color: colorTextPrimary),
+        title: Text(
+          context.l10n.editPost,
+          style: const TextStyle(color: colorTextPrimary),
         ),
         leading: IconButton(
           icon: const Icon(Icons.close, color: colorTextPrimary),
@@ -335,19 +336,19 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
               Row(
                 children: [
                   Text(
-                    'Visibility',
+                    context.l10n.visibility,
                     style: textLabel.copyWith(color: colorTextSecondary),
                   ),
                   const SizedBox(width: spaceLg),
                   ChoiceChip(
-                    label: const Text('Public'),
+                    label: Text(context.l10n.public),
                     selected: _visibility == 'public',
                     onSelected: (_) => setState(() => _visibility = 'public'),
                     visualDensity: VisualDensity.compact,
                   ),
                   const SizedBox(width: spaceSm),
                   ChoiceChip(
-                    label: const Text('Draft'),
+                    label: Text(context.l10n.draft),
                     selected: _visibility == 'draft',
                     onSelected: (_) => setState(() => _visibility = 'draft'),
                     visualDensity: VisualDensity.compact,
@@ -369,13 +370,13 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
               // Importance slider
               const SizedBox(height: spaceLg),
               Text(
-                'Importance',
+                context.l10n.importance,
                 style: textLabel.copyWith(color: colorTextSecondary),
               ),
               Row(
                 children: [
                   Text(
-                    'quiet note',
+                    context.l10n.quietNote,
                     style: textMicro.copyWith(color: colorTextMuted),
                   ),
                   Expanded(
@@ -386,7 +387,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                     ),
                   ),
                   Text(
-                    'hero moment',
+                    context.l10n.heroMoment,
                     style: textMicro.copyWith(color: colorTextMuted),
                   ),
                 ],
@@ -422,7 +423,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Save'),
+                    : Text(context.l10n.save),
               ),
             ],
           ),
@@ -463,12 +464,12 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             fontSize: fontSizeMd,
             height: 1.5,
           ),
-          decoration: const InputDecoration(
-            hintText: "What's on your mind?",
-            hintStyle: TextStyle(color: colorInteractiveMuted),
+          decoration: InputDecoration(
+            hintText: context.l10n.whatsOnYourMind,
+            hintStyle: const TextStyle(color: colorInteractiveMuted),
             border: InputBorder.none,
-            contentPadding: EdgeInsets.all(spaceLg),
-            counterStyle: TextStyle(
+            contentPadding: const EdgeInsets.all(spaceLg),
+            counterStyle: const TextStyle(
               color: colorTextMuted,
               fontSize: fontSizeXs,
             ),
@@ -496,7 +497,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             fontWeight: weightMedium,
           ),
           decoration: InputDecoration(
-            hintText: 'Title',
+            hintText: context.l10n.title,
             hintStyle: const TextStyle(
               color: colorTextMuted,
               fontSize: fontSizeLg,
@@ -516,7 +517,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         height: 400,
         child: RichTextEditor(
           controller: _quillController,
-          placeholder: "What's on your mind?",
+          placeholder: context.l10n.whatsOnYourMind,
           toolbarCollapsed: true,
         ),
       ),
@@ -535,9 +536,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Genre',
-          style: TextStyle(
+        Text(
+          context.l10n.genre,
+          style: const TextStyle(
             color: colorTextMuted,
             fontSize: fontSizeSm,
             fontWeight: weightSemibold,
@@ -581,19 +582,22 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               Text(
-                'Publish externally',
-                style: TextStyle(
+                context.l10n.publishExternally,
+                style: const TextStyle(
                   color: colorTextSecondary,
                   fontSize: fontSizeSm,
                   fontWeight: weightMedium,
                 ),
               ),
-              SizedBox(height: spaceXxs),
+              const SizedBox(height: spaceXxs),
               Text(
-                'Make available on the public article site',
-                style: TextStyle(color: colorTextMuted, fontSize: fontSizeXs),
+                context.l10n.publishExternallyDescription,
+                style: const TextStyle(
+                  color: colorTextMuted,
+                  fontSize: fontSizeXs,
+                ),
               ),
             ],
           ),
@@ -690,7 +694,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             fontWeight: weightMedium,
           ),
           decoration: InputDecoration(
-            hintText: 'Title',
+            hintText: context.l10n.title,
             hintStyle: const TextStyle(
               color: colorTextMuted,
               fontSize: fontSizeLg,
@@ -726,7 +730,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             height: 1.5,
           ),
           decoration: InputDecoration(
-            hintText: 'Write a caption...',
+            hintText: context.l10n.writeCaption,
             hintStyle: const TextStyle(
               color: colorTextMuted,
               fontSize: fontSizeMd,
@@ -831,14 +835,17 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
               color: Colors.black.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(radiusSm),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
-                SizedBox(width: spaceXs),
+                const Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
+                const SizedBox(width: spaceXs),
                 Text(
-                  'Replace',
-                  style: TextStyle(color: Colors.white70, fontSize: fontSizeXs),
+                  context.l10n.replace,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: fontSizeXs,
+                  ),
                 ),
               ],
             ),
@@ -879,9 +886,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Audio uploaded',
-                      style: TextStyle(
+                    Text(
+                      context.l10n.audioUploaded,
+                      style: const TextStyle(
                         color: colorTextPrimary,
                         fontSize: fontSizeSm,
                         fontWeight: weightMedium,
@@ -916,14 +923,17 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
               color: Colors.black.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(radiusSm),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
-                SizedBox(width: spaceXs),
+                const Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
+                const SizedBox(width: spaceXs),
                 Text(
-                  'Replace',
-                  style: TextStyle(color: Colors.white70, fontSize: fontSizeXs),
+                  context.l10n.replace,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: fontSizeXs,
+                  ),
                 ),
               ],
             ),
@@ -1010,6 +1020,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   }
 
   List<Widget> _buildLinkFields() {
+    final l10n = context.l10n;
     return [
       FocusTraversalGroup(
         policy: OrderedTraversalPolicy(),
@@ -1033,7 +1044,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                   fontFamily: monoFontFamily,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'https://',
+                  hintText: l10n.urlPlaceholder,
                   hintStyle: TextStyle(
                     color: colorTextMuted.withValues(alpha: 0.4),
                     fontSize: fontSizeMd,
@@ -1049,11 +1060,11 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'URL is required';
+                    return l10n.urlRequired;
                   }
                   final uri = Uri.tryParse(value.trim());
                   if (uri == null || !['http', 'https'].contains(uri.scheme)) {
-                    return 'Enter a valid http(s) URL';
+                    return l10n.invalidUrl;
                   }
                   return null;
                 },
@@ -1079,7 +1090,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                   fontWeight: weightMedium,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Title (auto-filled from link if empty)',
+                  hintText: l10n.titleAutoFilled,
                   hintStyle: const TextStyle(
                     color: colorTextMuted,
                     fontSize: fontSizeLg,
@@ -1116,7 +1127,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                   height: 1.5,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Add a note...',
+                  hintText: l10n.addNote,
                   hintStyle: const TextStyle(
                     color: colorTextMuted,
                     fontSize: fontSizeMd,

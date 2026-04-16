@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/l10n.dart';
 import '../../providers/guardian_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 
@@ -32,6 +33,7 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
+      expand: false,
       initialChildSize: 0.7,
       minChildSize: 0.4,
       maxChildSize: 0.9,
@@ -59,7 +61,7 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
                 ),
               ),
               const SizedBox(height: spaceXl),
-              Text('Add Child Account', style: textTitle),
+              Text(context.l10n.addChildAccount, style: textTitle),
               const SizedBox(height: spaceMd),
               Container(
                 padding: const EdgeInsets.all(spaceMd),
@@ -71,16 +73,12 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'About Child Accounts',
+                      context.l10n.aboutChildAccounts,
                       style: textLabel.copyWith(color: colorTextSecondary),
                     ),
                     const SizedBox(height: spaceSm),
                     Text(
-                      'A child account lets your child build their creative journey under your supervision.\n\n'
-                      '\u2022 You can switch between your account and your child\'s at any time from your Profile\n'
-                      '\u2022 Your child can register as an artist and create posts\n'
-                      '\u2022 Their user profile stays private by default\n'
-                      '\u2022 You control whether their artist page is public or private',
+                      context.l10n.childAccountDescription,
                       style: textCaption.copyWith(
                         color: colorTextMuted,
                         height: 1.5,
@@ -95,8 +93,8 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
               TextFormField(
                 controller: _usernameCtrl,
                 decoration: InputDecoration(
-                  labelText: 'Username',
-                  hintText: 'Letters, numbers, underscores',
+                  labelText: context.l10n.username,
+                  hintText: context.l10n.usernameFormat,
                   labelStyle: const TextStyle(color: colorTextMuted),
                   hintStyle: const TextStyle(color: colorInteractiveMuted),
                   enabledBorder: OutlineInputBorder(
@@ -119,11 +117,11 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
                 style: const TextStyle(color: colorTextPrimary),
                 validator: (v) {
                   if (v == null || v.length < 2) {
-                    return 'At least 2 characters';
+                    return context.l10n.usernameFormat;
                   }
-                  if (v.length > 30) return 'Max 30 characters';
+                  if (v.length > 30) return context.l10n.usernameFormat;
                   if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(v)) {
-                    return 'Letters, numbers, underscores only';
+                    return context.l10n.usernameFormat;
                   }
                   return null;
                 },
@@ -134,7 +132,7 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
               TextFormField(
                 controller: _displayNameCtrl,
                 decoration: InputDecoration(
-                  labelText: 'Display Name (optional)',
+                  labelText: context.l10n.displayName,
                   labelStyle: const TextStyle(color: colorTextMuted),
                   enabledBorder: OutlineInputBorder(
                     borderSide: const BorderSide(color: colorBorder),
@@ -147,7 +145,9 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
                 ),
                 style: const TextStyle(color: colorTextPrimary),
                 validator: (v) {
-                  if (v != null && v.length > 50) return 'Max 50 characters';
+                  if (v != null && v.length > 50) {
+                    return context.l10n.maxCharacters(50);
+                  }
                   return null;
                 },
               ),
@@ -155,7 +155,7 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
 
               // Birth Year/Month
               Text(
-                'Birth Year & Month',
+                context.l10n.birthYearMonth,
                 style: textLabel.copyWith(color: colorTextMuted),
               ),
               const SizedBox(height: spaceSm),
@@ -166,7 +166,7 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
                     child: DropdownButtonFormField<int>(
                       initialValue: _birthYear,
                       decoration: InputDecoration(
-                        labelText: 'Year',
+                        labelText: context.l10n.year,
                         labelStyle: const TextStyle(color: colorTextMuted),
                         enabledBorder: OutlineInputBorder(
                           borderSide: const BorderSide(color: colorBorder),
@@ -194,7 +194,7 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
                     child: DropdownButtonFormField<int>(
                       initialValue: _birthMonth,
                       decoration: InputDecoration(
-                        labelText: 'Month',
+                        labelText: context.l10n.month,
                         labelStyle: const TextStyle(color: colorTextMuted),
                         enabledBorder: OutlineInputBorder(
                           borderSide: const BorderSide(color: colorBorder),
@@ -226,8 +226,8 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
                 controller: _passwordCtrl,
                 obscureText: true,
                 decoration: InputDecoration(
-                  labelText: 'Your Password',
-                  hintText: 'Confirm your password to create',
+                  labelText: context.l10n.password,
+                  hintText: context.l10n.enterPasswordToConfirm,
                   labelStyle: const TextStyle(color: colorTextMuted),
                   hintStyle: const TextStyle(color: colorInteractiveMuted),
                   enabledBorder: OutlineInputBorder(
@@ -249,7 +249,8 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
                 ),
                 style: const TextStyle(color: colorTextPrimary),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Password is required';
+                  if (v == null || v.isEmpty)
+                    return context.l10n.passwordRequired;
                   return null;
                 },
               ),
@@ -278,12 +279,12 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Create Account'),
+                    : Text(context.l10n.createAccount),
               ),
 
               const SizedBox(height: spaceMd),
               Text(
-                'Child accounts have private profiles by default and cannot be changed.',
+                context.l10n.childAccountPrivateNote,
                 style: textCaption.copyWith(
                   color: colorTextMuted,
                   fontStyle: FontStyle.italic,

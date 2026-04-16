@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/deterministic_rng.dart';
 
@@ -59,14 +60,14 @@ class CoverImage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(radiusMd),
                   border: Border.all(color: colorBorder),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.camera_alt, size: 16, color: colorTextSecondary),
-                    SizedBox(width: spaceXs),
+                    const Icon(Icons.camera_alt, size: 16, color: colorTextSecondary),
+                    const SizedBox(width: spaceXs),
                     Text(
-                      'Edit Cover',
-                      style: TextStyle(color: colorTextSecondary, fontSize: 12),
+                      context.l10n.editCover,
+                      style: const TextStyle(color: colorTextSecondary, fontSize: 12),
                     ),
                   ],
                 ),

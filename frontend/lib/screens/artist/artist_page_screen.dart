@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/l10n.dart';
 import '../../utils/open_url.dart';
 
 import '../../models/artist.dart';
@@ -93,7 +94,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    post.title ?? 'Untitled',
+                    post.title ?? context.l10n.untitled,
                     style: const TextStyle(
                       color: colorTextPrimary,
                       fontSize: fontSizeLg,
@@ -109,7 +110,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                     color: colorInteractive,
                   ),
                   onPressed: () => setState(() => _sidePanelPostId = null),
-                  tooltip: 'Close',
+                  tooltip: context.l10n.close,
                 ),
               ],
             ),
@@ -352,10 +353,11 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                       if (isSelf)
                                         Row(
                                           children: [
-                                            const Expanded(
+                                            Expanded(
                                               child: Text(
-                                                'GENRES',
-                                                style: TextStyle(
+                                                context.l10n.genres
+                                                    .toUpperCase(),
+                                                style: const TextStyle(
                                                   color: colorTextMuted,
                                                   fontSize: fontSizeXs,
                                                   fontWeight: weightSemibold,
@@ -402,10 +404,11 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                       if (isSelf)
                                         Row(
                                           children: [
-                                            const Expanded(
+                                            Expanded(
                                               child: Text(
-                                                'ABOUT',
-                                                style: TextStyle(
+                                                context.l10n.about
+                                                    .toUpperCase(),
+                                                style: const TextStyle(
                                                   color: colorTextMuted,
                                                   fontSize: fontSizeXs,
                                                   fontWeight: weightSemibold,
@@ -504,10 +507,11 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                       if (isSelf)
                                         Row(
                                           children: [
-                                            const Expanded(
+                                            Expanded(
                                               child: Text(
-                                                'LINKS',
-                                                style: TextStyle(
+                                                context.l10n.links
+                                                    .toUpperCase(),
+                                                style: const TextStyle(
                                                   color: colorTextMuted,
                                                   fontSize: fontSizeXs,
                                                   fontWeight: weightSemibold,
@@ -539,10 +543,11 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                       const SizedBox(height: spaceXl),
                                       Row(
                                         children: [
-                                          const Expanded(
+                                          Expanded(
                                             child: Text(
-                                              'CAREER',
-                                              style: TextStyle(
+                                              context.l10n.milestones
+                                                  .toUpperCase(),
+                                              style: const TextStyle(
                                                 color: colorTextMuted,
                                                 fontSize: fontSizeXs,
                                                 fontWeight: weightSemibold,
@@ -578,10 +583,11 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                       const SizedBox(height: spaceXl),
                                       Row(
                                         children: [
-                                          const Expanded(
+                                          Expanded(
                                             child: Text(
-                                              'TRACKS',
-                                              style: TextStyle(
+                                              context.l10n.manageTracks
+                                                  .toUpperCase(),
+                                              style: const TextStyle(
                                                 color: colorTextMuted,
                                                 fontSize: fontSizeXs,
                                                 fontWeight: weightSemibold,
@@ -605,9 +611,9 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                         ],
                                       ),
                                       const SizedBox(height: spaceXxs),
-                                      const Text(
-                                        "This artist's content streams",
-                                        style: TextStyle(
+                                      Text(
+                                        context.l10n.selectTracksProfile,
+                                        style: const TextStyle(
                                           color: colorTextMuted,
                                           fontSize: fontSizeXs,
                                         ),
@@ -633,9 +639,9 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                     // Recent Posts section
                                     if (state.recentPosts.isNotEmpty) ...[
                                       const SizedBox(height: spaceXl),
-                                      const Text(
-                                        'RECENT POSTS',
-                                        style: TextStyle(
+                                      Text(
+                                        context.l10n.recentPosts.toUpperCase(),
+                                        style: const TextStyle(
                                           color: colorTextMuted,
                                           fontSize: fontSizeXs,
                                           fontWeight: weightSemibold,
@@ -707,7 +713,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                               ),
                                               const SizedBox(width: spaceSm),
                                               Text(
-                                                'Unassigned posts',
+                                                context.l10n.unassignedPosts,
                                                 style: const TextStyle(
                                                   color: colorTextSecondary,
                                                   fontSize: fontSizeSm,
@@ -761,7 +767,9 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                         Icons.grid_view,
                                         size: 16,
                                       ),
-                                      label: const Text('View full timeline'),
+                                      label: Text(
+                                        context.l10n.viewFullTimeline,
+                                      ),
                                       style: TextButton.styleFrom(
                                         foregroundColor: colorInteractive,
                                       ),
@@ -804,9 +812,9 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library, color: colorTextPrimary),
-              title: const Text(
-                'Change avatar',
-                style: TextStyle(color: colorTextPrimary),
+              title: Text(
+                context.l10n.edit,
+                style: const TextStyle(color: colorTextPrimary),
               ),
               onTap: () {
                 Navigator.pop(ctx);
@@ -816,9 +824,9 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
             if (hasAvatar)
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: colorError),
-                title: const Text(
-                  'Remove avatar',
-                  style: TextStyle(color: colorError),
+                title: Text(
+                  context.l10n.remove,
+                  style: const TextStyle(color: colorError),
                 ),
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -844,9 +852,9 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library, color: colorTextPrimary),
-              title: const Text(
-                'Change cover',
-                style: TextStyle(color: colorTextPrimary),
+              title: Text(
+                context.l10n.edit,
+                style: const TextStyle(color: colorTextPrimary),
               ),
               onTap: () {
                 Navigator.pop(ctx);
@@ -856,9 +864,9 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
             if (hasCover)
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: colorError),
-                title: const Text(
-                  'Remove cover',
-                  style: TextStyle(color: colorError),
+                title: Text(
+                  context.l10n.remove,
+                  style: const TextStyle(color: colorError),
                 ),
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -944,9 +952,9 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
             backgroundColor: colorSurface1,
-            title: const Text(
-              'Display Name',
-              style: TextStyle(color: colorTextPrimary),
+            title: Text(
+              context.l10n.displayName,
+              style: const TextStyle(color: colorTextPrimary),
             ),
             content: TextField(
               controller: controller,
@@ -974,7 +982,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancel'),
+                child: Text(context.l10n.cancel),
               ),
               TextButton(
                 onPressed: isSaving
@@ -989,9 +997,9 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                           color: colorAccentGold,
                         ),
                       )
-                    : const Text(
-                        'Save',
-                        style: TextStyle(color: colorAccentGold),
+                    : Text(
+                        context.l10n.save,
+                        style: const TextStyle(color: colorAccentGold),
                       ),
               ),
             ],
@@ -1071,16 +1079,16 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: spaceLg),
             TextButton(
               onPressed: onRetry,
-              child: const Text(
-                'Retry',
-                style: TextStyle(color: colorAccentGold),
+              child: Text(
+                context.l10n.retry,
+                style: const TextStyle(color: colorAccentGold),
               ),
             ),
           ],
           const SizedBox(height: spaceMd),
           TextButton(
             onPressed: () => context.pop(),
-            child: const Text('Go back'),
+            child: Text(context.l10n.goBack),
           ),
         ],
       ),
@@ -1122,7 +1130,7 @@ class _TuneInButton extends StatelessWidget {
             ),
             const SizedBox(width: spaceSm),
             Text(
-              isTunedIn ? 'Tuned In' : 'Tune In',
+              isTunedIn ? context.l10n.tunedIn : context.l10n.tuneIn,
               style: TextStyle(
                 color: isTunedIn ? colorAccentGold : colorSurface0,
                 fontSize: fontSizeMd,
@@ -1319,8 +1327,8 @@ class _RecentPostCard extends StatelessWidget {
     );
   }
 
-  static String _bodyPreview(String? body) {
-    if (body == null || body.isEmpty) return 'Untitled';
+  String _bodyPreview(String? body) {
+    if (body == null || body.isEmpty) return '';
     return body.length > 50 ? '${body.substring(0, 50)}...' : body;
   }
 
@@ -1473,7 +1481,9 @@ class _MilestonesSectionState extends State<_MilestonesSection> {
           GestureDetector(
             onTap: () => setState(() => _expanded = !_expanded),
             child: Text(
-              _expanded ? 'Show less' : 'See all ${all.length} milestones',
+              _expanded
+                  ? context.l10n.close
+                  : '${context.l10n.milestones} (${all.length})',
               style: const TextStyle(
                 color: colorInteractive,
                 fontSize: fontSizeSm,

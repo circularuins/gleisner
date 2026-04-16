@@ -53,12 +53,7 @@ class _MilestoneDetailSheet extends ConsumerWidget {
     final reactionCounts = milestone.reactionCounts;
     final myReactions = milestone.myReactions.toSet();
 
-    final categoryLabel = milestoneCategories
-        .firstWhere(
-          (c) => c.$1 == milestone.category,
-          orElse: () => ('other', 'Other', Icons.star_outline),
-        )
-        .$2;
+    final categoryLabel = milestoneCategoryName(context, milestone.category);
     final categoryIcon = milestoneCategoryIcon(milestone.category);
 
     return DraggableScrollableSheet(

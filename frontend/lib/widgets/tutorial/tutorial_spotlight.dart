@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/gleisner_tokens.dart';
 
 /// A spotlight overlay that highlights a target widget and shows a tooltip.
@@ -174,7 +175,7 @@ class _Tooltip extends StatelessWidget {
           ],
           const SizedBox(height: spaceSm),
           Text(
-            'Tap anywhere to continue',
+            context.l10n.tapAnywhereToContinue,
             style: TextStyle(
               color: colorAccentGold.withValues(alpha: 0.6),
               fontSize: fontSizeXs,

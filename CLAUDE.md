@@ -112,6 +112,7 @@ pnpm db:studio        # Drizzle Studio（DB GUI）
 cd frontend
 flutter analyze       # 静的解析（flutter_lints）
 dart format lib test  # Dart フォーマッタ
+flutter gen-l10n      # ARB → AppLocalizations 再生成（文字列追加時に必須）
 ```
 
 ### テストデータ投入

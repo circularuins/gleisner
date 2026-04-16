@@ -4,6 +4,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../../graphql/client.dart';
 import '../../graphql/mutations/artist.dart';
+import '../../l10n/l10n.dart';
 import '../../theme/gleisner_tokens.dart';
 
 class RegisterArtistSheet extends ConsumerStatefulWidget {
@@ -98,10 +99,10 @@ class _RegisterArtistSheetState extends ConsumerState<RegisterArtistSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Become an Artist', style: textTitle),
+            Text(context.l10n.becomeAnArtist, style: textTitle),
             const SizedBox(height: spaceSm),
             Text(
-              'Start sharing your creative journey',
+              context.l10n.startSharingCreativeJourney,
               style: textBody.copyWith(color: colorTextSecondary),
             ),
             const SizedBox(height: spaceXl),
@@ -121,10 +122,10 @@ class _RegisterArtistSheetState extends ConsumerState<RegisterArtistSheet> {
             ],
             TextFormField(
               controller: _usernameController,
-              decoration: const InputDecoration(
-                labelText: 'Artist Username',
-                hintText: 'e.g. myjazzjourney',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: context.l10n.artistUsername,
+                hintText: context.l10n.chooseUniqueHandle,
+                border: const OutlineInputBorder(),
               ),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Required';
@@ -140,10 +141,10 @@ class _RegisterArtistSheetState extends ConsumerState<RegisterArtistSheet> {
             const SizedBox(height: spaceLg),
             TextFormField(
               controller: _displayNameController,
-              decoration: const InputDecoration(
-                labelText: 'Display Name',
-                hintText: 'e.g. Jazz Journey',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: context.l10n.displayName,
+                hintText: context.l10n.yourProfessionalName,
+                border: const OutlineInputBorder(),
               ),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Required';
@@ -160,7 +161,7 @@ class _RegisterArtistSheetState extends ConsumerState<RegisterArtistSheet> {
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Register'),
+                  : Text(context.l10n.register),
             ),
           ],
         ),

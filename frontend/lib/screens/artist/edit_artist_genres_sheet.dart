@@ -7,6 +7,7 @@ import '../../graphql/queries/artist.dart';
 import '../../models/artist.dart';
 import '../../models/genre.dart';
 import '../../providers/artist_page_provider.dart';
+import '../../l10n/l10n.dart';
 import '../../providers/edit_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 
@@ -162,7 +163,9 @@ class _EditArtistGenresSheetState extends ConsumerState<EditArtistGenresSheet> {
 
               Row(
                 children: [
-                  Expanded(child: Text('Edit Genres', style: textTitle)),
+                  Expanded(
+                    child: Text(context.l10n.editGenres, style: textTitle),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.close, color: colorTextMuted),
                     onPressed: () => Navigator.pop(context),
@@ -171,7 +174,7 @@ class _EditArtistGenresSheetState extends ConsumerState<EditArtistGenresSheet> {
               ),
               const SizedBox(height: spaceXs),
               Text(
-                '${_currentGenres.length}/5 selected',
+                context.l10n.genresSelectedCount(_currentGenres.length),
                 style: textCaption.copyWith(color: colorTextMuted),
               ),
               const SizedBox(height: spaceLg),
@@ -179,8 +182,8 @@ class _EditArtistGenresSheetState extends ConsumerState<EditArtistGenresSheet> {
               // Current genres
               if (_currentGenres.isNotEmpty) ...[
                 Text(
-                  'CURRENT',
-                  style: TextStyle(
+                  context.l10n.current,
+                  style: const TextStyle(
                     color: colorTextMuted,
                     fontSize: fontSizeXs,
                     fontWeight: weightSemibold,
@@ -217,9 +220,9 @@ class _EditArtistGenresSheetState extends ConsumerState<EditArtistGenresSheet> {
                   child: CircularProgressIndicator(color: colorAccentGold),
                 )
               else ...[
-                const Text(
-                  'AVAILABLE',
-                  style: TextStyle(
+                Text(
+                  context.l10n.available,
+                  style: const TextStyle(
                     color: colorTextMuted,
                     fontSize: fontSizeXs,
                     fontWeight: weightSemibold,
@@ -262,7 +265,7 @@ class _EditArtistGenresSheetState extends ConsumerState<EditArtistGenresSheet> {
                             fontSize: fontSizeSm,
                           ),
                           decoration: InputDecoration(
-                            hintText: 'Create your own genre...',
+                            hintText: context.l10n.createOwnGenre,
                             hintStyle: const TextStyle(color: colorTextMuted),
                             counterText: '',
                             isDense: true,

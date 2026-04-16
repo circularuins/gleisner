@@ -7,6 +7,7 @@ import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
 import '../edit_post/edit_post_screen.dart';
+import '../../l10n/l10n.dart';
 
 class UnassignedPostsScreen extends ConsumerWidget {
   final List<Track> tracks;
@@ -21,9 +22,9 @@ class UnassignedPostsScreen extends ConsumerWidget {
       backgroundColor: colorSurface0,
       appBar: AppBar(
         backgroundColor: colorSurface0,
-        title: const Text(
-          'Unassigned Posts',
-          style: TextStyle(color: colorTextPrimary),
+        title: Text(
+          context.l10n.unassignedPosts,
+          style: const TextStyle(color: colorTextPrimary),
         ),
       ),
       body: state.isLoading
@@ -31,10 +32,10 @@ class UnassignedPostsScreen extends ConsumerWidget {
               child: CircularProgressIndicator(color: colorAccentGold),
             )
           : state.posts.isEmpty
-          ? const Center(
+          ? Center(
               child: Text(
-                'No unassigned posts',
-                style: TextStyle(color: colorTextMuted),
+                context.l10n.noUnassignedPosts,
+                style: const TextStyle(color: colorTextMuted),
               ),
             )
           : ListView.separated(
@@ -65,11 +66,9 @@ class UnassignedPostsScreen extends ConsumerWidget {
         .read(unassignedPostsProvider.notifier)
         .updatePost(id: postId, trackId: trackId);
     if (result == null && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to assign post. Please try again.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.failedAssignPost)));
     }
   }
 
@@ -166,7 +165,7 @@ class _PostTile extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: spaceSm),
                   visualDensity: VisualDensity.compact,
                 ),
-                child: const Text('Assign'),
+                child: Text(context.l10n.assign),
               )
             else
               const Icon(
@@ -204,7 +203,7 @@ class _PostTile extends StatelessWidget {
               ),
             ),
             const SizedBox(height: spaceLg),
-            Text('Assign to Track', style: textHeading),
+            Text(context.l10n.assignToTrack, style: textHeading),
             const SizedBox(height: spaceMd),
             ...tracks.map(
               (track) => ListTile(

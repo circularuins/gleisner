@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/l10n.dart';
 import '../../theme/gleisner_tokens.dart';
 
 /// Date+time picker for post event date ("when did this happen?").
@@ -24,7 +25,9 @@ class EventAtPicker extends StatelessWidget {
           child: GestureDetector(
             onTap: () => _pickDateTime(context),
             child: Text(
-              eventAt != null ? _format(eventAt!) : 'Event date (optional)',
+              eventAt != null
+                  ? _format(eventAt!)
+                  : context.l10n.eventDateOptional,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: eventAt != null ? colorTextPrimary : colorTextMuted,
               ),

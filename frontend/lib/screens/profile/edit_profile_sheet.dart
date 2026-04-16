@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/l10n.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/media_upload_provider.dart';
 import '../../theme/gleisner_tokens.dart';
@@ -140,7 +141,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                 ),
                 const SizedBox(height: spaceLg),
 
-                Text('Edit Profile', style: textTitle),
+                Text(context.l10n.editProfile, style: textTitle),
                 const SizedBox(height: spaceXl),
 
                 if (_error != null) ...[
@@ -177,7 +178,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                         )
                       else
                         Text(
-                          'Tap to change',
+                          context.l10n.tapToChange,
                           style: textCaption.copyWith(color: colorTextMuted),
                         ),
                     ],
@@ -190,7 +191,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                   controller: _displayNameController,
                   maxLength: 50,
                   style: const TextStyle(color: colorTextPrimary),
-                  decoration: _inputDecoration('Display Name'),
+                  decoration: _inputDecoration(context.l10n.displayName),
                 ),
                 const SizedBox(height: spaceLg),
 
@@ -201,7 +202,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                   maxLines: 4,
                   minLines: 2,
                   style: const TextStyle(color: colorTextPrimary),
-                  decoration: _inputDecoration('Bio'),
+                  decoration: _inputDecoration(context.l10n.bio),
                 ),
                 const SizedBox(height: spaceLg),
 
@@ -210,12 +211,12 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                   Row(
                     children: [
                       Text(
-                        'Profile Visibility',
+                        context.l10n.profileVisibility,
                         style: textLabel.copyWith(color: colorTextMuted),
                       ),
                       const SizedBox(width: spaceLg),
                       Text(
-                        'Private (locked)',
+                        context.l10n.privateLocked,
                         style: textCaption.copyWith(
                           color: colorTextMuted,
                           fontStyle: FontStyle.italic,
@@ -227,12 +228,12 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                   Row(
                     children: [
                       Text(
-                        'Profile Visibility',
+                        context.l10n.profileVisibility,
                         style: textLabel.copyWith(color: colorTextSecondary),
                       ),
                       const SizedBox(width: spaceLg),
                       ChoiceChip(
-                        label: const Text('Public'),
+                        label: Text(context.l10n.public),
                         selected: _profileVisibility == 'public',
                         onSelected: (_) =>
                             setState(() => _profileVisibility = 'public'),
@@ -240,7 +241,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                       ),
                       const SizedBox(width: spaceSm),
                       ChoiceChip(
-                        label: const Text('Private'),
+                        label: Text(context.l10n.private),
                         selected: _profileVisibility == 'private',
                         onSelected: (_) =>
                             setState(() => _profileVisibility = 'private'),
@@ -266,7 +267,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Save'),
+                        : Text(context.l10n.save),
                   ),
                 ),
               ],

@@ -12,6 +12,7 @@ import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/avatar_rail.dart';
+import '../../l10n/l10n.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/milestone_detail_sheet.dart';
 import '../../widgets/timeline/milestone_node_card.dart';
@@ -180,11 +181,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     // Header: artist name + mode badge
     final headerTitle = timeline.artist != null
         ? (isOwn
-              ? 'Your Timeline'
+              ? context.l10n.yourTimeline
               : timeline.artist!.displayName ?? timeline.artist!.artistUsername)
-        : 'Gleisner';
+        : context.l10n.appTitle;
     final modeBadge = timeline.artist != null
-        ? (isOwn ? 'ARTIST' : 'TUNED IN')
+        ? (isOwn ? context.l10n.artistBadge : context.l10n.tunedInBadge)
         : null;
 
     return Stack(
@@ -446,7 +447,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                   ),
                                   const SizedBox(height: spaceMd),
                                   Text(
-                                    'No posts from this artist yet',
+                                    context.l10n.noPostsFromArtist,
                                     style: TextStyle(
                                       color: colorInteractive,
                                       fontSize:
@@ -460,8 +461,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                           ? Center(
                               child: Text(
                                 timeline.artist == null
-                                    ? 'Discover artists and tune in to fill your timeline'
-                                    : 'No posts yet',
+                                    ? context.l10n.discoverToFillTimeline
+                                    : context.l10n.noPostsYet,
                                 style: TextStyle(
                                   color: colorInteractive,
                                   fontSize: theme.textTheme.bodyLarge?.fontSize,
@@ -628,8 +629,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                 Expanded(
                                   child: Text(
                                     constellationName != null
-                                        ? '$constellationName · ${timeline.constellationPostIds!.length} posts'
-                                        : 'Constellation · ${timeline.constellationPostIds!.length} posts',
+                                        ? context.l10n.constellationNamedPostCount(constellationName, timeline.constellationPostIds!.length)
+                                        : context.l10n.constellationPostCount(timeline.constellationPostIds!.length),
                                     style: const TextStyle(
                                       color: colorTextSecondary,
                                       fontSize: fontSizeSm,
@@ -677,9 +678,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
             child: TutorialSpotlight(
               visible: true,
               link: _fabLayerLink,
-              message: 'Add your first star to the constellation',
-              subtitle:
-                  'Every post becomes a point of light in your creative universe.',
+              message: context.l10n.tutorialFirstPostMessage,
+              subtitle: context.l10n.tutorialFirstPostSubtitle,
               onDismiss: () {
                 setState(() => _showFirstPostTutorial = false);
                 ref
@@ -841,7 +841,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
               children: [
                 Expanded(
                   child: Text(
-                    post.title ?? 'Untitled',
+                    post.title ?? context.l10n.untitled,
                     style: const TextStyle(
                       color: colorTextPrimary,
                       fontSize: fontSizeLg,
@@ -861,7 +861,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                       setState(() => _sidePanelPostId = null);
                       _openEditPost(post);
                     },
-                    tooltip: 'Edit',
+                    tooltip: context.l10n.edit,
                   ),
                 IconButton(
                   icon: const Icon(
@@ -870,7 +870,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                     color: colorInteractive,
                   ),
                   onPressed: () => setState(() => _sidePanelPostId = null),
-                  tooltip: 'Close',
+                  tooltip: context.l10n.close,
                 ),
               ],
             ),
@@ -1251,7 +1251,7 @@ class _TrackSelector extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: _chip(
-              label: 'All',
+              label: context.l10n.all,
               selected: allSelected,
               onTap: onToggleAll,
               selectedColor: colorInteractive,

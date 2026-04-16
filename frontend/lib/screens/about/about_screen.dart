@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 
@@ -15,7 +16,7 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('About Gleisner'),
+        title: Text(context.l10n.aboutGleisner),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.canPop() ? context.pop() : context.go('/'),
@@ -32,40 +33,21 @@ class AboutScreen extends StatelessWidget {
                 child: SvgPicture.asset(
                   GleisnerAssets.logoFull,
                   height: 100,
-                  semanticsLabel: 'Gleisner logo',
+                  semanticsLabel: context.l10n.gleisnerLogoLabel,
                 ),
               ),
             ),
             _section(
-              'Operator',
-              'This service is operated as a personal project.\n'
-                  'Contact: gleisner.app@gmail.com',
+              context.l10n.aboutOperatorTitle,
+              context.l10n.aboutOperatorBody,
             ),
             const SizedBox(height: spaceXl),
             _section(
-              'External Services (Third-party data transmission)',
-              'Gleisner uses the following external services. '
-                  'Your data may be transmitted to these services '
-                  'in the course of normal operation:\n\n'
-                  '1. Cloudflare (CDN, media storage)\n'
-                  '   - Purpose: Content delivery, image/video hosting\n'
-                  '   - Data: Page requests, uploaded media\n\n'
-                  '2. Claude API (Anthropic)\n'
-                  '   - Purpose: AI-assisted title generation\n'
-                  '   - Data: Post content (title/body) for processing\n\n'
-                  '3. Railway\n'
-                  '   - Purpose: Application hosting, database\n'
-                  '   - Data: All application data is stored on Railway servers',
+              context.l10n.aboutExternalTitle,
+              context.l10n.aboutExternalBody,
             ),
             const SizedBox(height: spaceXl),
-            _section(
-              'About',
-              'Gleisner is a platform for artists to share their '
-                  'multifaceted creative activities through a DAW-style '
-                  'multi-track timeline.\n\n'
-                  'Named after the Gleisner robots in Greg Egan\'s '
-                  '"Diaspora" — bridging the physical and digital worlds.',
-            ),
+            _section(context.l10n.about, context.l10n.aboutDescription),
           ],
         ),
       ),

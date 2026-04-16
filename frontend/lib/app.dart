@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import 'graphql/client.dart';
+import 'l10n/l10n.dart';
 import 'theme/gleisner_tokens.dart';
 import 'router.dart';
 
@@ -46,7 +48,21 @@ class GleisnerApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: _gleisnerTheme,
         routerConfig: router,
-        localizationsDelegates: const [FlutterQuillLocalizations.delegate],
+        localizationsDelegates: [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+          FlutterQuillLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        localeResolutionCallback: (locale, supportedLocales) {
+          if (locale == null) return supportedLocales.first;
+          for (final supported in supportedLocales) {
+            if (supported.languageCode == locale.languageCode) return supported;
+          }
+          return supportedLocales.first; // fallback to English
+        },
       ),
     );
   }

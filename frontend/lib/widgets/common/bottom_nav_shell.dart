@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/l10n.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/guardian_provider.dart';
 import '../../theme/gleisner_tokens.dart';
@@ -29,8 +30,7 @@ class BottomNavShell extends ConsumerWidget {
     // Unauthenticated users can only use Discover.
     // Tapping Timeline or Profile redirects to login.
     final status = ref.read(authProvider).status;
-    if (status == AuthStatus.unauthenticated &&
-        index != _discoverBranchIndex) {
+    if (status == AuthStatus.unauthenticated && index != _discoverBranchIndex) {
       GoRouter.of(context).go('/login');
       return;
     }
@@ -81,41 +81,50 @@ class BottomNavShell extends ConsumerWidget {
               labelType: NavigationRailLabelType.all,
               indicatorColor: Colors.transparent,
               minWidth: navRailWidth,
-              destinations: const [
+              destinations: [
                 NavigationRailDestination(
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.grid_view_outlined,
                     color: colorInteractiveMuted,
                   ),
-                  selectedIcon: Icon(Icons.grid_view, color: colorTextPrimary),
+                  selectedIcon: const Icon(
+                    Icons.grid_view,
+                    color: colorTextPrimary,
+                  ),
                   label: Text(
-                    'Timeline',
-                    style: TextStyle(
+                    context.l10n.navTimeline,
+                    style: const TextStyle(
                       fontSize: fontSizeXs,
                       color: colorTextMuted,
                     ),
                   ),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(Icons.search, color: colorInteractiveMuted),
-                  selectedIcon: Icon(Icons.search, color: colorTextPrimary),
+                  icon: const Icon(Icons.search, color: colorInteractiveMuted),
+                  selectedIcon: const Icon(
+                    Icons.search,
+                    color: colorTextPrimary,
+                  ),
                   label: Text(
-                    'Discover',
-                    style: TextStyle(
+                    context.l10n.navDiscover,
+                    style: const TextStyle(
                       fontSize: fontSizeXs,
                       color: colorTextMuted,
                     ),
                   ),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.person_outline,
                     color: colorInteractiveMuted,
                   ),
-                  selectedIcon: Icon(Icons.person, color: colorTextPrimary),
+                  selectedIcon: const Icon(
+                    Icons.person,
+                    color: colorTextPrimary,
+                  ),
                   label: Text(
-                    'Profile',
-                    style: TextStyle(
+                    context.l10n.navProfile,
+                    style: const TextStyle(
                       fontSize: fontSizeXs,
                       color: colorTextMuted,
                     ),
@@ -137,21 +146,27 @@ class BottomNavShell extends ConsumerWidget {
         indicatorColor: Colors.transparent,
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (i) => _onDestinationSelected(context, ref, i),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined, color: colorInteractiveMuted),
-            selectedIcon: Icon(Icons.grid_view, color: colorTextPrimary),
-            label: 'Timeline',
+            icon: const Icon(
+              Icons.grid_view_outlined,
+              color: colorInteractiveMuted,
+            ),
+            selectedIcon: const Icon(Icons.grid_view, color: colorTextPrimary),
+            label: context.l10n.navTimeline,
           ),
           NavigationDestination(
-            icon: Icon(Icons.search, color: colorInteractiveMuted),
-            selectedIcon: Icon(Icons.search, color: colorTextPrimary),
-            label: 'Discover',
+            icon: const Icon(Icons.search, color: colorInteractiveMuted),
+            selectedIcon: const Icon(Icons.search, color: colorTextPrimary),
+            label: context.l10n.navDiscover,
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline, color: colorInteractiveMuted),
-            selectedIcon: Icon(Icons.person, color: colorTextPrimary),
-            label: 'Profile',
+            icon: const Icon(
+              Icons.person_outline,
+              color: colorInteractiveMuted,
+            ),
+            selectedIcon: const Icon(Icons.person, color: colorTextPrimary),
+            label: context.l10n.navProfile,
           ),
         ],
       ),
@@ -193,7 +208,7 @@ class _ChildModeBanner extends StatelessWidget {
           const SizedBox(width: spaceSm),
           Expanded(
             child: Text(
-              'Acting as $childName',
+              context.l10n.actingAsChild(childName),
               style: const TextStyle(
                 color: colorAccentGold,
                 fontSize: fontSizeSm,
@@ -205,7 +220,7 @@ class _ChildModeBanner extends StatelessWidget {
           TextButton.icon(
             onPressed: isLoading ? null : onReturn,
             icon: const Icon(Icons.swap_horiz, size: 14),
-            label: const Text('Exit'),
+            label: Text(context.l10n.exitChildMode),
             style: TextButton.styleFrom(
               foregroundColor: colorAccentGold,
               padding: const EdgeInsets.symmetric(horizontal: spaceSm),
