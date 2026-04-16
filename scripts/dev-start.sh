@@ -8,5 +8,7 @@ echo "==> Starting PostgreSQL..."
 docker compose -f "$PROJECT_DIR/docker-compose.yml" up -d --wait
 
 echo "==> Starting backend dev server..."
+# CORS_ORIGIN=* is required because Flutter Web dev server uses a random port
+# that changes every run. See CLAUDE.md "CORS 注意" for details.
 cd "$PROJECT_DIR/backend"
-exec pnpm dev
+exec env CORS_ORIGIN="*" pnpm dev
