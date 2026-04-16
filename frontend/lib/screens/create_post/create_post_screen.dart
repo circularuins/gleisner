@@ -20,6 +20,8 @@ import '../../widgets/editor/rich_text_editor.dart';
 import '../../widgets/editor/text_body_counter.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../providers/media_upload_provider.dart';
+import '../../utils/media_limits.dart' show maxImagesPerPost;
+import '../../widgets/common/image_grid_widgets.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
@@ -48,6 +50,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   DateTime? _eventAt;
   final _formKey = GlobalKey<FormState>();
   int _pickMediaGeneration = 0;
+  // Multi-image support for image type posts
+  List<String> _mediaUrls = [];
 
   @override
   void dispose() {
@@ -66,6 +70,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   Future<void> _pickMedia(MediaType mediaType) async {
     final generation = ++_pickMediaGeneration;
+    if (mediaType == MediaType.image) {
+      await _pickMultipleImages(generation);
+      return;
+    }
     final result = await ref
         .read(mediaUploadProvider.notifier)
         .pickByMediaType(mediaType);
@@ -79,13 +87,39 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     }
   }
 
+  Future<void> _pickMultipleImages(int generation) async {
+    final remaining = maxImagesPerPost - _mediaUrls.length;
+    if (remaining <= 0) return;
+    final urls = await ref
+        .read(mediaUploadProvider.notifier)
+        .pickAndUploadMultipleImages(
+          category: UploadCategory.media,
+          maxCount: remaining,
+        );
+    if (urls != null && mounted && generation == _pickMediaGeneration) {
+      setState(() {
+        _mediaUrls = [..._mediaUrls, ...urls];
+      });
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (ref.read(mediaUploadProvider).isUploading) return;
 
     // Require media file for media types (not thought/article/link)
     final mediaType = ref.read(createPostProvider).selectedMediaType;
+    if (mediaType == MediaType.image && _mediaUrls.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please upload at least one image before posting'),
+          backgroundColor: colorError,
+        ),
+      );
+      return;
+    }
     if (mediaType != null &&
+        mediaType != MediaType.image &&
         mediaType != MediaType.article &&
         mediaType != MediaType.thought &&
         _mediaUrlController.text.isEmpty) {
@@ -129,9 +163,14 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               : null,
           body: bodyValue,
           bodyFormat: bodyFormat,
-          mediaUrl: _mediaUrlController.text.isEmpty
+          mediaUrl: mediaType == MediaType.image
               ? null
-              : _mediaUrlController.text,
+              : (_mediaUrlController.text.isEmpty
+                    ? null
+                    : _mediaUrlController.text),
+          mediaUrls: mediaType == MediaType.image && _mediaUrls.isNotEmpty
+              ? _mediaUrls
+              : null,
           thumbnailUrl: _thumbnailUrl,
           duration: _durationSeconds,
           eventAt: _eventAt,
@@ -178,6 +217,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 _thumbnailUrl = null;
                 _durationSeconds = null;
                 _eventAt = null;
+                _mediaUrls = [];
                 ref.read(createPostProvider.notifier).clearFormState();
               }
               ref.read(createPostProvider.notifier).goBack();
@@ -218,6 +258,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               onEventAtChanged: (dt) => setState(() => _eventAt = dt),
               onSubmit: _submit,
               onPickMedia: _pickMedia,
+              mediaUrls: _mediaUrls,
+              onMediaUrlsChanged: (urls) => setState(() => _mediaUrls = urls),
             ),
           },
         ),
@@ -492,6 +534,8 @@ class _FormStep extends ConsumerWidget {
   final ValueChanged<DateTime?> onEventAtChanged;
   final VoidCallback onSubmit;
   final Future<void> Function(MediaType) onPickMedia;
+  final List<String> mediaUrls;
+  final ValueChanged<List<String>> onMediaUrlsChanged;
 
   const _FormStep({
     required this.formKey,
@@ -507,6 +551,8 @@ class _FormStep extends ConsumerWidget {
     this.eventAt,
     required this.onEventAtChanged,
     required this.onSubmit,
+    required this.mediaUrls,
+    required this.onMediaUrlsChanged,
     required this.onPickMedia,
   });
 
@@ -848,7 +894,9 @@ class _FormStep extends ConsumerWidget {
     };
 
     final uploadState = ref.watch(mediaUploadProvider);
-    final hasMedia = mediaUrlController.text.isNotEmpty;
+    final hasMedia = mediaType == MediaType.image
+        ? mediaUrls.isNotEmpty
+        : mediaUrlController.text.isNotEmpty;
 
     return [
       // Upload area — the hero of the form
@@ -981,15 +1029,16 @@ class _FormStep extends ConsumerWidget {
       return _buildAudioPreview();
     }
 
-    final url = mediaUrlController.text;
+    // Image: multi-image grid
+    if (mediaType == MediaType.image) {
+      return _buildImageGrid();
+    }
+
     final showThumbnail =
-        (mediaType == MediaType.image) ||
-        (mediaType == MediaType.video &&
-            thumbnailUrl != null &&
-            thumbnailUrl!.isNotEmpty);
-    final displayUrl = mediaType == MediaType.image
-        ? url
-        : (thumbnailUrl ?? '');
+        mediaType == MediaType.video &&
+        thumbnailUrl != null &&
+        thumbnailUrl!.isNotEmpty;
+    final displayUrl = thumbnailUrl ?? '';
 
     return Stack(
       children: [
@@ -1068,6 +1117,46 @@ class _FormStep extends ConsumerWidget {
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildImageGrid() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (mediaUrls.isNotEmpty)
+          Wrap(
+            spacing: spaceSm,
+            runSpacing: spaceSm,
+            children: [
+              for (int i = 0; i < mediaUrls.length; i++)
+                ImageTile(
+                  url: mediaUrls[i],
+                  onRemove: () {
+                    onMediaUrlsChanged([
+                      ...mediaUrls.sublist(0, i),
+                      ...mediaUrls.sublist(i + 1),
+                    ]);
+                  },
+                ),
+              if (mediaUrls.length < maxImagesPerPost)
+                AddImageTile(onTap: () => onPickMedia(MediaType.image)),
+            ],
+          )
+        else
+          AddImageTile(onTap: () => onPickMedia(MediaType.image)),
+        if (mediaUrls.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: spaceXs),
+            child: Text(
+              '${mediaUrls.length}/$maxImagesPerPost',
+              style: const TextStyle(
+                color: colorTextMuted,
+                fontSize: fontSizeXs,
+              ),
+            ),
+          ),
       ],
     );
   }

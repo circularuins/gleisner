@@ -144,6 +144,26 @@ class PostConnection {
   }
 }
 
+class PostMedia {
+  final String id;
+  final String mediaUrl;
+  final int position;
+
+  const PostMedia({
+    required this.id,
+    required this.mediaUrl,
+    required this.position,
+  });
+
+  factory PostMedia.fromJson(Map<String, dynamic> json) {
+    return PostMedia(
+      id: json['id'] as String,
+      mediaUrl: json['mediaUrl'] as String,
+      position: (json['position'] as num).toInt(),
+    );
+  }
+}
+
 class Post {
   final String id;
   final MediaType mediaType;
@@ -172,6 +192,8 @@ class Post {
   final List<PostConnection> outgoingConnections;
   final List<PostConnection> incomingConnections;
   final PostConstellation? constellation;
+  // Multi-image: position-ordered media items (image type posts)
+  final List<PostMedia> media;
   // Article metadata
   final ArticleGenre? articleGenre;
   final bool externalPublish;
@@ -208,6 +230,7 @@ class Post {
     this.outgoingConnections = const [],
     this.incomingConnections = const [],
     this.constellation,
+    this.media = const [],
     this.articleGenre,
     this.externalPublish = false,
     this.ogTitle,
@@ -238,6 +261,7 @@ class Post {
     List<PostConnection>? outgoingConnections,
     List<PostConnection>? incomingConnections,
     Object? constellation = sentinel,
+    List<PostMedia>? media,
     Object? articleGenre = sentinel,
     Object? externalPublish = sentinel,
     Object? ogTitle = sentinel,
@@ -282,6 +306,7 @@ class Post {
       constellation: constellation == sentinel
           ? this.constellation
           : constellation as PostConstellation?,
+      media: media ?? this.media,
       articleGenre: articleGenre == sentinel
           ? this.articleGenre
           : articleGenre as ArticleGenre?,
@@ -300,6 +325,19 @@ class Post {
   }
 
   Color get trackDisplayColor => parseHexColor(trackColor);
+
+  /// Ordered image URLs for carousel display.
+  /// Uses post_media rows (sorted by position) for multi-image posts,
+  /// falling back to posts.mediaUrl for legacy single-image data.
+  List<String> get imageUrls {
+    if (media.isNotEmpty) {
+      final sorted = [...media]
+        ..sort((a, b) => a.position.compareTo(b.position));
+      return sorted.map((m) => m.mediaUrl).toList();
+    }
+    if (mediaUrl != null && mediaUrl!.isNotEmpty) return [mediaUrl!];
+    return [];
+  }
 
   /// Total reaction count across all emoji types.
   int get totalReactions => reactionCounts.fold(0, (sum, r) => sum + r.count);
@@ -414,6 +452,11 @@ class Post {
               json['constellation'] as Map<String, dynamic>,
             )
           : null,
+      media:
+          (json['media'] as List<dynamic>?)
+              ?.map((m) => PostMedia.fromJson(m as Map<String, dynamic>))
+              .toList() ??
+          const [],
       articleGenre: _parseArticleGenre(json['articleGenre'] as String?),
       externalPublish: json['externalPublish'] as bool? ?? false,
       ogTitle: json['ogTitle'] as String?,

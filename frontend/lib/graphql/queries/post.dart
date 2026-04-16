@@ -54,6 +54,11 @@ const postFields = '''
     name
     anchorPostId
   }
+  media {
+    id
+    mediaUrl
+    position
+  }
 ''';
 
 const postsQuery =

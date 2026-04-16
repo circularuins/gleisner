@@ -503,7 +503,9 @@ class _ImageContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final post = (node.item as PostItem).post;
     final seed = '${post.title ?? ''}${post.createdAt.toIso8601String()}';
-    final hasImage = post.mediaUrl != null && post.mediaUrl!.isNotEmpty;
+    final urls = post.imageUrls;
+    final hasImage = urls.isNotEmpty;
+    final imageCount = urls.length;
     final showInfo = node.showInfo;
     final totalH = node.mediaHeight + (showInfo ? 30 : 0);
     final hasTitle = post.title != null && post.title!.isNotEmpty;
@@ -515,10 +517,10 @@ class _ImageContent extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Background: image or seed art
+          // Background: first image or seed art
           if (hasImage)
             Image.network(
-              post.mediaUrl!,
+              urls.first,
               width: node.width,
               height: totalH,
               fit: BoxFit.cover,
@@ -541,6 +543,42 @@ class _ImageContent extends StatelessWidget {
               trackColor: trackColor,
               seed: seed,
               mediaType: MediaType.image,
+            ),
+
+          // Multi-image count badge
+          if (imageCount > 1)
+            Positioned(
+              top: spaceXs,
+              right: spaceXs,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: spaceXs,
+                  vertical: 1,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(radiusSm),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.photo_library,
+                      size: 10,
+                      color: Colors.white70,
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      '$imageCount',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: fontSizeXs,
+                        fontWeight: weightSemibold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
 
           // Bottom gradient for text legibility

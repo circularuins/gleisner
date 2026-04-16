@@ -9,6 +9,8 @@ import 'package:go_router/go_router.dart';
 import '../../models/post.dart';
 import '../../models/track.dart';
 import '../../providers/media_upload_provider.dart';
+import '../../utils/media_limits.dart' show maxImagesPerPost;
+import '../../widgets/common/image_grid_widgets.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
@@ -58,6 +60,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   DateTime? _eventAt;
   ArticleGenre? _articleGenre;
   late bool _externalPublish;
+  // Multi-image support for image type posts
+  late List<String> _mediaUrls;
+  int _addImageGeneration = 0;
   // IME-safe FocusNodes — block Tab during composition
   late final FocusNode _titleFocusNode;
   late final FocusNode _bodyFocusNode;
@@ -99,6 +104,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     _eventAt = widget.post.eventAt;
     _articleGenre = widget.post.articleGenre;
     _externalPublish = widget.post.externalPublish;
+    _mediaUrls = List.of(widget.post.imageUrls);
   }
 
   @override
@@ -117,7 +123,17 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     // Prevent clearing media file for media types (not thought/article/link)
-    if (widget.post.mediaType != MediaType.article &&
+    if (widget.post.mediaType == MediaType.image && _mediaUrls.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('At least one image is required'),
+          backgroundColor: colorError,
+        ),
+      );
+      return;
+    }
+    if (widget.post.mediaType != MediaType.image &&
+        widget.post.mediaType != MediaType.article &&
         widget.post.mediaType != MediaType.thought &&
         _mediaUrlController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -168,7 +184,12 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             title: title,
             body: body,
             bodyFormat: bodyFormat,
-            mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
+            mediaUrl: widget.post.mediaType == MediaType.image
+                ? null
+                : (mediaUrl.isNotEmpty ? mediaUrl : null),
+            mediaUrls: widget.post.mediaType == MediaType.image
+                ? _mediaUrls
+                : null,
             thumbnailUrl: _thumbnailUrl,
             clearThumbnail:
                 _thumbnailUrl == null && widget.post.thumbnailUrl != null,
@@ -193,7 +214,12 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             title: title,
             body: body,
             bodyFormat: bodyFormat,
-            mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
+            mediaUrl: widget.post.mediaType == MediaType.image
+                ? null
+                : (mediaUrl.isNotEmpty ? mediaUrl : null),
+            mediaUrls: widget.post.mediaType == MediaType.image
+                ? _mediaUrls
+                : null,
             thumbnailUrl: _thumbnailUrl,
             clearThumbnail:
                 _thumbnailUrl == null && widget.post.thumbnailUrl != null,
@@ -583,9 +609,11 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
 
   List<Widget> _buildMediaFields() {
     final uploadState = ref.watch(mediaUploadProvider);
-    final hasMedia = _mediaUrlController.text.isNotEmpty;
     final mediaType = widget.post.mediaType;
     final isImage = mediaType == MediaType.image;
+    final hasMedia = isImage
+        ? _mediaUrls.isNotEmpty
+        : _mediaUrlController.text.isNotEmpty;
     final isVideoOrAudio =
         mediaType == MediaType.video || mediaType == MediaType.audio;
 
@@ -728,15 +756,16 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
       return _buildAudioPreview();
     }
 
-    final isImage = mediaType == MediaType.image;
+    // Image: multi-image grid
+    if (mediaType == MediaType.image) {
+      return _buildImageGrid();
+    }
+
     final showThumbnail =
-        isImage ||
-        (mediaType == MediaType.video &&
-            _thumbnailUrl != null &&
-            _thumbnailUrl!.isNotEmpty);
-    final displayUrl = isImage
-        ? _mediaUrlController.text
-        : (_thumbnailUrl ?? '');
+        mediaType == MediaType.video &&
+        _thumbnailUrl != null &&
+        _thumbnailUrl!.isNotEmpty;
+    final displayUrl = _thumbnailUrl ?? '';
 
     return Stack(
       children: [
@@ -917,6 +946,65 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         if (result.durationSeconds != null) {
           _durationSeconds = result.durationSeconds;
         }
+      });
+    }
+  }
+
+  Widget _buildImageGrid() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_mediaUrls.isNotEmpty)
+          Wrap(
+            spacing: spaceSm,
+            runSpacing: spaceSm,
+            children: [
+              for (int i = 0; i < _mediaUrls.length; i++)
+                ImageTile(
+                  url: _mediaUrls[i],
+                  onRemove: () {
+                    setState(() {
+                      _mediaUrls = [
+                        ..._mediaUrls.sublist(0, i),
+                        ..._mediaUrls.sublist(i + 1),
+                      ];
+                    });
+                  },
+                ),
+              if (_mediaUrls.length < maxImagesPerPost)
+                AddImageTile(onTap: _addMoreImages),
+            ],
+          )
+        else
+          AddImageTile(onTap: _addMoreImages),
+        if (_mediaUrls.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: spaceXs),
+            child: Text(
+              '${_mediaUrls.length}/$maxImagesPerPost',
+              style: const TextStyle(
+                color: colorTextMuted,
+                fontSize: fontSizeXs,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _addMoreImages() async {
+    final generation = ++_addImageGeneration;
+    final remaining = maxImagesPerPost - _mediaUrls.length;
+    if (remaining <= 0) return;
+    final urls = await ref
+        .read(mediaUploadProvider.notifier)
+        .pickAndUploadMultipleImages(
+          category: UploadCategory.media,
+          maxCount: remaining,
+        );
+    if (urls != null && mounted && generation == _addImageGeneration) {
+      setState(() {
+        _mediaUrls = [..._mediaUrls, ...urls];
       });
     }
   }

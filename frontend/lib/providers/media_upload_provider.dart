@@ -205,6 +205,101 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     }
   }
 
+  /// Pick multiple images via image_picker and upload each to R2 sequentially.
+  /// Returns list of uploaded URLs on success, null on failure.
+  /// Uploads are sequential to maintain accurate isUploading state.
+  Future<List<String>?> pickAndUploadMultipleImages({
+    required UploadCategory category,
+    int maxCount = maxImagesPerPost,
+    double? maxWidth,
+    double? maxHeight,
+    int? imageQuality,
+  }) async {
+    if (state.isUploading) return null;
+
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickMultiImage(
+        maxWidth: maxWidth ?? 1280,
+        maxHeight: maxHeight ?? 1280,
+        imageQuality: imageQuality ?? 75,
+      );
+
+      if (picked.isEmpty) return null;
+      if (disposed) return null;
+
+      if (picked.length > maxCount) {
+        state = MediaUploadState(error: 'Maximum $maxCount images allowed.');
+        return null;
+      }
+
+      state = const MediaUploadState(isUploading: true);
+
+      final urls = <String>[];
+      for (final file in picked) {
+        if (disposed) return null;
+
+        final bytes = await file.readAsBytes();
+        if (disposed) return null;
+
+        var uploadBytes = bytes;
+        var contentType = mimeFromBytes(bytes);
+        if (contentType == null || !contentType.startsWith('image/')) {
+          state = const MediaUploadState(
+            error: 'Unsupported image format. Use JPEG, PNG, WebP, or HEIC.',
+          );
+          return null;
+        }
+
+        // HEIC/HEIF: convert to JPEG (Web only)
+        if (contentType == 'image/heic' || contentType == 'image/heif') {
+          if (!kIsWeb) {
+            state = const MediaUploadState(
+              error:
+                  'HEIC format is not supported. Please select a JPEG or PNG image.',
+            );
+            return null;
+          }
+          final jpegBytes = await convertHeicToJpeg(bytes);
+          if (disposed) return null;
+          if (jpegBytes == null) {
+            state = const MediaUploadState(
+              error:
+                  'Could not convert HEIC image. Try using Safari, or convert to JPEG first.',
+            );
+            return null;
+          }
+          uploadBytes = jpegBytes;
+          contentType = 'image/jpeg';
+        }
+
+        final url = await _upload(
+          category: category,
+          bytes: uploadBytes,
+          contentType: contentType,
+        );
+        if (url == null) return null;
+        urls.add(url);
+        // Re-assert isUploading after each _upload() completes,
+        // because _upload() resets isUploading: false internally.
+        if (!disposed) {
+          state = const MediaUploadState(isUploading: true);
+        }
+      }
+
+      state = const MediaUploadState();
+      return urls;
+    } catch (e) {
+      debugPrint('[MediaUpload] pickAndUploadMultipleImages error: $e');
+      if (!disposed) {
+        state = const MediaUploadState(
+          error: 'Failed to upload images. Please try again.',
+        );
+      }
+      return null;
+    }
+  }
+
   /// Pick a video via image_picker and upload to R2.
   /// Returns (videoUrl, thumbnailUrl, durationSeconds) on success, null on failure.
   Future<({String videoUrl, String? thumbnailUrl, int? durationSeconds})?>
