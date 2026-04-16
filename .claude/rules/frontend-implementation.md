@@ -8,6 +8,26 @@
 - 新しい値が必要な場合はトークンファイルに追加してからウィジェットで使う
 - 既存トークンで近い値がある場合はそちらを使う（微妙な差のバリエーションを増やさない）
 
+### i18n（多言語対応）の必須手順
+
+**UI に表示する文字列をハードコードしない。必ず `context.l10n.xxx` を使うこと。**
+
+新しい文字列を追加する手順:
+1. `lib/l10n/app_en.arb` にキーと英語テキストを追加
+2. `lib/l10n/app_ja.arb` に同じキーと日本語翻訳を追加
+3. `flutter gen-l10n` を実行（AppLocalizations を再生成）
+4. コード内で `context.l10n.newKey` を使用
+
+ルール:
+- `'Cancel'` 等のハードコード文字列は禁止。`context.l10n.cancel` を使う
+- `const Text('...')` は `Text(context.l10n.xxx)` に変わるため `const` を外す
+- プレースホルダー付き文字列は ARB の `@key` に `placeholders` を定義: `context.l10n.welcomeUser(name)`
+- `static` フィールドやコンストラクタでは `context` がないため、表示時に解決するヘルパーメソッドを作る（`_templateLabel(context, key)` パターン）
+- バリデーション関数は `lib/utils/validators_l10n.dart` の `xxxL10n(context.l10n)` パターンを使う
+- `debugPrint` やログメッセージは翻訳不要（英語のまま）
+
+**⚠ ARB にキーを追加したら `flutter gen-l10n` を忘れない。** 生成ファイル（`lib/l10n/app_localizations*.dart`）も git にコミットすること。
+
 ### データ操作・ビジネスロジックは Provider/Notifier 層で
 
 **Widget 層から GraphQL クライアントを直接操作しない。** データの取得・変更・楽観的更新ロジックは必ず Provider/Notifier 経由で行う。
