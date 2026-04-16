@@ -51,7 +51,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isAuthRoute = path == '/login' || path == '/signup';
       final isPublicProfile = _publicProfilePattern.hasMatch(path);
-      final isPublicPage = path == '/about';
+      final isPublicPage = path == '/about' || path == '/discover';
       final isOnboarding = path == '/onboarding';
 
       if (status == AuthStatus.unauthenticated) {

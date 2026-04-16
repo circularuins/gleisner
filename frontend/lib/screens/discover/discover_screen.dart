@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/analytics_provider.dart';
+import '../../providers/auth_provider.dart';
 
 import '../../models/artist.dart';
 import '../../models/genre.dart';
@@ -34,8 +35,11 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       if (!_initialized && context.mounted) {
         _initialized = true;
         ref.read(discoverProvider.notifier).loadInitial();
-        // Ensure tune-in state is loaded before user can tap Tune In buttons
-        ref.read(tuneInProvider.notifier).loadMyTuneIns();
+        // Tune-in state is only relevant for authenticated users
+        final authStatus = ref.read(authProvider).status;
+        if (authStatus == AuthStatus.authenticated) {
+          ref.read(tuneInProvider.notifier).loadMyTuneIns();
+        }
       }
     });
   }
@@ -52,6 +56,15 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     _debounceTimer = Timer(const Duration(milliseconds: 400), () {
       ref.read(discoverProvider.notifier).search(query);
     });
+  }
+
+  void _onArtistTap(String username) {
+    final authStatus = ref.read(authProvider).status;
+    if (authStatus == AuthStatus.authenticated) {
+      context.push('/artist/$username');
+    } else {
+      context.push('/@$username');
+    }
   }
 
   @override
@@ -189,9 +202,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                         final artist = state.artists[index];
                         return _ArtistCard(
                           artist: artist,
-                          onTap: () {
-                            context.push('/artist/${artist.artistUsername}');
-                          },
+                          onTap: () =>
+                              _onArtistTap(artist.artistUsername),
                         );
                       }, childCount: state.artists.length),
                     ),
