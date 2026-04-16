@@ -170,6 +170,10 @@ class _PostDetailContentState extends State<PostDetailContent> {
   bool _isConnecting = false;
   List<Post>? _cachedSyncedPosts;
 
+  // Multi-image carousel
+  PageController? _pageController;
+  int _currentPage = 0;
+
   // Quill resources for delta body rendering (disposed in dispose())
   QuillController? _quillController;
   FocusNode? _quillFocusNode;
@@ -281,6 +285,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
 
   @override
   void dispose() {
+    _pageController?.dispose();
     _quillController?.dispose();
     _quillFocusNode?.dispose();
     _quillScrollController?.dispose();
@@ -1309,45 +1314,105 @@ class _PostDetailContentState extends State<PostDetailContent> {
     String seedString,
     double width,
   ) {
-    final hasImage = post.mediaUrl != null && post.mediaUrl!.isNotEmpty;
+    final urls = post.imageUrls;
+    final hasImage = urls.isNotEmpty;
     // Instagram-style: image takes generous vertical space
     final imageHeight = (width * 0.85).clamp(280.0, 420.0);
-    return Stack(
-      children: [
-        // Image — receives tap for fullscreen
-        if (hasImage)
-          GestureDetector(
-            onTap: () => _openImageFullScreen(context, post.mediaUrl!),
-            child: Image.network(
-              post.mediaUrl!,
-              width: width,
-              height: imageHeight,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
+
+    Widget imageWidget;
+    if (hasImage && urls.length > 1) {
+      // Multi-image carousel
+      _pageController ??= PageController();
+      imageWidget = SizedBox(
+        width: width,
+        height: imageHeight,
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: _pageController,
+              itemCount: urls.length,
+              onPageChanged: (i) => setState(() => _currentPage = i),
+              itemBuilder: (context, i) => GestureDetector(
+                onTap: () => _openImageFullScreen(context, urls[i]),
+                child: Image.network(
+                  urls[i],
                   width: width,
                   height: imageHeight,
-                  color: colorSurface2,
-                );
-              },
-              errorBuilder: (_, _, _) => SeedArtCanvas(
-                width: width,
-                height: imageHeight,
-                trackColor: trackColor,
-                seed: seedString,
-                mediaType: MediaType.image,
+                  fit: BoxFit.cover,
+                  cacheWidth: 800,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(color: colorSurface2);
+                  },
+                  errorBuilder: (_, _, _) => Container(color: colorSurface2),
+                ),
               ),
             ),
-          )
-        else
-          SeedArtCanvas(
+            // Dot indicator
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: spaceSm + 40, // above gradient area
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(urls.length, (i) {
+                  final isActive = i == _currentPage;
+                  return Container(
+                    width: isActive ? 8 : 6,
+                    height: isActive ? 8 : 6,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isActive
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.4),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (hasImage) {
+      // Single image
+      imageWidget = GestureDetector(
+        onTap: () => _openImageFullScreen(context, urls.first),
+        child: Image.network(
+          urls.first,
+          width: width,
+          height: imageHeight,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              width: width,
+              height: imageHeight,
+              color: colorSurface2,
+            );
+          },
+          errorBuilder: (_, _, _) => SeedArtCanvas(
             width: width,
             height: imageHeight,
             trackColor: trackColor,
             seed: seedString,
             mediaType: MediaType.image,
           ),
+        ),
+      );
+    } else {
+      imageWidget = SeedArtCanvas(
+        width: width,
+        height: imageHeight,
+        trackColor: trackColor,
+        seed: seedString,
+        mediaType: MediaType.image,
+      );
+    }
+
+    return Stack(
+      children: [
+        imageWidget,
         // Bottom gradient — don't block scroll
         Positioned(
           left: 0,

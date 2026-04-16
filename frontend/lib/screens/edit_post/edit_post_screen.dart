@@ -58,6 +58,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   DateTime? _eventAt;
   ArticleGenre? _articleGenre;
   late bool _externalPublish;
+  // Multi-image support for image type posts
+  late List<String> _mediaUrls;
   // IME-safe FocusNodes — block Tab during composition
   late final FocusNode _titleFocusNode;
   late final FocusNode _bodyFocusNode;
@@ -99,6 +101,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     _eventAt = widget.post.eventAt;
     _articleGenre = widget.post.articleGenre;
     _externalPublish = widget.post.externalPublish;
+    _mediaUrls = List.of(widget.post.imageUrls);
   }
 
   @override
@@ -117,7 +120,17 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     // Prevent clearing media file for media types (not thought/article/link)
-    if (widget.post.mediaType != MediaType.article &&
+    if (widget.post.mediaType == MediaType.image && _mediaUrls.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('At least one image is required'),
+          backgroundColor: colorError,
+        ),
+      );
+      return;
+    }
+    if (widget.post.mediaType != MediaType.image &&
+        widget.post.mediaType != MediaType.article &&
         widget.post.mediaType != MediaType.thought &&
         _mediaUrlController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -168,7 +181,12 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             title: title,
             body: body,
             bodyFormat: bodyFormat,
-            mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
+            mediaUrl: widget.post.mediaType == MediaType.image
+                ? null
+                : (mediaUrl.isNotEmpty ? mediaUrl : null),
+            mediaUrls: widget.post.mediaType == MediaType.image
+                ? _mediaUrls
+                : null,
             thumbnailUrl: _thumbnailUrl,
             clearThumbnail:
                 _thumbnailUrl == null && widget.post.thumbnailUrl != null,
@@ -193,7 +211,12 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             title: title,
             body: body,
             bodyFormat: bodyFormat,
-            mediaUrl: mediaUrl.isNotEmpty ? mediaUrl : null,
+            mediaUrl: widget.post.mediaType == MediaType.image
+                ? null
+                : (mediaUrl.isNotEmpty ? mediaUrl : null),
+            mediaUrls: widget.post.mediaType == MediaType.image
+                ? _mediaUrls
+                : null,
             thumbnailUrl: _thumbnailUrl,
             clearThumbnail:
                 _thumbnailUrl == null && widget.post.thumbnailUrl != null,
@@ -583,9 +606,11 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
 
   List<Widget> _buildMediaFields() {
     final uploadState = ref.watch(mediaUploadProvider);
-    final hasMedia = _mediaUrlController.text.isNotEmpty;
     final mediaType = widget.post.mediaType;
     final isImage = mediaType == MediaType.image;
+    final hasMedia = isImage
+        ? _mediaUrls.isNotEmpty
+        : _mediaUrlController.text.isNotEmpty;
     final isVideoOrAudio =
         mediaType == MediaType.video || mediaType == MediaType.audio;
 
@@ -728,15 +753,16 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
       return _buildAudioPreview();
     }
 
-    final isImage = mediaType == MediaType.image;
+    // Image: multi-image grid
+    if (mediaType == MediaType.image) {
+      return _buildImageGrid();
+    }
+
     final showThumbnail =
-        isImage ||
-        (mediaType == MediaType.video &&
-            _thumbnailUrl != null &&
-            _thumbnailUrl!.isNotEmpty);
-    final displayUrl = isImage
-        ? _mediaUrlController.text
-        : (_thumbnailUrl ?? '');
+        mediaType == MediaType.video &&
+        _thumbnailUrl != null &&
+        _thumbnailUrl!.isNotEmpty;
+    final displayUrl = _thumbnailUrl ?? '';
 
     return Stack(
       children: [
@@ -917,6 +943,143 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         if (result.durationSeconds != null) {
           _durationSeconds = result.durationSeconds;
         }
+      });
+    }
+  }
+
+  Widget _buildImageGrid() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_mediaUrls.isNotEmpty)
+          Wrap(
+            spacing: spaceSm,
+            runSpacing: spaceSm,
+            children: [
+              for (int i = 0; i < _mediaUrls.length; i++)
+                SizedBox(
+                  width: 100,
+                  height: 100,
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(radiusMd),
+                        child: Image.network(
+                          _mediaUrls[i],
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                          cacheWidth: 200,
+                          errorBuilder: (_, _, _) => Container(
+                            color: colorSurface2,
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                size: 24,
+                                color: colorTextMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _mediaUrls = [
+                                ..._mediaUrls.sublist(0, i),
+                                ..._mediaUrls.sublist(i + 1),
+                              ];
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_mediaUrls.length < 10)
+                GestureDetector(
+                  onTap: _addMoreImages,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: colorSurface2,
+                      borderRadius: BorderRadius.circular(radiusMd),
+                      border: Border.all(color: colorBorder),
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 32,
+                        color: colorInteractive,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          )
+        else
+          GestureDetector(
+            onTap: _addMoreImages,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: colorSurface2,
+                borderRadius: BorderRadius.circular(radiusMd),
+                border: Border.all(color: colorBorder),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.add_photo_alternate_outlined,
+                  size: 32,
+                  color: colorInteractive,
+                ),
+              ),
+            ),
+          ),
+        if (_mediaUrls.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: spaceXs),
+            child: Text(
+              '${_mediaUrls.length}/10',
+              style: const TextStyle(
+                color: colorTextMuted,
+                fontSize: fontSizeXs,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _addMoreImages() async {
+    final remaining = 10 - _mediaUrls.length;
+    if (remaining <= 0) return;
+    final urls = await ref
+        .read(mediaUploadProvider.notifier)
+        .pickAndUploadMultipleImages(
+          category: UploadCategory.media,
+          maxCount: remaining,
+        );
+    if (urls != null && mounted) {
+      setState(() {
+        _mediaUrls = [..._mediaUrls, ...urls];
       });
     }
   }
