@@ -125,6 +125,7 @@ const UPDATE_POST_MUTATION = `
     $title: String,
     $body: String,
     $mediaUrl: String,
+    $mediaUrls: [String!],
     $importance: Float,
     $layoutX: Int,
     $layoutY: Int
@@ -135,11 +136,12 @@ const UPDATE_POST_MUTATION = `
       title: $title,
       body: $body,
       mediaUrl: $mediaUrl,
+      mediaUrls: $mediaUrls,
       importance: $importance,
       layoutX: $layoutX,
       layoutY: $layoutY
     ) {
-      id mediaType title body mediaUrl importance layoutX layoutY
+      id mediaType title body mediaUrl importance layoutX layoutY media { id mediaUrl position }
     }
   }
 `;
@@ -255,18 +257,23 @@ describe("Post GraphQL integration", () => {
         "partist1",
       );
 
+      // Use inline mutation to ensure mediaUrls variable is correctly declared
+      const INLINE_CREATE = `
+        mutation($trackId: String!, $mediaType: MediaType!, $title: String, $body: String, $mediaUrls: [String!]) {
+          createPost(trackId: $trackId, mediaType: $mediaType, title: $title, body: $body, mediaUrls: $mediaUrls) {
+            id mediaType title body mediaUrl importance layoutX layoutY createdAt media { id mediaUrl position }
+          }
+        }
+      `;
       const result = await gql(
         app,
-        CREATE_POST_MUTATION,
+        INLINE_CREATE,
         {
           trackId,
           mediaType: "image",
           title: "My Photo",
           body: "A beautiful sunset",
-          mediaUrl: "http://localhost:4000/photo.jpg",
-          importance: 0.8,
-          layoutX: 10,
-          layoutY: 20,
+          mediaUrls: ["http://localhost:4000/photo.jpg"],
         },
         token,
       );
@@ -277,12 +284,13 @@ describe("Post GraphQL integration", () => {
       expect(post.mediaType).toBe("image");
       expect(post.title).toBe("My Photo");
       expect(post.body).toBe("A beautiful sunset");
-      expect(post.mediaUrl).toBe("http://localhost:4000/photo.jpg");
-      expect(post.importance).toBe(0.8);
-      expect(post.layoutX).toBe(10);
-      expect(post.layoutY).toBe(20);
+      // Image type: mediaUrl is null, images are in post.media
+      expect(post.mediaUrl).toBeNull();
+      const media = post.media as { mediaUrl: string; position: number }[];
+      expect(media).toHaveLength(1);
+      expect(media[0].mediaUrl).toBe("http://localhost:4000/photo.jpg");
+      expect(media[0].position).toBe(0);
       expect(post.createdAt).toBeDefined();
-      expect(post.updatedAt).toBeDefined();
     });
 
     it("creates a post with minimal fields (defaults apply)", async () => {
@@ -616,7 +624,7 @@ describe("Post GraphQL integration", () => {
           mediaType: "image",
           title: "Updated",
           body: "New body",
-          mediaUrl: "http://localhost:4000/updated.jpg",
+          mediaUrls: ["http://localhost:4000/updated.jpg"],
           importance: 0.9,
         },
         token,
@@ -628,6 +636,9 @@ describe("Post GraphQL integration", () => {
       expect(post.title).toBe("Updated");
       expect(post.body).toBe("New body");
       expect(post.importance).toBe(0.9);
+      const media = post.media as { mediaUrl: string; position: number }[];
+      expect(media).toHaveLength(1);
+      expect(media[0].mediaUrl).toBe("http://localhost:4000/updated.jpg");
     });
 
     it("rejects changing mediaType to image without mediaUrl", async () => {
@@ -654,25 +665,29 @@ describe("Post GraphQL integration", () => {
 
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toBe(
-        "Media file is required for this post type",
+        "mediaUrls is required when changing to image type",
       );
     });
 
-    it("rejects clearing mediaUrl on image post", async () => {
+    it("rejects clearing mediaUrls on image post", async () => {
       const { token, trackId } = await signupRegisterArtistAndCreateTrack(
         app,
         "umedia2@example.com",
         "umuser2",
         "umartist2",
       );
+      // Use inline mutation to ensure mediaUrls is correctly bound
+      const CREATE_IMAGE = `
+        mutation($trackId: String!, $mediaUrls: [String!]) {
+          createPost(trackId: $trackId, mediaType: image, mediaUrls: $mediaUrls) { id }
+        }
+      `;
       const createResult = await gql(
         app,
-        CREATE_POST_MUTATION,
+        CREATE_IMAGE,
         {
           trackId,
-          mediaType: "image",
-          title: "With File",
-          mediaUrl: "http://localhost:4000/img.jpg",
+          mediaUrls: ["http://localhost:4000/img.jpg"],
         },
         token,
       );
@@ -681,14 +696,12 @@ describe("Post GraphQL integration", () => {
       const result = await gql(
         app,
         UPDATE_POST_MUTATION,
-        { id: postId, mediaUrl: null },
+        { id: postId, mediaUrls: [] },
         token,
       );
 
       expect(result.errors).toBeDefined();
-      expect(result.errors![0].message).toBe(
-        "Media file is required for this post type",
-      );
+      expect(result.errors![0].message).toBe("At least one image is required");
     });
 
     it("rejects update by another user", async () => {
@@ -1646,6 +1659,210 @@ describe("Post GraphQL integration", () => {
       );
       expect(result.errors).toBeDefined();
       expect(result.errors![0].message).toContain("60-second limit");
+    });
+  });
+
+  describe("multi-image (post_media)", () => {
+    const CREATE_IMAGE_POST = `
+      mutation($trackId: String!, $mediaUrls: [String!]) {
+        createPost(trackId: $trackId, mediaType: image, mediaUrls: $mediaUrls) {
+          id mediaType mediaUrl media { id mediaUrl position }
+        }
+      }
+    `;
+
+    it("creates multi-image post with correct position order", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "mi1@test.com",
+        "miuser1",
+        "miartist1",
+      );
+
+      const urls = [
+        "http://localhost:4000/img1.jpg",
+        "http://localhost:4000/img2.jpg",
+        "http://localhost:4000/img3.jpg",
+      ];
+      const result = await gql(
+        app,
+        CREATE_IMAGE_POST,
+        { trackId, mediaUrls: urls },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+      const post = result.data!.createPost as Record<string, unknown>;
+      expect(post.mediaUrl).toBeNull();
+      const media = post.media as {
+        id: string;
+        mediaUrl: string;
+        position: number;
+      }[];
+      expect(media).toHaveLength(3);
+      expect(media[0].mediaUrl).toBe(urls[0]);
+      expect(media[0].position).toBe(0);
+      expect(media[1].mediaUrl).toBe(urls[1]);
+      expect(media[1].position).toBe(1);
+      expect(media[2].mediaUrl).toBe(urls[2]);
+      expect(media[2].position).toBe(2);
+    });
+
+    it("rejects more than 10 images", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "mi2@test.com",
+        "miuser2",
+        "miartist2",
+      );
+
+      const urls = Array.from(
+        { length: 11 },
+        (_, i) => `http://localhost:4000/img${i}.jpg`,
+      );
+      const result = await gql(
+        app,
+        CREATE_IMAGE_POST,
+        { trackId, mediaUrls: urls },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("at most 10");
+    });
+
+    it("rejects mediaUrls on non-image type", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "mi3@test.com",
+        "miuser3",
+        "miartist3",
+      );
+
+      const INLINE = `
+        mutation($trackId: String!, $mediaUrls: [String!]) {
+          createPost(trackId: $trackId, mediaType: thought, mediaUrls: $mediaUrls) { id }
+        }
+      `;
+      const result = await gql(
+        app,
+        INLINE,
+        { trackId, mediaUrls: ["http://localhost:4000/img.jpg"] },
+        token,
+      );
+
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "mediaUrls is only valid for image type posts",
+      );
+    });
+
+    it("backward compat: single mediaUrl creates 1-element post_media", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "mi4@test.com",
+        "miuser4",
+        "miartist4",
+      );
+
+      const INLINE = `
+        mutation($trackId: String!, $mediaUrl: String) {
+          createPost(trackId: $trackId, mediaType: image, mediaUrl: $mediaUrl) {
+            id mediaUrl media { id mediaUrl position }
+          }
+        }
+      `;
+      const result = await gql(
+        app,
+        INLINE,
+        { trackId, mediaUrl: "http://localhost:4000/single.jpg" },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+      const post = result.data!.createPost as Record<string, unknown>;
+      expect(post.mediaUrl).toBeNull();
+      const media = post.media as { mediaUrl: string; position: number }[];
+      expect(media).toHaveLength(1);
+      expect(media[0].mediaUrl).toBe("http://localhost:4000/single.jpg");
+    });
+
+    it("updatePost replaces post_media rows", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "mi5@test.com",
+        "miuser5",
+        "miartist5",
+      );
+
+      const createResult = await gql(
+        app,
+        CREATE_IMAGE_POST,
+        {
+          trackId,
+          mediaUrls: [
+            "http://localhost:4000/old1.jpg",
+            "http://localhost:4000/old2.jpg",
+          ],
+        },
+        token,
+      );
+      const postId = (createResult.data!.createPost as { id: string }).id;
+
+      const newUrls = [
+        "http://localhost:4000/new1.jpg",
+        "http://localhost:4000/new2.jpg",
+        "http://localhost:4000/new3.jpg",
+      ];
+      const result = await gql(
+        app,
+        UPDATE_POST_MUTATION,
+        { id: postId, mediaUrls: newUrls },
+        token,
+      );
+
+      expect(result.errors).toBeUndefined();
+      const post = result.data!.updatePost as Record<string, unknown>;
+      const media = post.media as { mediaUrl: string; position: number }[];
+      expect(media).toHaveLength(3);
+      expect(media[0].mediaUrl).toBe(newUrls[0]);
+      expect(media[0].position).toBe(0);
+      expect(media[1].mediaUrl).toBe(newUrls[1]);
+      expect(media[1].position).toBe(1);
+      expect(media[2].mediaUrl).toBe(newUrls[2]);
+      expect(media[2].position).toBe(2);
+    });
+
+    it("deletePost cascades to post_media", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "mi6@test.com",
+        "miuser6",
+        "miartist6",
+      );
+
+      const createResult = await gql(
+        app,
+        CREATE_IMAGE_POST,
+        {
+          trackId,
+          mediaUrls: ["http://localhost:4000/del1.jpg"],
+        },
+        token,
+      );
+      const postId = (createResult.data!.createPost as { id: string }).id;
+
+      const deleteResult = await gql(
+        app,
+        DELETE_POST_MUTATION,
+        { id: postId },
+        token,
+      );
+      expect(deleteResult.errors).toBeUndefined();
+
+      // Verify post is gone
+      const queryResult = await gql(app, POST_QUERY, { id: postId }, token);
+      expect(queryResult.data!.post).toBeNull();
     });
   });
 });

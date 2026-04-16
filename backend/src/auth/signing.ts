@@ -33,6 +33,7 @@ export function computeContentHash(fields: {
   body?: unknown;
   bodyFormat?: string;
   mediaUrl?: string | null;
+  mediaUrls?: string[];
   mediaType: string;
   importance: number;
   duration?: number | null;
@@ -54,6 +55,11 @@ export function computeContentHash(fields: {
     importance: fields.importance,
     duration: fields.duration ?? null,
     articleGenre: fields.articleGenre ?? null,
+    // Multi-image: sorted array for deterministic hash regardless of display order.
+    // Only included when non-empty to preserve existing hashes for non-image posts.
+    ...(fields.mediaUrls && fields.mediaUrls.length > 0
+      ? { mediaUrls: [...fields.mediaUrls].sort() }
+      : {}),
   });
   return createHash("sha256").update(canonical).digest("hex");
 }

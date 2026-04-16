@@ -1,8 +1,14 @@
 import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
-import { artists, posts, tracks, users } from "../../db/schema/index.js";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import {
+  artists,
+  posts,
+  postMedia,
+  tracks,
+  users,
+} from "../../db/schema/index.js";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
@@ -10,6 +16,7 @@ import { computeContentHash, verifySignature } from "../../auth/signing.js";
 import {
   validatePostVisibility,
   validateMediaUrl,
+  validateMediaUrls,
   validateUrl,
   validateDuration,
 } from "../validators.js";
@@ -107,7 +114,64 @@ type PostShape = {
     createdAt: Date;
     updatedAt: Date;
   } | null;
+  _media?: { id: string; mediaUrl: string; position: number }[];
 };
+
+type PostMediaShape = {
+  id: string;
+  mediaUrl: string;
+  position: number;
+};
+
+const PostMediaType = builder.objectRef<PostMediaShape>("PostMedia");
+
+PostMediaType.implement({
+  fields: (t) => ({
+    id: t.exposeID("id"),
+    mediaUrl: t.exposeString("mediaUrl"),
+    position: t.exposeInt("position"),
+  }),
+});
+
+/**
+ * Batch-load post_media rows for a list of post IDs.
+ * Returns a Map from postId to sorted media array.
+ * Prevents N+1 queries when resolving the `media` field on multiple posts.
+ */
+async function batchLoadPostMedia(
+  postIds: string[],
+): Promise<Map<string, PostMediaShape[]>> {
+  if (postIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      id: postMedia.id,
+      postId: postMedia.postId,
+      mediaUrl: postMedia.mediaUrl,
+      position: postMedia.position,
+    })
+    .from(postMedia)
+    .where(inArray(postMedia.postId, postIds))
+    .orderBy(postMedia.position);
+  const map = new Map<string, PostMediaShape[]>();
+  for (const row of rows) {
+    const list = map.get(row.postId) ?? [];
+    list.push({ id: row.id, mediaUrl: row.mediaUrl, position: row.position });
+    map.set(row.postId, list);
+  }
+  return map;
+}
+
+/**
+ * Attach pre-fetched post_media to an array of posts.
+ * Mutates the posts in-place by setting `_media`.
+ */
+async function attachPostMedia(results: PostShape[]): Promise<void> {
+  const postIds = results.map((p) => p.id);
+  const mediaMap = await batchLoadPostMedia(postIds);
+  for (const post of results) {
+    post._media = mediaMap.get(post.id) ?? [];
+  }
+}
 
 export const PostType = builder.objectRef<PostShape>("Post");
 
@@ -160,6 +224,24 @@ PostType.implement({
     updatedAt: t.string({
       resolve: (post) => post.updatedAt.toISOString(),
     }),
+    media: t.field({
+      type: [PostMediaType],
+      resolve: async (post) => {
+        // Use pre-fetched media from batch-load if available (N+1 prevention)
+        if (post._media) return post._media;
+        // Fallback: query individually (mutation return paths)
+        const rows = await db
+          .select({
+            id: postMedia.id,
+            mediaUrl: postMedia.mediaUrl,
+            position: postMedia.position,
+          })
+          .from(postMedia)
+          .where(eq(postMedia.postId, post.id))
+          .orderBy(postMedia.position);
+        return rows;
+      },
+    }),
     author: t.field({
       type: PublicUserType,
       resolve: async (post) => {
@@ -200,6 +282,7 @@ builder.mutationFields((t) => ({
       body: t.arg.string(),
       bodyFormat: t.arg.string(), // 'plain' (default) or 'delta'
       mediaUrl: t.arg.string(),
+      mediaUrls: t.arg.stringList({ required: false }), // Multi-image: array of R2 URLs
       thumbnailUrl: t.arg.string(),
       duration: t.arg.int(),
       importance: t.arg.float(),
@@ -326,17 +409,34 @@ builder.mutationFields((t) => ({
         }
       }
 
-      // Require mediaUrl for image, video, audio types
-      const mediaFileTypes = MEDIA_FILE_REQUIRED_TYPES;
-      if (
-        mediaFileTypes.includes(args.mediaType) &&
-        (args.mediaUrl == null || args.mediaUrl.trim() === "")
-      ) {
-        throw new GraphQLError("Media file is required for this post type");
+      // Multi-image: resolve effective media URLs for image type
+      // Image type uses mediaUrls (array); falls back to mediaUrl for backward compat
+      let resolvedMediaUrls: string[] | undefined;
+      if (args.mediaType === "image") {
+        if (args.mediaUrls && args.mediaUrls.length > 0) {
+          resolvedMediaUrls = args.mediaUrls;
+        } else if (args.mediaUrl != null && args.mediaUrl.trim() !== "") {
+          // Backward compat: single mediaUrl → 1-element array
+          resolvedMediaUrls = [args.mediaUrl];
+        }
+        if (!resolvedMediaUrls || resolvedMediaUrls.length === 0) {
+          throw new GraphQLError("Media file is required for this post type");
+        }
+        validateMediaUrls(resolvedMediaUrls);
+      } else if (args.mediaUrls && args.mediaUrls.length > 0) {
+        throw new GraphQLError("mediaUrls is only valid for image type posts");
+      } else {
+        // Non-image types: require mediaUrl for video/audio
+        if (
+          MEDIA_FILE_REQUIRED_TYPES.includes(args.mediaType) &&
+          (args.mediaUrl == null || args.mediaUrl.trim() === "")
+        ) {
+          throw new GraphQLError("Media file is required for this post type");
+        }
       }
 
       // Validate mediaUrl: link type accepts any URL, others require R2 domain
-      if (args.mediaUrl != null) {
+      if (args.mediaUrl != null && args.mediaType !== "image") {
         if (args.mediaType === "link") {
           validateUrl(args.mediaUrl);
         } else {
@@ -370,7 +470,8 @@ builder.mutationFields((t) => ({
         title: args.title ?? null,
         body: bodyValue,
         bodyFormat,
-        mediaUrl: args.mediaUrl ?? null,
+        mediaUrl: args.mediaType === "image" ? null : (args.mediaUrl ?? null),
+        mediaUrls: resolvedMediaUrls,
         mediaType: args.mediaType,
         importance: args.importance ?? 0.5,
         duration: args.duration ?? null,
@@ -390,41 +491,61 @@ builder.mutationFields((t) => ({
         signatureValue = args.signature;
       }
 
-      const [post] = await db
-        .insert(posts)
-        .values({
-          trackId: args.trackId,
-          authorId: ctx.authUser.userId,
-          mediaType: args.mediaType,
-          title: args.title ?? null,
-          body: bodyValue,
-          bodyFormat,
-          mediaUrl: args.mediaUrl ?? null,
-          thumbnailUrl: args.thumbnailUrl ?? null,
-          duration: args.duration ?? null,
-          ...(args.eventAt != null && args.eventAt !== ""
-            ? (() => {
-                const parsed = new Date(args.eventAt as string);
-                if (isNaN(parsed.getTime())) {
-                  throw new GraphQLError("Invalid eventAt: not a valid date");
-                }
-                return { eventAt: parsed };
-              })()
-            : {}),
-          contentHash,
-          signature: signatureValue,
-          ...(args.visibility != null ? { visibility: args.visibility } : {}),
-          ...(args.importance != null ? { importance: args.importance } : {}),
-          ...(args.layoutX != null ? { layoutX: args.layoutX } : {}),
-          ...(args.layoutY != null ? { layoutY: args.layoutY } : {}),
-          ...(args.articleGenre != null
-            ? { articleGenre: args.articleGenre }
-            : {}),
-          ...(args.externalPublish != null
-            ? { externalPublish: args.externalPublish }
-            : {}),
-        })
-        .returning();
+      const postValues = {
+        trackId: args.trackId,
+        authorId: ctx.authUser.userId,
+        mediaType: args.mediaType,
+        title: args.title ?? null,
+        body: bodyValue,
+        bodyFormat,
+        // Image type: mediaUrl is null (images live in post_media)
+        mediaUrl: args.mediaType === "image" ? null : (args.mediaUrl ?? null),
+        thumbnailUrl: args.thumbnailUrl ?? null,
+        duration: args.duration ?? null,
+        ...(args.eventAt != null && args.eventAt !== ""
+          ? (() => {
+              const parsed = new Date(args.eventAt as string);
+              if (isNaN(parsed.getTime())) {
+                throw new GraphQLError("Invalid eventAt: not a valid date");
+              }
+              return { eventAt: parsed };
+            })()
+          : {}),
+        contentHash,
+        signature: signatureValue,
+        ...(args.visibility != null ? { visibility: args.visibility } : {}),
+        ...(args.importance != null ? { importance: args.importance } : {}),
+        ...(args.layoutX != null ? { layoutX: args.layoutX } : {}),
+        ...(args.layoutY != null ? { layoutY: args.layoutY } : {}),
+        ...(args.articleGenre != null
+          ? { articleGenre: args.articleGenre }
+          : {}),
+        ...(args.externalPublish != null
+          ? { externalPublish: args.externalPublish }
+          : {}),
+      };
+
+      // Use transaction for image type (multi-table write: post + post_media)
+      let post: PostShape;
+      if (resolvedMediaUrls && resolvedMediaUrls.length > 0) {
+        post = await db.transaction(async (tx) => {
+          const [created] = await tx
+            .insert(posts)
+            .values(postValues)
+            .returning();
+          await tx.insert(postMedia).values(
+            resolvedMediaUrls.map((url, i) => ({
+              postId: created.id,
+              mediaUrl: url,
+              position: i,
+            })),
+          );
+          return created;
+        });
+      } else {
+        const [created] = await db.insert(posts).values(postValues).returning();
+        post = created;
+      }
 
       // Fire-and-forget OGP fetch for link-type posts.
       // Always update ogFetchedAt (even on null) to prevent repeated fetches.
@@ -467,6 +588,7 @@ builder.mutationFields((t) => ({
       body: t.arg.string(),
       bodyFormat: t.arg.string(),
       mediaUrl: t.arg.string(),
+      mediaUrls: t.arg.stringList({ required: false }), // Multi-image: array of R2 URLs
       thumbnailUrl: t.arg.string(),
       duration: t.arg.int(),
       importance: t.arg.float(),
@@ -632,12 +754,32 @@ builder.mutationFields((t) => ({
         }
       }
 
-      // Validate mediaUrl: link type accepts any URL, others require R2 domain.
-      // Use effective media type (args override, fallback to existing post).
-      if (args.mediaUrl != null) {
-        const effectiveType =
-          (args.mediaType as string | undefined) ?? post.mediaType;
-        if (effectiveType === "link") {
+      // Multi-image validation for image type (effective value pattern)
+      let updateMediaUrls: string[] | undefined;
+      if (effectiveMediaType === "image") {
+        if (args.mediaUrls != null && args.mediaUrls.length > 0) {
+          validateMediaUrls(args.mediaUrls);
+          updateMediaUrls = args.mediaUrls;
+        } else if (args.mediaUrls != null && args.mediaUrls.length === 0) {
+          throw new GraphQLError("At least one image is required");
+        }
+        // If mediaType is changing TO image, mediaUrls is required
+        if (
+          args.mediaType === "image" &&
+          post.mediaType !== "image" &&
+          !updateMediaUrls
+        ) {
+          throw new GraphQLError(
+            "mediaUrls is required when changing to image type",
+          );
+        }
+      } else if (args.mediaUrls && args.mediaUrls.length > 0) {
+        throw new GraphQLError("mediaUrls is only valid for image type posts");
+      }
+
+      // Validate mediaUrl for non-image types
+      if (args.mediaUrl != null && effectiveMediaType !== "image") {
+        if (effectiveMediaType === "link") {
           validateUrl(args.mediaUrl);
         } else {
           validateMediaUrl(args.mediaUrl);
@@ -647,20 +789,17 @@ builder.mutationFields((t) => ({
         validateMediaUrl(args.thumbnailUrl);
       }
 
-      // Ensure image/video/audio posts always have a media file.
-      // Check both explicit mediaUrl changes and mediaType changes.
-      {
-        const newType =
-          (args.mediaType as string | undefined) ?? post.mediaType;
-        const newMediaUrl =
-          args.mediaUrl !== undefined ? args.mediaUrl : post.mediaUrl;
-        const mediaFileTypes = MEDIA_FILE_REQUIRED_TYPES;
-        if (
-          mediaFileTypes.includes(newType) &&
-          (newMediaUrl == null || newMediaUrl.trim() === "")
-        ) {
-          throw new GraphQLError("Media file is required for this post type");
-        }
+      // Ensure video/audio posts always have a media file.
+      if (
+        effectiveMediaType !== "image" &&
+        MEDIA_FILE_REQUIRED_TYPES.includes(effectiveMediaType) &&
+        (() => {
+          const newMediaUrl =
+            args.mediaUrl !== undefined ? args.mediaUrl : post.mediaUrl;
+          return newMediaUrl == null || newMediaUrl.trim() === "";
+        })()
+      ) {
+        throw new GraphQLError("Media file is required for this post type");
       }
 
       // Validate duration (media-type-specific limits per ADR 025)
@@ -751,6 +890,7 @@ builder.mutationFields((t) => ({
         args.body !== undefined ||
         args.bodyFormat !== undefined ||
         args.mediaUrl !== undefined ||
+        args.mediaUrls !== undefined ||
         args.mediaType !== undefined ||
         args.importance !== undefined ||
         args.duration !== undefined ||
@@ -781,12 +921,39 @@ builder.mutationFields((t) => ({
           updateBodyValue !== undefined ? updateBodyValue : post.body;
         const effectiveBodyFormat =
           updateBodyFormat ?? (post.bodyFormat as string) ?? "plain";
+        const effectiveType = effectiveMediaType;
+
+        // Resolve effective mediaUrls for hash computation
+        let hashMediaUrls: string[] | undefined;
+        if (effectiveType === "image") {
+          if (updateMediaUrls) {
+            hashMediaUrls = updateMediaUrls;
+          } else {
+            // Fallback: fetch existing post_media URLs for accurate hash recomputation.
+            // This runs when content fields (title, body, etc.) change on an image post
+            // without mediaUrls being updated. Acceptable cost for correctness;
+            // could be optimized by pre-fetching _media on the post object.
+            const existingMedia = await db
+              .select({ mediaUrl: postMedia.mediaUrl })
+              .from(postMedia)
+              .where(eq(postMedia.postId, args.id))
+              .orderBy(postMedia.position);
+            hashMediaUrls = existingMedia.map((m) => m.mediaUrl);
+          }
+        }
+
         const newHash = computeContentHash({
           title: args.title !== undefined ? args.title : post.title,
           body: effectiveBody,
           bodyFormat: effectiveBodyFormat,
-          mediaUrl: args.mediaUrl !== undefined ? args.mediaUrl : post.mediaUrl,
-          mediaType: args.mediaType != null ? args.mediaType : post.mediaType,
+          mediaUrl:
+            effectiveType === "image"
+              ? null
+              : args.mediaUrl !== undefined
+                ? args.mediaUrl
+                : post.mediaUrl,
+          mediaUrls: hashMediaUrls,
+          mediaType: effectiveType,
           importance:
             args.importance != null ? args.importance : post.importance,
           duration: args.duration !== undefined ? args.duration : post.duration,
@@ -813,11 +980,82 @@ builder.mutationFields((t) => ({
         updateData.signature = newSignature;
       }
 
-      const [updated] = await db
-        .update(posts)
-        .set(updateData)
-        .where(eq(posts.id, args.id))
-        .returning();
+      // If mediaType changes FROM image to non-image, clear post_media + set mediaUrl
+      if (
+        args.mediaType !== undefined &&
+        post.mediaType === "image" &&
+        args.mediaType !== "image"
+      ) {
+        updateData.mediaUrl = args.mediaUrl ?? null;
+      }
+      // If mediaType is image, ensure posts.mediaUrl is null
+      if (effectiveMediaType === "image") {
+        updateData.mediaUrl = null;
+      }
+
+      // Use transaction when post_media needs updating
+      let updated: PostShape;
+      let removedMediaUrls: string[] = [];
+      if (
+        updateMediaUrls ||
+        (args.mediaType !== undefined &&
+          post.mediaType === "image" &&
+          args.mediaType !== "image")
+      ) {
+        updated = await db.transaction(async (tx) => {
+          // Fetch old media URLs for R2 cleanup diff
+          const oldMedia = await tx
+            .select({ mediaUrl: postMedia.mediaUrl })
+            .from(postMedia)
+            .where(eq(postMedia.postId, args.id));
+
+          // Delete old post_media rows
+          if (oldMedia.length > 0) {
+            await tx.delete(postMedia).where(eq(postMedia.postId, args.id));
+          }
+
+          // Insert new post_media rows if image type
+          if (updateMediaUrls && updateMediaUrls.length > 0) {
+            await tx.insert(postMedia).values(
+              updateMediaUrls.map((url, i) => ({
+                postId: args.id,
+                mediaUrl: url,
+                position: i,
+              })),
+            );
+          }
+
+          const [result] = await tx
+            .update(posts)
+            .set(updateData)
+            .where(eq(posts.id, args.id))
+            .returning();
+
+          // Collect removed URLs for R2 cleanup after transaction commits
+          const newUrlSet = new Set(updateMediaUrls ?? []);
+          removedMediaUrls = oldMedia
+            .filter((m) => !newUrlSet.has(m.mediaUrl))
+            .map((m) => m.mediaUrl);
+
+          return result;
+        });
+
+        // R2 cleanup AFTER transaction commit (fire-and-forget).
+        // Moved outside transaction to prevent data loss if DB commit fails
+        // after R2 files are already deleted.
+        for (const url of removedMediaUrls) {
+          deleteR2Object(url).catch((err) =>
+            console.error("[updatePost] R2 media cleanup failed:", err),
+          );
+        }
+      } else {
+        const [result] = await db
+          .update(posts)
+          .set(updateData)
+          .where(eq(posts.id, args.id))
+          .returning();
+        updated = result;
+      }
 
       return updated;
     },
@@ -850,6 +1088,12 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Not authorized to delete this post");
       }
 
+      // Fetch post_media URLs before deletion (CASCADE will remove rows)
+      const mediaRows = await db
+        .select({ mediaUrl: postMedia.mediaUrl })
+        .from(postMedia)
+        .where(eq(postMedia.postId, args.id));
+
       const [deleted] = await db
         .delete(posts)
         .where(eq(posts.id, args.id))
@@ -864,6 +1108,12 @@ builder.mutationFields((t) => ({
       if (post.thumbnailUrl) {
         deleteR2Object(post.thumbnailUrl).catch((err) =>
           console.error("[deletePost] R2 thumbnail cleanup failed:", err),
+        );
+      }
+      // Clean up post_media files from R2
+      for (const m of mediaRows) {
+        deleteR2Object(m.mediaUrl).catch((err) =>
+          console.error("[deletePost] R2 post_media cleanup failed:", err),
         );
       }
 
@@ -1003,6 +1253,7 @@ builder.queryFields((t) => ({
           if (!access.accessible) return null;
         }
       }
+      await attachPostMedia([post]);
       return post;
     },
   }),
@@ -1037,7 +1288,9 @@ builder.queryFields((t) => ({
         .from(posts)
         .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
         .where(and(eq(tracks.id, args.trackId), visibilityFilter));
-      return rows.map((r) => ({ ...r.post, _track: r.track }));
+      const results = rows.map((r) => ({ ...r.post, _track: r.track }));
+      await attachPostMedia(results);
+      return results;
     },
   }),
 
@@ -1062,6 +1315,7 @@ builder.queryFields((t) => ({
         )
         .orderBy(desc(posts.createdAt))
         .limit(limit);
+      await attachPostMedia(rows);
       return rows;
     },
   }),
@@ -1091,7 +1345,9 @@ builder.queryFields((t) => ({
         .where(and(eq(tracks.artistId, args.artistId), visibilityFilter))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
-      return rows.map((r) => ({ ...r.post, _track: r.track }));
+      const results = rows.map((r) => ({ ...r.post, _track: r.track }));
+      await attachPostMedia(results);
+      return results;
     },
   }),
 }));
@@ -1118,7 +1374,9 @@ builder.objectFields(ArtistType, (t) => ({
         .where(and(eq(tracks.artistId, artist.id), visibilityFilter))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
-      return rows.map((r) => ({ ...r.post, _track: r.track }));
+      const results = rows.map((r) => ({ ...r.post, _track: r.track }));
+      await attachPostMedia(results);
+      return results;
     },
   }),
 }));
@@ -1138,7 +1396,9 @@ builder.objectFields(TrackType, (t) => ({
         .select()
         .from(posts)
         .where(and(sql`${posts.trackId} = ${track.id}`, visibilityFilter));
-      return rows.map((r) => ({ ...r, _track: track }));
+      const results = rows.map((r) => ({ ...r, _track: track }));
+      await attachPostMedia(results);
+      return results;
     },
   }),
 }));
