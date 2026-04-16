@@ -18,11 +18,22 @@ import '../../utils/account_switch_helper.dart';
 /// is displayed above all tab content to prevent accidental actions
 /// on the wrong account.
 class BottomNavShell extends ConsumerWidget {
+  /// Branch index for the Discover tab in StatefulShellRoute.
+  static const _discoverBranchIndex = 1;
+
   final StatefulNavigationShell navigationShell;
 
   const BottomNavShell({super.key, required this.navigationShell});
 
-  void _onDestinationSelected(int index) {
+  void _onDestinationSelected(BuildContext context, WidgetRef ref, int index) {
+    // Unauthenticated users can only use Discover.
+    // Tapping Timeline or Profile redirects to login.
+    final status = ref.read(authProvider).status;
+    if (status == AuthStatus.unauthenticated &&
+        index != _discoverBranchIndex) {
+      GoRouter.of(context).go('/login');
+      return;
+    }
     navigationShell.goBranch(
       index,
       initialLocation: index == navigationShell.currentIndex,
@@ -65,7 +76,8 @@ class BottomNavShell extends ConsumerWidget {
             NavigationRail(
               backgroundColor: colorSurface1,
               selectedIndex: navigationShell.currentIndex,
-              onDestinationSelected: _onDestinationSelected,
+              onDestinationSelected: (i) =>
+                  _onDestinationSelected(context, ref, i),
               labelType: NavigationRailLabelType.all,
               indicatorColor: Colors.transparent,
               minWidth: navRailWidth,
@@ -124,7 +136,7 @@ class BottomNavShell extends ConsumerWidget {
         backgroundColor: colorSurface1,
         indicatorColor: Colors.transparent,
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: _onDestinationSelected,
+        onDestinationSelected: (i) => _onDestinationSelected(context, ref, i),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.grid_view_outlined, color: colorInteractiveMuted),

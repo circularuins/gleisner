@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/analytics_provider.dart';
+import '../../providers/auth_provider.dart';
 
 import '../../models/artist.dart';
 import '../../models/genre.dart';
@@ -24,6 +25,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   final _searchController = TextEditingController();
   Timer? _debounceTimer;
   bool _initialized = false;
+  bool _tuneInsLoaded = false;
 
   @override
   void initState() {
@@ -34,10 +36,29 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       if (!_initialized && context.mounted) {
         _initialized = true;
         ref.read(discoverProvider.notifier).loadInitial();
-        // Ensure tune-in state is loaded before user can tap Tune In buttons
-        ref.read(tuneInProvider.notifier).loadMyTuneIns();
+        _tryLoadTuneIns();
       }
     });
+    // If auth is still loading (e.g. JWT user landing on /discover directly),
+    // wait for auth to resolve before loading tune-ins.
+    ref.listenManual(authProvider, (prev, next) {
+      // Reset on logout so a subsequent login reloads tune-ins.
+      if (next.status == AuthStatus.unauthenticated) {
+        _tuneInsLoaded = false;
+      }
+      if (!_tuneInsLoaded && next.status == AuthStatus.authenticated) {
+        _tryLoadTuneIns();
+      }
+    });
+  }
+
+  void _tryLoadTuneIns() {
+    if (_tuneInsLoaded) return;
+    final authStatus = ref.read(authProvider).status;
+    if (authStatus == AuthStatus.authenticated) {
+      _tuneInsLoaded = true;
+      ref.read(tuneInProvider.notifier).loadMyTuneIns();
+    }
   }
 
   @override
@@ -52,6 +73,15 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     _debounceTimer = Timer(const Duration(milliseconds: 400), () {
       ref.read(discoverProvider.notifier).search(query);
     });
+  }
+
+  void _onArtistTap(String username) {
+    final authStatus = ref.read(authProvider).status;
+    if (authStatus == AuthStatus.authenticated) {
+      context.push('/artist/$username');
+    } else {
+      context.push('/@$username');
+    }
   }
 
   @override
@@ -189,9 +219,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                         final artist = state.artists[index];
                         return _ArtistCard(
                           artist: artist,
-                          onTap: () {
-                            context.push('/artist/${artist.artistUsername}');
-                          },
+                          onTap: () =>
+                              _onArtistTap(artist.artistUsername),
                         );
                       }, childCount: state.artists.length),
                     ),
