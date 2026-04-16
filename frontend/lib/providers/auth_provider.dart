@@ -5,6 +5,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
 import 'disposable_notifier.dart';
+import 'featured_artist_provider.dart';
 import '../graphql/queries/auth.dart';
 import '../graphql/mutations/user.dart';
 import '../models/user.dart';
@@ -215,6 +216,7 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
   Future<void> logout() async {
     await _storage.delete(key: 'jwt');
     _client.cache.store.reset();
+    ref.invalidate(featuredArtistProvider);
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
