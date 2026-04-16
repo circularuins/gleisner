@@ -163,7 +163,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get welcomeToGleisner => 'Gleisner へようこそ';
 
   @override
-  String get yourCreativeUniverseAwaits => 'あなたの創造の宇宙が待っています';
+  String get yourCreativeUniverseAwaits => 'あなただけの創作空間が、ここに。';
 
   @override
   String get personalAccountTitle => 'パーソナルアカウント';
@@ -800,25 +800,25 @@ class AppLocalizationsJa extends AppLocalizations {
   String get goBack => '戻る';
 
   @override
-  String get yourCreativeUniverse => 'あなたの創造の宇宙';
+  String get yourCreativeUniverse => '創作を、自分の手に。';
 
   @override
-  String get ownCreativeIdentity => 'クリエイティブなアイデンティティを持とう';
+  String get ownCreativeIdentity => '作品も、名前も、あなたのもの';
 
   @override
-  String get keepArtKeepControl => 'アートを守り、コントロールを保つ';
+  String get keepArtKeepControl => 'プラットフォームに依存しない、自分だけの発信拠点';
 
   @override
-  String get mapYourJourney => '無限のトラックで旅の軌跡を描こう';
+  String get mapYourJourney => '活動のすべてを、一つの場所に';
 
   @override
-  String get multipleProjectsOnePlaceTitle => '複数のプロジェクトを一つの場所に';
+  String get multipleProjectsOnePlaceTitle => '音楽・映像・文章 — ジャンルを超えて記録できる';
 
   @override
-  String get watchConnectionsEmerge => 'アイデア同士のつながりが生まれる瞬間を見よう';
+  String get watchConnectionsEmerge => '作品どうしが、つながっていく';
 
   @override
-  String get seeHowIdeasRelate => 'アイデアがどう関わり合い進化するかを見る';
+  String get seeHowIdeasRelate => 'アイデアの関係性と進化を可視化する';
 
   @override
   String get tryItFirst => 'まず試してみる';
