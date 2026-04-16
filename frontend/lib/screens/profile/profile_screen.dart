@@ -491,16 +491,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
-    // Navigate first, then defer logout to the NEXT frame.
-    // context.go() schedules navigation but doesn't unmount ProfileScreen
-    // until the next frame. If logout() runs in the same frame, the
-    // authState change triggers a rebuild of the still-mounted Profile →
-    // crash. Deferring ensures ProfileScreen is fully unmounted first.
-    context.go('/login');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(authProvider.notifier).logout();
-      ref.read(tutorialProvider.notifier).reset();
-    });
+    // authProvider.deleteAccount() calls logout() internally, which sets
+    // authState to unauthenticated. The router redirect detects this and
+    // navigates to /login automatically. No manual navigation or provider
+    // invalidation needed — the original crash was caused by 9 explicit
+    // ref.invalidate() calls that triggered rebuilds during disposal.
   }
 
   Widget _buildChildCard(User child) {
