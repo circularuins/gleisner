@@ -1,8 +1,14 @@
 import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
-import { artists, posts, tracks, users } from "../../db/schema/index.js";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import {
+  artists,
+  posts,
+  postMedia,
+  tracks,
+  users,
+} from "../../db/schema/index.js";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
 import { TrackType } from "./track.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
@@ -107,7 +113,64 @@ type PostShape = {
     createdAt: Date;
     updatedAt: Date;
   } | null;
+  _media?: { id: string; mediaUrl: string; position: number }[];
 };
+
+type PostMediaShape = {
+  id: string;
+  mediaUrl: string;
+  position: number;
+};
+
+const PostMediaType = builder.objectRef<PostMediaShape>("PostMedia");
+
+PostMediaType.implement({
+  fields: (t) => ({
+    id: t.exposeID("id"),
+    mediaUrl: t.exposeString("mediaUrl"),
+    position: t.exposeInt("position"),
+  }),
+});
+
+/**
+ * Batch-load post_media rows for a list of post IDs.
+ * Returns a Map from postId to sorted media array.
+ * Prevents N+1 queries when resolving the `media` field on multiple posts.
+ */
+async function batchLoadPostMedia(
+  postIds: string[],
+): Promise<Map<string, PostMediaShape[]>> {
+  if (postIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      id: postMedia.id,
+      postId: postMedia.postId,
+      mediaUrl: postMedia.mediaUrl,
+      position: postMedia.position,
+    })
+    .from(postMedia)
+    .where(inArray(postMedia.postId, postIds))
+    .orderBy(postMedia.position);
+  const map = new Map<string, PostMediaShape[]>();
+  for (const row of rows) {
+    const list = map.get(row.postId) ?? [];
+    list.push({ id: row.id, mediaUrl: row.mediaUrl, position: row.position });
+    map.set(row.postId, list);
+  }
+  return map;
+}
+
+/**
+ * Attach pre-fetched post_media to an array of posts.
+ * Mutates the posts in-place by setting `_media`.
+ */
+async function attachPostMedia(results: PostShape[]): Promise<void> {
+  const postIds = results.map((p) => p.id);
+  const mediaMap = await batchLoadPostMedia(postIds);
+  for (const post of results) {
+    post._media = mediaMap.get(post.id) ?? [];
+  }
+}
 
 export const PostType = builder.objectRef<PostShape>("Post");
 
@@ -159,6 +222,24 @@ PostType.implement({
     }),
     updatedAt: t.string({
       resolve: (post) => post.updatedAt.toISOString(),
+    }),
+    media: t.field({
+      type: [PostMediaType],
+      resolve: async (post) => {
+        // Use pre-fetched media from batch-load if available (N+1 prevention)
+        if (post._media) return post._media;
+        // Fallback: query individually (mutation return paths)
+        const rows = await db
+          .select({
+            id: postMedia.id,
+            mediaUrl: postMedia.mediaUrl,
+            position: postMedia.position,
+          })
+          .from(postMedia)
+          .where(eq(postMedia.postId, post.id))
+          .orderBy(postMedia.position);
+        return rows;
+      },
     }),
     author: t.field({
       type: PublicUserType,
@@ -1003,6 +1084,7 @@ builder.queryFields((t) => ({
           if (!access.accessible) return null;
         }
       }
+      await attachPostMedia([post]);
       return post;
     },
   }),
@@ -1037,7 +1119,9 @@ builder.queryFields((t) => ({
         .from(posts)
         .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
         .where(and(eq(tracks.id, args.trackId), visibilityFilter));
-      return rows.map((r) => ({ ...r.post, _track: r.track }));
+      const results = rows.map((r) => ({ ...r.post, _track: r.track }));
+      await attachPostMedia(results);
+      return results;
     },
   }),
 
@@ -1062,6 +1146,7 @@ builder.queryFields((t) => ({
         )
         .orderBy(desc(posts.createdAt))
         .limit(limit);
+      await attachPostMedia(rows);
       return rows;
     },
   }),
@@ -1091,7 +1176,9 @@ builder.queryFields((t) => ({
         .where(and(eq(tracks.artistId, args.artistId), visibilityFilter))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
-      return rows.map((r) => ({ ...r.post, _track: r.track }));
+      const results = rows.map((r) => ({ ...r.post, _track: r.track }));
+      await attachPostMedia(results);
+      return results;
     },
   }),
 }));
@@ -1118,7 +1205,9 @@ builder.objectFields(ArtistType, (t) => ({
         .where(and(eq(tracks.artistId, artist.id), visibilityFilter))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
-      return rows.map((r) => ({ ...r.post, _track: r.track }));
+      const results = rows.map((r) => ({ ...r.post, _track: r.track }));
+      await attachPostMedia(results);
+      return results;
     },
   }),
 }));
@@ -1138,7 +1227,9 @@ builder.objectFields(TrackType, (t) => ({
         .select()
         .from(posts)
         .where(and(sql`${posts.trackId} = ${track.id}`, visibilityFilter));
-      return rows.map((r) => ({ ...r, _track: track }));
+      const results = rows.map((r) => ({ ...r, _track: track }));
+      await attachPostMedia(results);
+      return results;
     },
   }),
 }));

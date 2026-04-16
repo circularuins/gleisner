@@ -18,6 +18,7 @@ export { artistMilestones, milestoneCategoryEnum } from "./artist-milestone.js";
 export { milestoneReactions } from "./milestone-reaction.js";
 export { analyticsEvents } from "./analytics-event.js";
 export { invites } from "./invite.js";
+export { postMedia } from "./post-media.js";
 
 // Re-import for relations
 import { users } from "./user.js";
@@ -35,6 +36,7 @@ import { artistLinks } from "./artist-link.js";
 import { artistMilestones } from "./artist-milestone.js";
 import { milestoneReactions } from "./milestone-reaction.js";
 import { constellations } from "./constellation.js";
+import { postMedia } from "./post-media.js";
 
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -85,10 +87,15 @@ export const tracksRelations = relations(tracks, ({ one, many }) => ({
 export const postsRelations = relations(posts, ({ one, many }) => ({
   track: one(tracks, { fields: [posts.trackId], references: [tracks.id] }),
   author: one(users, { fields: [posts.authorId], references: [users.id] }),
+  media: many(postMedia),
   reactions: many(reactions),
   comments: many(comments),
   outgoingConnections: many(connections, { relationName: "source" }),
   incomingConnections: many(connections, { relationName: "target" }),
+}));
+
+export const postMediaRelations = relations(postMedia, ({ one }) => ({
+  post: one(posts, { fields: [postMedia.postId], references: [posts.id] }),
 }));
 
 export const connectionsRelations = relations(connections, ({ one }) => ({

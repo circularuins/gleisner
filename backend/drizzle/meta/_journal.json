@@ -85,6 +85,13 @@
       "when": 1775974604594,
       "tag": "0011_strong_obadiah_stane",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1776311730418,
+      "tag": "0012_sharp_phalanx",
+      "breakpoints": true
     }
   ]
 }
