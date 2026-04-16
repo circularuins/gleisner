@@ -366,6 +366,30 @@ ALTER TABLE "posts" ALTER COLUMN "body" SET DATA TYPE jsonb USING to_jsonb(body)
 
 PR #186 の教訓: text → jsonb の自動生成 SQL にUSING 句がなく、レビューで Critical 指摘。
 
+### 1:N テーブル追加時のバックフィル + 旧カラム NULL 化
+
+**既存データを新テーブルに移行するマイグレーションでは、INSERT でコピーした後、元テーブルの旧カラムも NULL 化すること。** コピーだけでは旧カラムと新テーブルにデータが二重に存在し、新規作成時の挙動（旧カラム = NULL）と不整合になる。
+
+```sql
+-- ✅ 3ステップ: テーブル作成 → バックフィル → 旧カラム NULL 化
+CREATE TABLE "post_media" (...);
+
+INSERT INTO "post_media" ("post_id", "media_url", "position")
+SELECT "id", "media_url", 0 FROM "posts"
+WHERE "media_type" = 'image' AND "media_url" IS NOT NULL;
+
+UPDATE "posts" SET "media_url" = NULL
+WHERE "media_type" = 'image' AND "media_url" IS NOT NULL;
+```
+
+チェックリスト:
+- [ ] 新テーブル CREATE + FK + INDEX
+- [ ] 既存データの INSERT ... SELECT でバックフィル
+- [ ] 元テーブルの旧カラムを NULL 化（新規作成時の挙動と一致させる）
+- [ ] `pnpm db:migrate` で成功確認
+
+PR #211 の教訓: 1回目のレビューで INSERT 追加を指摘され、2回目で NULL 化を指摘された。2段階のレビューを要した。
+
 ### 新規クエリ追加時のインデックス
 
 **WHERE 句で使われるカラムの組み合わせに対し、同じ PR 内でインデックスを追加すること。** 「テーブルが小さいから後で」は3回連続でレビュー指摘されて Critical に昇格する。
@@ -501,6 +525,24 @@ const CREATE_POST_MUTATION = `
 
 PR #202 の教訓: `bodyFormat` と `externalPublish` を helpers に追加し忘れ、thought のバリデーションテストが空振り。インライン mutation で通ったことで原因が判明。
 
+**⚠ `helpers.ts` だけでなく、テストファイルのローカル mutation 定義も確認すること。** `post.test.ts` 等のテストファイルには `helpers.ts` とは別のローカル `CREATE_POST_MUTATION` / `UPDATE_POST_MUTATION` 定義が存在する。引数追加時は `grep` で全ファイルを検索すること。
+
+PR #211 の教訓: `helpers.ts` に `mediaUrls` を追加したが `post.test.ts` のローカル定義を見落とし、変数が `undefined` でテストが失敗。デバッグに時間を浪費。
+
+### pothos の `t.arg.stringList()` / `t.arg.intList()` はデフォルト required
+
+**`t.arg.string()` は optional がデフォルトだが、`t.arg.stringList()` は `required: true` がデフォルト。** `[String!]!`（non-null list of non-null strings）が生成され、クライアントが変数を省略すると GraphQL がリクエストを拒否する。optional な list 引数には `{ required: false }` を明示すること。
+
+```typescript
+// ❌ デフォルト = required → [String!]! → 省略不可
+mediaUrls: t.arg.stringList(),
+
+// ✅ optional → [String!] → 省略可能
+mediaUrls: t.arg.stringList({ required: false }),
+```
+
+PR #211 の教訓: `required: false` を付けずにデプロイし、テストで変数が渡らず `undefined` になる現象のデバッグに時間を要した。
+
 ### Hono ルーティングで `@` を含むパスパラメータ
 
 **`/@:param` パターンは Hono で動作しない。** `@` がルーターに正しく解釈されず、ルートハンドラーに到達しない（404 が返る）。`/:param` でセグメント全体をキャプチャし、`startsWith("@")` でバリデーションすること。
@@ -603,3 +645,32 @@ Promise.all(
 ```
 
 PR #204 の教訓: Guardian 本人の R2 しか消さず、子アカウントの R2 が orphan 化していた。
+
+**トランザクション内で R2 fire-and-forget を実行しない**: トランザクション内で `deleteR2Object().catch(...)` を呼ぶと、R2 削除成功後に DB commit が失敗した場合、DB には旧 URL が残るが R2 ファイルは消滅するデータ破壊が発生する。トランザクション内で削除対象の URL リストを収集し、commit 後に fire-and-forget で実行すること。
+
+```typescript
+// ❌ トランザクション内で fire-and-forget — commit 失敗時にデータ破壊
+await db.transaction(async (tx) => {
+  const oldMedia = await tx.select(...);
+  await tx.delete(postMedia)...;
+  await tx.insert(postMedia)...;
+  deleteR2Object(old.mediaUrl).catch(...); // ← commit 前に R2 が消える
+  return result;
+});
+
+// ✅ トランザクション外で fire-and-forget
+let removedUrls: string[] = [];
+await db.transaction(async (tx) => {
+  const oldMedia = await tx.select(...);
+  await tx.delete(postMedia)...;
+  await tx.insert(postMedia)...;
+  removedUrls = oldMedia.map(m => m.mediaUrl); // 収集のみ
+  return result;
+});
+// commit 成功後に cleanup
+for (const url of removedUrls) {
+  deleteR2Object(url).catch(...);
+}
+```
+
+PR #211 の教訓: updatePost のトランザクション内で R2 削除を実行し、レビューで Critical 指摘。
