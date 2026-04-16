@@ -14,6 +14,7 @@ tools: Read, Grep, Glob
 - 画面遷移の設計（GoRouter パターン）
 - StatefulWidget / StatelessWidget / ConsumerWidget の選択の適切さ
 - デザイントークン（`gleisner_tokens.dart`）の使用（`Color(0xFF...)` ハードコード禁止）
+- i18n: ハードコード英語文字列の残存チェック（`'Cancel'` 等 → `context.l10n.cancel` を使うこと。共通ウィジェット・static リスト・ユーティリティ内も確認）
 - `build()` 内で Disposable オブジェクトを生成しない
 - 表示ウィジェットにナビゲーション（`context.go()`）を混ぜない
 
