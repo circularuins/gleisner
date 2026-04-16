@@ -725,25 +725,22 @@ class AppLocalizationsJa extends AppLocalizations {
   String get invalidUrl => '無効なURL';
 
   @override
-  String get milestoneCategoryCareer => 'キャリア';
-
-  @override
-  String get milestoneCategoryAlbumRelease => 'アルバムリリース';
-
-  @override
-  String get milestoneCategoryTour => 'ツアー';
-
-  @override
   String get milestoneCategoryAward => '受賞';
 
   @override
-  String get milestoneCategoryCollaboration => 'コラボレーション';
+  String get milestoneCategoryRelease => 'リリース';
 
   @override
-  String get milestoneCategoryPerformance => 'パフォーマンス';
+  String get milestoneCategoryEvent => 'イベント';
 
   @override
-  String get milestoneCategoryMilestone => 'マイルストーン';
+  String get milestoneCategoryAffiliation => '所属';
+
+  @override
+  String get milestoneCategoryEducation => '教育';
+
+  @override
+  String get milestoneCategoryOther => 'その他';
 
   @override
   String get deleteConfirmation => '削除しますか？';

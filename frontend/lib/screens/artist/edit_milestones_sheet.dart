@@ -158,11 +158,10 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
               children: [
                 Wrap(
                   spacing: spaceXs,
-                  children: milestoneCategories.map((c) {
-                    final (key, label, icon) = c;
+                  children: milestoneCategoryKeys.map((key) {
                     return ChoiceChip(
-                      label: Text(label),
-                      avatar: Icon(icon, size: 16),
+                      label: Text(milestoneCategoryName(context, key)),
+                      avatar: Icon(milestoneCategoryIcon(key), size: 16),
                       selected: editCategory == key,
                       onSelected: (_) =>
                           setDialogState(() => editCategory = key),
@@ -356,12 +355,11 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                     // Category chips
                     Wrap(
                       spacing: spaceXs,
-                      children: milestoneCategories.map((c) {
-                        final (key, label, icon) = c;
+                      children: milestoneCategoryKeys.map((key) {
                         final selected = _selectedCategory == key;
                         return ChoiceChip(
-                          label: Text(label),
-                          avatar: Icon(icon, size: 16),
+                          label: Text(milestoneCategoryName(context, key)),
+                          avatar: Icon(milestoneCategoryIcon(key), size: 16),
                           selected: selected,
                           onSelected: (_) =>
                               setState(() => _selectedCategory = key),

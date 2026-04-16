@@ -1442,47 +1442,41 @@ abstract class AppLocalizations {
   /// **'Invalid URL'**
   String get invalidUrl;
 
-  /// No description provided for @milestoneCategoryCareer.
-  ///
-  /// In en, this message translates to:
-  /// **'Career'**
-  String get milestoneCategoryCareer;
-
-  /// No description provided for @milestoneCategoryAlbumRelease.
-  ///
-  /// In en, this message translates to:
-  /// **'Album Release'**
-  String get milestoneCategoryAlbumRelease;
-
-  /// No description provided for @milestoneCategoryTour.
-  ///
-  /// In en, this message translates to:
-  /// **'Tour'**
-  String get milestoneCategoryTour;
-
   /// No description provided for @milestoneCategoryAward.
   ///
   /// In en, this message translates to:
   /// **'Award'**
   String get milestoneCategoryAward;
 
-  /// No description provided for @milestoneCategoryCollaboration.
+  /// No description provided for @milestoneCategoryRelease.
   ///
   /// In en, this message translates to:
-  /// **'Collaboration'**
-  String get milestoneCategoryCollaboration;
+  /// **'Release'**
+  String get milestoneCategoryRelease;
 
-  /// No description provided for @milestoneCategoryPerformance.
+  /// No description provided for @milestoneCategoryEvent.
   ///
   /// In en, this message translates to:
-  /// **'Performance'**
-  String get milestoneCategoryPerformance;
+  /// **'Event'**
+  String get milestoneCategoryEvent;
 
-  /// No description provided for @milestoneCategoryMilestone.
+  /// No description provided for @milestoneCategoryAffiliation.
   ///
   /// In en, this message translates to:
-  /// **'Milestone'**
-  String get milestoneCategoryMilestone;
+  /// **'Affiliation'**
+  String get milestoneCategoryAffiliation;
+
+  /// No description provided for @milestoneCategoryEducation.
+  ///
+  /// In en, this message translates to:
+  /// **'Education'**
+  String get milestoneCategoryEducation;
+
+  /// No description provided for @milestoneCategoryOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get milestoneCategoryOther;
 
   /// No description provided for @deleteConfirmation.
   ///

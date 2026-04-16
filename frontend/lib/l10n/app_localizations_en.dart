@@ -733,25 +733,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get invalidUrl => 'Invalid URL';
 
   @override
-  String get milestoneCategoryCareer => 'Career';
-
-  @override
-  String get milestoneCategoryAlbumRelease => 'Album Release';
-
-  @override
-  String get milestoneCategoryTour => 'Tour';
-
-  @override
   String get milestoneCategoryAward => 'Award';
 
   @override
-  String get milestoneCategoryCollaboration => 'Collaboration';
+  String get milestoneCategoryRelease => 'Release';
 
   @override
-  String get milestoneCategoryPerformance => 'Performance';
+  String get milestoneCategoryEvent => 'Event';
 
   @override
-  String get milestoneCategoryMilestone => 'Milestone';
+  String get milestoneCategoryAffiliation => 'Affiliation';
+
+  @override
+  String get milestoneCategoryEducation => 'Education';
+
+  @override
+  String get milestoneCategoryOther => 'Other';
 
   @override
   String get deleteConfirmation => 'Delete?';
