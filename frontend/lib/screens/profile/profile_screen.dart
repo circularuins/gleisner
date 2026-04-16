@@ -491,14 +491,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
-    // Navigate FIRST, then logout. This order is critical:
-    // logout() sets authState to unauthenticated, which triggers router
-    // redirect. If that happens while ProfileScreen is still mounted,
-    // Riverpod tries to rebuild widgets being disposed → crash.
-    // By navigating first, ProfileScreen is unmounted cleanly.
+    // Navigate first, then defer logout to the NEXT frame.
+    // context.go() schedules navigation but doesn't unmount ProfileScreen
+    // until the next frame. If logout() runs in the same frame, the
+    // authState change triggers a rebuild of the still-mounted Profile →
+    // crash. Deferring ensures ProfileScreen is fully unmounted first.
     context.go('/login');
-    ref.read(authProvider.notifier).logout();
-    ref.read(tutorialProvider.notifier).reset();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).logout();
+      ref.read(tutorialProvider.notifier).reset();
+    });
   }
 
   Widget _buildChildCard(User child) {
