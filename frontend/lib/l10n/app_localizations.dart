@@ -1058,6 +1058,12 @@ abstract class AppLocalizations {
   /// **'Add Constellation'**
   String get addConstellation;
 
+  /// No description provided for @eventDateOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Event date (optional)'**
+  String get eventDateOptional;
+
   /// No description provided for @uploadImageBeforePosting.
   ///
   /// In en, this message translates to:

@@ -527,6 +527,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addConstellation => 'Add Constellation';
 
   @override
+  String get eventDateOptional => 'Event date (optional)';
+
+  @override
   String get uploadImageBeforePosting =>
       'Please upload at least one image before posting';
 

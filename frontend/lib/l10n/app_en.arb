@@ -184,6 +184,7 @@
   "urlPlaceholder": "https://",
   "addLink": "Add Link",
   "addConstellation": "Add Constellation",
+  "eventDateOptional": "Event date (optional)",
   "uploadImageBeforePosting": "Please upload at least one image before posting",
   "uploadFileBeforePosting": "Please upload a file before posting",
   "textRequired": "Text is required",

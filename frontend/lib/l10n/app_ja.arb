@@ -173,6 +173,7 @@
   "urlPlaceholder": "https://",
   "addLink": "リンクを追加",
   "addConstellation": "コンステレーションを追加",
+  "eventDateOptional": "イベント日時（任意）",
   "uploadImageBeforePosting": "投稿前に画像をアップロードしてください",
   "uploadFileBeforePosting": "投稿前にファイルをアップロードしてください",
   "textRequired": "テキストは必須です",

@@ -522,6 +522,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get addConstellation => 'コンステレーションを追加';
 
   @override
+  String get eventDateOptional => 'イベント日時（任意）';
+
+  @override
   String get uploadImageBeforePosting => '投稿前に画像をアップロードしてください';
 
   @override
