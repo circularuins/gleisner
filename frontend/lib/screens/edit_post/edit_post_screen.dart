@@ -1060,7 +1060,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return l10n.fieldRequired('URL');
+                    return l10n.urlRequired;
                   }
                   final uri = Uri.tryParse(value.trim());
                   if (uri == null || !['http', 'https'].contains(uri.scheme)) {

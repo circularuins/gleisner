@@ -56,6 +56,13 @@ class GleisnerApp extends ConsumerWidget {
           FlutterQuillLocalizations.delegate,
         ],
         supportedLocales: AppLocalizations.supportedLocales,
+        localeResolutionCallback: (locale, supportedLocales) {
+          if (locale == null) return supportedLocales.first;
+          for (final supported in supportedLocales) {
+            if (supported.languageCode == locale.languageCode) return supported;
+          }
+          return supportedLocales.first; // fallback to English
+        },
       ),
     );
   }

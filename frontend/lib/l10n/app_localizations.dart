@@ -1130,6 +1130,18 @@ abstract class AppLocalizations {
   /// **'https://'**
   String get urlPlaceholder;
 
+  /// No description provided for @urlRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'URL is required'**
+  String get urlRequired;
+
+  /// No description provided for @enterValidUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid http(s) URL'**
+  String get enterValidUrl;
+
   /// No description provided for @addLink.
   ///
   /// In en, this message translates to:
@@ -1211,7 +1223,7 @@ abstract class AppLocalizations {
   /// No description provided for @constellationPostCount.
   ///
   /// In en, this message translates to:
-  /// **'Constellation · {count} posts'**
+  /// **'Constellation · {count, plural, =1{1 post} other{{count} posts}}'**
   String constellationPostCount(int count);
 
   /// No description provided for @all.
@@ -1277,7 +1289,7 @@ abstract class AppLocalizations {
   /// No description provided for @constellationNamedPostCount.
   ///
   /// In en, this message translates to:
-  /// **'{name} · {count} posts'**
+  /// **'{name} · {count, plural, =1{1 post} other{{count} posts}}'**
   String constellationNamedPostCount(String name, int count);
 
   /// No description provided for @joinCreativeUniverse.

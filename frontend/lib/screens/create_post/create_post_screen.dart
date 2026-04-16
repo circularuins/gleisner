@@ -1335,7 +1335,7 @@ class _FormStep extends ConsumerWidget {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return l10n.fieldRequired('URL');
+                    return l10n.urlRequired;
                   }
                   final uri = Uri.tryParse(value);
                   if (uri == null || !['http', 'https'].contains(uri.scheme)) {

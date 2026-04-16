@@ -563,6 +563,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get urlPlaceholder => 'https://';
 
   @override
+  String get urlRequired => 'URLは必須です';
+
+  @override
+  String get enterValidUrl => '有効なURL（http/https）を入力してください';
+
+  @override
   String get addLink => 'リンクを追加';
 
   @override

@@ -186,6 +186,8 @@
   "addNote": "メモを追加...",
   "titleAutoFilled": "タイトル（リンクから自動入力）",
   "urlPlaceholder": "https://",
+  "urlRequired": "URLは必須です",
+  "enterValidUrl": "有効なURL（http/https）を入力してください",
   "addLink": "リンクを追加",
   "addConstellation": "コンステレーションを追加",
   "eventDateOptional": "イベント日時（任意）",

@@ -571,6 +571,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get urlPlaceholder => 'https://';
 
   @override
+  String get urlRequired => 'URL is required';
+
+  @override
+  String get enterValidUrl => 'Enter a valid http(s) URL';
+
+  @override
   String get addLink => 'Add Link';
 
   @override
@@ -612,7 +618,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String constellationPostCount(int count) {
-    return 'Constellation · $count posts';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count posts',
+      one: '1 post',
+    );
+    return 'Constellation · $_temp0';
   }
 
   @override
@@ -650,7 +662,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String constellationNamedPostCount(String name, int count) {
-    return '$name · $count posts';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count posts',
+      one: '1 post',
+    );
+    return '$name · $_temp0';
   }
 
   @override
