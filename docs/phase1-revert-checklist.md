@@ -11,7 +11,7 @@ Phase 0 の位置づけと対策の背景は以下を参照:
 全ての PHASE_0_REVERT マーカーを検出:
 
 ```bash
-grep -rn "PHASE_0_REVERT" gleisner/ --include="*.ts" --include="*.dart" --include="*.html" --include="*.txt"
+grep -rn "PHASE_0_REVERT" gleisner/ --include="*.ts" --include="*.dart" --include="*.html" --include="*.txt" --include="*.sh"
 ```
 
 Cloudflare ダッシュボードや環境変数の変更は grep では検出できないため、本チェックリストで補完する。

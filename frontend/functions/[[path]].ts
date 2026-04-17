@@ -71,6 +71,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "public, max-age=300",
+        // PHASE_0_REVERT: Forward the backend's X-Robots-Tag so SNS bots
+        // see noindex. Without this, reconstructing the Response drops
+        // the header and the OGP path loses its noindex signal.
+        "X-Robots-Tag":
+          ogpResponse.headers.get("X-Robots-Tag") ??
+          "noindex, nofollow, noarchive, nosnippet",
       },
     });
   } catch {

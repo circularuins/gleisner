@@ -3,10 +3,28 @@
 # Phase 1 一般公開時は検証項目を反転させるか、スクリプトごと削除すること。
 # 参照: docs/phase1-revert-checklist.md
 
+# -e は意図的に付けない: 各 check_* ヘルパーが独立して fail カウンタを加算する設計のため、
+# 途中の失敗でスクリプト全体を中断しない。pass/fail の集計後に exit コードで結果を返す。
 set -uo pipefail
 
-BASE_URL="${1:-https://gleisner.app}"
-SEED_USER="${SEED_USER:-seeduser}"
+if [[ "${1:-}" == "" || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  cat <<USAGE
+Usage: $0 <base_url> [seed_user]
+
+  <base_url>   検証対象の URL（必須）。例: https://staging.gleisner.app
+  [seed_user]  OGP 検証に使う公開アーティスト username（デフォルト: seeduser、
+               環境変数 SEED_USER でも指定可）
+
+例:
+  $0 https://staging.gleisner.app
+  $0 https://gleisner.app myartist
+  SEED_USER=myartist $0 https://gleisner.app
+USAGE
+  exit 64
+fi
+
+BASE_URL="$1"
+SEED_USER="${2:-${SEED_USER:-seeduser}}"
 
 PASS=0
 FAIL=0
@@ -63,11 +81,13 @@ ROBOTS_BODY=$(sed '$d' <<< "$ROBOTS_RESPONSE")
 if [[ "$ROBOTS_STATUS" == "200" ]]; then
   pass "GET /robots.txt returns 200"
   check_contains "robots.txt contains 'Disallow: /'" "$ROBOTS_BODY" "Disallow: /"
-  check_contains "robots.txt blocks GPTBot" "$ROBOTS_BODY" "User-agent: GPTBot"
-  check_contains "robots.txt blocks ClaudeBot" "$ROBOTS_BODY" "User-agent: ClaudeBot"
-  check_contains "robots.txt blocks Google-Extended" "$ROBOTS_BODY" "User-agent: Google-Extended"
-  check_contains "robots.txt blocks PerplexityBot" "$ROBOTS_BODY" "User-agent: PerplexityBot"
-  check_contains "robots.txt blocks CCBot" "$ROBOTS_BODY" "User-agent: CCBot"
+  # 主要な LLM/AI クローラーが個別ブロックされているかのサンプル検証。
+  # robots.txt の全エントリを検査する代わりに、代表的な UA を確認する。
+  # 全リストは frontend/web/robots.txt を参照。
+  REQUIRED_LLM_BOTS=(GPTBot ClaudeBot Google-Extended PerplexityBot CCBot)
+  for bot in "${REQUIRED_LLM_BOTS[@]}"; do
+    check_contains "robots.txt blocks $bot" "$ROBOTS_BODY" "User-agent: $bot"
+  done
 else
   fail "GET /robots.txt returned status $ROBOTS_STATUS (expected 200)"
 fi
@@ -90,13 +110,16 @@ fi
 # ----------------------------------------------------------------------
 section "3. OGP endpoint (simulated Twitter/Facebook bot)"
 # ----------------------------------------------------------------------
-# Twitterbot simulation → Cloudflare Pages Function が OGP にプロキシする経路を確認
-OGP_HEADERS=$(curl -fsSL -D - -o /dev/null \
+# Twitterbot simulation → Cloudflare Pages Function が OGP にプロキシする経路を確認。
+# ヘッダーと本文は 1 回の curl で同時取得する（CDN キャッシュ世代差でヘッダーと本文が
+# 不整合になる事故を防ぐ）。
+OGP_DUMP=$(curl -fsSL -D - \
   -A "Mozilla/5.0 (compatible; Twitterbot/1.0)" \
   "$BASE_URL/@$SEED_USER" 2>/dev/null || true)
-OGP_BODY=$(curl -fsSL \
-  -A "Mozilla/5.0 (compatible; Twitterbot/1.0)" \
-  "$BASE_URL/@$SEED_USER" 2>/dev/null || true)
+
+# ヘッダーと本文を空行で分割（HTTP/1.1 200 OK ... \r\n\r\n <body>）
+OGP_HEADERS=$(awk 'BEGIN{RS="\r\n\r\n"} NR==1{print; exit}' <<< "$OGP_DUMP")
+OGP_BODY=$(awk 'BEGIN{RS="\r\n\r\n"} NR>=2{print}' <<< "$OGP_DUMP")
 
 if [[ -z "$OGP_BODY" ]]; then
   skip "OGP endpoint check" "seed user '$SEED_USER' may not exist or not public — set SEED_USER env var to a known public artist"
@@ -106,6 +129,7 @@ else
     pass "Twitterbot UA receives OGP HTML (Pages Function proxy working)"
     check_contains "OGP HTML contains noindex meta" "$OGP_BODY" 'name="robots".*noindex'
     check_header_contains "OGP response has X-Robots-Tag: noindex" "$OGP_HEADERS" "x-robots-tag" "noindex"
+    check_header_contains "OGP response X-Robots-Tag includes nosnippet" "$OGP_HEADERS" "x-robots-tag" "nosnippet"
   else
     skip "OGP HTML check" "Twitterbot UA got SPA response — check Pages Function deployed and seed user is public"
   fi

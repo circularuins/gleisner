@@ -74,7 +74,7 @@ ${image ? `<meta name="twitter:image" content="${escapeHtml(image)}">` : ""}
 </html>`;
 
   // PHASE_0_REVERT: Phase 1 移行時に X-Robots-Tag ヘッダーを削除
-  c.header("X-Robots-Tag", "noindex, nofollow, noarchive");
+  c.header("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet");
   return c.html(html);
 });
 

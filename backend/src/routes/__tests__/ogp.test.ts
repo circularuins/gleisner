@@ -139,7 +139,11 @@ describe("OGP endpoint", () => {
     const res = await app.request("/ogp/@noindexartist");
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("x-robots-tag")).toContain("noindex");
+    const xRobotsTag = res.headers.get("x-robots-tag") ?? "";
+    expect(xRobotsTag).toContain("noindex");
+    expect(xRobotsTag).toContain("nofollow");
+    expect(xRobotsTag).toContain("noarchive");
+    expect(xRobotsTag).toContain("nosnippet");
     const html = await res.text();
     expect(html).toMatch(
       /<meta\s+name="robots"\s+content="noindex,nofollow,noarchive,nosnippet">/,
