@@ -53,7 +53,11 @@ Phase 0 リリースまでのタスク一覧。随時更新し、進捗を追跡
 - [x] バックエンド GraphQL schema からコメント mutation/query を除外（`types/index.ts` の import を外す）
 - [x] フロントは既に "coming soon" プレースホルダーのみ（送信 UI なし）
 - 目的: 電気通信事業法の「通信の媒介」回避。Phase 1 の弁護士確認後に復帰予定
-- 復帰手順: `types/index.ts` の `import "./comment.js";` をアンコメント（1行のみ）
+- 復帰 Issue: #221（既存セキュリティ/パフォーマンス課題のチェックリスト含む）
+- 復帰手順（3ファイル）:
+  1. `backend/src/graphql/types/index.ts` の `import "./comment.js";` のコメントアウトを解除
+  2. `backend/src/graphql/__tests__/comment.test.ts` 冒頭の個別 `import "../types/comment.js"` を削除
+  3. `backend/src/graphql/__tests__/public-user.test.ts` の `"comments query user does not expose email"` の `it.skip` → `it` に戻す
 
 ---
 
