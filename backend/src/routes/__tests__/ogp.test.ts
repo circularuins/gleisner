@@ -122,6 +122,34 @@ describe("OGP endpoint", () => {
     expect(html).toContain("twitter:card");
   });
 
+  // PHASE_0_REVERT: この 1 ケースを Phase 1 移行時に削除または調整
+  it("includes Phase 0 noindex meta and X-Robots-Tag header", async () => {
+    const token = await signupAndGetToken(
+      app,
+      "noindex@test.com",
+      "noindexuser",
+    );
+    await gql(
+      app,
+      REGISTER_ARTIST_MUTATION,
+      { artistUsername: "noindexartist", displayName: "NoIndex Artist" },
+      token,
+    );
+
+    const res = await app.request("/ogp/@noindexartist");
+
+    expect(res.status).toBe(200);
+    const xRobotsTag = res.headers.get("x-robots-tag") ?? "";
+    expect(xRobotsTag).toContain("noindex");
+    expect(xRobotsTag).toContain("nofollow");
+    expect(xRobotsTag).toContain("noarchive");
+    expect(xRobotsTag).toContain("nosnippet");
+    const html = await res.text();
+    expect(html).toMatch(
+      /<meta\s+name="robots"\s+content="noindex,nofollow,noarchive,nosnippet">/,
+    );
+  });
+
   it("returns 404 for private artist", async () => {
     const token = await signupAndGetToken(app, "priv@test.com", "privuser");
     await gql(
