@@ -140,6 +140,13 @@ mise tasks             # 利用可能なタスク一覧を表示
 
 [mise monorepo](https://mise.jdx.dev/tasks/monorepo.html#monorepo-tasks) を有効化しているため、下記のコマンドは [monorepo task syntax](https://mise.jdx.dev/tasks/monorepo.html#task-path-syntax) 指定も可能
 
+> **⚠ mise タスクは wrapper スクリプトを尊重すること**
+> `scripts/dev-start.sh` のように環境変数を設定する wrapper スクリプトが存在する場合、mise タスクは必ずその wrapper を経由すること（`run = "../scripts/dev-start.sh"`）。
+> `pnpm dev` 等を直叩きすると `CORS_ORIGIN=*` などの設定が漏れ、Flutter Web のランダムポートからのアクセスが CORS で弾かれる。
+> 新しく mise タスクを追加する際は、対応する wrapper がないか `scripts/` を先に確認する。
+>
+> PR #220 の教訓: `start_dev` が `pnpm dev` を直叩きしていたため、ログインが CORS で失敗する状態になっていた。
+
 #### バックエンドタスク（`cd backend` で実行）
 
 | タスク | 実行内容 | 自動依存 |
