@@ -34,10 +34,14 @@ Cloudflare ダッシュボードや環境変数の変更は grep では検出で
 
 ### 1.3 OGP レスポンスの noindex 削除
 
-- [ ] `gleisner/backend/src/routes/ogp.ts` の以下を削除:
-  - 生成 HTML 内の `<meta name="robots" content="noindex,...">`
-  - `c.header("X-Robots-Tag", "noindex, nofollow, noarchive");`
+- [ ] `gleisner/backend/src/routes/ogp.ts` の PHASE_0_REVERT マーカー付き箇所を削除:
+  - 生成 HTML 内の `<meta name="robots" ...>` 行
+  - `c.header("X-Robots-Tag", ...)` 行
+- [ ] `gleisner/frontend/functions/[[path]].ts` の PHASE_0_REVERT マーカー付き箇所を削除:
+  - Pages Function が OGP レスポンスをプロキシする際の `X-Robots-Tag` 転送ロジック
 - [ ] 対応するテスト `backend/src/routes/__tests__/ogp.test.ts` の `"includes Phase 0 noindex meta and X-Robots-Tag header"` ケースを削除または調整
+
+> 各ファイルの正確な削除対象は `grep -n "PHASE_0_REVERT" <file>` で特定する（1.3 セクションに具体的な文字列を書かないのは、実装が進化したときにドキュメントと実コードの乖離を避けるため）
 
 ### 1.4 CDN キャッシュパージ
 

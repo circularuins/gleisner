@@ -74,8 +74,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         // PHASE_0_REVERT: Forward the backend's X-Robots-Tag so SNS bots
         // see noindex. Without this, reconstructing the Response drops
         // the header and the OGP path loses its noindex signal.
+        // Headers.get() is case-insensitive per Fetch spec.
         "X-Robots-Tag":
-          ogpResponse.headers.get("X-Robots-Tag") ??
+          ogpResponse.headers.get("x-robots-tag") ??
           "noindex, nofollow, noarchive, nosnippet",
       },
     });

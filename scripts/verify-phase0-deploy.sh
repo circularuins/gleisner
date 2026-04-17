@@ -112,14 +112,15 @@ section "3. OGP endpoint (simulated Twitter/Facebook bot)"
 # ----------------------------------------------------------------------
 # Twitterbot simulation → Cloudflare Pages Function が OGP にプロキシする経路を確認。
 # ヘッダーと本文は 1 回の curl で同時取得する（CDN キャッシュ世代差でヘッダーと本文が
-# 不整合になる事故を防ぐ）。
-OGP_DUMP=$(curl -fsSL -D - \
+# 不整合になる事故を防ぐ）。ヘッダーは一時ファイル経由で受け取る（macOS BSD awk は
+# 複数文字 RS を扱えないため、awk での分割は避ける）。
+OGP_HEADERS_FILE=$(mktemp)
+# shellcheck disable=SC2064  # 現在の OGP_HEADERS_FILE 値を trap で固定したい
+trap "rm -f '$OGP_HEADERS_FILE'" EXIT
+OGP_BODY=$(curl -fsSL -D "$OGP_HEADERS_FILE" \
   -A "Mozilla/5.0 (compatible; Twitterbot/1.0)" \
   "$BASE_URL/@$SEED_USER" 2>/dev/null || true)
-
-# ヘッダーと本文を空行で分割（HTTP/1.1 200 OK ... \r\n\r\n <body>）
-OGP_HEADERS=$(awk 'BEGIN{RS="\r\n\r\n"} NR==1{print; exit}' <<< "$OGP_DUMP")
-OGP_BODY=$(awk 'BEGIN{RS="\r\n\r\n"} NR>=2{print}' <<< "$OGP_DUMP")
+OGP_HEADERS=$(cat "$OGP_HEADERS_FILE")
 
 if [[ -z "$OGP_BODY" ]]; then
   skip "OGP endpoint check" "seed user '$SEED_USER' may not exist or not public — set SEED_USER env var to a known public artist"
