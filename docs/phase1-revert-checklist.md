@@ -85,3 +85,18 @@ Phase 1 移行 PR マージ後:
 - [ ] Google Search Console で "site:gleisner.app" が徐々にインデックスされ始めるか（数日〜週単位）
 - [ ] Twitter Card Validator / Facebook Debugger で OGP プレビューが正常表示
 - [ ] Cloudflare Analytics でクローラートラフィックが急増しても従量課金アラートが出ないこと
+
+### Phase 0 時点の逆向き検証
+
+Phase 0 リリース直後・リリース後定期的に実行:
+
+```bash
+./scripts/verify-phase0-deploy.sh                    # default: https://gleisner.app
+./scripts/verify-phase0-deploy.sh https://staging.gleisner.app  # ステージング向け
+SEED_USER=myartist ./scripts/verify-phase0-deploy.sh            # 確認対象のアーティストを指定
+```
+
+- 全パス = Phase 0 状態が正しく反映されている
+- 失敗 = robots.txt / noindex meta / X-Robots-Tag / OGP プロキシのいずれかが本番で壊れている
+
+Phase 1 移行時はスクリプト自体を削除するか、検証項目を反転させる。
