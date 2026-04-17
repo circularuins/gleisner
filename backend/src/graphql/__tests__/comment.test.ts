@@ -10,6 +10,16 @@ import { authMiddleware, type AuthUser } from "../../auth/middleware.js";
 
 import { builder } from "../builder.js";
 import "../types/index.js";
+// Comments are disabled in the production schema for Phase 0 (see types/index.ts).
+// We register the comment types individually here so that the comment resolver,
+// authorization, and validation logic remain covered by integration tests and do
+// not rot while disabled. When Issue #221 (Phase 1 restoration) is executed,
+// delete this line — comment types will be registered via types/index.js again.
+// Note: pothos' `builder` is a singleton, so this import has a side effect on
+// the module-scoped builder. vitest runs each test file in its own module
+// scope (isolate: true by default), so it does not leak to other test files.
+// A smoke test for the production schema is tracked in Issue #222.
+import "../types/comment.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL)

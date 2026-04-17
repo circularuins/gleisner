@@ -8,7 +8,16 @@ import "./artist.js";
 import "./track.js";
 import "./post.js";
 import "./reaction.js";
-import "./comment.js";
+// Comments are disabled for Phase 0 to avoid 電気通信事業法 "通信の媒介" implications.
+// Re-enable after legal review (Phase 1+) by following the checklist in Issue #221:
+//   1. Uncomment this import
+//   2. Remove the individual `import "../types/comment.js"` from comment.test.ts
+//   3. Change `it.skip` back to `it` in public-user.test.ts
+//      ("comments query user does not expose email")
+// Issue #221 also tracks pre-existing security/perf gaps (missing auth check on
+// `comments`, `db.select()` leaking columns, N+1 in `Post.comments`) that must
+// be addressed in the same restoration PR.
+// import "./comment.js";
 import "./connection.js";
 import "./constellation.js";
 import "./follow.js";

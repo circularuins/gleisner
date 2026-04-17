@@ -291,7 +291,14 @@ describe("PublicUserType email exposure prevention", () => {
     expect(user.createdAt).toBeDefined();
   });
 
-  it("comments query user does not expose email", async () => {
+  // Skipped because comments are disabled in the production schema for Phase 0
+  // (see backend/src/graphql/types/index.ts).
+  // Restore in lock-step with Phase 1 comment restoration — Issue #221 step 3:
+  // when the `import "./comment.js"` comment in types/index.ts is uncommented,
+  // change `it.skip` back to `it` here.
+  // Security coverage for this period is planned via the production schema
+  // smoke test tracked in Issue #222.
+  it.skip("comments query user does not expose email", async () => {
     const { token } = await signupAndGetTokenAndId(
       app,
       "pub5@example.com",

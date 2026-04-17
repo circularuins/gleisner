@@ -42,11 +42,22 @@ Phase 0 リリースまでのタスク一覧。随時更新し、進捗を追跡
 - [x] フッターに運営者名・連絡先を記載 — About ページ実装済み
 - [x] 外部送信の簡易開示（Cloudflare, Claude API の使用明記）— About ページ実装済み
 
-### 1.6 日本語化（Issue #151）
-- [ ] UI テキストの i18n 対応（Flutter intl / arb）
-- [ ] 日本語翻訳ファイル作成
-- [ ] About ページの日本語化
-- [ ] 言語自動判定（ブラウザ locale）
+### 1.6 日本語化（Issue #151）— PR #216
+- [x] UI テキストの i18n 対応（Flutter intl / arb）
+- [x] 日本語翻訳ファイル作成
+- [x] About ページの日本語化
+- [x] 言語自動判定（ブラウザ locale）
+- フォローアップ: Issue #217（JA ARB メタデータ、翻訳品質チューニング）
+
+### 1.7 コメント機能の非表示（法的理由）
+- [x] バックエンド GraphQL schema からコメント mutation/query を除外（`types/index.ts` の import を外す）
+- [x] フロントは既に "coming soon" プレースホルダーのみ（送信 UI なし）
+- 目的: 電気通信事業法の「通信の媒介」回避。Phase 1 の弁護士確認後に復帰予定
+- 復帰 Issue: #221（既存セキュリティ/パフォーマンス課題のチェックリスト含む）
+- 復帰手順（3ファイル）:
+  1. `backend/src/graphql/types/index.ts` の `import "./comment.js";` のコメントアウトを解除
+  2. `backend/src/graphql/__tests__/comment.test.ts` 冒頭の個別 `import "../types/comment.js"` を削除
+  3. `backend/src/graphql/__tests__/public-user.test.ts` の `"comments query user does not expose email"` の `it.skip` → `it` に戻す
 
 ---
 
@@ -152,7 +163,9 @@ Phase 0 リリースまでのタスク一覧。随時更新し、進捗を追跡
 - [x] マルチ画像カルーセル: Backend — PR #211
 - [x] マルチ画像カルーセル: Frontend — PR #213
 - [x] サイト表記（運営者情報 + 外部送信開示）— About ページ
+- [x] Phase 0 日本語化（i18n 基盤 + 全画面翻訳）— PR #216
+- [x] コメント機能の Phase 0 非表示化（法的理由）
 
 ---
 
-*最終更新: 2026-04-16*
+*最終更新: 2026-04-17*
