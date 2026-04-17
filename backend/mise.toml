@@ -13,7 +13,7 @@ setup_new_local = { run = "cp .env.example .env", depends_post = [
   "seed_dev",
   "seed_init_dev",
 ] }
-start_dev = { run = "pnpm dev", depends = "start_db" }
+start_dev = { run = "../scripts/dev-start.sh", depends = "start_db" }
 start_db = { run = "docker compose up -d --wait" }
 stop_db = { run = "docker compose stop" }
 clean_cache_build = { run = ["rm -rf node_modules", "rm -rf dist"] }
