@@ -58,6 +58,8 @@ ogp.get("/:atUsername", async (c) => {
 <html>
 <head>
 <meta charset="utf-8">
+<!-- PHASE_0_REVERT: Phase 1 移行時にこの noindex meta と X-Robots-Tag ヘッダーを削除。docs/phase1-revert-checklist.md 参照 -->
+<meta name="robots" content="noindex,nofollow,noarchive,nosnippet">
 <meta property="og:type" content="profile">
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${description}">
@@ -71,6 +73,8 @@ ${image ? `<meta name="twitter:image" content="${escapeHtml(image)}">` : ""}
 <body></body>
 </html>`;
 
+  // PHASE_0_REVERT: Phase 1 移行時に X-Robots-Tag ヘッダーを削除
+  c.header("X-Robots-Tag", "noindex, nofollow, noarchive");
   return c.html(html);
 });
 

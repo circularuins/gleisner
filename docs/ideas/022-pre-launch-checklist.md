@@ -43,6 +43,9 @@ Phase 0 では:
   - 簡単な文章でサイト上に掲載すれば足りる（正式なポリシーページ不要）
 - [ ] **HTTPS 有効確認**: Cloudflare Pages / Railway で TLS が有効であること
 - [ ] **管理者認証の基本セキュリティ**: 家族アカウントのパスワード強度、JWT の基本的な保護
+- [ ] **クロール拒否**（一時対策）: `robots.txt` で全拒否 + 主要 LLM クローラー個別明示、SPA / OGP レスポンスに `noindex` meta と `X-Robots-Tag` ヘッダー、Cloudflare Bot Fight Mode を有効化。Phase 1 解除手順は `docs/phase1-revert-checklist.md` を参照
+  - 目的: 家族ライフログ段階での検索エンジン / LLM 学習データ混入を防ぐ、クローラートラフィックのコスト暴走を防ぐ
+  - Phase 1 で一般公開時に robots.txt と meta の `Disallow: /` / noindex を解除
 
 ### Recommended (Phase 0)
 
