@@ -674,3 +674,25 @@ for (const url of removedUrls) {
 ```
 
 PR #211 の教訓: updatePost のトランザクション内で R2 削除を実行し、レビューで Critical 指摘。
+
+### 機能の一時 disable パターン（schema + test の3点セット）
+
+**GraphQL 機能を production schema から一時的に無効化する場合、以下の3点を同時に対応すること。**
+
+1. **schema 登録の停止**: `src/graphql/types/index.ts` の `import "./xxx.js";` をコメントアウト。復帰手順と関連既存課題の Issue 番号をコメント内に明記
+2. **resolver/validation のテストカバレッジ維持**: 該当テストファイル冒頭で `import "../types/xxx.js";` を個別実施。pothos の `builder` はシングルトンだが vitest `isolate: true`（デフォルト）によりテストファイル単位で module scope が独立するため他テストファイルに波及しない旨もコメントで明示
+3. **除外済み機能を参照する他テストの skip**: 該当機能を利用する他テスト（例: `public-user.test.ts` の email 漏洩防止）を `it.skip` にし、復帰時の対応関係（"Issue #N step M と lock-step で戻す"）をコメントで明示
+
+復帰時のチェックリストは専用 Issue として起票し、各ファイルのコメントから Issue 番号で相互参照できるようにする。復帰時に既存のセキュリティ/パフォーマンス課題（認証欠落、N+1、全カラム select 等）が顕在化する場合、その課題も復帰 Issue に含めて復帰 PR でまとめて解消する。
+
+```typescript
+// ✅ types/index.ts
+// Comments are disabled for Phase 0 to avoid 電気通信事業法 "通信の媒介" implications.
+// Re-enable after legal review (Phase 1+) by following the checklist in Issue #221:
+//   1. Uncomment this import
+//   2. Remove the individual `import "../types/comment.js"` from comment.test.ts
+//   3. Change `it.skip` back to `it` in public-user.test.ts
+// import "./comment.js";
+```
+
+PR #219 の教訓: コメント機能を Phase 0 で無効化する際、最初は schema の 1 行コメントアウトのみで対応し、テストカバレッジ維持と他テスト skip が漏れた。レビューで 3 ステップのチェックリストに拡張するよう指摘された。
