@@ -566,6 +566,39 @@ R2 ダッシュボード → バケット → Settings → CORS Policy で以下
 - `GET`: `Image.network` での画像表示用
 - カスタムドメイン（`media-dev.gleisner.app` 等）で CORS が効かない場合は、Cloudflare **Transform Rules** → **Modify Response Header** で `Access-Control-Allow-Origin: *` を追加
 
+### Cloudflare Pages Functions でバックエンドレスポンスをプロキシする際のヘッダー保全
+
+`return new Response(upstream.body, { headers: {...} })` は指定したヘッダーだけを返す。upstream.headers は引き継がれず、バックエンドが設定した `X-Robots-Tag` / `Set-Cookie` / 独自ヘッダー等が全部消える。
+
+- ヘッダー不変で中継: `return upstream;`（最もシンプル）
+- ヘッダーを一部追加・上書きしたい場合: `new Response(upstream.body, upstream)` で継承したうえで上書きするか、`upstream.headers.get(...)` で必要なものを明示転送する
+- HTTP ヘッダーは case-insensitive だが、Fetch API の慣習に合わせ `get()` には小文字を使う
+
+```ts
+// ❌ ヘッダー全消し — X-Robots-Tag や Set-Cookie が届かない
+return new Response(upstream.body, {
+  status: 200,
+  headers: {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "public, max-age=300",
+  },
+});
+
+// ✅ 必要なものだけ明示転送
+return new Response(upstream.body, {
+  status: 200,
+  headers: {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "public, max-age=300",
+    "X-Robots-Tag":
+      upstream.headers.get("x-robots-tag") ??
+      "noindex, nofollow, noarchive, nosnippet",
+  },
+});
+```
+
+PR #224 の教訓: OGP プロキシで `Content-Type` と `Cache-Control` だけ指定した結果、バックエンドの `X-Robots-Tag: noindex` が SNS bot に届かず、クローラー対策が実質無効化されていた。レビューで Critical 指摘。
+
 ### UI コンポーネント置換チェックリスト
 
 **共有ウィジェットを新規作成して既存の private ウィジェットを置き換える場合、全使用箇所を一括で置換すること。**
