@@ -173,66 +173,13 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       final bytes = await picked.readAsBytes();
       if (disposed) return null;
 
-      var uploadBytes = bytes;
-      var contentType = mimeFromBytes(bytes);
-      if (contentType == null || !contentType.startsWith('image/')) {
-        state = const MediaUploadState(
-          error: 'Unsupported image format. Use JPEG, PNG, WebP, or HEIC.',
-        );
-        return null;
-      }
-
-      // HEIC/HEIF: convert to JPEG via browser Canvas API (works on Safari).
-      // On iOS/Android native, image_picker already converts to JPEG, so
-      // this branch only triggers on Web when a raw .heic file is selected.
-      // Canvas re-encoding already strips EXIF, so we skip the sanitizer
-      // pass below to avoid double-encoding quality loss.
-      var heicConverted = false;
-      if (contentType == 'image/heic' || contentType == 'image/heif') {
-        if (!kIsWeb) {
-          state = const MediaUploadState(
-            error:
-                'HEIC format is not supported. Please select a JPEG or PNG image.',
-          );
-          return null;
-        }
-        final jpegBytes = await convertHeicToJpeg(bytes);
-        if (disposed) return null;
-        if (jpegBytes == null) {
-          state = const MediaUploadState(
-            error:
-                'Could not convert HEIC image. Try using Safari, or convert to JPEG first.',
-          );
-          return null;
-        }
-        uploadBytes = jpegBytes;
-        contentType = 'image/jpeg';
-        heicConverted = true;
-      }
-
-      // Strip EXIF / XMP metadata before upload. Must run BEFORE _upload()
-      // because the R2 presigned URL signs ContentLength; sanitizing inside
-      // _upload() would produce SignatureDoesNotMatch errors.
-      if (!heicConverted) {
-        final sanitized = await _sanitizer(
-          uploadBytes,
-          contentType: contentType,
-        );
-        if (disposed) return null;
-        if (sanitized == null) {
-          state = const MediaUploadState(
-            error: 'Could not process image. Please try another file.',
-          );
-          return null;
-        }
-        uploadBytes = sanitized.bytes;
-        contentType = sanitized.contentType;
-      }
+      final prepared = await _prepareImageBytes(bytes);
+      if (prepared == null) return null;
 
       return await _upload(
         category: category,
-        bytes: uploadBytes,
-        contentType: contentType,
+        bytes: prepared.bytes,
+        contentType: prepared.contentType,
       );
     } catch (e) {
       debugPrint('[MediaUpload] pickAndUploadImage error: $e');
@@ -282,65 +229,16 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         final bytes = await file.readAsBytes();
         if (disposed) return null;
 
-        var uploadBytes = bytes;
-        var contentType = mimeFromBytes(bytes);
-        if (contentType == null || !contentType.startsWith('image/')) {
-          state = const MediaUploadState(
-            error: 'Unsupported image format. Use JPEG, PNG, WebP, or HEIC.',
-          );
-          return null;
-        }
-
-        // HEIC/HEIF: convert to JPEG (Web only). Canvas re-encoding already
-        // strips EXIF, so skip the sanitizer pass for this branch to avoid
-        // double-encoding quality loss.
-        var heicConverted = false;
-        if (contentType == 'image/heic' || contentType == 'image/heif') {
-          if (!kIsWeb) {
-            state = const MediaUploadState(
-              error:
-                  'HEIC format is not supported. Please select a JPEG or PNG image.',
-            );
-            return null;
-          }
-          final jpegBytes = await convertHeicToJpeg(bytes);
-          if (disposed) return null;
-          if (jpegBytes == null) {
-            state = const MediaUploadState(
-              error:
-                  'Could not convert HEIC image. Try using Safari, or convert to JPEG first.',
-            );
-            return null;
-          }
-          uploadBytes = jpegBytes;
-          contentType = 'image/jpeg';
-          heicConverted = true;
-        }
-
-        // Strip EXIF / XMP metadata before upload. Must run BEFORE _upload()
-        // because the R2 presigned URL signs ContentLength. If sanitization
-        // fails here, previously uploaded images in `urls` become R2 orphans
-        // (same semantics as existing HEIC conversion failure).
-        if (!heicConverted) {
-          final sanitized = await _sanitizer(
-            uploadBytes,
-            contentType: contentType,
-          );
-          if (disposed) return null;
-          if (sanitized == null) {
-            state = const MediaUploadState(
-              error: 'Could not process image. Please try another file.',
-            );
-            return null;
-          }
-          uploadBytes = sanitized.bytes;
-          contentType = sanitized.contentType;
-        }
+        // If sanitization fails mid-loop, previously uploaded images in
+        // `urls` become R2 orphans (same semantics as HEIC conversion
+        // failure in pickAndUploadImage).
+        final prepared = await _prepareImageBytes(bytes);
+        if (prepared == null) return null;
 
         final url = await _upload(
           category: category,
-          bytes: uploadBytes,
-          contentType: contentType,
+          bytes: prepared.bytes,
+          contentType: prepared.contentType,
         );
         if (url == null) return null;
         urls.add(url);
@@ -531,6 +429,61 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       }
       return null;
     }
+  }
+
+  /// Validate MIME from magic bytes, convert HEIC → JPEG on Web, and strip
+  /// EXIF / XMP via the sanitizer. Sets `state.error` on failure.
+  ///
+  /// Must run BEFORE `_upload()` because the R2 presigned URL signs
+  /// `ContentLength`; sanitizing inside `_upload()` would produce
+  /// `SignatureDoesNotMatch` errors.
+  ///
+  /// Returns null if the caller should abort (either disposed or an error
+  /// is already surfaced via `state`).
+  Future<({Uint8List bytes, String contentType})?> _prepareImageBytes(
+    Uint8List bytes,
+  ) async {
+    final detected = mimeFromBytes(bytes);
+    if (detected == null || !detected.startsWith('image/')) {
+      state = const MediaUploadState(
+        error: 'Unsupported image format. Use JPEG, PNG, WebP, or HEIC.',
+      );
+      return null;
+    }
+
+    // HEIC/HEIF: convert to JPEG via browser Canvas API (Safari). On
+    // iOS/Android native, image_picker already converts to JPEG, so this
+    // branch only triggers on Web. Canvas re-encoding already strips EXIF,
+    // so we skip the sanitizer pass to avoid double-encoding quality loss.
+    if (detected == 'image/heic' || detected == 'image/heif') {
+      if (!kIsWeb) {
+        state = const MediaUploadState(
+          error:
+              'HEIC format is not supported. Please select a JPEG or PNG image.',
+        );
+        return null;
+      }
+      final jpegBytes = await convertHeicToJpeg(bytes);
+      if (disposed) return null;
+      if (jpegBytes == null) {
+        state = const MediaUploadState(
+          error:
+              'Could not convert HEIC image. Try using Safari, or convert to JPEG first.',
+        );
+        return null;
+      }
+      return (bytes: jpegBytes, contentType: 'image/jpeg');
+    }
+
+    final sanitized = await _sanitizer(bytes, contentType: detected);
+    if (disposed) return null;
+    if (sanitized == null) {
+      state = const MediaUploadState(
+        error: 'Could not process image. Please try another file.',
+      );
+      return null;
+    }
+    return sanitized;
   }
 
   Future<String?> _upload({

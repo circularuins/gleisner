@@ -9,24 +9,41 @@ import 'package:web/web.dart' as web;
 ///
 /// Contract:
 /// - Input and output `contentType` are always equal on success.
-/// - Returns `null` on any failure (fail-closed for privacy).
-/// - On native platforms, returns bytes as-is; callers must clamp
-///   `image_picker`'s `imageQuality` to 1-85 to force re-encoding
-///   (`imageQuality=100` / `null` would bypass EXIF stripping).
+/// - Returns `null` on any failure (fail-closed for privacy). In particular,
+///   if Canvas re-encoded bytes still carry any marker detected by
+///   [containsMetadataMarkers], the function returns `null` instead of
+///   surfacing bytes that may leak EXIF/XMP.
 ///
-/// Supported `contentType`:
-/// - `image/jpeg`, `image/png`, `image/webp`: Canvas re-encode
-/// - `image/gif`: accepted only if no Application / Comment Extension
-///   blocks are present (those can carry XMP with GPS; Canvas would
-///   flatten animation, so we reject rather than re-encode)
-/// - other: rejected (fail-closed)
+/// Platform behaviour:
+/// - Web: Canvas re-encode strips all metadata from JPEG / PNG / WebP; GIFs
+///   are passed through only if no Application / Comment Extension blocks
+///   are present (Canvas would flatten animation, so we reject rather than
+///   re-encode).
+/// - Native: `image_picker`'s `imageQuality` re-encoding only strips EXIF
+///   from **JPEG**. To stay fail-closed, PNG / WebP / HEIC are rejected on
+///   native until explicit sanitization via the `image` package lands
+///   (Issue #227). JPEG pass-through requires callers to clamp
+///   `imageQuality` to 1-85; GIF is checked for metadata blocks.
 Future<({Uint8List bytes, String contentType})?> sanitizeImageMetadata(
   Uint8List bytes, {
   required String contentType,
   double quality = 0.85,
 }) async {
-  // Native: rely on image_picker's re-encoding (callers clamp quality).
-  if (!kIsWeb) return (bytes: bytes, contentType: contentType);
+  if (!kIsWeb) {
+    // JPEG: image_picker's imageQuality (clamped to 1-85 by callers) forces
+    // re-encoding, which drops EXIF.
+    if (contentType == 'image/jpeg') {
+      return (bytes: bytes, contentType: contentType);
+    }
+    // GIF: same metadata-block check as Web (no re-encoding possible).
+    if (contentType == 'image/gif') {
+      if (gifContainsMetadataBlocks(bytes)) return null;
+      return (bytes: bytes, contentType: contentType);
+    }
+    // PNG / WebP / HEIC / other: no reliable native path yet — reject rather
+    // than silently upload images that may carry GPS. Tracked in Issue #227.
+    return null;
+  }
 
   if (contentType == 'image/gif') {
     if (gifContainsMetadataBlocks(bytes)) return null;

@@ -10,7 +10,7 @@ void main() {
   // with exiftool (see PR description). Here we test the metadata
   // detection helpers and GIF-rejection logic, which are platform-agnostic.
 
-  group('sanitizeImageMetadata rejection paths', () {
+  group('sanitizeImageMetadata rejection paths (platform-agnostic)', () {
     test('rejects unsupported contentType', () async {
       final bytes = Uint8List.fromList([0x00, 0x01, 0x02, 0x03]);
       final result = await sanitizeImageMetadata(
