@@ -70,7 +70,12 @@ Phase 0 リリースまでのタスク一覧。随時更新し、進捗を追跡
 - [ ] OGP 自動リフレッシュ（Issue #191 — 投稿後の遅延再取得）
 
 ### 2.3 EXIF メタデータ除去（Idea 022 Recommended）
-- [ ] 写真アップロード時に GPS 座標等を自動除去（子どものプライバシー保護）
+- [x] 写真アップロード時に GPS 座標等を自動除去（子どものプライバシー保護）
+  - Web: Canvas API 再エンコードで EXIF/XMP/IPTC を除去（`lib/utils/image_sanitizer.dart`）
+  - Native: `image_picker` の `imageQuality` を 1-85 にクランプして再エンコード強制
+  - GIF: メタデータブロック（Application/Comment Extension）含有時はアップロード拒否
+  - 手動検証: `exiftool` でアップロード後の R2 ファイルに GPS/カメラ情報が残っていないこと
+  - ネイティブの明示的サニタイズ（`image` パッケージ）は Phase 1 Issue で対応
 
 ### 2.4 HEIC サポート改善
 - [ ] HEIC 画像のブラウザ互換性改善（Issue #146）
@@ -168,4 +173,4 @@ Phase 0 リリースまでのタスク一覧。随時更新し、進捗を追跡
 
 ---
 
-*最終更新: 2026-04-17*
+*最終更新: 2026-04-21*

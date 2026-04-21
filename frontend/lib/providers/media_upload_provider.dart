@@ -11,10 +11,18 @@ import '../graphql/mutations/media.dart';
 import '../models/post.dart' show MediaType;
 import '../utils/media_limits.dart';
 import '../utils/heic_converter.dart';
+import '../utils/image_sanitizer.dart';
 import '../utils/video_thumbnail.dart';
 import '../utils/audio_duration.dart';
 import '../utils/web_file_picker.dart';
 import 'disposable_notifier.dart';
+
+typedef ImageSanitizer =
+    Future<({Uint8List bytes, String contentType})?> Function(
+      Uint8List bytes, {
+      required String contentType,
+      double quality,
+    });
 
 enum UploadCategory { avatars, covers, media }
 
@@ -113,17 +121,29 @@ bool _matchesAt(Uint8List data, int offset, List<int> pattern) {
 
 final httpClientProvider = Provider<http.Client>((ref) => http.Client());
 
+/// DI for image EXIF / XMP metadata sanitization (allows test override).
+final imageSanitizerProvider = Provider<ImageSanitizer>(
+  (ref) => sanitizeImageMetadata,
+);
+
+/// Maximum JPEG/WebP quality passed to image_picker. Above 85 some platforms
+/// skip re-encoding, which would leave EXIF intact. Clamping here enforces
+/// re-encoding regardless of caller-provided quality.
+const _maxImageQuality = 85;
+
 // ── Notifier ──
 
 class MediaUploadNotifier extends Notifier<MediaUploadState>
     with DisposableNotifier<MediaUploadState> {
   late GraphQLClient _gqlClient;
   late http.Client _httpClient;
+  late ImageSanitizer _sanitizer;
 
   @override
   MediaUploadState build() {
     _gqlClient = ref.watch(graphqlClientProvider);
     _httpClient = ref.watch(httpClientProvider);
+    _sanitizer = ref.watch(imageSanitizerProvider);
     initDisposable();
     return const MediaUploadState();
   }
@@ -144,7 +164,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         source: source,
         maxWidth: maxWidth ?? 1280,
         maxHeight: maxHeight ?? 1280,
-        imageQuality: imageQuality ?? 75,
+        imageQuality: (imageQuality ?? 75).clamp(1, _maxImageQuality),
       );
 
       if (picked == null) return null;
@@ -165,11 +185,11 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       // HEIC/HEIF: convert to JPEG via browser Canvas API (works on Safari).
       // On iOS/Android native, image_picker already converts to JPEG, so
       // this branch only triggers on Web when a raw .heic file is selected.
+      // Canvas re-encoding already strips EXIF, so we skip the sanitizer
+      // pass below to avoid double-encoding quality loss.
+      var heicConverted = false;
       if (contentType == 'image/heic' || contentType == 'image/heif') {
         if (!kIsWeb) {
-          // convertHeicToJpeg uses dart:js_interop (Web-only).
-          // On native platforms, image_picker should already return JPEG.
-          // If HEIC bytes reach here on native, reject rather than upload raw HEIC.
           state = const MediaUploadState(
             error:
                 'HEIC format is not supported. Please select a JPEG or PNG image.',
@@ -187,6 +207,26 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         }
         uploadBytes = jpegBytes;
         contentType = 'image/jpeg';
+        heicConverted = true;
+      }
+
+      // Strip EXIF / XMP metadata before upload. Must run BEFORE _upload()
+      // because the R2 presigned URL signs ContentLength; sanitizing inside
+      // _upload() would produce SignatureDoesNotMatch errors.
+      if (!heicConverted) {
+        final sanitized = await _sanitizer(
+          uploadBytes,
+          contentType: contentType,
+        );
+        if (disposed) return null;
+        if (sanitized == null) {
+          state = const MediaUploadState(
+            error: 'Could not process image. Please try another file.',
+          );
+          return null;
+        }
+        uploadBytes = sanitized.bytes;
+        contentType = sanitized.contentType;
       }
 
       return await _upload(
@@ -222,7 +262,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       final picked = await picker.pickMultiImage(
         maxWidth: maxWidth ?? 1280,
         maxHeight: maxHeight ?? 1280,
-        imageQuality: imageQuality ?? 75,
+        imageQuality: (imageQuality ?? 75).clamp(1, _maxImageQuality),
       );
 
       if (picked.isEmpty) return null;
@@ -251,7 +291,10 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
           return null;
         }
 
-        // HEIC/HEIF: convert to JPEG (Web only)
+        // HEIC/HEIF: convert to JPEG (Web only). Canvas re-encoding already
+        // strips EXIF, so skip the sanitizer pass for this branch to avoid
+        // double-encoding quality loss.
+        var heicConverted = false;
         if (contentType == 'image/heic' || contentType == 'image/heif') {
           if (!kIsWeb) {
             state = const MediaUploadState(
@@ -271,6 +314,27 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
           }
           uploadBytes = jpegBytes;
           contentType = 'image/jpeg';
+          heicConverted = true;
+        }
+
+        // Strip EXIF / XMP metadata before upload. Must run BEFORE _upload()
+        // because the R2 presigned URL signs ContentLength. If sanitization
+        // fails here, previously uploaded images in `urls` become R2 orphans
+        // (same semantics as existing HEIC conversion failure).
+        if (!heicConverted) {
+          final sanitized = await _sanitizer(
+            uploadBytes,
+            contentType: contentType,
+          );
+          if (disposed) return null;
+          if (sanitized == null) {
+            state = const MediaUploadState(
+              error: 'Could not process image. Please try another file.',
+            );
+            return null;
+          }
+          uploadBytes = sanitized.bytes;
+          contentType = sanitized.contentType;
         }
 
         final url = await _upload(
