@@ -11,6 +11,7 @@ import {
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
 import { TrackType } from "./track.js";
+import type { PublicUserShape } from "./user.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 import { computeContentHash, verifySignature } from "../../auth/signing.js";
 import {
@@ -115,6 +116,11 @@ type PostShape = {
     updatedAt: Date;
   } | null;
   _media?: { id: string; mediaUrl: string; position: number }[];
+  // Prefetched via INNER JOIN in list resolvers to eliminate N+1 (#180).
+  // INNER JOIN is safe: authorId is NOT NULL with ON DELETE CASCADE,
+  // so orphan posts cannot exist. Always uses publicUserColumns projection
+  // to avoid leaking passwordHash / email / publicKey on JOIN.
+  _author?: PublicUserShape;
 };
 
 type PostMediaShape = {
@@ -245,6 +251,11 @@ PostType.implement({
     author: t.field({
       type: PublicUserType,
       resolve: async (post) => {
+        // Use pre-fetched author from JOIN if available (N+1 prevention)
+        if (post._author) return post._author;
+        // Fallback for mutation return paths (createPost/updatePost/deletePost)
+        // where the post is fetched without a users JOIN. authorId is NOT NULL
+        // with ON DELETE CASCADE, so orphan rows are not expected in practice.
         const [user] = await db
           .select(publicUserColumns)
           .from(users)
@@ -1288,11 +1299,16 @@ builder.queryFields((t) => ({
         : eq(posts.visibility, "public");
 
       const rows = await db
-        .select({ post: posts, track: tracks })
+        .select({ post: posts, track: tracks, author: publicUserColumns })
         .from(posts)
         .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
+        .innerJoin(users, eq(posts.authorId, users.id))
         .where(and(eq(tracks.id, args.trackId), visibilityFilter));
-      const results = rows.map((r) => ({ ...r.post, _track: r.track }));
+      const results = rows.map((r) => ({
+        ...r.post,
+        _track: r.track,
+        _author: r.author,
+      }));
       await attachPostMedia(results);
       return results;
     },
@@ -1311,16 +1327,21 @@ builder.queryFields((t) => ({
       }
 
       const limit = Math.max(1, Math.min(args.limit ?? 50, 100));
+      // Explicit projection + users JOIN. authorId always equals ctx.authUser
+      // so _author could be built from ctx, but keeping the JOIN for
+      // consistency with other list resolvers and future co-author support.
       const rows = await db
-        .select()
+        .select({ post: posts, author: publicUserColumns })
         .from(posts)
+        .innerJoin(users, eq(posts.authorId, users.id))
         .where(
           and(eq(posts.authorId, ctx.authUser.userId), isNull(posts.trackId)),
         )
         .orderBy(desc(posts.createdAt))
         .limit(limit);
-      await attachPostMedia(rows);
-      return rows;
+      const results = rows.map((r) => ({ ...r.post, _author: r.author }));
+      await attachPostMedia(results);
+      return results;
     },
   }),
 
@@ -1343,13 +1364,18 @@ builder.queryFields((t) => ({
 
       const limit = Math.max(1, Math.min(args.limit ?? 5, 10));
       const rows = await db
-        .select({ post: posts, track: tracks })
+        .select({ post: posts, track: tracks, author: publicUserColumns })
         .from(posts)
         .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
+        .innerJoin(users, eq(posts.authorId, users.id))
         .where(and(eq(tracks.artistId, args.artistId), visibilityFilter))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
-      const results = rows.map((r) => ({ ...r.post, _track: r.track }));
+      const results = rows.map((r) => ({
+        ...r.post,
+        _track: r.track,
+        _author: r.author,
+      }));
       await attachPostMedia(results);
       return results;
     },
@@ -1372,13 +1398,18 @@ builder.objectFields(ArtistType, (t) => ({
 
       const limit = Math.max(1, Math.min(args.limit ?? 5, 10));
       const rows = await db
-        .select({ post: posts, track: tracks })
+        .select({ post: posts, track: tracks, author: publicUserColumns })
         .from(posts)
         .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
+        .innerJoin(users, eq(posts.authorId, users.id))
         .where(and(eq(tracks.artistId, artist.id), visibilityFilter))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
-      const results = rows.map((r) => ({ ...r.post, _track: r.track }));
+      const results = rows.map((r) => ({
+        ...r.post,
+        _track: r.track,
+        _author: r.author,
+      }));
       await attachPostMedia(results);
       return results;
     },
@@ -1397,10 +1428,15 @@ builder.objectFields(TrackType, (t) => ({
         : eq(posts.visibility, "public");
 
       const rows = await db
-        .select()
+        .select({ post: posts, author: publicUserColumns })
         .from(posts)
+        .innerJoin(users, eq(posts.authorId, users.id))
         .where(and(sql`${posts.trackId} = ${track.id}`, visibilityFilter));
-      const results = rows.map((r) => ({ ...r, _track: track }));
+      const results = rows.map((r) => ({
+        ...r.post,
+        _track: track,
+        _author: r.author,
+      }));
       await attachPostMedia(results);
       return results;
     },
