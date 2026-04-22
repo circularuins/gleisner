@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../graphql/client.dart';
 import '../graphql/mutations/media.dart';
+import '../l10n/l10n.dart';
 import '../models/post.dart' show MediaType;
 import '../utils/media_limits.dart';
 import '../utils/heic_converter.dart';
@@ -151,6 +152,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
   /// Pick an image and upload to R2.
   Future<String?> pickAndUploadImage({
     required UploadCategory category,
+    required AppLocalizations l10n,
     ImageSource source = ImageSource.gallery,
     double? maxWidth,
     double? maxHeight,
@@ -173,20 +175,19 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       final bytes = await picked.readAsBytes();
       if (disposed) return null;
 
-      final prepared = await _prepareImageBytes(bytes);
+      final prepared = await _prepareImageBytes(bytes, l10n: l10n);
       if (prepared == null) return null;
 
       return await _upload(
         category: category,
         bytes: prepared.bytes,
         contentType: prepared.contentType,
+        l10n: l10n,
       );
     } catch (e) {
       debugPrint('[MediaUpload] pickAndUploadImage error: $e');
       if (!disposed) {
-        state = const MediaUploadState(
-          error: 'Failed to upload image. Please try again.',
-        );
+        state = MediaUploadState(error: l10n.uploadImageFailed);
       }
       return null;
     }
@@ -197,6 +198,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
   /// Uploads are sequential to maintain accurate isUploading state.
   Future<List<String>?> pickAndUploadMultipleImages({
     required UploadCategory category,
+    required AppLocalizations l10n,
     int maxCount = maxImagesPerPost,
     double? maxWidth,
     double? maxHeight,
@@ -216,7 +218,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       if (disposed) return null;
 
       if (picked.length > maxCount) {
-        state = MediaUploadState(error: 'Maximum $maxCount images allowed.');
+        state = MediaUploadState(error: l10n.maxImagesAllowed(maxCount));
         return null;
       }
 
@@ -232,13 +234,14 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         // If sanitization fails mid-loop, previously uploaded images in
         // `urls` become R2 orphans (same semantics as HEIC conversion
         // failure in pickAndUploadImage).
-        final prepared = await _prepareImageBytes(bytes);
+        final prepared = await _prepareImageBytes(bytes, l10n: l10n);
         if (prepared == null) return null;
 
         final url = await _upload(
           category: category,
           bytes: prepared.bytes,
           contentType: prepared.contentType,
+          l10n: l10n,
         );
         if (url == null) return null;
         urls.add(url);
@@ -254,9 +257,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     } catch (e) {
       debugPrint('[MediaUpload] pickAndUploadMultipleImages error: $e');
       if (!disposed) {
-        state = const MediaUploadState(
-          error: 'Failed to upload images. Please try again.',
-        );
+        state = MediaUploadState(error: l10n.uploadImagesFailed);
       }
       return null;
     }
@@ -265,7 +266,10 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
   /// Pick a video via image_picker and upload to R2.
   /// Returns (videoUrl, thumbnailUrl, durationSeconds) on success, null on failure.
   Future<({String videoUrl, String? thumbnailUrl, int? durationSeconds})?>
-  pickAndUploadVideo({required UploadCategory category}) async {
+  pickAndUploadVideo({
+    required UploadCategory category,
+    required AppLocalizations l10n,
+  }) async {
     if (state.isUploading) return null;
 
     try {
@@ -282,9 +286,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       if (contentType == null ||
           !(contentType.startsWith('video/') ||
               contentType.startsWith('audio/'))) {
-        state = const MediaUploadState(
-          error: 'Unsupported video format. Use MP4 or WebM.',
-        );
+        state = MediaUploadState(error: l10n.unsupportedVideoFormat);
         return null;
       }
 
@@ -303,10 +305,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       // Block upload if duration is unknown — cannot verify limit (ADR 025)
       if (durationSeconds == null) {
         if (!disposed) {
-          state = const MediaUploadState(
-            error:
-                'Could not determine video duration. Please try another file.',
-          );
+          state = MediaUploadState(error: l10n.videoDurationUnknown);
         }
         return null;
       }
@@ -315,8 +314,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       if (durationSeconds > maxVideoDurationSeconds) {
         if (!disposed) {
           state = MediaUploadState(
-            error:
-                'Video must be ${maxVideoDurationSeconds ~/ 60} minute or shorter.',
+            error: l10n.videoTooLong(maxVideoDurationSeconds ~/ 60),
           );
         }
         return null;
@@ -327,6 +325,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         category: category,
         bytes: bytes,
         contentType: contentType,
+        l10n: l10n,
       );
       if (videoUrl == null) return null;
       if (disposed) return null;
@@ -338,6 +337,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
           category: category,
           bytes: thumbnailBytes,
           contentType: 'image/jpeg',
+          l10n: l10n,
         );
       }
 
@@ -349,9 +349,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     } catch (e) {
       debugPrint('[MediaUpload] pickAndUploadVideo error: $e');
       if (!disposed) {
-        state = const MediaUploadState(
-          error: 'Failed to upload video. Please try again.',
-        );
+        state = MediaUploadState(error: l10n.uploadVideoFailed);
       }
       return null;
     }
@@ -361,6 +359,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
   /// Returns (audioUrl, durationSeconds) on success, null on failure.
   Future<({String audioUrl, int? durationSeconds})?> pickAndUploadAudio({
     required UploadCategory category,
+    required AppLocalizations l10n,
   }) async {
     if (state.isUploading) return null;
 
@@ -376,9 +375,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
 
       final contentType = mimeFromBytes(bytes);
       if (contentType == null || !contentType.startsWith('audio/')) {
-        state = const MediaUploadState(
-          error: 'Unsupported audio format. Use MP3, M4A, OGG, or WebM.',
-        );
+        state = MediaUploadState(error: l10n.unsupportedAudioFormat);
         return null;
       }
 
@@ -392,10 +389,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       // Block upload if duration is unknown — cannot verify limit (ADR 025)
       if (durationSeconds == null) {
         if (!disposed) {
-          state = const MediaUploadState(
-            error:
-                'Could not determine audio duration. Please try another file.',
-          );
+          state = MediaUploadState(error: l10n.audioDurationUnknown);
         }
         return null;
       }
@@ -404,8 +398,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       if (durationSeconds > maxAudioDurationSeconds) {
         if (!disposed) {
           state = MediaUploadState(
-            error:
-                'Audio must be ${maxAudioDurationSeconds ~/ 60} minutes or shorter.',
+            error: l10n.audioTooLong(maxAudioDurationSeconds ~/ 60),
           );
         }
         return null;
@@ -416,6 +409,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         category: category,
         bytes: bytes,
         contentType: contentType,
+        l10n: l10n,
       );
       if (disposed || url == null) return null;
 
@@ -423,9 +417,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     } catch (e) {
       debugPrint('[MediaUpload] pickAndUploadAudio error: $e');
       if (!disposed) {
-        state = const MediaUploadState(
-          error: 'Failed to upload audio. Please try again.',
-        );
+        state = MediaUploadState(error: l10n.uploadAudioFailed);
       }
       return null;
     }
@@ -441,13 +433,12 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
   /// Returns null if the caller should abort (either disposed or an error
   /// is already surfaced via `state`).
   Future<({Uint8List bytes, String contentType})?> _prepareImageBytes(
-    Uint8List bytes,
-  ) async {
+    Uint8List bytes, {
+    required AppLocalizations l10n,
+  }) async {
     final detected = mimeFromBytes(bytes);
     if (detected == null || !detected.startsWith('image/')) {
-      state = const MediaUploadState(
-        error: 'Unsupported image format. Use JPEG, PNG, WebP, or HEIC.',
-      );
+      state = MediaUploadState(error: l10n.unsupportedImageFormat);
       return null;
     }
 
@@ -457,19 +448,13 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     // so we skip the sanitizer pass to avoid double-encoding quality loss.
     if (detected == 'image/heic' || detected == 'image/heif') {
       if (!kIsWeb) {
-        state = const MediaUploadState(
-          error:
-              'HEIC format is not supported. Please select a JPEG or PNG image.',
-        );
+        state = MediaUploadState(error: l10n.heicNotSupported);
         return null;
       }
       final jpegBytes = await convertHeicToJpeg(bytes);
       if (disposed) return null;
       if (jpegBytes == null) {
-        state = const MediaUploadState(
-          error:
-              'Could not convert HEIC image. Try using Safari, or convert to JPEG first.',
-        );
+        state = MediaUploadState(error: l10n.heicConversionFailed);
         return null;
       }
       return (bytes: jpegBytes, contentType: 'image/jpeg');
@@ -478,9 +463,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     final sanitized = await _sanitizer(bytes, contentType: detected);
     if (disposed) return null;
     if (sanitized == null) {
-      state = const MediaUploadState(
-        error: 'Could not process image. Please try another file.',
-      );
+      state = MediaUploadState(error: l10n.imageProcessingFailed);
       return null;
     }
     return sanitized;
@@ -490,6 +473,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     required UploadCategory category,
     required Uint8List bytes,
     required String contentType,
+    required AppLocalizations l10n,
   }) async {
     if (disposed) return null;
     state = const MediaUploadState(isUploading: true, progress: 0);
@@ -512,17 +496,13 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         '[MediaUpload] getUploadUrl error: '
         '${mutationResult.exception?.graphqlErrors.firstOrNull?.message}',
       );
-      state = const MediaUploadState(
-        error: 'Failed to prepare upload. Please try again.',
-      );
+      state = MediaUploadState(error: l10n.uploadPreparationFailed);
       return null;
     }
 
     final data = mutationResult.data?['getUploadUrl'] as Map<String, dynamic>?;
     if (data == null) {
-      state = const MediaUploadState(
-        error: 'Failed to prepare upload. Please try again.',
-      );
+      state = MediaUploadState(error: l10n.uploadPreparationFailed);
       return null;
     }
 
@@ -533,9 +513,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
       debugPrint(
         '[MediaUpload] URL validation failed: $uploadUrl / $publicUrl',
       );
-      state = const MediaUploadState(
-        error: 'Failed to prepare upload. Please try again.',
-      );
+      state = MediaUploadState(error: l10n.uploadPreparationFailed);
       return null;
     }
 
@@ -554,9 +532,7 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
 
     if (response.statusCode != 200) {
       debugPrint('[MediaUpload] R2 PUT failed: ${response.statusCode}');
-      state = const MediaUploadState(
-        error: 'Failed to upload file. Please try again.',
-      );
+      state = MediaUploadState(error: l10n.uploadFileFailed);
       return null;
     }
 
@@ -573,12 +549,16 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
   /// Convenience method to pick and upload based on media type.
   /// Returns ({mediaUrl, thumbnailUrl, durationSeconds}) for all types.
   /// Centralizes the pick logic so create_post and edit_post don't duplicate.
+  ///
+  /// `l10n` is required because image/video/audio branches all surface
+  /// localized errors. The `default` branch never uses it.
   Future<({String mediaUrl, String? thumbnailUrl, int? durationSeconds})?>
-  pickByMediaType(MediaType mediaType) async {
+  pickByMediaType(MediaType mediaType, {required AppLocalizations l10n}) async {
     switch (mediaType) {
       case MediaType.image:
         final url = await pickAndUploadImage(
           category: UploadCategory.media,
+          l10n: l10n,
           maxWidth: 1280,
           maxHeight: 1280,
           imageQuality: 75,
@@ -586,7 +566,10 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         if (url == null) return null;
         return (mediaUrl: url, thumbnailUrl: null, durationSeconds: null);
       case MediaType.video:
-        final result = await pickAndUploadVideo(category: UploadCategory.media);
+        final result = await pickAndUploadVideo(
+          category: UploadCategory.media,
+          l10n: l10n,
+        );
         if (result == null) return null;
         return (
           mediaUrl: result.videoUrl,
@@ -594,7 +577,10 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
           durationSeconds: result.durationSeconds,
         );
       case MediaType.audio:
-        final result = await pickAndUploadAudio(category: UploadCategory.media);
+        final result = await pickAndUploadAudio(
+          category: UploadCategory.media,
+          l10n: l10n,
+        );
         if (result == null) return null;
         return (
           mediaUrl: result.audioUrl,

@@ -1885,6 +1885,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'hero moment'**
   String get heroMoment;
+
+  /// No description provided for @mediaDurationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {minutes} min'**
+  String mediaDurationHint(int minutes);
+
+  /// No description provided for @mediaImageCountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {count} images'**
+  String mediaImageCountHint(int count);
+
+  /// No description provided for @uploadImageFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload image. Please try again.'**
+  String get uploadImageFailed;
+
+  /// No description provided for @uploadImagesFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload images. Please try again.'**
+  String get uploadImagesFailed;
+
+  /// No description provided for @uploadVideoFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload video. Please try again.'**
+  String get uploadVideoFailed;
+
+  /// No description provided for @uploadAudioFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload audio. Please try again.'**
+  String get uploadAudioFailed;
+
+  /// No description provided for @uploadFileFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload file. Please try again.'**
+  String get uploadFileFailed;
+
+  /// No description provided for @uploadPreparationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to prepare upload. Please try again.'**
+  String get uploadPreparationFailed;
+
+  /// No description provided for @maxImagesAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum {count} images allowed.'**
+  String maxImagesAllowed(int count);
+
+  /// No description provided for @unsupportedVideoFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported video format. Use MP4 or WebM.'**
+  String get unsupportedVideoFormat;
+
+  /// No description provided for @unsupportedAudioFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported audio format. Use MP3, M4A, OGG, or WebM.'**
+  String get unsupportedAudioFormat;
+
+  /// No description provided for @unsupportedImageFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported image format. Use JPEG, PNG, WebP, or HEIC.'**
+  String get unsupportedImageFormat;
+
+  /// No description provided for @videoTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Video must be {minutes} minute or shorter.'**
+  String videoTooLong(int minutes);
+
+  /// No description provided for @audioTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio must be {minutes} minutes or shorter.'**
+  String audioTooLong(int minutes);
+
+  /// No description provided for @videoDurationUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not determine video duration. Please try another file.'**
+  String get videoDurationUnknown;
+
+  /// No description provided for @audioDurationUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not determine audio duration. Please try another file.'**
+  String get audioDurationUnknown;
+
+  /// No description provided for @heicNotSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'HEIC format is not supported. Please select a JPEG or PNG image.'**
+  String get heicNotSupported;
+
+  /// No description provided for @heicConversionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not convert HEIC image. Try using Safari, or convert to JPEG first.'**
+  String get heicConversionFailed;
+
+  /// No description provided for @imageProcessingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not process image. Please try another file.'**
+  String get imageProcessingFailed;
 }
 
 class _AppLocalizationsDelegate

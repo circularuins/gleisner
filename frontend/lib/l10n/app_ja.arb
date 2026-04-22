@@ -324,5 +324,25 @@
   "removeConstellationDescription": "投稿は残りますが、コンステレーションのグループ化が解除されます。",
   "view": "表示",
   "quietNote": "ささやかなメモ",
-  "heroMoment": "ハイライト"
+  "heroMoment": "ハイライト",
+
+  "mediaDurationHint": "最大{minutes}分",
+  "mediaImageCountHint": "最大{count}枚",
+  "uploadImageFailed": "画像のアップロードに失敗しました。再試行してください。",
+  "uploadImagesFailed": "画像のアップロードに失敗しました。再試行してください。",
+  "uploadVideoFailed": "動画のアップロードに失敗しました。再試行してください。",
+  "uploadAudioFailed": "音声のアップロードに失敗しました。再試行してください。",
+  "uploadFileFailed": "ファイルのアップロードに失敗しました。再試行してください。",
+  "uploadPreparationFailed": "アップロードの準備に失敗しました。再試行してください。",
+  "maxImagesAllowed": "画像は最大{count}枚までです。",
+  "unsupportedVideoFormat": "対応していない動画形式です。MP4 または WebM を使用してください。",
+  "unsupportedAudioFormat": "対応していない音声形式です。MP3、M4A、OGG、WebM のいずれかを使用してください。",
+  "unsupportedImageFormat": "対応していない画像形式です。JPEG、PNG、WebP、HEIC のいずれかを使用してください。",
+  "videoTooLong": "動画は{minutes}分以内にしてください。",
+  "audioTooLong": "音声は{minutes}分以内にしてください。",
+  "videoDurationUnknown": "動画の長さを確認できませんでした。別のファイルをお試しください。",
+  "audioDurationUnknown": "音声の長さを確認できませんでした。別のファイルをお試しください。",
+  "heicNotSupported": "HEIC 形式には対応していません。JPEG または PNG を選択してください。",
+  "heicConversionFailed": "HEIC 画像を変換できませんでした。Safari で再度お試しいただくか、先に JPEG に変換してください。",
+  "imageProcessingFailed": "画像を処理できませんでした。別のファイルをお試しください。"
 }

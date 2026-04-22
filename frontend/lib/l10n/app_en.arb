@@ -343,5 +343,40 @@
   "removeConstellationDescription": "The posts will remain but the constellation grouping will be removed.",
   "view": "View",
   "quietNote": "quiet note",
-  "heroMoment": "hero moment"
+  "heroMoment": "hero moment",
+
+  "mediaDurationHint": "Up to {minutes} min",
+  "@mediaDurationHint": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "mediaImageCountHint": "Up to {count} images",
+  "@mediaImageCountHint": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "uploadImageFailed": "Failed to upload image. Please try again.",
+  "uploadImagesFailed": "Failed to upload images. Please try again.",
+  "uploadVideoFailed": "Failed to upload video. Please try again.",
+  "uploadAudioFailed": "Failed to upload audio. Please try again.",
+  "uploadFileFailed": "Failed to upload file. Please try again.",
+  "uploadPreparationFailed": "Failed to prepare upload. Please try again.",
+  "maxImagesAllowed": "Maximum {count} images allowed.",
+  "@maxImagesAllowed": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "unsupportedVideoFormat": "Unsupported video format. Use MP4 or WebM.",
+  "unsupportedAudioFormat": "Unsupported audio format. Use MP3, M4A, OGG, or WebM.",
+  "unsupportedImageFormat": "Unsupported image format. Use JPEG, PNG, WebP, or HEIC.",
+  "videoTooLong": "Video must be {minutes} minute or shorter.",
+  "@videoTooLong": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "audioTooLong": "Audio must be {minutes} minutes or shorter.",
+  "@audioTooLong": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "videoDurationUnknown": "Could not determine video duration. Please try another file.",
+  "audioDurationUnknown": "Could not determine audio duration. Please try another file.",
+  "heicNotSupported": "HEIC format is not supported. Please select a JPEG or PNG image.",
+  "heicConversionFailed": "Could not convert HEIC image. Try using Safari, or convert to JPEG first.",
+  "imageProcessingFailed": "Could not process image. Please try another file."
 }

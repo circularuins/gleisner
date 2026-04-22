@@ -883,10 +883,12 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
   }
 
   Future<void> _uploadAvatarImage(BuildContext context) async {
+    final l10n = context.l10n;
     final url = await ref
         .read(mediaUploadProvider.notifier)
         .pickAndUploadImage(
           category: UploadCategory.avatars,
+          l10n: l10n,
           maxWidth: 512,
           maxHeight: 512,
         );
@@ -897,10 +899,12 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
   }
 
   Future<void> _uploadCoverImage(BuildContext context) async {
+    final l10n = context.l10n;
     final url = await ref
         .read(mediaUploadProvider.notifier)
         .pickAndUploadImage(
           category: UploadCategory.covers,
+          l10n: l10n,
           maxWidth: 1280,
           maxHeight: 720,
         );

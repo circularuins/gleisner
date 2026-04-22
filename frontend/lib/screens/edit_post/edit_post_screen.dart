@@ -9,8 +9,9 @@ import 'package:go_router/go_router.dart';
 import '../../models/post.dart';
 import '../../models/track.dart';
 import '../../providers/media_upload_provider.dart';
-import '../../utils/media_limits.dart' show maxImagesPerPost;
+import '../../utils/media_limits.dart' show maxImagesPerPost, uploadHintFor;
 import '../../widgets/common/image_grid_widgets.dart';
+import '../../widgets/media/upload_placeholder.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
@@ -653,19 +654,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                 )
               : hasMedia
               ? _buildMediaPreview(mediaType)
-              : Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: colorSurface2,
-                    borderRadius: BorderRadius.circular(radiusLg),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      emptyIcon,
-                      size: 48,
-                      color: colorTextMuted.withValues(alpha: 0.4),
-                    ),
-                  ),
+              : UploadPlaceholderContent(
+                  icon: emptyIcon,
+                  hint: uploadHintFor(mediaType, context.l10n),
                 ),
         ),
       if (uploadState.error != null) ...[
@@ -944,9 +935,10 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   }
 
   Future<void> _replaceMedia() async {
+    final l10n = context.l10n;
     final result = await ref
         .read(mediaUploadProvider.notifier)
-        .pickByMediaType(widget.post.mediaType);
+        .pickByMediaType(widget.post.mediaType, l10n: l10n);
     if (result != null && mounted) {
       setState(() {
         _mediaUrlController.text = result.mediaUrl;
@@ -1006,10 +998,12 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     final generation = ++_addImageGeneration;
     final remaining = maxImagesPerPost - _mediaUrls.length;
     if (remaining <= 0) return;
+    final l10n = context.l10n;
     final urls = await ref
         .read(mediaUploadProvider.notifier)
         .pickAndUploadMultipleImages(
           category: UploadCategory.media,
+          l10n: l10n,
           maxCount: remaining,
         );
     if (urls != null && mounted && generation == _addImageGeneration) {

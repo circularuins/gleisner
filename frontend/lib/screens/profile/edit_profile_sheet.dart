@@ -57,10 +57,12 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   }
 
   Future<void> _pickAvatar() async {
+    final l10n = context.l10n;
     final url = await ref
         .read(mediaUploadProvider.notifier)
         .pickAndUploadImage(
           category: UploadCategory.avatars,
+          l10n: l10n,
           maxWidth: 512,
           maxHeight: 512,
         );
