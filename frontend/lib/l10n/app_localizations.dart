@@ -1885,6 +1885,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'hero moment'**
   String get heroMoment;
+
+  /// Hint shown under the upload icon for video/audio posts, indicating the maximum duration in minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {minutes} min'**
+  String mediaDurationHint(int minutes);
+
+  /// Hint shown under the upload icon for image posts, indicating the maximum number of images allowed per post.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {count} images'**
+  String mediaImageCountHint(int count);
+
+  /// Generic failure message shown when a single image upload fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload image. Please try again.'**
+  String get uploadImageFailed;
+
+  /// Generic failure message shown when a multi-image upload fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload images. Please try again.'**
+  String get uploadImagesFailed;
+
+  /// Generic failure message shown when a video upload fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload video. Please try again.'**
+  String get uploadVideoFailed;
+
+  /// Generic failure message shown when an audio upload fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload audio. Please try again.'**
+  String get uploadAudioFailed;
+
+  /// Fallback upload failure message used when the media type is unknown (e.g. R2 PUT failed).
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload file. Please try again.'**
+  String get uploadFileFailed;
+
+  /// Shown when fetching a presigned upload URL fails (GraphQL error, URL validation, etc.).
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to prepare upload. Please try again.'**
+  String get uploadPreparationFailed;
+
+  /// Shown when the user selected more images than the per-post limit.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum {count} images allowed.'**
+  String maxImagesAllowed(int count);
+
+  /// Shown when the selected video file's magic bytes do not match any supported format.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported video format. Use MP4 or WebM.'**
+  String get unsupportedVideoFormat;
+
+  /// Shown when the selected audio file's magic bytes do not match any supported format.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported audio format. Use MP3, M4A, OGG, or WebM.'**
+  String get unsupportedAudioFormat;
+
+  /// Shown when the selected image file's magic bytes do not match any supported format.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported image format. Use JPEG, PNG, WebP, or HEIC.'**
+  String get unsupportedImageFormat;
+
+  /// Shown when the selected video exceeds the duration limit. Pluralizes the minute/minutes noun based on count.
+  ///
+  /// In en, this message translates to:
+  /// **'Video must be {minutes, plural, =1{1 minute} other{{minutes} minutes}} or shorter.'**
+  String videoTooLong(int minutes);
+
+  /// Shown when the selected audio exceeds the duration limit. Pluralizes the minute/minutes noun based on count.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio must be {minutes, plural, =1{1 minute} other{{minutes} minutes}} or shorter.'**
+  String audioTooLong(int minutes);
+
+  /// Shown when duration extraction fails for a video. Upload is blocked because the duration limit cannot be verified.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not determine video duration. Please try another file.'**
+  String get videoDurationUnknown;
+
+  /// Shown when duration extraction fails for an audio file. Upload is blocked because the duration limit cannot be verified.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not determine audio duration. Please try another file.'**
+  String get audioDurationUnknown;
+
+  /// Shown on native platforms (non-Web) when a HEIC image is selected. Canvas-based HEIC conversion only works on Web.
+  ///
+  /// In en, this message translates to:
+  /// **'HEIC format is not supported. Please select a JPEG or PNG image.'**
+  String get heicNotSupported;
+
+  /// Shown on Web when the browser fails to convert HEIC to JPEG via the Canvas API.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not convert HEIC image. Try using Safari, or convert to JPEG first.'**
+  String get heicConversionFailed;
+
+  /// Shown when the EXIF/XMP sanitizer fails on a selected image.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not process image. Please try another file.'**
+  String get imageProcessingFailed;
 }
 
 class _AppLocalizationsDelegate

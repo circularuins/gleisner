@@ -957,4 +957,84 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get heroMoment => 'ハイライト';
+
+  @override
+  String mediaDurationHint(int minutes) {
+    return '最大$minutes分';
+  }
+
+  @override
+  String mediaImageCountHint(int count) {
+    return '最大$count枚';
+  }
+
+  @override
+  String get uploadImageFailed => '画像のアップロードに失敗しました。再試行してください。';
+
+  @override
+  String get uploadImagesFailed => '画像のアップロードに失敗しました。再試行してください。';
+
+  @override
+  String get uploadVideoFailed => '動画のアップロードに失敗しました。再試行してください。';
+
+  @override
+  String get uploadAudioFailed => '音声のアップロードに失敗しました。再試行してください。';
+
+  @override
+  String get uploadFileFailed => 'ファイルのアップロードに失敗しました。再試行してください。';
+
+  @override
+  String get uploadPreparationFailed => 'アップロードの準備に失敗しました。再試行してください。';
+
+  @override
+  String maxImagesAllowed(int count) {
+    return '画像は最大$count枚までです。';
+  }
+
+  @override
+  String get unsupportedVideoFormat => '対応していない動画形式です。MP4 または WebM を使用してください。';
+
+  @override
+  String get unsupportedAudioFormat =>
+      '対応していない音声形式です。MP3、M4A、OGG、WebM のいずれかを使用してください。';
+
+  @override
+  String get unsupportedImageFormat =>
+      '対応していない画像形式です。JPEG、PNG、WebP、HEIC のいずれかを使用してください。';
+
+  @override
+  String videoTooLong(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes分',
+    );
+    return '動画は$_temp0以内にしてください。';
+  }
+
+  @override
+  String audioTooLong(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes分',
+    );
+    return '音声は$_temp0以内にしてください。';
+  }
+
+  @override
+  String get videoDurationUnknown => '動画の長さを確認できませんでした。別のファイルをお試しください。';
+
+  @override
+  String get audioDurationUnknown => '音声の長さを確認できませんでした。別のファイルをお試しください。';
+
+  @override
+  String get heicNotSupported => 'HEIC 形式には対応していません。JPEG または PNG を選択してください。';
+
+  @override
+  String get heicConversionFailed =>
+      'HEIC 画像を変換できませんでした。Safari で再度お試しいただくか、先に JPEG に変換してください。';
+
+  @override
+  String get imageProcessingFailed => '画像を処理できませんでした。別のファイルをお試しください。';
 }

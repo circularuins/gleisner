@@ -343,5 +343,87 @@
   "removeConstellationDescription": "The posts will remain but the constellation grouping will be removed.",
   "view": "View",
   "quietNote": "quiet note",
-  "heroMoment": "hero moment"
+  "heroMoment": "hero moment",
+
+  "mediaDurationHint": "Up to {minutes} min",
+  "@mediaDurationHint": {
+    "description": "Hint shown under the upload icon for video/audio posts, indicating the maximum duration in minutes.",
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "mediaImageCountHint": "Up to {count} images",
+  "@mediaImageCountHint": {
+    "description": "Hint shown under the upload icon for image posts, indicating the maximum number of images allowed per post.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "uploadImageFailed": "Failed to upload image. Please try again.",
+  "@uploadImageFailed": {
+    "description": "Generic failure message shown when a single image upload fails."
+  },
+  "uploadImagesFailed": "Failed to upload images. Please try again.",
+  "@uploadImagesFailed": {
+    "description": "Generic failure message shown when a multi-image upload fails."
+  },
+  "uploadVideoFailed": "Failed to upload video. Please try again.",
+  "@uploadVideoFailed": {
+    "description": "Generic failure message shown when a video upload fails."
+  },
+  "uploadAudioFailed": "Failed to upload audio. Please try again.",
+  "@uploadAudioFailed": {
+    "description": "Generic failure message shown when an audio upload fails."
+  },
+  "uploadFileFailed": "Failed to upload file. Please try again.",
+  "@uploadFileFailed": {
+    "description": "Fallback upload failure message used when the media type is unknown (e.g. R2 PUT failed)."
+  },
+  "uploadPreparationFailed": "Failed to prepare upload. Please try again.",
+  "@uploadPreparationFailed": {
+    "description": "Shown when fetching a presigned upload URL fails (GraphQL error, URL validation, etc.)."
+  },
+  "maxImagesAllowed": "Maximum {count} images allowed.",
+  "@maxImagesAllowed": {
+    "description": "Shown when the user selected more images than the per-post limit.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "unsupportedVideoFormat": "Unsupported video format. Use MP4 or WebM.",
+  "@unsupportedVideoFormat": {
+    "description": "Shown when the selected video file's magic bytes do not match any supported format."
+  },
+  "unsupportedAudioFormat": "Unsupported audio format. Use MP3, M4A, OGG, or WebM.",
+  "@unsupportedAudioFormat": {
+    "description": "Shown when the selected audio file's magic bytes do not match any supported format."
+  },
+  "unsupportedImageFormat": "Unsupported image format. Use JPEG, PNG, WebP, or HEIC.",
+  "@unsupportedImageFormat": {
+    "description": "Shown when the selected image file's magic bytes do not match any supported format."
+  },
+  "videoTooLong": "Video must be {minutes, plural, =1{1 minute} other{{minutes} minutes}} or shorter.",
+  "@videoTooLong": {
+    "description": "Shown when the selected video exceeds the duration limit. Pluralizes the minute/minutes noun based on count.",
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "audioTooLong": "Audio must be {minutes, plural, =1{1 minute} other{{minutes} minutes}} or shorter.",
+  "@audioTooLong": {
+    "description": "Shown when the selected audio exceeds the duration limit. Pluralizes the minute/minutes noun based on count.",
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "videoDurationUnknown": "Could not determine video duration. Please try another file.",
+  "@videoDurationUnknown": {
+    "description": "Shown when duration extraction fails for a video. Upload is blocked because the duration limit cannot be verified."
+  },
+  "audioDurationUnknown": "Could not determine audio duration. Please try another file.",
+  "@audioDurationUnknown": {
+    "description": "Shown when duration extraction fails for an audio file. Upload is blocked because the duration limit cannot be verified."
+  },
+  "heicNotSupported": "HEIC format is not supported. Please select a JPEG or PNG image.",
+  "@heicNotSupported": {
+    "description": "Shown on native platforms (non-Web) when a HEIC image is selected. Canvas-based HEIC conversion only works on Web."
+  },
+  "heicConversionFailed": "Could not convert HEIC image. Try using Safari, or convert to JPEG first.",
+  "@heicConversionFailed": {
+    "description": "Shown on Web when the browser fails to convert HEIC to JPEG via the Canvas API."
+  },
+  "imageProcessingFailed": "Could not process image. Please try another file.",
+  "@imageProcessingFailed": {
+    "description": "Shown when the EXIF/XMP sanitizer fails on a selected image."
+  }
 }

@@ -985,4 +985,92 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get heroMoment => 'hero moment';
+
+  @override
+  String mediaDurationHint(int minutes) {
+    return 'Up to $minutes min';
+  }
+
+  @override
+  String mediaImageCountHint(int count) {
+    return 'Up to $count images';
+  }
+
+  @override
+  String get uploadImageFailed => 'Failed to upload image. Please try again.';
+
+  @override
+  String get uploadImagesFailed => 'Failed to upload images. Please try again.';
+
+  @override
+  String get uploadVideoFailed => 'Failed to upload video. Please try again.';
+
+  @override
+  String get uploadAudioFailed => 'Failed to upload audio. Please try again.';
+
+  @override
+  String get uploadFileFailed => 'Failed to upload file. Please try again.';
+
+  @override
+  String get uploadPreparationFailed =>
+      'Failed to prepare upload. Please try again.';
+
+  @override
+  String maxImagesAllowed(int count) {
+    return 'Maximum $count images allowed.';
+  }
+
+  @override
+  String get unsupportedVideoFormat =>
+      'Unsupported video format. Use MP4 or WebM.';
+
+  @override
+  String get unsupportedAudioFormat =>
+      'Unsupported audio format. Use MP3, M4A, OGG, or WebM.';
+
+  @override
+  String get unsupportedImageFormat =>
+      'Unsupported image format. Use JPEG, PNG, WebP, or HEIC.';
+
+  @override
+  String videoTooLong(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '1 minute',
+    );
+    return 'Video must be $_temp0 or shorter.';
+  }
+
+  @override
+  String audioTooLong(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '1 minute',
+    );
+    return 'Audio must be $_temp0 or shorter.';
+  }
+
+  @override
+  String get videoDurationUnknown =>
+      'Could not determine video duration. Please try another file.';
+
+  @override
+  String get audioDurationUnknown =>
+      'Could not determine audio duration. Please try another file.';
+
+  @override
+  String get heicNotSupported =>
+      'HEIC format is not supported. Please select a JPEG or PNG image.';
+
+  @override
+  String get heicConversionFailed =>
+      'Could not convert HEIC image. Try using Safari, or convert to JPEG first.';
+
+  @override
+  String get imageProcessingFailed =>
+      'Could not process image. Please try another file.';
 }

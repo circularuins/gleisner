@@ -20,8 +20,9 @@ import '../../widgets/editor/rich_text_editor.dart';
 import '../../widgets/editor/text_body_counter.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../providers/media_upload_provider.dart';
-import '../../utils/media_limits.dart' show maxImagesPerPost;
+import '../../utils/media_limits.dart' show maxImagesPerPost, uploadHintFor;
 import '../../widgets/common/image_grid_widgets.dart';
+import '../../widgets/media/upload_placeholder.dart';
 import '../../widgets/timeline/seed_art_painter.dart';
 import '../../l10n/l10n.dart';
 
@@ -75,9 +76,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       await _pickMultipleImages(generation);
       return;
     }
+    final l10n = context.l10n;
     final result = await ref
         .read(mediaUploadProvider.notifier)
-        .pickByMediaType(mediaType);
+        .pickByMediaType(mediaType, l10n: l10n);
     // Discard result if user navigated away or switched media type
     if (result != null && mounted && generation == _pickMediaGeneration) {
       setState(() {
@@ -91,10 +93,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _pickMultipleImages(int generation) async {
     final remaining = maxImagesPerPost - _mediaUrls.length;
     if (remaining <= 0) return;
+    final l10n = context.l10n;
     final urls = await ref
         .read(mediaUploadProvider.notifier)
         .pickAndUploadMultipleImages(
           category: UploadCategory.media,
+          l10n: l10n,
           maxCount: remaining,
         );
     if (urls != null && mounted && generation == _pickMediaGeneration) {
@@ -960,19 +964,9 @@ class _FormStep extends ConsumerWidget {
               )
             : hasMedia
             ? _buildMediaPreview(context, mediaType)
-            : Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  color: colorSurface2,
-                  borderRadius: BorderRadius.circular(radiusLg),
-                ),
-                child: Center(
-                  child: Icon(
-                    icon,
-                    size: 48,
-                    color: colorTextMuted.withValues(alpha: 0.4),
-                  ),
-                ),
+            : UploadPlaceholderContent(
+                icon: icon,
+                hint: uploadHintFor(mediaType, context.l10n),
               ),
       ),
       if (uploadState.error != null) ...[
