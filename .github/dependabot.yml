@@ -9,6 +9,13 @@ updates:
     labels:
       - "dependencies"
       - "backend"
+    groups:
+      # AWS SDK packages share private types across modules and must be
+      # bumped together. Without grouping, a bump to @aws-sdk/client-s3
+      # alone breaks @aws-sdk/s3-request-presigner's type compatibility.
+      aws-sdk:
+        patterns:
+          - "@aws-sdk/*"
 
   # Frontend: pub (Flutter/Dart)
   - package-ecosystem: "pub"
