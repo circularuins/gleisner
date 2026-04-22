@@ -214,4 +214,13 @@ cd frontend && dart analyze lib/ && dart format --set-exit-if-changed . && flutt
 
 **`pnpm format:check` を忘れない。** `sed` 等でテストファイルを手動編集した後は特に注意。
 
+**`dart format` は PR スコープに限定すること。** `dart format .` や `dart format lib/` を実行するとリポジトリ全体の stale フォーマットを掃除してしまい、触っていないファイル（PR 対象外の `timeline_screen.dart` 等）が変更に含まれてレビュー対象が肥大化する。
+
+- PR 前の確認に `dart format --set-exit-if-changed .` を使うのは可（exit code だけ見て、実変更は commit しない）
+- 実際にフォーマットを適用するときは **変更ファイルを明示指定**: `dart format <file1> <file2> ...`
+- 既に他ファイルが reformat された場合は `git checkout -- <file>` で戻す
+- stale フォーマットを本気で掃除したい場合は、独立した PR（「既存 stale format の一括修正」）を起票して分離する
+
+PR #246 の教訓: `dart format --set-exit-if-changed .` のつもりで実体適用してしまい、無関係な 3 ファイルの reformat を PR から外すために 3 回 revert することになった。
+
 **`flutter test` は `--platform chrome` が必須。** `dart:js_interop` / `package:web/web.dart` を直接・推移的に import するテストは VM 上でコンパイルできず、`package:web` の `toJS`/`jsify` 等が「未定義」エラーになる。`heic_converter.dart` / `web_file_picker.dart` / `image_sanitizer.dart` 等を import する test（直接 import していなくても `media_upload_provider.dart` 経由で推移的に入る）は全て該当。`--platform chrome` なしで実行すると一見「テストが落ちた」ように見えるので、実行方法を疑う前にプラットフォームを確認する。
