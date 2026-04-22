@@ -209,7 +209,9 @@ yatima ルートの共通チェック（ビルド・リンター・テスト・d
 cd backend && pnpm build && pnpm lint && pnpm format:check && pnpm test
 
 # フロントエンド
-cd frontend && dart analyze lib/ && dart format --set-exit-if-changed . && flutter test
+cd frontend && dart analyze lib/ && dart format --set-exit-if-changed . && flutter test --platform chrome
 ```
 
 **`pnpm format:check` を忘れない。** `sed` 等でテストファイルを手動編集した後は特に注意。
+
+**`flutter test` は `--platform chrome` が必須。** `dart:js_interop` / `package:web/web.dart` を直接・推移的に import するテストは VM 上でコンパイルできず、`package:web` の `toJS`/`jsify` 等が「未定義」エラーになる。`heic_converter.dart` / `web_file_picker.dart` / `image_sanitizer.dart` 等を import する test（直接 import していなくても `media_upload_provider.dart` 経由で推移的に入る）は全て該当。`--platform chrome` なしで実行すると一見「テストが落ちた」ように見えるので、実行方法を疑う前にプラットフォームを確認する。
