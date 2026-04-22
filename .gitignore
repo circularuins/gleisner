@@ -63,3 +63,7 @@ build/
 
 # mise
 .mise/
+
+# Claude Code worktrees & temporary plans
+.claude/worktrees/
+.claude/plans/
