@@ -35,12 +35,124 @@
 
 **⚠ i18n 大量変更後は残存ハードコード英語を Grep で網羅チェックすること。**
 
+**ARB のトラップ集（PR #246 の教訓）**:
+
+- **`"format": "decimal"` は Flutter intl で無効**。`NumberFormat.decimal()` というコンストラクタが存在しないため、gen-l10n が `does not have a corresponding NumberFormat constructor` で落ちる。**`"type": "int"` だけを指定**すれば型安全性は確保できる（引数が `int` として生成される）。数値の表示書式を変えたい時だけ `"format": "compact" | "currency"` 等の有効値を使う。
+
+```json
+// ❌ gen-l10n がエラーで停止
+"@videoTooLong": {
+  "placeholders": { "minutes": { "type": "int", "format": "decimal" } }
+}
+
+// ✅ type のみで十分
+"@videoTooLong": {
+  "placeholders": { "minutes": { "type": "int" } }
+}
+```
+
+- **単複形がある言語は ICU plural 構文で書く**。placeholder 名を `minutes` にして文中を単数 `minute` で固定すると、値が 2 以上になった時に `"must be 5 minute or shorter"` のような文法崩壊が起きる。EN 側は `{minutes, plural, =1{1 minute} other{{minutes} minutes}}` で単複を明示。JA 側は単複区別がないが、**将来の plural 追加・他言語移植に備えて ICU 構文で揃える**（`{minutes, plural, other{{minutes}分}}`）。
+
+```json
+// ❌ 単数固定 — "must be 5 minute" で文法崩壊
+"videoTooLong": "Video must be {minutes} minute or shorter."
+
+// ✅ ICU plural
+"videoTooLong": "Video must be {minutes, plural, =1{1 minute} other{{minutes} minutes}} or shorter."
+```
+
+- **新規キーには必ず `@key` で `description` を書く**。翻訳者（将来の別言語追加、LLM 翻訳レビュー、i18n ベンダー）向けの文脈情報。「どんな状況で表示されるか」を 1 文で明記する。
+
+```json
+"@videoTooLong": {
+  "description": "Shown when the selected video exceeds the duration limit. Pluralizes the minute/minutes noun based on count.",
+  "placeholders": { "minutes": { "type": "int" } }
+}
+```
+
 PR #216 の教訓: 4つの並列エージェントで ~170 文字列を置換したが、共通ウィジェット内（`EventAtPicker`, `CoverImage`, `TutorialSpotlight`, `milestone_category.dart` の static リスト等）に多数の未翻訳が残り、11回のコミットで段階的に修正した。エージェントの「完了」報告を過信せず、以下のコマンドで確認すること:
 
 ```bash
 # lib/ 内のハードコード英語文字列を検索（debugPrint/import/comment 除外）
 grep -rn "'[A-Z][a-z]" lib/screens/ lib/widgets/ --include="*.dart" | grep -v debugPrint | grep -v import | grep -v "^\s*//"
 ```
+
+### enum に対する switch は全ケース明示（ワイルドカード禁止）
+
+**`enum` を switch で扱う時、`_ => ...` のワイルドカードを使わず全バリアントを列挙すること。** ワイルドカードを使うと、将来 enum に値を追加した時にコンパイラが警告を出さず、ヒント表示・バリデーション・認可チェックが静かに壊れる。
+
+```dart
+// ❌ ワイルドカード — MediaType.podcast を追加しても気づかない
+int? maxMinutesFor(MediaType m) => switch (m) {
+  MediaType.video => 1,
+  MediaType.audio => 5,
+  _ => null,
+};
+
+// ✅ 全ケース列挙 — 追加時に "pattern is not exhaustive" でコンパイラ警告
+int? maxMinutesFor(MediaType m) => switch (m) {
+  MediaType.video => 1,
+  MediaType.audio => 5,
+  MediaType.image ||
+  MediaType.thought ||
+  MediaType.article ||
+  MediaType.link => null,
+};
+```
+
+該当箇所: 新規 MediaType 値追加時のチェックリスト（backend-implementation.md「MediaType enum 値の追加/変更チェックリスト」）と対応。**switch の網羅性はコンパイラによる防御線**なので、ワイルドカードで崩さない。
+
+PR #246 の教訓: `uploadHintFor` / `maxMinutesFor` 初回実装でワイルドカードを使い、レビューで指摘されて exhaustive に修正。
+
+### Notifier の error state に解決済み文字列を入れない（i18n 化時の設計判断軸）
+
+**Notifier が発するエラーを i18n 化する時、`state.error: String?` に解決済み文字列を入れる実装は避けること。** `AppLocalizations` を Notifier メソッドに required 引数として渡すパターン（`validators_l10n.dart` 風）は単純だが、以下の設計負債を背負う:
+
+1. **ロケール動的切替で stale**: 日本語でエラー発生 → 言語を英語に切替 → 画面を再描画しても state には日本語の文字列が残ったまま
+2. **レイヤー越境**: Notifier が UI 層型（`AppLocalizations`）に依存 → バックグラウンドジョブ・テスト・AI 自動投稿等から呼びにくくなる
+3. **API 汚染**: ディスパッチ系メソッド（例: `pickByMediaType`）で一部の分岐が l10n を使わない場合でも、required 引数として常に要求される
+
+```dart
+// ❌ AppLocalizations を Notifier に流入（Option B）
+class FooNotifier {
+  Future<void> doSomething({
+    required String input,
+    required AppLocalizations l10n,  // UI 層概念が漏れる
+  }) async {
+    if (input.isEmpty) {
+      state = FooState(error: l10n.invalidInput);  // 解決済み文字列
+    }
+  }
+}
+
+// ✅ error code を state に保持（Option A）
+sealed class FooError {
+  String localize(AppLocalizations l10n);
+}
+
+class InvalidInput extends FooError {
+  const InvalidInput();
+  @override
+  String localize(AppLocalizations l10n) => l10n.invalidInput;
+}
+
+class FooNotifier {
+  Future<void> doSomething({required String input}) async {
+    if (input.isEmpty) {
+      state = const FooState(error: InvalidInput());
+    }
+  }
+}
+
+// UI 側で解決
+Text(state.error!.localize(context.l10n))
+```
+
+**例外（Option B が許容される場合）**:
+- **`validators_l10n.dart` のようなステートレス関数**: 呼び出し都度生成でエラーを返すだけ、state に保持しない。Option B で十分
+- **Phase 0 初期実装で時間が限られ、かつロケール切替 UX が未実装**: トレードオフを明記の上で Option B を採用し、Phase 1 で Option A に移行する Issue を起票する
+
+PR #246 の教訓: `MediaUploadNotifier` を `validators_l10n` パターンに追従して Option B で実装したが、レビュー信頼度 85 で「レイヤー越境 + stale 問題」を指摘され、Issue #248 で Option A 移行を追跡。次回 Notifier の i18n 化では最初から Option A を検討する。
 
 ### データ操作・ビジネスロジックは Provider/Notifier 層で
 
