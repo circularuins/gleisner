@@ -11,12 +11,19 @@ const maxAudioDurationSeconds = 300; // 5 minutes
 const maxImagesPerPost = 10;
 
 /// Returns the duration limit in whole minutes for media types that have one,
-/// or null for types without a duration limit (image, text, link, etc.).
+/// or null for types without a duration limit (image, thought, article, link).
 /// Used by pre-upload hint UI and error messages.
+///
+/// Enumerate every MediaType explicitly rather than using a wildcard so that
+/// adding a future variant (e.g. podcast, reel) triggers a compile-time
+/// warning here and forces an explicit decision about its limit.
 int? maxMinutesFor(MediaType mediaType) => switch (mediaType) {
   MediaType.video => maxVideoDurationSeconds ~/ 60,
   MediaType.audio => maxAudioDurationSeconds ~/ 60,
-  _ => null,
+  MediaType.image ||
+  MediaType.thought ||
+  MediaType.article ||
+  MediaType.link => null,
 };
 
 /// Hint text shown in the empty upload placeholder for a given media type.

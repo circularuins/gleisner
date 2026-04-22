@@ -1034,12 +1034,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String videoTooLong(int minutes) {
-    return 'Video must be $minutes minute or shorter.';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '1 minute',
+    );
+    return 'Video must be $_temp0 or shorter.';
   }
 
   @override
   String audioTooLong(int minutes) {
-    return 'Audio must be $minutes minutes or shorter.';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '1 minute',
+    );
+    return 'Audio must be $_temp0 or shorter.';
   }
 
   @override

@@ -1004,12 +1004,22 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String videoTooLong(int minutes) {
-    return '動画は$minutes分以内にしてください。';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes分',
+    );
+    return '動画は$_temp0以内にしてください。';
   }
 
   @override
   String audioTooLong(int minutes) {
-    return '音声は$minutes分以内にしてください。';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes分',
+    );
+    return '音声は$_temp0以内にしてください。';
   }
 
   @override

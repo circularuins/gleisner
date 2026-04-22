@@ -15,6 +15,7 @@ class UploadPlaceholderContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localHint = hint;
     return Container(
       height: 200,
       decoration: BoxDecoration(
@@ -26,12 +27,12 @@ class UploadPlaceholderContent extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 48, color: colorTextMuted.withValues(alpha: 0.4)),
-            if (hint != null) ...[
+            if (localHint != null) ...[
               const SizedBox(height: spaceSm),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: spaceMd),
                 child: Text(
-                  hint!,
+                  localHint,
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,

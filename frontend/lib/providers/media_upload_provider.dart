@@ -252,7 +252,9 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
         }
       }
 
-      state = const MediaUploadState();
+      if (!disposed) {
+        state = const MediaUploadState();
+      }
       return urls;
     } catch (e) {
       debugPrint('[MediaUpload] pickAndUploadMultipleImages error: $e');
