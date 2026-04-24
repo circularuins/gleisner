@@ -667,6 +667,84 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
         state = state.copyWith(highlightPostId: null);
       }
     });
+    _scheduleOgpRefreshIfNeeded(post);
+  }
+
+  /// Schedule a deferred OGP refresh for a freshly created link post when
+  /// the backend's fire-and-forget fetch hadn't completed by the time
+  /// createPost returned (#191). Fast sites (Instagram etc.) usually
+  /// populate OGP before the mutation response, so we only refresh when
+  /// every og* field is still null. A single attempt after 3s covers the
+  /// majority case; users can manually reload for slower sites.
+  @visibleForTesting
+  Future<void> scheduleOgpRefreshForTesting(
+    Post post, {
+    Duration delay = Duration.zero,
+  }) => _scheduleOgpRefreshIfNeeded(post, delay: delay);
+
+  Future<void> _scheduleOgpRefreshIfNeeded(
+    Post post, {
+    Duration delay = const Duration(milliseconds: 3000),
+  }) async {
+    if (post.mediaType != MediaType.link) return;
+    if (_hasAnyOgp(post)) return;
+
+    await Future.delayed(delay);
+    if (disposed) return;
+
+    final current = state.posts.firstWhereOrNull((p) => p.id == post.id);
+    // Post left the timeline (deletion / track switch) — drop the refresh.
+    if (current == null) return;
+    // Something populated OGP in the meantime (e.g. user manually reloaded).
+    if (_hasAnyOgp(current)) return;
+
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(fetchOgpMutation),
+          variables: {'postId': post.id},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+      if (disposed) return;
+      if (result.hasException) {
+        debugPrint(
+          '[TimelineNotifier] OGP auto-refresh failed for ${post.id}: '
+          '${result.exception}',
+        );
+        return;
+      }
+      final data = result.data?['fetchOgp'] as Map<String, dynamic>?;
+      if (data == null) return;
+      final refreshed = Post.fromJson(data);
+      _mergeOgpFields(refreshed);
+    } catch (e) {
+      debugPrint(
+        '[TimelineNotifier] OGP auto-refresh error for ${post.id}: $e',
+      );
+    }
+  }
+
+  static bool _hasAnyOgp(Post p) =>
+      p.ogTitle != null ||
+      p.ogDescription != null ||
+      p.ogImage != null ||
+      p.ogSiteName != null;
+
+  /// Merge OGP fields from a refreshed post into the matching timeline entry.
+  /// Does NOT touch reactions / connections / layout — OGP is render-only
+  /// and recomputing layout would jitter the node.
+  void _mergeOgpFields(Post refreshed) {
+    final posts = state.posts.map((p) {
+      if (p.id != refreshed.id) return p;
+      return p.copyWith(
+        ogTitle: refreshed.ogTitle,
+        ogDescription: refreshed.ogDescription,
+        ogImage: refreshed.ogImage,
+        ogSiteName: refreshed.ogSiteName,
+      );
+    }).toList();
+    state = state.copyWith(posts: posts);
   }
 
   /// Add a track ID to selectedTrackIds without fetching (sync).
