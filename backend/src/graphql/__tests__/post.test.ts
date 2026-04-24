@@ -20,6 +20,10 @@ import { authMiddleware, type AuthUser } from "../../auth/middleware.js";
 
 import { builder } from "../builder.js";
 import "../types/index.js";
+// Shared app db + publicUserColumns are imported to spy on the fallback
+// SELECT path in the N+1 regression test below (#180).
+import { db as appDb } from "../../db/index.js";
+import { publicUserColumns } from "../types/user.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL)
@@ -1014,6 +1018,278 @@ describe("Post GraphQL integration", () => {
       const track = post.track as Record<string, unknown>;
       expect(author.username).toBe("reluser1");
       expect(track.name).toBe("TestTrack");
+    });
+  });
+
+  // Regression tests for Issue #180 — author prefetch via list resolvers.
+  // These verify that the JOIN-based prefetch (_author) is consumed correctly
+  // by PostType.author, and that the fallback SELECT path is not needed for
+  // list queries. All post-list returning paths must include author prefetch.
+  describe("author prefetch via list resolvers (#180)", () => {
+    const POSTS_WITH_AUTHOR_QUERY = `
+      query Posts($trackId: String!) {
+        posts(trackId: $trackId) {
+          id title author { id username displayName }
+        }
+      }
+    `;
+
+    const ARTIST_POSTS_WITH_AUTHOR_QUERY = `
+      query ArtistPosts($artistId: String!) {
+        artistPosts(artistId: $artistId) {
+          id title author { id username displayName }
+        }
+      }
+    `;
+
+    const ARTIST_RECENT_POSTS_QUERY = `
+      query Artist($username: String!) {
+        artist(username: $username) {
+          id
+          recentPosts {
+            id title author { id username displayName }
+          }
+        }
+      }
+    `;
+
+    const TRACK_POSTS_WITH_AUTHOR_QUERY = `
+      query Track($id: String!) {
+        track(id: $id) {
+          id
+          posts {
+            id title author { id username displayName }
+          }
+        }
+      }
+    `;
+
+    const MY_UNASSIGNED_WITH_AUTHOR_QUERY = `
+      query {
+        myUnassignedPosts {
+          id title author { id username displayName }
+        }
+      }
+    `;
+
+    const MY_ARTIST_QUERY = `
+      query {
+        myArtist { id artistUsername }
+      }
+    `;
+
+    async function setupAuthoredPost(
+      email: string,
+      username: string,
+      artistUsername: string,
+      postTitle: string,
+    ) {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        email,
+        username,
+        artistUsername,
+      );
+      await gql(
+        app,
+        CREATE_POST_MUTATION,
+        {
+          trackId,
+          mediaType: "article",
+          title: postTitle,
+          visibility: "public",
+        },
+        token,
+      );
+      const myArtistResult = await gql(app, MY_ARTIST_QUERY, {}, token);
+      const artistId = (myArtistResult.data!.myArtist as { id: string }).id;
+      return { token, trackId, artistId };
+    }
+
+    it("posts(trackId) returns author via JOIN prefetch", async () => {
+      const { trackId } = await setupAuthoredPost(
+        "pa1@example.com",
+        "pauser1",
+        "paartist1",
+        "Posts Query Author",
+      );
+
+      const result = await gql(app, POSTS_WITH_AUTHOR_QUERY, { trackId });
+
+      expect(result.errors).toBeUndefined();
+      const list = result.data!.posts as Array<Record<string, unknown>>;
+      expect(list).toHaveLength(1);
+      const author = list[0].author as Record<string, unknown>;
+      expect(author.username).toBe("pauser1");
+      expect(author.id).toBeTruthy();
+    });
+
+    it("artistPosts returns author via JOIN prefetch", async () => {
+      const { artistId } = await setupAuthoredPost(
+        "pa2@example.com",
+        "pauser2",
+        "paartist2",
+        "Artist Posts Author",
+      );
+
+      const result = await gql(app, ARTIST_POSTS_WITH_AUTHOR_QUERY, {
+        artistId,
+      });
+
+      expect(result.errors).toBeUndefined();
+      const list = result.data!.artistPosts as Array<Record<string, unknown>>;
+      expect(list).toHaveLength(1);
+      const author = list[0].author as Record<string, unknown>;
+      expect(author.username).toBe("pauser2");
+    });
+
+    it("artist.recentPosts returns author via JOIN prefetch", async () => {
+      await setupAuthoredPost(
+        "pa3@example.com",
+        "pauser3",
+        "paartist3",
+        "Recent Posts Author",
+      );
+
+      const result = await gql(app, ARTIST_RECENT_POSTS_QUERY, {
+        username: "paartist3",
+      });
+
+      expect(result.errors).toBeUndefined();
+      const artist = result.data!.artist as Record<string, unknown>;
+      const list = artist.recentPosts as Array<Record<string, unknown>>;
+      expect(list).toHaveLength(1);
+      const author = list[0].author as Record<string, unknown>;
+      expect(author.username).toBe("pauser3");
+    });
+
+    it("track.posts returns author via JOIN prefetch", async () => {
+      const { trackId } = await setupAuthoredPost(
+        "pa4@example.com",
+        "pauser4",
+        "paartist4",
+        "Track Posts Author",
+      );
+
+      const result = await gql(app, TRACK_POSTS_WITH_AUTHOR_QUERY, {
+        id: trackId,
+      });
+
+      expect(result.errors).toBeUndefined();
+      const track = result.data!.track as Record<string, unknown>;
+      const list = track.posts as Array<Record<string, unknown>>;
+      expect(list).toHaveLength(1);
+      const author = list[0].author as Record<string, unknown>;
+      expect(author.username).toBe("pauser4");
+    });
+
+    it("myUnassignedPosts returns author via JOIN prefetch", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "pa5@example.com",
+        "pauser5",
+        "paartist5",
+      );
+      await gql(
+        app,
+        CREATE_POST_MUTATION,
+        {
+          trackId,
+          mediaType: "article",
+          title: "Unassigned Author",
+          visibility: "public",
+        },
+        token,
+      );
+      // Deleting the track makes the post trackId=NULL (unassigned)
+      await gql(
+        app,
+        `mutation ($id: String!) { deleteTrack(id: $id) { id } }`,
+        { id: trackId },
+        token,
+      );
+
+      const result = await gql(app, MY_UNASSIGNED_WITH_AUTHOR_QUERY, {}, token);
+
+      expect(result.errors).toBeUndefined();
+      const list = result.data!.myUnassignedPosts as Array<
+        Record<string, unknown>
+      >;
+      expect(list).toHaveLength(1);
+      const author = list[0].author as Record<string, unknown>;
+      expect(author.username).toBe("pauser5");
+    });
+
+    it("list resolver preserves author across multiple posts by same author", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "pa6@example.com",
+        "pauser6",
+        "paartist6",
+      );
+      for (const title of ["P1", "P2", "P3"]) {
+        await gql(
+          app,
+          CREATE_POST_MUTATION,
+          { trackId, mediaType: "article", title, visibility: "public" },
+          token,
+        );
+      }
+
+      const result = await gql(app, POSTS_WITH_AUTHOR_QUERY, { trackId });
+
+      expect(result.errors).toBeUndefined();
+      const list = result.data!.posts as Array<Record<string, unknown>>;
+      expect(list).toHaveLength(3);
+      for (const post of list) {
+        const author = post.author as Record<string, unknown>;
+        expect(author.username).toBe("pauser6");
+        // Boundary check: publicUserColumns must not leak sensitive fields
+        expect(author).not.toHaveProperty("email");
+        expect(author).not.toHaveProperty("passwordHash");
+        expect(author).not.toHaveProperty("publicKey");
+      }
+    });
+
+    // Regression guard: if someone removes `post._author` usage from
+    // PostType.author (or drops the users JOIN from a list resolver),
+    // this test fails because the fallback SELECT (identified by reference
+    // equality against publicUserColumns) must never run during list queries.
+    it("list resolvers never hit the fallback author SELECT", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "pa7@example.com",
+        "pauser7",
+        "paartist7",
+      );
+      for (const title of ["R1", "R2", "R3"]) {
+        await gql(
+          app,
+          CREATE_POST_MUTATION,
+          { trackId, mediaType: "article", title, visibility: "public" },
+          token,
+        );
+      }
+
+      const selectSpy = vi.spyOn(appDb, "select");
+      try {
+        const result = await gql(app, POSTS_WITH_AUTHOR_QUERY, { trackId });
+        expect(result.errors).toBeUndefined();
+        expect(
+          (result.data!.posts as Array<Record<string, unknown>>).length,
+        ).toBe(3);
+
+        // Fallback path in PostType.author passes publicUserColumns as the
+        // direct argument to db.select. The JOIN helpers wrap it inside a
+        // new projection object `{ post, [track,] author }`, so reference
+        // equality cleanly separates the two paths.
+        const fallbackCalls = selectSpy.mock.calls.filter(
+          (call) => call[0] === publicUserColumns,
+        );
+        expect(fallbackCalls.length).toBe(0);
+      } finally {
+        selectSpy.mockRestore();
+      }
     });
   });
 
