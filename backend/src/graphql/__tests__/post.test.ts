@@ -20,6 +20,10 @@ import { authMiddleware, type AuthUser } from "../../auth/middleware.js";
 
 import { builder } from "../builder.js";
 import "../types/index.js";
+// Shared app db + publicUserColumns are imported to spy on the fallback
+// SELECT path in the N+1 regression test below (#180).
+import { db as appDb } from "../../db/index.js";
+import { publicUserColumns } from "../types/user.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL)
@@ -1240,6 +1244,51 @@ describe("Post GraphQL integration", () => {
       for (const post of list) {
         const author = post.author as Record<string, unknown>;
         expect(author.username).toBe("pauser6");
+        // Boundary check: publicUserColumns must not leak sensitive fields
+        expect(author).not.toHaveProperty("email");
+        expect(author).not.toHaveProperty("passwordHash");
+        expect(author).not.toHaveProperty("publicKey");
+      }
+    });
+
+    // Regression guard: if someone removes `post._author` usage from
+    // PostType.author (or drops the users JOIN from a list resolver),
+    // this test fails because the fallback SELECT (identified by reference
+    // equality against publicUserColumns) must never run during list queries.
+    it("list resolvers never hit the fallback author SELECT", async () => {
+      const { token, trackId } = await signupRegisterArtistAndCreateTrack(
+        app,
+        "pa7@example.com",
+        "pauser7",
+        "paartist7",
+      );
+      for (const title of ["R1", "R2", "R3"]) {
+        await gql(
+          app,
+          CREATE_POST_MUTATION,
+          { trackId, mediaType: "article", title, visibility: "public" },
+          token,
+        );
+      }
+
+      const selectSpy = vi.spyOn(appDb, "select");
+      try {
+        const result = await gql(app, POSTS_WITH_AUTHOR_QUERY, { trackId });
+        expect(result.errors).toBeUndefined();
+        expect(
+          (result.data!.posts as Array<Record<string, unknown>>).length,
+        ).toBe(3);
+
+        // Fallback path in PostType.author passes publicUserColumns as the
+        // direct argument to db.select. The JOIN helpers wrap it inside a
+        // new projection object `{ post, [track,] author }`, so reference
+        // equality cleanly separates the two paths.
+        const fallbackCalls = selectSpy.mock.calls.filter(
+          (call) => call[0] === publicUserColumns,
+        );
+        expect(fallbackCalls.length).toBe(0);
+      } finally {
+        selectSpy.mockRestore();
       }
     });
   });
