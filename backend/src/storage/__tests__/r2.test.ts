@@ -92,6 +92,21 @@ describe("r2 utility functions", () => {
         expect(ct).not.toMatch(/^(text|application)\//);
       }
     });
+
+    // ADR 025: HEIC/HEIF support (#146). Apple devices commonly produce HEIC
+    // by default. Even though the frontend normalises HEIC to JPEG before
+    // upload on Web, the backend must accept the raw content type across all
+    // three categories so any pre-converted or direct upload is not rejected.
+    it("should allow HEIC and HEIF in all three categories", () => {
+      for (const category of [
+        "avatars",
+        "covers",
+        "media",
+      ] as const satisfies readonly (keyof typeof ALLOWED_CONTENT_TYPES)[]) {
+        expect(ALLOWED_CONTENT_TYPES[category]).toContain("image/heic");
+        expect(ALLOWED_CONTENT_TYPES[category]).toContain("image/heif");
+      }
+    });
   });
 
   describe("UPLOAD_LIMITS", () => {

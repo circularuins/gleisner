@@ -48,8 +48,14 @@ export const UPLOAD_LIMITS: Record<UploadCategory, { maxSize: number }> = {
 };
 
 export const ALLOWED_CONTENT_TYPES: Record<UploadCategory, string[]> = {
-  avatars: ["image/jpeg", "image/png", "image/webp"],
-  covers: ["image/jpeg", "image/png", "image/webp"],
+  avatars: [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+  ],
+  covers: ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"],
   media: [
     "image/jpeg",
     "image/png",
