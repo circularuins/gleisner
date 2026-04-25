@@ -1,3 +1,10 @@
+---
+paths:
+  - "backend/**/*.ts"
+  - "backend/**/*.sql"
+  - "backend/drizzle/**/*"
+---
+
 ## バックエンド実装ルール
 
 ### UserType vs PublicUserType

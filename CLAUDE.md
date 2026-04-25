@@ -188,10 +188,12 @@ docker compose down    # PostgreSQL 停止
 
 ## 実装ルール
 
-バックエンド・フロントエンドの詳細な実装ルールは `.claude/rules/` に分離（自動読み込み）。
+バックエンド・フロントエンドの詳細な実装ルールは `.claude/rules/` に **path-scoped** で配置されている（[公式仕様](https://code.claude.com/docs/en/memory#path-specific-rules)）。Claude が該当パスのファイルを読んだ時にのみ自動でコンテキストに注入される。
 
-- `.claude/rules/backend-implementation.md` — UserType 分離、contentHash、認可チェック等
-- `.claude/rules/frontend-implementation.md` — Provider 層ルール、Post フィールド追加チェックリスト等
+- `.claude/rules/backend-implementation.md` — `backend/**/*.{ts,sql}` 系を読んだ時に load。UserType 分離、contentHash、認可チェック等
+- `.claude/rules/frontend-implementation.md` — `frontend/**/*.dart` 系を読んだ時に load。Provider 層ルール、Post フィールド追加チェックリスト等
+
+> **注意**: 既知の制限として、**Read 時のみ rule が発火する**（[#23478](https://github.com/anthropics/claude-code/issues/23478)）。新規ファイルを Write で作成する場合は、関連する既存ファイルを先に Read しておくか、必要に応じて手動で rules ファイルを参照すること。
 
 ## Git ワークフロー
 

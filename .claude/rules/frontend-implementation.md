@@ -1,3 +1,11 @@
+---
+paths:
+  - "frontend/**/*.dart"
+  - "frontend/**/*.arb"
+  - "frontend/lib/**/*"
+  - "frontend/test/**/*"
+---
+
 ## フロントエンド実装ルール
 
 ### デザイントークンの使用
