@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/artist.dart';
 import '../../models/post.dart' show ReactionCount;
 import '../../providers/timeline_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/milestone_category.dart';
+import '../../utils/month_names.dart';
 
 const _reactionPresets = ['🔥', '❤️', '👏', '✨', '😍', '🎵', '💪', '🎸'];
 
@@ -128,9 +130,9 @@ class _MilestoneDetailSheet extends ConsumerWidget {
                         ),
                       ),
                       const Spacer(),
-                      const Text(
-                        'Milestone',
-                        style: TextStyle(
+                      Text(
+                        context.l10n.milestone,
+                        style: const TextStyle(
                           color: colorTextMuted,
                           fontSize: fontSizeSm,
                         ),
@@ -150,7 +152,7 @@ class _MilestoneDetailSheet extends ConsumerWidget {
                   const SizedBox(height: spaceSm),
                   // Date
                   Text(
-                    _formatDate(milestone.date),
+                    _formatDate(context, milestone.date),
                     style: const TextStyle(
                       color: colorTextMuted,
                       fontSize: fontSizeMd,
@@ -240,24 +242,10 @@ class _MilestoneDetailSheet extends ConsumerWidget {
     );
   }
 
-  static String _formatDate(String dateStr) {
+  static String _formatDate(BuildContext context, String dateStr) {
     try {
       final date = DateTime.parse(dateStr);
-      const months = [
-        'January',
-        'February',
-        'March',
-        'April',
-        'May',
-        'June',
-        'July',
-        'August',
-        'September',
-        'October',
-        'November',
-        'December',
-      ];
-      return '${months[date.month - 1]} ${date.day}, ${date.year}';
+      return '${monthFull(context, date.month)} ${date.day}, ${date.year}';
     } catch (_) {
       return dateStr;
     }

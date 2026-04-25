@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/post.dart';
 import '../../theme/gleisner_tokens.dart';
 
 /// Metadata for each [ConnectionType].
 extension ConnectionTypeMeta on ConnectionType {
-  String get label => switch (this) {
-    ConnectionType.reference => 'Reference',
-    ConnectionType.evolution => 'Evolution',
-    ConnectionType.remix => 'Remix',
-    ConnectionType.reply => 'Reply',
+  String label(BuildContext context) => switch (this) {
+    ConnectionType.reference => context.l10n.connectionTypeReference,
+    ConnectionType.evolution => context.l10n.connectionTypeEvolution,
+    ConnectionType.remix => context.l10n.connectionTypeRemix,
+    ConnectionType.reply => context.l10n.connectionTypeReply,
   };
 
   IconData get icon => switch (this) {
@@ -19,11 +20,11 @@ extension ConnectionTypeMeta on ConnectionType {
     ConnectionType.reply => Icons.reply,
   };
 
-  String get description => switch (this) {
-    ConnectionType.reference => 'Inspired by or related to',
-    ConnectionType.evolution => 'Next version of this piece',
-    ConnectionType.remix => 'A remix or reinterpretation',
-    ConnectionType.reply => 'A response to this post',
+  String description(BuildContext context) => switch (this) {
+    ConnectionType.reference => context.l10n.connectionTypeReferenceDesc,
+    ConnectionType.evolution => context.l10n.connectionTypeEvolutionDesc,
+    ConnectionType.remix => context.l10n.connectionTypeRemixDesc,
+    ConnectionType.reply => context.l10n.connectionTypeReplyDesc,
   };
 }
 
@@ -63,9 +64,9 @@ class _ConnectionTypePicker extends StatelessWidget {
             ),
           ),
           const SizedBox(height: spaceLg),
-          const Text(
-            'Connection Type',
-            style: TextStyle(
+          Text(
+            context.l10n.connectionType,
+            style: const TextStyle(
               color: colorTextPrimary,
               fontSize: fontSizeLg,
               fontWeight: weightBold,
@@ -94,7 +95,7 @@ class _ConnectionTypePicker extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              type.label,
+                              type.label(context),
                               style: const TextStyle(
                                 color: colorTextPrimary,
                                 fontSize: fontSizeMd,
@@ -102,7 +103,7 @@ class _ConnectionTypePicker extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              type.description,
+                              type.description(context),
                               style: const TextStyle(
                                 color: colorTextMuted,
                                 fontSize: fontSizeXs,

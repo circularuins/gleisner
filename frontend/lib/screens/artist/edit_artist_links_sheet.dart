@@ -84,7 +84,7 @@ class _EditArtistLinksSheetState extends ConsumerState<EditArtistLinksSheet> {
     } else {
       setState(() {
         _isSubmitting = false;
-        _error = 'Failed to add link. Please try again.';
+        _error = context.l10n.failedAddLink;
       });
     }
   }
@@ -401,7 +401,7 @@ class _AddLinkForm extends StatelessWidget {
             decoration: _inputDecoration(context.l10n.platform),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Platform name is required';
+                return context.l10n.platformNameRequired;
               }
               return null;
             },

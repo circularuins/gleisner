@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/deterministic_rng.dart';
@@ -54,7 +55,7 @@ class AvatarRail extends StatelessWidget {
             return _AvatarItem(
               username: selfArtistUsername!,
               avatarUrl: selfAvatarUrl,
-              displayName: 'You',
+              displayName: context.l10n.you,
               isSelected: isSelected,
               isSelf: true,
               isPrivate: selfIsPrivate,
@@ -187,7 +188,7 @@ class _AvatarItem extends StatelessWidget {
               ),
               const SizedBox(height: spaceXxs),
               Text(
-                isSelf ? 'You' : _truncate(displayName, 6),
+                isSelf ? context.l10n.you : _truncate(displayName, 6),
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

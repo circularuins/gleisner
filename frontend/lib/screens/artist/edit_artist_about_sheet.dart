@@ -86,7 +86,7 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
     } else {
       setState(() {
         _isSubmitting = false;
-        _error = 'Failed to update. Please try again.';
+        _error = context.l10n.failedUpdateArtist;
       });
     }
   }
@@ -186,7 +186,7 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
                       if (year == null ||
                           year < 1900 ||
                           year > DateTime.now().year) {
-                        return 'Enter a valid year (1900-${DateTime.now().year})';
+                        return context.l10n.enterValidYear(DateTime.now().year);
                       }
                     }
                     return null;

@@ -97,7 +97,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
     } else {
       setState(() {
         _isSubmitting = false;
-        _error = 'Failed to update profile. Please try again.';
+        _error = context.l10n.failedUpdateProfile;
       });
     }
   }

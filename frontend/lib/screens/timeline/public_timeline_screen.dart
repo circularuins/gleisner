@@ -20,6 +20,7 @@ import '../../theme/gleisner_assets.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../widgets/common/artist_not_found_view.dart';
 import '../../l10n/l10n.dart';
+import '../../utils/month_names.dart';
 
 class PublicTimelineScreen extends ConsumerStatefulWidget {
   final String username;
@@ -605,7 +606,7 @@ class _DateLabel extends StatelessWidget {
                 ),
               ),
             Text(
-              '${_shortMonth(day.date.month)} ${day.date.day}',
+              '${monthShort(context, day.date.month)} ${day.date.day}',
               style: TextStyle(
                 color: dayColor,
                 fontSize: fontSizeSm,
@@ -652,7 +653,7 @@ class _DateLabel extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           Text(
-            _shortMonth(day.date.month),
+            monthShort(context, day.date.month),
             style: TextStyle(
               color: monthColor,
               fontSize: 9,
@@ -682,23 +683,6 @@ class _DateLabel extends StatelessWidget {
     );
   }
 }
-
-const _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-String _shortMonth(int month) => _months[month - 1];
 
 class _TuneInButton extends StatelessWidget {
   final bool isTunedIn;

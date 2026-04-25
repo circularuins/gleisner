@@ -13,6 +13,7 @@ import '../../providers/tune_in_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/avatar_rail.dart';
 import '../../l10n/l10n.dart';
+import '../../utils/month_names.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/milestone_detail_sheet.dart';
 import '../../widgets/timeline/milestone_node_card.dart';
@@ -629,8 +630,18 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                 Expanded(
                                   child: Text(
                                     constellationName != null
-                                        ? context.l10n.constellationNamedPostCount(constellationName, timeline.constellationPostIds!.length)
-                                        : context.l10n.constellationPostCount(timeline.constellationPostIds!.length),
+                                        ? context.l10n
+                                              .constellationNamedPostCount(
+                                                constellationName,
+                                                timeline
+                                                    .constellationPostIds!
+                                                    .length,
+                                              )
+                                        : context.l10n.constellationPostCount(
+                                            timeline
+                                                .constellationPostIds!
+                                                .length,
+                                          ),
                                     style: const TextStyle(
                                       color: colorTextSecondary,
                                       fontSize: fontSizeSm,
@@ -1130,7 +1141,7 @@ class _DateLabel extends StatelessWidget {
                 ),
               ),
             Text(
-              '${_shortMonth(day.date.month)} ${day.date.day}',
+              '${monthShort(context, day.date.month)} ${day.date.day}',
               style: TextStyle(
                 color: dayColor,
                 fontSize: fontSizeSm,
@@ -1177,7 +1188,7 @@ class _DateLabel extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           Text(
-            _shortMonth(day.date.month),
+            monthShort(context, day.date.month),
             style: TextStyle(
               color: monthColor,
               fontSize: 9,
@@ -1207,23 +1218,6 @@ class _DateLabel extends StatelessWidget {
     );
   }
 }
-
-const _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-String _shortMonth(int month) => _months[month - 1];
 
 class _TrackSelector extends StatelessWidget {
   final List<Track> tracks;

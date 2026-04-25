@@ -75,7 +75,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
     } else {
       setState(() {
         _isSubmitting = false;
-        _error = 'Failed to create track. Please try again.';
+        _error = context.l10n.failedCreateTrackRetry;
       });
     }
   }
@@ -271,14 +271,14 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Track name is required';
+                            return context.l10n.trackNameRequired;
                           }
                           if (_tracks.any(
                             (t) =>
                                 t.name.toLowerCase() ==
                                 value.trim().toLowerCase(),
                           )) {
-                            return 'Track name already exists';
+                            return context.l10n.trackNameAlreadyExists;
                           }
                           return null;
                         },

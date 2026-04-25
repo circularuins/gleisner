@@ -464,7 +464,9 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                                 ),
                                               if (artist.activeSince != null)
                                                 Text(
-                                                  'Active since ${artist.activeSince}',
+                                                  context.l10n.activeSince(
+                                                    artist.activeSince!,
+                                                  ),
                                                   style: const TextStyle(
                                                     color: colorTextMuted,
                                                     fontSize: fontSizeSm,
@@ -966,7 +968,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
               autofocus: true,
               style: const TextStyle(color: colorTextPrimary),
               decoration: InputDecoration(
-                hintText: 'Enter display name',
+                hintText: context.l10n.enterDisplayName,
                 hintStyle: const TextStyle(color: colorTextMuted),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(radiusMd),

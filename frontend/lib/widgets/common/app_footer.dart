@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/gleisner_tokens.dart';
 
 /// Minimal footer for public-facing pages (login, signup, public timeline).
@@ -23,9 +24,9 @@ class AppFooter extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Gleisner',
-            style: TextStyle(
+          Text(
+            context.l10n.appTitle,
+            style: const TextStyle(
               color: colorTextMuted,
               fontSize: fontSizeXs,
               fontWeight: weightMedium,
@@ -34,8 +35,8 @@ class AppFooter extends StatelessWidget {
           const SizedBox(height: spaceXxs),
           GestureDetector(
             onTap: onAboutTap,
-            child: const Text(
-              'About / External Services',
+            child: Text(
+              context.l10n.aboutExternal,
               style: TextStyle(
                 color: colorInteractive,
                 fontSize: fontSizeXs,

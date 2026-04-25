@@ -57,7 +57,7 @@ class _RegisterArtistSheetState extends ConsumerState<RegisterArtistSheet> {
         debugPrint('[RegisterArtist] GraphQL error: ${result.exception}');
         setState(() {
           _isSubmitting = false;
-          _error = 'Registration failed. Please try again.';
+          _error = context.l10n.registrationFailed;
         });
         return;
       }
@@ -66,7 +66,7 @@ class _RegisterArtistSheetState extends ConsumerState<RegisterArtistSheet> {
       if (data == null) {
         setState(() {
           _isSubmitting = false;
-          _error = 'Unexpected response';
+          _error = context.l10n.unexpectedResponse;
         });
         return;
       }
@@ -79,7 +79,7 @@ class _RegisterArtistSheetState extends ConsumerState<RegisterArtistSheet> {
       debugPrint('[RegisterArtist] Unexpected error: $e');
       setState(() {
         _isSubmitting = false;
-        _error = 'Something went wrong. Please try again.';
+        _error = context.l10n.somethingWentWrong;
       });
     }
   }
@@ -128,12 +128,15 @@ class _RegisterArtistSheetState extends ConsumerState<RegisterArtistSheet> {
                 border: const OutlineInputBorder(),
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Required';
+                if (v == null || v.trim().isEmpty)
+                  return context.l10n.validatorRequired;
                 final trimmed = v.trim();
-                if (trimmed.length < 2) return 'At least 2 characters';
-                if (trimmed.length > 30) return 'Max 30 characters';
+                if (trimmed.length < 2)
+                  return context.l10n.validatorAtLeast2Chars;
+                if (trimmed.length > 30)
+                  return context.l10n.validatorMax30Chars;
                 if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(trimmed)) {
-                  return 'Letters, numbers, and underscores only';
+                  return context.l10n.validatorLettersNumbersUnderscoresOnly;
                 }
                 return null;
               },
@@ -147,8 +150,10 @@ class _RegisterArtistSheetState extends ConsumerState<RegisterArtistSheet> {
                 border: const OutlineInputBorder(),
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Required';
-                if (v.trim().length > 50) return 'Max 50 characters';
+                if (v == null || v.trim().isEmpty)
+                  return context.l10n.validatorRequired;
+                if (v.trim().length > 50)
+                  return context.l10n.validatorMax50Chars;
                 return null;
               },
             ),
