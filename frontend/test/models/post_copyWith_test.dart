@@ -5,7 +5,7 @@ Post _makeTestPost() {
   final now = DateTime(2026, 1, 1);
   return Post(
     id: 'p1',
-    mediaType: MediaType.text,
+    mediaType: MediaType.thought,
     title: 'Original Title',
     body: 'Original Body',
     mediaUrl: 'https://example.com',

@@ -5,7 +5,7 @@ import 'package:gleisner_web/models/post.dart';
 void main() {
   final validJson = {
     'id': 'post-1',
-    'mediaType': 'text',
+    'mediaType': 'article',
     'title': 'Hello',
     'body': 'World',
     'mediaUrl': null,
@@ -28,7 +28,7 @@ void main() {
       final post = Post.fromJson(validJson);
 
       expect(post.id, 'post-1');
-      expect(post.mediaType, MediaType.text);
+      expect(post.mediaType, MediaType.article);
       expect(post.title, 'Hello');
       expect(post.body, 'World');
       expect(post.importance, 0.5);
@@ -67,10 +67,10 @@ void main() {
       }
     });
 
-    test('falls back to text on unknown mediaType', () {
+    test('falls back to article on unknown mediaType', () {
       final json = {...validJson, 'mediaType': 'unknown'};
       final post = Post.fromJson(json);
-      expect(post.mediaType, MediaType.text);
+      expect(post.mediaType, MediaType.article);
     });
 
     test('parses duration', () {

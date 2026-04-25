@@ -9,7 +9,7 @@ Post _makePost({
 }) {
   return Post(
     id: id,
-    mediaType: MediaType.text,
+    mediaType: MediaType.thought,
     title: 'Post $id',
     importance: 0.5,
     createdAt: DateTime(2026, 1, 1),

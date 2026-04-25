@@ -8,7 +8,7 @@ Post _makePost({
   required String id,
   required DateTime createdAt,
   double importance = 0.5,
-  MediaType mediaType = MediaType.text,
+  MediaType mediaType = MediaType.thought,
   String? trackId,
   String? trackName,
   String? trackColor,
@@ -465,7 +465,7 @@ void main() {
           id: 'text',
           createdAt: now.subtract(const Duration(hours: 1)),
           importance: 0.5,
-          mediaType: MediaType.text,
+          mediaType: MediaType.thought,
         ),
       ];
       final result = ConstellationLayout.compute(
