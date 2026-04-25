@@ -69,3 +69,52 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:push
       - run: pnpm test
+
+  frontend-lint-and-format:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.38.10
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: dart format --set-exit-if-changed lib test
+
+  frontend-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.38.10
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      # `dart:js_interop` / `package:web` を推移的 import するテストがあるため
+      # `--platform chrome` 必須（CLAUDE.md 参照）。ubuntu-latest には Chrome
+      # がプリインストールされている。
+      - run: flutter test --platform chrome
+
+  frontend-test-integration:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.38.10
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter test test/integration --platform chrome
