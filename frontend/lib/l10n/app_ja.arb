@@ -344,5 +344,75 @@
   "audioDurationUnknown": "音声の長さを確認できませんでした。別のファイルをお試しください。",
   "heicNotSupported": "HEIC 形式には対応していません。JPEG または PNG を選択してください。",
   "heicConversionFailed": "HEIC 画像を変換できませんでした。Safari で再度お試しいただくか、先に JPEG に変換してください。",
-  "imageProcessingFailed": "画像を処理できませんでした。別のファイルをお試しください。"
+  "imageProcessingFailed": "画像を処理できませんでした。別のファイルをお試しください。",
+
+  "mediaTypeMedia": "メディア",
+
+  "artistRegisterAddAtLeastOneTrack": "トラックを1つ以上追加してください。",
+  "registrationFailed": "登録に失敗しました。再試行してください。",
+  "unexpectedResponse": "予期しないレスポンスが返されました。",
+  "somethingWentWrong": "エラーが発生しました。再試行してください。",
+  "failedTracks": "トラック: {names}",
+  "failedGenres": "ジャンル: {names}",
+  "someItemsFailed": "一部の項目に失敗しました: {items}。後から更新できます。",
+
+  "validatorRequired": "必須項目です",
+  "validatorAtLeast2Chars": "2文字以上で入力してください",
+  "validatorMax30Chars": "30文字以内で入力してください",
+  "validatorMax50Chars": "50文字以内で入力してください",
+  "validatorLettersNumbersUnderscoresOnly": "英数字とアンダースコアのみ使用できます",
+  "validatorEnterValidYear": "有効な年を入力してください",
+  "validatorYearRange": "1900〜{maxYear}の間で入力してください",
+
+  "failedUpdateProfile": "プロフィールの更新に失敗しました。再試行してください。",
+
+  "titleIsRequired": "タイトルは必須です",
+  "failedAddMilestone": "マイルストーンの追加に失敗しました",
+
+  "failedAddLink": "リンクの追加に失敗しました。再試行してください。",
+  "platformNameRequired": "プラットフォーム名は必須です",
+
+  "failedCreateTrackRetry": "トラックの作成に失敗しました。再試行してください。",
+  "trackNameRequired": "トラック名は必須です",
+  "trackNameAlreadyExists": "このトラック名は既に存在します",
+
+  "activeSince": "{year}年から活動",
+  "enterDisplayName": "表示名を入力",
+
+  "failedUpdateArtist": "更新に失敗しました。再試行してください。",
+  "enterValidYear": "有効な年を入力してください（1900〜{maxYear}）",
+
+  "connectionTypeReference": "リファレンス",
+  "connectionTypeEvolution": "進化",
+  "connectionTypeRemix": "リミックス",
+  "connectionTypeReply": "返答",
+  "connectionTypeReferenceDesc": "インスピレーション元・関連作品",
+  "connectionTypeEvolutionDesc": "この作品の次バージョン",
+  "connectionTypeRemixDesc": "リミックスまたは再解釈",
+  "connectionTypeReplyDesc": "この投稿への返答",
+  "connectionType": "接続タイプ",
+
+  "aboutExternal": "概要 / 外部サービス",
+
+  "selectRelatedPost": "関連投稿を選択",
+  "searchPosts": "投稿を検索...",
+  "unknown": "不明",
+  "noPostsFound": "投稿が見つかりません",
+
+  "you": "自分",
+
+  "milestone": "マイルストーン",
+
+  "monthJanuary": "1月",
+  "monthFebruary": "2月",
+  "monthMarch": "3月",
+  "monthApril": "4月",
+  "monthMay": "5月",
+  "monthJune": "6月",
+  "monthJuly": "7月",
+  "monthAugust": "8月",
+  "monthSeptember": "9月",
+  "monthOctober": "10月",
+  "monthNovember": "11月",
+  "monthDecember": "12月"
 }

@@ -425,5 +425,148 @@
   "imageProcessingFailed": "Could not process image. Please try another file.",
   "@imageProcessingFailed": {
     "description": "Shown when the EXIF/XMP sanitizer fails on a selected image."
-  }
+  },
+
+  "mediaTypeMedia": "Media",
+  "@mediaTypeMedia": { "description": "Fallback media type label shown in the upload area when media type is not image, video, or audio" },
+
+  "artistRegisterAddAtLeastOneTrack": "Add at least one track.",
+  "@artistRegisterAddAtLeastOneTrack": { "description": "Error shown when artist registration is submitted with zero tracks" },
+  "registrationFailed": "Registration failed. Please try again.",
+  "@registrationFailed": { "description": "Generic registration failure message shown on the artist registration screen" },
+  "unexpectedResponse": "Unexpected response.",
+  "@unexpectedResponse": { "description": "Shown when the server returns an unexpected payload during artist registration" },
+  "somethingWentWrong": "Something went wrong. Please try again.",
+  "@somethingWentWrong": { "description": "Generic fallback error shown when an unhandled exception occurs" },
+  "failedTracks": "Tracks: {names}",
+  "@failedTracks": {
+    "description": "Lists the names of tracks that failed to be created during artist registration",
+    "placeholders": { "names": { "type": "String" } }
+  },
+  "failedGenres": "Genres: {names}",
+  "@failedGenres": {
+    "description": "Lists the names of genres that failed to be saved during artist registration",
+    "placeholders": { "names": { "type": "String" } }
+  },
+  "someItemsFailed": "Some items failed: {items}. You can update them later.",
+  "@someItemsFailed": {
+    "description": "Shown after artist registration when some tracks/genres failed to save. Items is a semicolon-separated list.",
+    "placeholders": { "items": { "type": "String" } }
+  },
+
+  "validatorRequired": "Required",
+  "@validatorRequired": { "description": "Generic required field validation message" },
+  "validatorAtLeast2Chars": "At least 2 characters",
+  "@validatorAtLeast2Chars": { "description": "Validation message when a field requires at least 2 characters" },
+  "validatorMax30Chars": "Max 30 characters",
+  "@validatorMax30Chars": { "description": "Validation message when a field exceeds 30 characters" },
+  "validatorMax50Chars": "Max 50 characters",
+  "@validatorMax50Chars": { "description": "Validation message when a field exceeds 50 characters" },
+  "validatorLettersNumbersUnderscoresOnly": "Letters, numbers, and underscores only",
+  "@validatorLettersNumbersUnderscoresOnly": { "description": "Validation message for username-style fields" },
+  "validatorEnterValidYear": "Enter a valid year",
+  "@validatorEnterValidYear": { "description": "Validation message when a year field has an invalid value" },
+  "validatorYearRange": "Must be between 1900 and {maxYear}",
+  "@validatorYearRange": {
+    "description": "Validation message for the active-since year field, where maxYear is the current year",
+    "placeholders": { "maxYear": { "type": "int" } }
+  },
+
+  "failedUpdateProfile": "Failed to update profile. Please try again.",
+  "@failedUpdateProfile": { "description": "Shown when a profile update API call fails" },
+
+  "titleIsRequired": "Title is required",
+  "@titleIsRequired": { "description": "Validation message shown when milestone title is empty" },
+  "failedAddMilestone": "Failed to add milestone",
+  "@failedAddMilestone": { "description": "Shown when the add-milestone API call fails" },
+
+  "failedAddLink": "Failed to add link. Please try again.",
+  "@failedAddLink": { "description": "Shown when the add-link API call fails on the artist links sheet" },
+  "platformNameRequired": "Platform name is required",
+  "@platformNameRequired": { "description": "Validation message when the platform name field is empty on the add-link form" },
+
+  "failedCreateTrackRetry": "Failed to create track. Please try again.",
+  "@failedCreateTrackRetry": { "description": "Shown when the create-track API call fails on the manage-tracks sheet" },
+  "trackNameRequired": "Track name is required",
+  "@trackNameRequired": { "description": "Validation message when track name field is empty" },
+  "trackNameAlreadyExists": "Track name already exists",
+  "@trackNameAlreadyExists": { "description": "Validation message when the entered track name already exists for this artist" },
+
+  "activeSince": "Active since {year}",
+  "@activeSince": {
+    "description": "Label shown on the artist page below the artist name, indicating the year the artist started",
+    "placeholders": { "year": { "type": "int" } }
+  },
+  "enterDisplayName": "Enter display name",
+  "@enterDisplayName": { "description": "Hint text for the constellation display name input field" },
+
+  "failedUpdateArtist": "Failed to update. Please try again.",
+  "@failedUpdateArtist": { "description": "Shown when an artist-about update API call fails" },
+  "enterValidYear": "Enter a valid year (1900-{maxYear})",
+  "@enterValidYear": {
+    "description": "Validation message for the active-since year in the edit-artist-about sheet",
+    "placeholders": { "maxYear": { "type": "int" } }
+  },
+
+  "connectionTypeReference": "Reference",
+  "@connectionTypeReference": { "description": "Label for the 'Reference' connection type in the connection type picker" },
+  "connectionTypeEvolution": "Evolution",
+  "@connectionTypeEvolution": { "description": "Label for the 'Evolution' connection type in the connection type picker" },
+  "connectionTypeRemix": "Remix",
+  "@connectionTypeRemix": { "description": "Label for the 'Remix' connection type in the connection type picker" },
+  "connectionTypeReply": "Reply",
+  "@connectionTypeReply": { "description": "Label for the 'Reply' connection type in the connection type picker" },
+  "connectionTypeReferenceDesc": "Inspired by or related to",
+  "@connectionTypeReferenceDesc": { "description": "Short description of the Reference connection type" },
+  "connectionTypeEvolutionDesc": "Next version of this piece",
+  "@connectionTypeEvolutionDesc": { "description": "Short description of the Evolution connection type" },
+  "connectionTypeRemixDesc": "A remix or reinterpretation",
+  "@connectionTypeRemixDesc": { "description": "Short description of the Remix connection type" },
+  "connectionTypeReplyDesc": "A response to this post",
+  "@connectionTypeReplyDesc": { "description": "Short description of the Reply connection type" },
+  "connectionType": "Connection Type",
+  "@connectionType": { "description": "Section header label for the connection type picker widget" },
+
+  "aboutExternal": "About / External Services",
+  "@aboutExternal": { "description": "Footer link label that opens the About / External Services page" },
+
+  "selectRelatedPost": "Select related post",
+  "@selectRelatedPost": { "description": "Title shown at the top of the related-post picker bottom sheet" },
+  "searchPosts": "Search posts...",
+  "@searchPosts": { "description": "Hint text for the search field in the related-post picker" },
+  "unknown": "Unknown",
+  "@unknown": { "description": "Fallback label used when a track name is null or unavailable" },
+  "noPostsFound": "No posts found",
+  "@noPostsFound": { "description": "Shown in the related-post picker when no posts match the current filter/search" },
+
+  "you": "You",
+  "@you": { "description": "Label used in the avatar rail to represent the logged-in user's own avatar" },
+
+  "milestone": "Milestone",
+  "@milestone": { "description": "Section header label in the milestone detail sheet" },
+
+  "monthJanuary": "January",
+  "@monthJanuary": { "description": "Full name of the first month of the year" },
+  "monthFebruary": "February",
+  "@monthFebruary": { "description": "Full name of the second month of the year" },
+  "monthMarch": "March",
+  "@monthMarch": { "description": "Full name of the third month of the year" },
+  "monthApril": "April",
+  "@monthApril": { "description": "Full name of the fourth month of the year" },
+  "monthMay": "May",
+  "@monthMay": { "description": "Full name of the fifth month of the year" },
+  "monthJune": "June",
+  "@monthJune": { "description": "Full name of the sixth month of the year" },
+  "monthJuly": "July",
+  "@monthJuly": { "description": "Full name of the seventh month of the year" },
+  "monthAugust": "August",
+  "@monthAugust": { "description": "Full name of the eighth month of the year" },
+  "monthSeptember": "September",
+  "@monthSeptember": { "description": "Full name of the ninth month of the year" },
+  "monthOctober": "October",
+  "@monthOctober": { "description": "Full name of the tenth month of the year" },
+  "monthNovember": "November",
+  "@monthNovember": { "description": "Full name of the eleventh month of the year" },
+  "monthDecember": "December",
+  "@monthDecember": { "description": "Full name of the twelfth month of the year" }
 }

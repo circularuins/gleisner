@@ -15,6 +15,7 @@ import '../../providers/tutorial_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../l10n/l10n.dart';
 import '../../utils/account_switch_helper.dart';
+import '../../utils/month_names.dart';
 import '../../theme/gleisner_tokens.dart';
 import 'create_child_sheet.dart';
 import 'edit_profile_sheet.dart';
@@ -121,7 +122,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 spacing: spaceLg,
                 children: [
                   Text(
-                    context.l10n.joinedDate(_formatJoinDate(user.createdAt)),
+                    context.l10n.joinedDate(
+                      _formatJoinDate(context, user.createdAt),
+                    ),
                     style: textCaption.copyWith(color: colorTextMuted),
                   ),
                   if (tuneInState.tunedInArtists.isNotEmpty)
@@ -564,22 +567,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     await ref.read(guardianProvider.notifier).loadChildren(forceReload: true);
   }
 
-  static String _formatJoinDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.year}';
+  static String _formatJoinDate(BuildContext context, DateTime date) {
+    return '${monthShort(context, date.month)} ${date.year}';
   }
 
   void _showEditSheet(BuildContext context, User user) {

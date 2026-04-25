@@ -216,7 +216,7 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
 
   Future<void> _handleRegister() async {
     if (_tracks.isEmpty) {
-      setState(() => _error = 'Add at least one track.');
+      setState(() => _error = context.l10n.artistRegisterAddAtLeastOneTrack);
       return;
     }
 
@@ -253,7 +253,7 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
         debugPrint('[RegisterArtist] error: ${result.exception}');
         setState(() {
           _isSubmitting = false;
-          _error = 'Registration failed. Please try again.';
+          _error = context.l10n.registrationFailed;
           _step = 1; // Go back to profile step
         });
         return;
@@ -263,7 +263,7 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
       if (data == null) {
         setState(() {
           _isSubmitting = false;
-          _error = 'Unexpected response.';
+          _error = context.l10n.unexpectedResponse;
         });
         return;
       }
@@ -317,17 +317,15 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
 
       final errors = <String>[];
       if (failedTracks.isNotEmpty) {
-        errors.add('Tracks: ${failedTracks.join(", ")}');
+        errors.add(context.l10n.failedTracks(failedTracks.join(', ')));
       }
       if (failedGenres.isNotEmpty) {
-        errors.add('Genres: ${failedGenres.join(", ")}');
+        errors.add(context.l10n.failedGenres(failedGenres.join(', ')));
       }
       if (errors.isNotEmpty) {
         setState(() {
           _isSubmitting = false;
-          _error =
-              'Some items failed: ${errors.join("; ")}. '
-              'You can update them later.';
+          _error = context.l10n.someItemsFailed(errors.join('; '));
           _step = 3; // Still proceed to Complete — artist is registered
         });
         return;
@@ -342,7 +340,7 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
       debugPrint('[RegisterArtist] error: $e');
       setState(() {
         _isSubmitting = false;
-        _error = 'Something went wrong. Please try again.';
+        _error = context.l10n.somethingWentWrong;
       });
     }
   }
@@ -531,12 +529,15 @@ class _StepProfile extends StatelessWidget {
                 helperText: context.l10n.usernameFormat,
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Required';
+                if (v == null || v.trim().isEmpty)
+                  return context.l10n.validatorRequired;
                 final trimmed = v.trim();
-                if (trimmed.length < 2) return 'At least 2 characters';
-                if (trimmed.length > 30) return 'Max 30 characters';
+                if (trimmed.length < 2)
+                  return context.l10n.validatorAtLeast2Chars;
+                if (trimmed.length > 30)
+                  return context.l10n.validatorMax30Chars;
                 if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(trimmed)) {
-                  return 'Letters, numbers, and underscores only';
+                  return context.l10n.validatorLettersNumbersUnderscoresOnly;
                 }
                 return null;
               },
@@ -551,8 +552,10 @@ class _StepProfile extends StatelessWidget {
                 border: const OutlineInputBorder(),
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Required';
-                if (v.trim().length > 50) return 'Max 50 characters';
+                if (v == null || v.trim().isEmpty)
+                  return context.l10n.validatorRequired;
+                if (v.trim().length > 50)
+                  return context.l10n.validatorMax50Chars;
                 return null;
               },
             ),
@@ -591,9 +594,9 @@ class _StepProfile extends StatelessWidget {
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return null; // Optional
                 final year = int.tryParse(v.trim());
-                if (year == null) return 'Enter a valid year';
+                if (year == null) return context.l10n.validatorEnterValidYear;
                 if (year < 1900 || year > DateTime.now().year) {
-                  return 'Must be between 1900 and ${DateTime.now().year}';
+                  return context.l10n.validatorYearRange(DateTime.now().year);
                 }
                 return null;
               },

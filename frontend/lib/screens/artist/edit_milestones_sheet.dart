@@ -51,7 +51,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
   Future<void> _addMilestone() async {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
-      setState(() => _error = 'Title is required');
+      setState(() => _error = context.l10n.titleIsRequired);
       return;
     }
 
@@ -89,7 +89,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
       ref.read(artistPageProvider.notifier).loadArtist(widget.artistUsername);
     } else {
       setState(() {
-        _error = 'Failed to add milestone';
+        _error = context.l10n.failedAddMilestone;
         _isSubmitting = false;
       });
     }

@@ -929,10 +929,18 @@ class _FormStep extends ConsumerWidget {
     WidgetRef ref,
   ) {
     final (icon, _) = switch (mediaType) {
-      MediaType.image => (Icons.add_photo_alternate_outlined, 'Image'),
-      MediaType.video => (Icons.videocam_outlined, 'Video'),
-      MediaType.audio => (Icons.audiotrack_outlined, 'Audio'),
-      _ => (Icons.attach_file, 'Media'),
+      MediaType.image => (
+        Icons.add_photo_alternate_outlined,
+        context.l10n.mediaTypeImage,
+      ),
+      MediaType.video => (Icons.videocam_outlined, context.l10n.mediaTypeVideo),
+      MediaType.audio => (
+        Icons.audiotrack_outlined,
+        context.l10n.mediaTypeAudio,
+      ),
+      MediaType.thought ||
+      MediaType.article ||
+      MediaType.link => (Icons.attach_file, context.l10n.mediaTypeMedia),
     };
 
     final uploadState = ref.watch(mediaUploadProvider);
@@ -1569,7 +1577,7 @@ class _ConnectionsSection extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
-                '${c.connectionType.label} · ${post.trackName ?? ''}',
+                '${c.connectionType.label(context)} · ${post.trackName ?? ''}',
                 style: theme.textTheme.labelSmall,
               ),
               trailing: IconButton(

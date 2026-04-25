@@ -1073,4 +1073,184 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get imageProcessingFailed =>
       'Could not process image. Please try another file.';
+
+  @override
+  String get mediaTypeMedia => 'Media';
+
+  @override
+  String get artistRegisterAddAtLeastOneTrack => 'Add at least one track.';
+
+  @override
+  String get registrationFailed => 'Registration failed. Please try again.';
+
+  @override
+  String get unexpectedResponse => 'Unexpected response.';
+
+  @override
+  String get somethingWentWrong => 'Something went wrong. Please try again.';
+
+  @override
+  String failedTracks(String names) {
+    return 'Tracks: $names';
+  }
+
+  @override
+  String failedGenres(String names) {
+    return 'Genres: $names';
+  }
+
+  @override
+  String someItemsFailed(String items) {
+    return 'Some items failed: $items. You can update them later.';
+  }
+
+  @override
+  String get validatorRequired => 'Required';
+
+  @override
+  String get validatorAtLeast2Chars => 'At least 2 characters';
+
+  @override
+  String get validatorMax30Chars => 'Max 30 characters';
+
+  @override
+  String get validatorMax50Chars => 'Max 50 characters';
+
+  @override
+  String get validatorLettersNumbersUnderscoresOnly =>
+      'Letters, numbers, and underscores only';
+
+  @override
+  String get validatorEnterValidYear => 'Enter a valid year';
+
+  @override
+  String validatorYearRange(int maxYear) {
+    return 'Must be between 1900 and $maxYear';
+  }
+
+  @override
+  String get failedUpdateProfile =>
+      'Failed to update profile. Please try again.';
+
+  @override
+  String get titleIsRequired => 'Title is required';
+
+  @override
+  String get failedAddMilestone => 'Failed to add milestone';
+
+  @override
+  String get failedAddLink => 'Failed to add link. Please try again.';
+
+  @override
+  String get platformNameRequired => 'Platform name is required';
+
+  @override
+  String get failedCreateTrackRetry =>
+      'Failed to create track. Please try again.';
+
+  @override
+  String get trackNameRequired => 'Track name is required';
+
+  @override
+  String get trackNameAlreadyExists => 'Track name already exists';
+
+  @override
+  String activeSince(int year) {
+    return 'Active since $year';
+  }
+
+  @override
+  String get enterDisplayName => 'Enter display name';
+
+  @override
+  String get failedUpdateArtist => 'Failed to update. Please try again.';
+
+  @override
+  String enterValidYear(int maxYear) {
+    return 'Enter a valid year (1900-$maxYear)';
+  }
+
+  @override
+  String get connectionTypeReference => 'Reference';
+
+  @override
+  String get connectionTypeEvolution => 'Evolution';
+
+  @override
+  String get connectionTypeRemix => 'Remix';
+
+  @override
+  String get connectionTypeReply => 'Reply';
+
+  @override
+  String get connectionTypeReferenceDesc => 'Inspired by or related to';
+
+  @override
+  String get connectionTypeEvolutionDesc => 'Next version of this piece';
+
+  @override
+  String get connectionTypeRemixDesc => 'A remix or reinterpretation';
+
+  @override
+  String get connectionTypeReplyDesc => 'A response to this post';
+
+  @override
+  String get connectionType => 'Connection Type';
+
+  @override
+  String get aboutExternal => 'About / External Services';
+
+  @override
+  String get selectRelatedPost => 'Select related post';
+
+  @override
+  String get searchPosts => 'Search posts...';
+
+  @override
+  String get unknown => 'Unknown';
+
+  @override
+  String get noPostsFound => 'No posts found';
+
+  @override
+  String get you => 'You';
+
+  @override
+  String get milestone => 'Milestone';
+
+  @override
+  String get monthJanuary => 'January';
+
+  @override
+  String get monthFebruary => 'February';
+
+  @override
+  String get monthMarch => 'March';
+
+  @override
+  String get monthApril => 'April';
+
+  @override
+  String get monthMay => 'May';
+
+  @override
+  String get monthJune => 'June';
+
+  @override
+  String get monthJuly => 'July';
+
+  @override
+  String get monthAugust => 'August';
+
+  @override
+  String get monthSeptember => 'September';
+
+  @override
+  String get monthOctober => 'October';
+
+  @override
+  String get monthNovember => 'November';
+
+  @override
+  String get monthDecember => 'December';
 }

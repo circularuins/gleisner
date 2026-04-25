@@ -1037,4 +1037,181 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get imageProcessingFailed => '画像を処理できませんでした。別のファイルをお試しください。';
+
+  @override
+  String get mediaTypeMedia => 'メディア';
+
+  @override
+  String get artistRegisterAddAtLeastOneTrack => 'トラックを1つ以上追加してください。';
+
+  @override
+  String get registrationFailed => '登録に失敗しました。再試行してください。';
+
+  @override
+  String get unexpectedResponse => '予期しないレスポンスが返されました。';
+
+  @override
+  String get somethingWentWrong => 'エラーが発生しました。再試行してください。';
+
+  @override
+  String failedTracks(String names) {
+    return 'トラック: $names';
+  }
+
+  @override
+  String failedGenres(String names) {
+    return 'ジャンル: $names';
+  }
+
+  @override
+  String someItemsFailed(String items) {
+    return '一部の項目に失敗しました: $items。後から更新できます。';
+  }
+
+  @override
+  String get validatorRequired => '必須項目です';
+
+  @override
+  String get validatorAtLeast2Chars => '2文字以上で入力してください';
+
+  @override
+  String get validatorMax30Chars => '30文字以内で入力してください';
+
+  @override
+  String get validatorMax50Chars => '50文字以内で入力してください';
+
+  @override
+  String get validatorLettersNumbersUnderscoresOnly => '英数字とアンダースコアのみ使用できます';
+
+  @override
+  String get validatorEnterValidYear => '有効な年を入力してください';
+
+  @override
+  String validatorYearRange(int maxYear) {
+    return '1900〜$maxYearの間で入力してください';
+  }
+
+  @override
+  String get failedUpdateProfile => 'プロフィールの更新に失敗しました。再試行してください。';
+
+  @override
+  String get titleIsRequired => 'タイトルは必須です';
+
+  @override
+  String get failedAddMilestone => 'マイルストーンの追加に失敗しました';
+
+  @override
+  String get failedAddLink => 'リンクの追加に失敗しました。再試行してください。';
+
+  @override
+  String get platformNameRequired => 'プラットフォーム名は必須です';
+
+  @override
+  String get failedCreateTrackRetry => 'トラックの作成に失敗しました。再試行してください。';
+
+  @override
+  String get trackNameRequired => 'トラック名は必須です';
+
+  @override
+  String get trackNameAlreadyExists => 'このトラック名は既に存在します';
+
+  @override
+  String activeSince(int year) {
+    return '$year年から活動';
+  }
+
+  @override
+  String get enterDisplayName => '表示名を入力';
+
+  @override
+  String get failedUpdateArtist => '更新に失敗しました。再試行してください。';
+
+  @override
+  String enterValidYear(int maxYear) {
+    return '有効な年を入力してください（1900〜$maxYear）';
+  }
+
+  @override
+  String get connectionTypeReference => 'リファレンス';
+
+  @override
+  String get connectionTypeEvolution => '進化';
+
+  @override
+  String get connectionTypeRemix => 'リミックス';
+
+  @override
+  String get connectionTypeReply => '返答';
+
+  @override
+  String get connectionTypeReferenceDesc => 'インスピレーション元・関連作品';
+
+  @override
+  String get connectionTypeEvolutionDesc => 'この作品の次バージョン';
+
+  @override
+  String get connectionTypeRemixDesc => 'リミックスまたは再解釈';
+
+  @override
+  String get connectionTypeReplyDesc => 'この投稿への返答';
+
+  @override
+  String get connectionType => '接続タイプ';
+
+  @override
+  String get aboutExternal => '概要 / 外部サービス';
+
+  @override
+  String get selectRelatedPost => '関連投稿を選択';
+
+  @override
+  String get searchPosts => '投稿を検索...';
+
+  @override
+  String get unknown => '不明';
+
+  @override
+  String get noPostsFound => '投稿が見つかりません';
+
+  @override
+  String get you => '自分';
+
+  @override
+  String get milestone => 'マイルストーン';
+
+  @override
+  String get monthJanuary => '1月';
+
+  @override
+  String get monthFebruary => '2月';
+
+  @override
+  String get monthMarch => '3月';
+
+  @override
+  String get monthApril => '4月';
+
+  @override
+  String get monthMay => '5月';
+
+  @override
+  String get monthJune => '6月';
+
+  @override
+  String get monthJuly => '7月';
+
+  @override
+  String get monthAugust => '8月';
+
+  @override
+  String get monthSeptember => '9月';
+
+  @override
+  String get monthOctober => '10月';
+
+  @override
+  String get monthNovember => '11月';
+
+  @override
+  String get monthDecember => '12月';
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/post.dart';
 import '../../models/track.dart' show parseHexColor;
 
@@ -82,7 +83,7 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Select related post',
+                context.l10n.selectRelatedPost,
                 style: theme.textTheme.titleMedium,
               ),
             ),
@@ -93,7 +94,7 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: TextField(
                 decoration: InputDecoration(
-                  hintText: 'Search posts...',
+                  hintText: context.l10n.searchPosts,
                   prefixIcon: const Icon(Icons.search, size: 20),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -118,7 +119,7 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
                     _TrackFilterChip(
-                      label: 'All',
+                      label: context.l10n.all,
                       color: null,
                       isSelected: _filterTrackId == null,
                       onTap: () => setState(() => _filterTrackId = null),
@@ -128,7 +129,7 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
                         (p) => p.trackId == tid,
                       );
                       return _TrackFilterChip(
-                        label: post.trackName ?? 'Unknown',
+                        label: post.trackName ?? context.l10n.unknown,
                         color: post.trackColor,
                         isSelected: _filterTrackId == tid,
                         onTap: () => setState(() => _filterTrackId = tid),
@@ -144,7 +145,7 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
               child: filtered.isEmpty
                   ? Center(
                       child: Text(
-                        'No posts found',
+                        context.l10n.noPostsFound,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurface.withAlpha(128),
                         ),

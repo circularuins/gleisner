@@ -8,6 +8,7 @@ import '../../theme/gleisner_tokens.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
 import '../edit_post/edit_post_screen.dart';
 import '../../l10n/l10n.dart';
+import '../../utils/month_names.dart';
 
 class UnassignedPostsScreen extends ConsumerWidget {
   final List<Track> tracks;
@@ -148,7 +149,7 @@ class _PostTile extends StatelessWidget {
                   ),
                   const SizedBox(height: spaceXxs),
                   Text(
-                    _formatDate(post.createdAt),
+                    _formatDate(context, post.createdAt),
                     style: const TextStyle(
                       color: colorTextMuted,
                       fontSize: fontSizeXs,
@@ -248,21 +249,7 @@ class _PostTile extends StatelessWidget {
     };
   }
 
-  static String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  static String _formatDate(BuildContext context, DateTime date) {
+    return '${monthShort(context, date.month)} ${date.day}, ${date.year}';
   }
 }

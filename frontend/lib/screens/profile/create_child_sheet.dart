@@ -328,7 +328,7 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
       final error = ref.read(guardianProvider).error;
       setState(() {
         _submitting = false;
-        _error = error ?? 'Something went wrong. Please try again.';
+        _error = error ?? context.l10n.somethingWentWrong;
       });
     }
   }

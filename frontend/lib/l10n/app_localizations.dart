@@ -1999,6 +1999,336 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not process image. Please try another file.'**
   String get imageProcessingFailed;
+
+  /// Fallback media type label shown in the upload area when media type is not image, video, or audio
+  ///
+  /// In en, this message translates to:
+  /// **'Media'**
+  String get mediaTypeMedia;
+
+  /// Error shown when artist registration is submitted with zero tracks
+  ///
+  /// In en, this message translates to:
+  /// **'Add at least one track.'**
+  String get artistRegisterAddAtLeastOneTrack;
+
+  /// Generic registration failure message shown on the artist registration screen
+  ///
+  /// In en, this message translates to:
+  /// **'Registration failed. Please try again.'**
+  String get registrationFailed;
+
+  /// Shown when the server returns an unexpected payload during artist registration
+  ///
+  /// In en, this message translates to:
+  /// **'Unexpected response.'**
+  String get unexpectedResponse;
+
+  /// Generic fallback error shown when an unhandled exception occurs
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again.'**
+  String get somethingWentWrong;
+
+  /// Lists the names of tracks that failed to be created during artist registration
+  ///
+  /// In en, this message translates to:
+  /// **'Tracks: {names}'**
+  String failedTracks(String names);
+
+  /// Lists the names of genres that failed to be saved during artist registration
+  ///
+  /// In en, this message translates to:
+  /// **'Genres: {names}'**
+  String failedGenres(String names);
+
+  /// Shown after artist registration when some tracks/genres failed to save. Items is a semicolon-separated list.
+  ///
+  /// In en, this message translates to:
+  /// **'Some items failed: {items}. You can update them later.'**
+  String someItemsFailed(String items);
+
+  /// Generic required field validation message
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get validatorRequired;
+
+  /// Validation message when a field requires at least 2 characters
+  ///
+  /// In en, this message translates to:
+  /// **'At least 2 characters'**
+  String get validatorAtLeast2Chars;
+
+  /// Validation message when a field exceeds 30 characters
+  ///
+  /// In en, this message translates to:
+  /// **'Max 30 characters'**
+  String get validatorMax30Chars;
+
+  /// Validation message when a field exceeds 50 characters
+  ///
+  /// In en, this message translates to:
+  /// **'Max 50 characters'**
+  String get validatorMax50Chars;
+
+  /// Validation message for username-style fields
+  ///
+  /// In en, this message translates to:
+  /// **'Letters, numbers, and underscores only'**
+  String get validatorLettersNumbersUnderscoresOnly;
+
+  /// Validation message when a year field has an invalid value
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid year'**
+  String get validatorEnterValidYear;
+
+  /// Validation message for the active-since year field, where maxYear is the current year
+  ///
+  /// In en, this message translates to:
+  /// **'Must be between 1900 and {maxYear}'**
+  String validatorYearRange(int maxYear);
+
+  /// Shown when a profile update API call fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update profile. Please try again.'**
+  String get failedUpdateProfile;
+
+  /// Validation message shown when milestone title is empty
+  ///
+  /// In en, this message translates to:
+  /// **'Title is required'**
+  String get titleIsRequired;
+
+  /// Shown when the add-milestone API call fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to add milestone'**
+  String get failedAddMilestone;
+
+  /// Shown when the add-link API call fails on the artist links sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to add link. Please try again.'**
+  String get failedAddLink;
+
+  /// Validation message when the platform name field is empty on the add-link form
+  ///
+  /// In en, this message translates to:
+  /// **'Platform name is required'**
+  String get platformNameRequired;
+
+  /// Shown when the create-track API call fails on the manage-tracks sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to create track. Please try again.'**
+  String get failedCreateTrackRetry;
+
+  /// Validation message when track name field is empty
+  ///
+  /// In en, this message translates to:
+  /// **'Track name is required'**
+  String get trackNameRequired;
+
+  /// Validation message when the entered track name already exists for this artist
+  ///
+  /// In en, this message translates to:
+  /// **'Track name already exists'**
+  String get trackNameAlreadyExists;
+
+  /// Label shown on the artist page below the artist name, indicating the year the artist started
+  ///
+  /// In en, this message translates to:
+  /// **'Active since {year}'**
+  String activeSince(int year);
+
+  /// Hint text for the constellation display name input field
+  ///
+  /// In en, this message translates to:
+  /// **'Enter display name'**
+  String get enterDisplayName;
+
+  /// Shown when an artist-about update API call fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update. Please try again.'**
+  String get failedUpdateArtist;
+
+  /// Validation message for the active-since year in the edit-artist-about sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid year (1900-{maxYear})'**
+  String enterValidYear(int maxYear);
+
+  /// Label for the 'Reference' connection type in the connection type picker
+  ///
+  /// In en, this message translates to:
+  /// **'Reference'**
+  String get connectionTypeReference;
+
+  /// Label for the 'Evolution' connection type in the connection type picker
+  ///
+  /// In en, this message translates to:
+  /// **'Evolution'**
+  String get connectionTypeEvolution;
+
+  /// Label for the 'Remix' connection type in the connection type picker
+  ///
+  /// In en, this message translates to:
+  /// **'Remix'**
+  String get connectionTypeRemix;
+
+  /// Label for the 'Reply' connection type in the connection type picker
+  ///
+  /// In en, this message translates to:
+  /// **'Reply'**
+  String get connectionTypeReply;
+
+  /// Short description of the Reference connection type
+  ///
+  /// In en, this message translates to:
+  /// **'Inspired by or related to'**
+  String get connectionTypeReferenceDesc;
+
+  /// Short description of the Evolution connection type
+  ///
+  /// In en, this message translates to:
+  /// **'Next version of this piece'**
+  String get connectionTypeEvolutionDesc;
+
+  /// Short description of the Remix connection type
+  ///
+  /// In en, this message translates to:
+  /// **'A remix or reinterpretation'**
+  String get connectionTypeRemixDesc;
+
+  /// Short description of the Reply connection type
+  ///
+  /// In en, this message translates to:
+  /// **'A response to this post'**
+  String get connectionTypeReplyDesc;
+
+  /// Section header label for the connection type picker widget
+  ///
+  /// In en, this message translates to:
+  /// **'Connection Type'**
+  String get connectionType;
+
+  /// Footer link label that opens the About / External Services page
+  ///
+  /// In en, this message translates to:
+  /// **'About / External Services'**
+  String get aboutExternal;
+
+  /// Title shown at the top of the related-post picker bottom sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Select related post'**
+  String get selectRelatedPost;
+
+  /// Hint text for the search field in the related-post picker
+  ///
+  /// In en, this message translates to:
+  /// **'Search posts...'**
+  String get searchPosts;
+
+  /// Fallback label used when a track name is null or unavailable
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get unknown;
+
+  /// Shown in the related-post picker when no posts match the current filter/search
+  ///
+  /// In en, this message translates to:
+  /// **'No posts found'**
+  String get noPostsFound;
+
+  /// Label used in the avatar rail to represent the logged-in user's own avatar
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get you;
+
+  /// Section header label in the milestone detail sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Milestone'**
+  String get milestone;
+
+  /// Full name of the first month of the year
+  ///
+  /// In en, this message translates to:
+  /// **'January'**
+  String get monthJanuary;
+
+  /// Full name of the second month of the year
+  ///
+  /// In en, this message translates to:
+  /// **'February'**
+  String get monthFebruary;
+
+  /// Full name of the third month of the year
+  ///
+  /// In en, this message translates to:
+  /// **'March'**
+  String get monthMarch;
+
+  /// Full name of the fourth month of the year
+  ///
+  /// In en, this message translates to:
+  /// **'April'**
+  String get monthApril;
+
+  /// Full name of the fifth month of the year
+  ///
+  /// In en, this message translates to:
+  /// **'May'**
+  String get monthMay;
+
+  /// Full name of the sixth month of the year
+  ///
+  /// In en, this message translates to:
+  /// **'June'**
+  String get monthJune;
+
+  /// Full name of the seventh month of the year
+  ///
+  /// In en, this message translates to:
+  /// **'July'**
+  String get monthJuly;
+
+  /// Full name of the eighth month of the year
+  ///
+  /// In en, this message translates to:
+  /// **'August'**
+  String get monthAugust;
+
+  /// Full name of the ninth month of the year
+  ///
+  /// In en, this message translates to:
+  /// **'September'**
+  String get monthSeptember;
+
+  /// Full name of the tenth month of the year
+  ///
+  /// In en, this message translates to:
+  /// **'October'**
+  String get monthOctober;
+
+  /// Full name of the eleventh month of the year
+  ///
+  /// In en, this message translates to:
+  /// **'November'**
+  String get monthNovember;
+
+  /// Full name of the twelfth month of the year
+  ///
+  /// In en, this message translates to:
+  /// **'December'**
+  String get monthDecember;
 }
 
 class _AppLocalizationsDelegate
