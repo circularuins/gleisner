@@ -8,6 +8,7 @@ const toggleTuneInMutation = r'''
         displayName
         avatarUrl
         tunedInCount
+        profileVisibility
       }
     }
   }
