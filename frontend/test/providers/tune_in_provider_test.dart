@@ -39,7 +39,12 @@ ProviderContainer _createContainer({required GraphQLClient client}) {
   );
 }
 
-Map<String, dynamic> _tuneInResponse(String id, String username, String name) {
+Map<String, dynamic> _tuneInResponse(
+  String id,
+  String username,
+  String name, {
+  String profileVisibility = 'public',
+}) {
   return {
     'toggleTuneIn': {
       'createdAt': '2026-01-01T00:00:00Z',
@@ -49,6 +54,7 @@ Map<String, dynamic> _tuneInResponse(String id, String username, String name) {
         'displayName': name,
         'avatarUrl': null,
         'tunedInCount': 1,
+        'profileVisibility': profileVisibility,
       },
     },
   };
@@ -106,6 +112,30 @@ void main() {
           container.read(tuneInProvider).tunedInArtists.first.artistUsername,
           'artist1',
         );
+      });
+
+      test('preserves profileVisibility on Tune In (private artist)', () async {
+        // Regression: toggleTuneInMutation must select profileVisibility so
+        // the local state reflects whether the tuned-in artist is private.
+        // Without this, TunedInArtist.fromJson silently defaults to 'public'
+        // and the avatar rail / `isPrivate` checks misclassify the artist
+        // until the next loadMyTuneIns reconciles.
+        final client = _clientWithResponses([
+          _tuneInResponse(
+            'a1',
+            'artist1',
+            'Artist One',
+            profileVisibility: 'private',
+          ),
+        ]);
+        final container = _createContainer(client: client);
+        addTearDown(container.dispose);
+
+        await container.read(tuneInProvider.notifier).toggleTuneIn('a1');
+
+        final artist = container.read(tuneInProvider).tunedInArtists.first;
+        expect(artist.profileVisibility, 'private');
+        expect(artist.isPrivate, isTrue);
       });
 
       test('removes artist from list on Tune Out', () async {
