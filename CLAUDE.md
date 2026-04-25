@@ -172,7 +172,14 @@ mise tasks             # 利用可能なタスク一覧を表示
 | `run_web` | `flutter run` | — |
 | `build` | `flutter build web` | `clean` |
 | `test` | `flutter test` | — |
+| `test_integration` | `flutter test test/integration --platform chrome`（E2E smoke test） | `pub_get` |
 | `clean` | `flutter clean` | — |
+
+**テスト層の使い分け**:
+- `frontend/test/` 直下 — unit / widget test（ロジック・個別ウィジェット）。`mise run test`
+- `frontend/test/integration/` — アプリ全体の起動と主要フロー（splash → home 等）の E2E smoke test。`mise run test_integration`（Chrome 必須）
+  - `IntegrationTestWidgetsFlutterBinding` を使う実装にしてあるので、将来 iOS/Android ターゲット追加時に `frontend/integration_test/` へ物理移動するだけで Flutter 公式の integration test runner に乗せ替えできる
+  - Web のみのうちは `flutter test` の integration test ランナーが web デバイスを未サポート（flutter/flutter#66264）のため、widget test 扱いで `--platform chrome` 経由で実行する
 
 ### ⚠ `db:push` の注意事項
 

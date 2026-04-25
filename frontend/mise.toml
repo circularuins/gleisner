@@ -9,4 +9,5 @@ run_web = { run = "flutter run" }
 build = { run = "flutter build web", depends = "clean" }
 pub_get = { run = "flutter pub get" }
 test = { run = "flutter test" }
+test_integration = { run = "flutter test test/integration --platform chrome", depends = "pub_get" } # E2E smoke test（Web only のため widget test 扱い、Chrome 必須）
 clean = { run = "flutter clean" }
