@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
-import 'package:hive_ce/hive.dart';
 
 import 'package:gleisner_web/graphql/client.dart';
 import 'package:gleisner_web/models/post.dart';
@@ -77,17 +74,6 @@ const _postResponse = {
 };
 
 void main() {
-  late Directory tempDir;
-
-  setUpAll(() {
-    tempDir = Directory.systemTemp.createTempSync('gleisner_create_post_test_');
-    Hive.init(tempDir.path);
-  });
-
-  tearDownAll(() {
-    tempDir.deleteSync(recursive: true);
-  });
-
   group('CreatePostNotifier', () {
     test('initial state', () {
       final container = _createContainer(client: _clientWith());

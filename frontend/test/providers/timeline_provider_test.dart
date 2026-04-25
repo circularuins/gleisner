@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
-import 'package:hive_ce/hive.dart';
 
 import 'package:gleisner_web/graphql/client.dart';
 import 'package:gleisner_web/models/artist.dart';
@@ -42,17 +39,6 @@ ProviderContainer _createContainer({required GraphQLClient client}) {
 }
 
 void main() {
-  late Directory tempDir;
-
-  setUpAll(() {
-    tempDir = Directory.systemTemp.createTempSync('gleisner_timeline_test_');
-    Hive.init(tempDir.path);
-  });
-
-  tearDownAll(() {
-    tempDir.deleteSync(recursive: true);
-  });
-
   group('TimelineNotifier', () {
     test('initial state', () {
       final container = _createContainer(client: _clientWith());
@@ -99,7 +85,10 @@ void main() {
     test('loadArtist sets error on network exception', () async {
       final container = _createContainer(
         client: _clientWith(
-          exception: const SocketException('Connection refused'),
+          // Use a plain Exception (not dart:io's SocketException) so this test
+          // compiles on `--platform chrome`. The error path is exception-type
+          // agnostic.
+          exception: Exception('Connection refused'),
         ),
       );
       addTearDown(container.dispose);
