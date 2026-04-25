@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
@@ -657,6 +658,10 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     }
   }
 
+  /// Add a single post to the timeline. NOT designed for bulk loads —
+  /// the OGP auto-refresh schedules one fetchOgp per call, so feeding a
+  /// loop of N link posts here would fire N parallel mutations after the
+  /// 3 s delay. Bulk paths should use `_loadSelectedPosts` instead.
   void addPost(Post post) {
     final posts = [...state.posts, post];
     state = state.copyWith(posts: posts, highlightPostId: post.id);
@@ -667,7 +672,10 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
         state = state.copyWith(highlightPostId: null);
       }
     });
-    _scheduleOgpRefreshIfNeeded(post);
+    // Fire-and-forget: refresh handles its own errors via try/catch and
+    // the disposed guard, so awaiting here would only block addPost on a
+    // 3 s timer.
+    unawaited(_scheduleOgpRefreshIfNeeded(post));
   }
 
   /// Schedule a deferred OGP refresh for a freshly created link post when
@@ -708,6 +716,10 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
       );
       if (disposed) return;
       if (result.hasException) {
+        // OGP is best-effort: no retry on failure. Retrying could spam the
+        // backend for posts that will never get OGP metadata (private URLs,
+        // 4xx responses, sites with no og: tags). The user can manually
+        // reload to retry.
         debugPrint(
           '[TimelineNotifier] OGP auto-refresh failed for ${post.id}: '
           '${result.exception}',
@@ -735,15 +747,15 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   /// Does NOT touch reactions / connections / layout — OGP is render-only
   /// and recomputing layout would jitter the node.
   void _mergeOgpFields(Post refreshed) {
-    final posts = state.posts.map((p) {
-      if (p.id != refreshed.id) return p;
-      return p.copyWith(
-        ogTitle: refreshed.ogTitle,
-        ogDescription: refreshed.ogDescription,
-        ogImage: refreshed.ogImage,
-        ogSiteName: refreshed.ogSiteName,
-      );
-    }).toList();
+    final idx = state.posts.indexWhere((p) => p.id == refreshed.id);
+    if (idx == -1) return;
+    final merged = state.posts[idx].copyWith(
+      ogTitle: refreshed.ogTitle,
+      ogDescription: refreshed.ogDescription,
+      ogImage: refreshed.ogImage,
+      ogSiteName: refreshed.ogSiteName,
+    );
+    final posts = List<Post>.of(state.posts)..[idx] = merged;
     state = state.copyWith(posts: posts);
   }
 

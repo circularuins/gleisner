@@ -350,9 +350,17 @@ void main() {
         expect(refreshed.ogDescription, 'Example Description');
         expect(refreshed.ogImage, 'https://example.com/og.png');
         expect(refreshed.ogSiteName, 'example.com');
-        // Other fields must be untouched
+        // Non-OGP fields must be preserved verbatim from the original post.
+        // Listed individually so future copyWith arg changes (additions /
+        // removals) can be caught as regressions.
         expect(refreshed.id, post.id);
         expect(refreshed.mediaType, MediaType.link);
+        expect(refreshed.mediaUrl, post.mediaUrl);
+        expect(refreshed.importance, post.importance);
+        expect(refreshed.createdAt, post.createdAt);
+        expect(refreshed.updatedAt, post.updatedAt);
+        expect(refreshed.author.id, post.author.id);
+        expect(refreshed.author.username, post.author.username);
       },
     );
 
@@ -432,5 +440,33 @@ void main() {
       expect(after.ogImage, isNull);
       expect(after.ogSiteName, isNull);
     });
+
+    test(
+      'refresh bails out cleanly when notifier is disposed mid-delay',
+      () async {
+        final pair = _clientAndLinkWith(data: _fetchOgpResponse());
+        final container = _createContainer(client: pair.client);
+
+        final notifier = container.read(timelineProvider.notifier);
+        final post = _linkPost();
+        notifier.debugSetState(
+          container.read(timelineProvider).copyWith(posts: [post]),
+        );
+
+        // Kick off a refresh with a non-zero delay so we have a window in
+        // which to dispose the container.
+        final pending = notifier.scheduleOgpRefreshForTesting(
+          post,
+          delay: const Duration(milliseconds: 50),
+        );
+        // Dispose during the delay — simulates user navigating away while
+        // the 3 s timer is pending.
+        container.dispose();
+
+        // Should resolve without throwing and without firing a request.
+        await pending;
+        expect(pair.link.requests, isEmpty);
+      },
+    );
   });
 }
