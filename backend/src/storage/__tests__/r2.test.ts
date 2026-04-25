@@ -3,6 +3,7 @@ import {
   isR2Url,
   isLocalDevUrl,
   ALLOWED_CONTENT_TYPES,
+  CONTENT_TYPE_EXT,
   UPLOAD_LIMITS,
   R2ValidationError,
   isAllowedContentType,
@@ -154,6 +155,42 @@ describe("r2 utility functions", () => {
       for (const category of ["avatars", "covers"] as const) {
         expect(isAllowedContentType(category, "video/mp4")).toBe(false);
         expect(isAllowedContentType(category, "audio/mpeg")).toBe(false);
+      }
+    });
+
+    // RFC 9110 §8.3.1: media types are case-insensitive. Some Apple SDKs
+    // emit `image/HEIC` (upper-case subtype). Strict `Array.includes` would
+    // reject those uploads — losing the very interop this PR adds.
+    it("normalises case so image/HEIC and Image/Heif still match", () => {
+      for (const category of categories) {
+        expect(isAllowedContentType(category, "image/HEIC")).toBe(true);
+        expect(isAllowedContentType(category, "Image/Heif")).toBe(true);
+        expect(isAllowedContentType(category, "IMAGE/JPEG")).toBe(true);
+      }
+    });
+  });
+
+  // The upload key naming relies on `CONTENT_TYPE_EXT[contentType]` to pick
+  // a sensible suffix. If a future PR adds a new MIME to ALLOWED_CONTENT_TYPES
+  // but forgets to extend CONTENT_TYPE_EXT, the upload silently gets stored
+  // as ".bin". This guard catches that drift at test time.
+  describe("CONTENT_TYPE_EXT consistency", () => {
+    it("covers every entry in ALLOWED_CONTENT_TYPES", () => {
+      const allAllowed = new Set(Object.values(ALLOWED_CONTENT_TYPES).flat());
+      for (const ct of allAllowed) {
+        expect(
+          CONTENT_TYPE_EXT,
+          `missing ext mapping for ${ct}`,
+        ).toHaveProperty(ct);
+        expect(CONTENT_TYPE_EXT[ct].length).toBeGreaterThan(0);
+      }
+    });
+
+    it("uses lower-case keys so case-insensitive lookup hits", () => {
+      // `generateUploadUrl` lower-cases the lookup; the table itself must be
+      // lower-case to make that work.
+      for (const key of Object.keys(CONTENT_TYPE_EXT)) {
+        expect(key).toBe(key.toLowerCase());
       }
     });
   });
