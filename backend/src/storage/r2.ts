@@ -105,6 +105,25 @@ export class R2ValidationError extends Error {
 }
 
 /**
+ * Whether the given content type is allowed for the upload category.
+ *
+ * Exported so tests can exercise the gate directly (instead of asserting
+ * against the raw `ALLOWED_CONTENT_TYPES` array, which only verifies the
+ * constant's contents — not that the upload path actually consults it),
+ * and so future server-side ingestion paths can call the same predicate.
+ *
+ * NOTE: This is a string-level allow-list only. It does **not** verify
+ * that the actual file bytes match the declared content type — see
+ * Issue #269 for the magic-byte-based defence-in-depth follow-up.
+ */
+export function isAllowedContentType(
+  category: UploadCategory,
+  contentType: string,
+): boolean {
+  return ALLOWED_CONTENT_TYPES[category].includes(contentType);
+}
+
+/**
  * Generate a presigned PUT URL for direct R2 upload.
  * The key is structured as: {category}/{userId}/{uuid}.{ext}
  *
@@ -121,9 +140,9 @@ export async function generateUploadUrl(
   contentLength: number,
 ): Promise<PresignedUpload> {
   const limits = UPLOAD_LIMITS[category];
-  const allowed = ALLOWED_CONTENT_TYPES[category];
 
-  if (!allowed.includes(contentType)) {
+  if (!isAllowedContentType(category, contentType)) {
+    const allowed = ALLOWED_CONTENT_TYPES[category];
     throw new R2ValidationError(
       `Content type ${contentType} is not allowed for ${category}. Allowed: ${allowed.join(", ")}`,
     );

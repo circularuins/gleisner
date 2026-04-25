@@ -76,7 +76,11 @@ void main() {
 
     // ADR 025 / #146: iOS captures produce HEIC/HEIF with an `ftyp` box, so
     // without brand checks they would be mis-detected as video/mp4. Verify
-    // each still-image brand (ISO 14496-12) resolves to image/heic.
+    // each ISO 14496-12 / ISO 23008-12 image brand resolves to image/heic:
+    //   still images:   heic, heif, heix, mif1, heis
+    //   image sequence: msf1 (HEIF Image Sequence — bursts / Live Photos)
+    // hevc / hevx (HEVC video sequences) are intentionally excluded and
+    // covered by the regression test below.
     const heicBrands = <String>['heic', 'heif', 'heix', 'mif1', 'msf1', 'heis'];
     for (final brand in heicBrands) {
       test('detects HEIC/HEIF from ftyp brand "$brand"', () {

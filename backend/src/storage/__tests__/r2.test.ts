@@ -5,6 +5,7 @@ import {
   ALLOWED_CONTENT_TYPES,
   UPLOAD_LIMITS,
   R2ValidationError,
+  isAllowedContentType,
   type UploadCategory,
 } from "../r2.js";
 import { env } from "../../env.js";
@@ -105,6 +106,54 @@ describe("r2 utility functions", () => {
       ] as const satisfies readonly (keyof typeof ALLOWED_CONTENT_TYPES)[]) {
         expect(ALLOWED_CONTENT_TYPES[category]).toContain("image/heic");
         expect(ALLOWED_CONTENT_TYPES[category]).toContain("image/heif");
+      }
+    });
+  });
+
+  // Going through `isAllowedContentType` (instead of asserting the constant
+  // directly) verifies that the upload pipeline actually consults the gate —
+  // a constant-only test passes even if a future refactor stops calling it.
+  describe("isAllowedContentType", () => {
+    const categories = [
+      "avatars",
+      "covers",
+      "media",
+    ] as const satisfies readonly UploadCategory[];
+
+    it("accepts HEIC/HEIF across every category", () => {
+      for (const category of categories) {
+        expect(isAllowedContentType(category, "image/heic")).toBe(true);
+        expect(isAllowedContentType(category, "image/heif")).toBe(true);
+      }
+    });
+
+    // image/svg+xml is the canonical content-type-spoofing payload because
+    // SVG can host scripts. It must never be allowed even though it starts
+    // with `image/`. Issue #269 tracks the broader magic-byte verification.
+    it("rejects image/svg+xml across every category", () => {
+      for (const category of categories) {
+        expect(isAllowedContentType(category, "image/svg+xml")).toBe(false);
+      }
+    });
+
+    it("rejects executable / document content types", () => {
+      const dangerous = [
+        "application/javascript",
+        "application/x-sh",
+        "text/html",
+        "text/javascript",
+      ];
+      for (const category of categories) {
+        for (const ct of dangerous) {
+          expect(isAllowedContentType(category, ct)).toBe(false);
+        }
+      }
+    });
+
+    it("rejects video/audio for avatars and covers", () => {
+      for (const category of ["avatars", "covers"] as const) {
+        expect(isAllowedContentType(category, "video/mp4")).toBe(false);
+        expect(isAllowedContentType(category, "audio/mpeg")).toBe(false);
       }
     });
   });
