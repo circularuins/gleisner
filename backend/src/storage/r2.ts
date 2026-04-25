@@ -48,8 +48,14 @@ export const UPLOAD_LIMITS: Record<UploadCategory, { maxSize: number }> = {
 };
 
 export const ALLOWED_CONTENT_TYPES: Record<UploadCategory, string[]> = {
-  avatars: ["image/jpeg", "image/png", "image/webp"],
-  covers: ["image/jpeg", "image/png", "image/webp"],
+  avatars: [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+  ],
+  covers: ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"],
   media: [
     "image/jpeg",
     "image/png",
@@ -67,8 +73,15 @@ export const ALLOWED_CONTENT_TYPES: Record<UploadCategory, string[]> = {
   ],
 };
 
-/** Derive file extension from content type instead of trusting client filename. */
-const CONTENT_TYPE_EXT: Record<string, string> = {
+/**
+ * Derive file extension from content type instead of trusting client filename.
+ *
+ * Exported (read-only by convention) so tests can assert that every entry in
+ * `ALLOWED_CONTENT_TYPES` has a matching extension — guarding against the
+ * silent ".bin" fallback that would otherwise hit if a future PR adds a new
+ * allowed MIME but forgets to map the extension.
+ */
+export const CONTENT_TYPE_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
@@ -99,6 +112,30 @@ export class R2ValidationError extends Error {
 }
 
 /**
+ * Whether the given content type is allowed for the upload category.
+ *
+ * Exported so tests can exercise the gate directly (instead of asserting
+ * against the raw `ALLOWED_CONTENT_TYPES` array, which only verifies the
+ * constant's contents — not that the upload path actually consults it),
+ * and so future server-side ingestion paths can call the same predicate.
+ *
+ * The comparison is case-insensitive: RFC 9110 §8.3.1 makes media types
+ * case-insensitive, and some Apple SDKs / camera roll integrations emit
+ * `image/HEIC` (upper-case subtype) which a strict `Array.includes` would
+ * reject — losing the very interop this PR is meant to add.
+ *
+ * NOTE: This is a string-level allow-list only. It does **not** verify
+ * that the actual file bytes match the declared content type — see
+ * Issue #269 for the magic-byte-based defence-in-depth follow-up.
+ */
+export function isAllowedContentType(
+  category: UploadCategory,
+  contentType: string,
+): boolean {
+  return ALLOWED_CONTENT_TYPES[category].includes(contentType.toLowerCase());
+}
+
+/**
  * Generate a presigned PUT URL for direct R2 upload.
  * The key is structured as: {category}/{userId}/{uuid}.{ext}
  *
@@ -115,9 +152,9 @@ export async function generateUploadUrl(
   contentLength: number,
 ): Promise<PresignedUpload> {
   const limits = UPLOAD_LIMITS[category];
-  const allowed = ALLOWED_CONTENT_TYPES[category];
 
-  if (!allowed.includes(contentType)) {
+  if (!isAllowedContentType(category, contentType)) {
+    const allowed = ALLOWED_CONTENT_TYPES[category];
     throw new R2ValidationError(
       `Content type ${contentType} is not allowed for ${category}. Allowed: ${allowed.join(", ")}`,
     );
@@ -129,7 +166,11 @@ export async function generateUploadUrl(
     );
   }
 
-  const ext = CONTENT_TYPE_EXT[contentType] ?? "bin";
+  // Lower-case the lookup key for the same case-insensitive reasons as
+  // `isAllowedContentType`. The signed `ContentType` below stays as the
+  // client sent it so the PUT signature stays consistent with whatever
+  // header the client uploads with.
+  const ext = CONTENT_TYPE_EXT[contentType.toLowerCase()] ?? "bin";
   const uuid = crypto.randomUUID();
   const key = `${category}/${userId}/${uuid}.${ext}`;
 

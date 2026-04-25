@@ -79,8 +79,13 @@ String? mimeFromBytes(Uint8List bytes) {
         brand.startsWith('M4P')) {
       return 'audio/mp4';
     }
-    // HEIC/HEIF still-image brands (ISO 14496-12).
-    // Note: hevc/hevx are HEVC video sequences (ISO 23008-12), not still images.
+    // HEIC/HEIF brands defined by ISO 14496-12 / ISO 23008-12:
+    //   still images:   heic, heif, heix, mif1, heis
+    //   image sequence: msf1
+    // Both subsets are treated as image/heic so they hit the same upload
+    // pipeline (R2 stores them as .heic; the frontend converts to JPEG on
+    // Web before upload). Note: hevc/hevx are HEVC video sequences and
+    // intentionally excluded — they remain video/mp4.
     const heicBrands = {'heic', 'heif', 'heix', 'mif1', 'msf1', 'heis'};
     if (heicBrands.contains(brand)) return 'image/heic';
     // Default: treat remaining ftyp brands (isom, mp41, M4V, f4v, etc.) as video

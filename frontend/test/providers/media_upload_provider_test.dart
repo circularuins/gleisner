@@ -74,6 +74,48 @@ void main() {
       expect(mimeFromBytes(bytes), 'audio/mp4');
     });
 
+    // ADR 025 / #146: iOS captures produce HEIC/HEIF with an `ftyp` box, so
+    // without brand checks they would be mis-detected as video/mp4. Verify
+    // each ISO 14496-12 / ISO 23008-12 image brand resolves to image/heic:
+    //   still images:   heic, heif, heix, mif1, heis
+    //   image sequence: msf1 (HEIF Image Sequence — bursts / Live Photos)
+    // hevc / hevx (HEVC video sequences) are intentionally excluded and
+    // covered by the regression test below.
+    const heicBrands = <String>['heic', 'heif', 'heix', 'mif1', 'msf1', 'heis'];
+    for (final brand in heicBrands) {
+      test('detects HEIC/HEIF from ftyp brand "$brand"', () {
+        final brandBytes = brand.codeUnits;
+        final bytes = Uint8List.fromList([
+          0x00, 0x00, 0x00, 0x18, // box size
+          0x66, 0x74, 0x79, 0x70, // "ftyp"
+          brandBytes[0], brandBytes[1], brandBytes[2], brandBytes[3],
+        ]);
+        expect(mimeFromBytes(bytes), 'image/heic');
+      });
+    }
+
+    test('ftyp brand "mp41" still maps to video/mp4 (not HEIC)', () {
+      // Regression guard: HEIC brand check must not accidentally swallow
+      // non-HEIC ftyp brands commonly used by MP4 containers.
+      final bytes = Uint8List.fromList([
+        0x00, 0x00, 0x00, 0x18, // box size
+        0x66, 0x74, 0x79, 0x70, // "ftyp"
+        0x6D, 0x70, 0x34, 0x31, // "mp41" brand
+      ]);
+      expect(mimeFromBytes(bytes), 'video/mp4');
+    });
+
+    test('ftyp brand "hevc" stays on video/mp4 (HEVC video sequence)', () {
+      // hevc/hevx carry HEVC video sequences (ISO 23008-12), not still
+      // images. They must not be treated as HEIC.
+      final bytes = Uint8List.fromList([
+        0x00, 0x00, 0x00, 0x18, // box size
+        0x66, 0x74, 0x79, 0x70, // "ftyp"
+        0x68, 0x65, 0x76, 0x63, // "hevc" brand
+      ]);
+      expect(mimeFromBytes(bytes), 'video/mp4');
+    });
+
     test('detects MP3 from ID3 header', () {
       final bytes = Uint8List.fromList([
         0x49, 0x44, 0x33, 0x03, // "ID3" + version
