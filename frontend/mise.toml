@@ -8,6 +8,6 @@ lint_check = { run = ["flutter analyze", "dart format --set-exit-if-changed lib 
 run_web = { run = "flutter run" }
 build = { run = "flutter build web", depends = "clean" }
 pub_get = { run = "flutter pub get" }
-test = { run = "flutter test" }
+test = { run = "flutter test --platform chrome", depends = "pub_get" } # CLAUDE.md: dart:js_interop / package:web を推移的 import するテストは chrome 必須
 test_integration = { run = "flutter test test/integration --platform chrome", depends = "pub_get" } # E2E smoke test（Web only のため widget test 扱い、Chrome 必須）
 clean = { run = "flutter clean" }
