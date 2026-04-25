@@ -4,6 +4,7 @@ pnpm = "latest"
 
 [tasks]
 lint = { run = ["pnpm format", "pnpm lint:fix", ] }
+lint_check = { run = ["pnpm format:check", "pnpm lint", "pnpm build"] }
 build = { run = "pnpm build" }
 test = { run = "pnpm test", depends = "build" }
 seed_dev = { run = "pnpm db:push", depends = "build" }

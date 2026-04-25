@@ -3,6 +3,7 @@ flutter = "latest"
 
 [tasks]
 lint = { run = ["dart format lib test", "flutter analyze", ], depends = "pub_get" } # dart fmt にpub_getが必要
+lint_check = { run = ["flutter analyze", "dart format --set-exit-if-changed lib test"], depends = "pub_get" } # 書き換えなしチェック（Stop Hook 用）
 run_web = { run = "flutter run" }
 build = { run = "flutter build web", depends = "clean" }
 pub_get = { run = "flutter pub get" }
