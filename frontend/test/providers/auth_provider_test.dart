@@ -275,6 +275,7 @@ void main() {
             email: 'test@test.com',
             password: 'password123',
             username: 'testuser',
+            birthYearMonth: '2000-01',
             inviteCode: 'abc123',
           );
 
@@ -288,6 +289,7 @@ void main() {
             email: 'test@test.com',
             password: 'password123',
             username: 'testuser',
+            birthYearMonth: '2000-01',
           );
 
       expect(link.lastVariables?.containsKey('inviteCode'), isFalse);

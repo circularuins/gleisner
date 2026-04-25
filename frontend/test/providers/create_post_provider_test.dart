@@ -119,11 +119,11 @@ void main() {
 
       final notifier = container.read(createPostProvider.notifier);
       notifier.selectTrack(_testTrack);
-      notifier.selectMediaType(MediaType.text);
+      notifier.selectMediaType(MediaType.thought);
 
       final state = container.read(createPostProvider);
       expect(state.step, 2);
-      expect(state.selectedMediaType, MediaType.text);
+      expect(state.selectedMediaType, MediaType.thought);
     });
 
     test('goBack decrements step', () {
@@ -132,7 +132,7 @@ void main() {
 
       final notifier = container.read(createPostProvider.notifier);
       notifier.selectTrack(_testTrack);
-      notifier.selectMediaType(MediaType.text);
+      notifier.selectMediaType(MediaType.thought);
       expect(container.read(createPostProvider).step, 2);
 
       notifier.goBack();
@@ -151,7 +151,7 @@ void main() {
 
       final notifier = container.read(createPostProvider.notifier);
       notifier.selectTrack(_testTrack);
-      notifier.selectMediaType(MediaType.text);
+      notifier.selectMediaType(MediaType.thought);
       notifier.setImportance(0.8);
       notifier.reset();
 
@@ -169,7 +169,7 @@ void main() {
 
       final notifier = container.read(createPostProvider.notifier);
       notifier.selectTrack(_testTrack);
-      notifier.selectMediaType(MediaType.text);
+      notifier.selectMediaType(MediaType.thought);
 
       // Capture isSubmitting during the mutation
       final states = <bool>[];
@@ -206,7 +206,7 @@ void main() {
 
       final notifier = container.read(createPostProvider.notifier);
       notifier.selectTrack(_testTrack);
-      notifier.selectMediaType(MediaType.text);
+      notifier.selectMediaType(MediaType.thought);
 
       final result = await notifier.submit(
         title: 'Hello',
@@ -228,7 +228,7 @@ void main() {
 
       final notifier = container.read(createPostProvider.notifier);
       notifier.selectTrack(_testTrack);
-      notifier.selectMediaType(MediaType.text);
+      notifier.selectMediaType(MediaType.thought);
 
       final result = await notifier.submit(
         title: 'Hello',
@@ -258,7 +258,7 @@ void main() {
     group('addConnection / removeConnection', () {
       Post _fakePost(String id) => Post(
         id: id,
-        mediaType: MediaType.text,
+        mediaType: MediaType.article,
         title: 'Post $id',
         importance: 0.5,
         createdAt: DateTime(2026),
