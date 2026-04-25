@@ -63,11 +63,18 @@ class CoverImage extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.camera_alt, size: 16, color: colorTextSecondary),
+                    const Icon(
+                      Icons.camera_alt,
+                      size: 16,
+                      color: colorTextSecondary,
+                    ),
                     const SizedBox(width: spaceXs),
                     Text(
                       context.l10n.editCover,
-                      style: const TextStyle(color: colorTextSecondary, fontSize: 12),
+                      style: const TextStyle(
+                        color: colorTextSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
