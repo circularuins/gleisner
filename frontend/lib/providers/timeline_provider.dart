@@ -11,7 +11,7 @@ import '../graphql/queries/artist.dart';
 import '../graphql/mutations/connection.dart';
 import '../graphql/mutations/constellation.dart';
 import '../graphql/mutations/post.dart';
-import '../graphql/mutations/artist-milestone.dart';
+import '../graphql/mutations/artist_milestone.dart';
 import '../graphql/mutations/reaction.dart';
 import '../graphql/mutations/track.dart';
 import '../graphql/queries/post.dart';
@@ -619,19 +619,19 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
             if (visibilityChanged) 'visibility': visibility,
             if (title != null) 'title': title.isEmpty ? null : title,
             if (body != null) 'body': body.isEmpty ? null : body,
-            if (bodyFormat != null) 'bodyFormat': bodyFormat,
-            if (mediaUrl != null) 'mediaUrl': mediaUrl,
-            if (mediaUrls != null) 'mediaUrls': mediaUrls,
-            if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
+            'bodyFormat': ?bodyFormat,
+            'mediaUrl': ?mediaUrl,
+            'mediaUrls': ?mediaUrls,
+            'thumbnailUrl': ?thumbnailUrl,
             if (clearThumbnail) 'thumbnailUrl': null,
-            if (duration != null) 'duration': duration,
+            'duration': ?duration,
             if (clearDuration) 'duration': null,
-            if (eventAt != null) 'eventAt': eventAt,
+            'eventAt': ?eventAt,
             if (clearEventAt) 'eventAt': null,
-            if (importance != null) 'importance': importance,
-            if (articleGenre != null) 'articleGenre': articleGenre,
+            'importance': ?importance,
+            'articleGenre': ?articleGenre,
             if (clearArticleGenre) 'clearArticleGenre': true,
-            if (externalPublish != null) 'externalPublish': externalPublish,
+            'externalPublish': ?externalPublish,
           },
         ),
       );

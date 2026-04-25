@@ -37,7 +37,7 @@ class AnalyticsNotifier extends Notifier<void> {
               variables: {
                 'eventType': eventType,
                 'sessionId': _sessionId,
-                if (metadata != null) 'metadata': metadata,
+                'metadata': ?metadata,
               },
             ),
           )

@@ -377,7 +377,7 @@ void main() {
           createdAt: now.subtract(Duration(hours: i * 5)),
           importance: (i % 5) * 0.2,
           trackId: 'track-${i % 3}',
-          trackColor: '#ff${i}${i}00',
+          trackColor: '#ff$i${i}00',
         ),
       );
 
@@ -617,7 +617,7 @@ void main() {
   });
 
   group('Milestone nodes', () {
-    ArtistMilestone _makeMilestone({
+    ArtistMilestone makeMilestone({
       required String id,
       required String date,
       String category = 'award',
@@ -636,10 +636,7 @@ void main() {
       final items = <TimelineItem>[
         PostItem(_makePost(id: '1', createdAt: now, importance: 0.8)),
         MilestoneItem(
-          _makeMilestone(
-            id: 'm1',
-            date: now.toIso8601String().substring(0, 10),
-          ),
+          makeMilestone(id: 'm1', date: now.toIso8601String().substring(0, 10)),
         ),
       ];
       final result = ConstellationLayout.compute(
@@ -660,10 +657,7 @@ void main() {
       final now = DateTime.now();
       final items = <TimelineItem>[
         MilestoneItem(
-          _makeMilestone(
-            id: 'm1',
-            date: now.toIso8601String().substring(0, 10),
-          ),
+          makeMilestone(id: 'm1', date: now.toIso8601String().substring(0, 10)),
         ),
       ];
       final result = ConstellationLayout.compute(
@@ -677,10 +671,7 @@ void main() {
       final now = DateTime.now();
       final items = <TimelineItem>[
         MilestoneItem(
-          _makeMilestone(
-            id: 'm1',
-            date: now.toIso8601String().substring(0, 10),
-          ),
+          makeMilestone(id: 'm1', date: now.toIso8601String().substring(0, 10)),
         ),
       ];
       final result = ConstellationLayout.compute(
@@ -718,10 +709,7 @@ void main() {
           ),
         ),
         MilestoneItem(
-          _makeMilestone(
-            id: 'm1',
-            date: now.toIso8601String().substring(0, 10),
-          ),
+          makeMilestone(id: 'm1', date: now.toIso8601String().substring(0, 10)),
         ),
       ];
       final result = ConstellationLayout.compute(
@@ -737,7 +725,7 @@ void main() {
       final items = <TimelineItem>[
         PostItem(_makePost(id: 'p1', createdAt: now)),
         MilestoneItem(
-          _makeMilestone(
+          makeMilestone(
             id: 'm1',
             date: now
                 .subtract(const Duration(days: 2))
@@ -762,13 +750,10 @@ void main() {
       final now = DateTime.now();
       final items = <TimelineItem>[
         MilestoneItem(
-          _makeMilestone(
-            id: 'm1',
-            date: now.toIso8601String().substring(0, 10),
-          ),
+          makeMilestone(id: 'm1', date: now.toIso8601String().substring(0, 10)),
         ),
         MilestoneItem(
-          _makeMilestone(
+          makeMilestone(
             id: 'm2',
             date: now
                 .subtract(const Duration(days: 5))
@@ -792,10 +777,7 @@ void main() {
       final items = <TimelineItem>[
         PostItem(_makePost(id: '1', createdAt: now, importance: 0.5)),
         MilestoneItem(
-          _makeMilestone(
-            id: 'm1',
-            date: now.toIso8601String().substring(0, 10),
-          ),
+          makeMilestone(id: 'm1', date: now.toIso8601String().substring(0, 10)),
         ),
       ];
       final result = ConstellationLayout.compute(
@@ -811,13 +793,10 @@ void main() {
       final now = DateTime.now();
       final items = <TimelineItem>[
         MilestoneItem(
-          _makeMilestone(
-            id: 'm1',
-            date: now.toIso8601String().substring(0, 10),
-          ),
+          makeMilestone(id: 'm1', date: now.toIso8601String().substring(0, 10)),
         ),
         MilestoneItem(
-          _makeMilestone(
+          makeMilestone(
             id: 'm2',
             date: now
                 .subtract(const Duration(days: 1))

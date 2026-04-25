@@ -605,7 +605,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         ),
         Switch(
           value: _externalPublish,
-          activeColor: colorAccentGold,
+          activeThumbColor: colorAccentGold,
           onChanged: (v) => setState(() => _externalPublish = v),
         ),
       ],
@@ -1139,31 +1139,6 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         ),
       ),
     ];
-  }
-
-  InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: colorTextMuted),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(radiusMd),
-        borderSide: const BorderSide(color: colorBorder),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(radiusMd),
-        borderSide: const BorderSide(color: colorAccentGold),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(radiusMd),
-        borderSide: const BorderSide(color: colorError),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(radiusMd),
-        borderSide: const BorderSide(color: colorError),
-      ),
-      filled: true,
-      fillColor: colorSurface1,
-    );
   }
 }
 

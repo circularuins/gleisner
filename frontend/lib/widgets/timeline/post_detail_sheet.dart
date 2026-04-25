@@ -2232,7 +2232,6 @@ class _VideoPlayerState extends State<_VideoPlayer> {
   bool _initialized = false;
   bool _showControls = true;
   Timer? _hideTimer;
-  final GlobalKey _videoKey = GlobalKey();
 
   @override
   void initState() {

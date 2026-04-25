@@ -827,7 +827,6 @@ class _LinkContent extends StatelessWidget {
     final domain = post.mediaUrl != null
         ? Uri.tryParse(post.mediaUrl!)?.host ?? ''
         : '';
-    final displayTitle = post.title ?? post.ogTitle;
     final showInfo = node.showInfo;
     final totalH = node.mediaHeight + (showInfo ? 30 : 0);
 
@@ -1053,7 +1052,7 @@ class _OverlayInfo extends StatelessWidget {
         if (hasTitle) ...[
           const SizedBox(height: 1),
           Text(
-            displayTitle!,
+            displayTitle,
             style: const TextStyle(
               color: Colors.white,
               fontSize: fontSizeSm,

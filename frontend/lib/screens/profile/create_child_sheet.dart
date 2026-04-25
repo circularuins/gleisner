@@ -249,8 +249,9 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
                 ),
                 style: const TextStyle(color: colorTextPrimary),
                 validator: (v) {
-                  if (v == null || v.isEmpty)
+                  if (v == null || v.isEmpty) {
                     return context.l10n.passwordRequired;
+                  }
                   return null;
                 },
               ),
