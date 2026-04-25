@@ -1,10 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
-import 'package:hive_ce/hive.dart';
 
 import 'package:gleisner_web/graphql/client.dart';
 import 'package:gleisner_web/providers/auth_provider.dart';
@@ -106,16 +103,6 @@ ProviderContainer _createContainer({
 
 void main() {
   late MockSecureStorage mockStorage;
-  late Directory tempDir;
-
-  setUpAll(() {
-    tempDir = Directory.systemTemp.createTempSync('gleisner_test_');
-    Hive.init(tempDir.path);
-  });
-
-  tearDownAll(() {
-    tempDir.deleteSync(recursive: true);
-  });
 
   setUp(() {
     mockStorage = MockSecureStorage();
@@ -205,7 +192,10 @@ void main() {
 
       final container = _createContainer(
         client: _clientWith(
-          exception: const SocketException('Connection refused'),
+          // Use a plain Exception (not dart:io's SocketException) so this test
+          // compiles on `--platform chrome`. AuthNotifier treats any
+          // non-GraphQL exception as a network error.
+          exception: Exception('Connection refused'),
         ),
         storage: mockStorage,
       );
