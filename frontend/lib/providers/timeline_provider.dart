@@ -666,12 +666,15 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     final posts = [...state.posts, post];
     state = state.copyWith(posts: posts, highlightPostId: post.id);
     _recomputeLayout();
-    // Clear highlight after animation completes
-    Future.delayed(const Duration(milliseconds: 3000), () {
-      if (!disposed && state.highlightPostId == post.id) {
-        state = state.copyWith(highlightPostId: null);
-      }
-    });
+    // Clear highlight after animation completes. Fire-and-forget; the
+    // disposed guard inside the closure makes this safe to ignore.
+    unawaited(
+      Future.delayed(const Duration(milliseconds: 3000), () {
+        if (!disposed && state.highlightPostId == post.id) {
+          state = state.copyWith(highlightPostId: null);
+        }
+      }),
+    );
     // Fire-and-forget: refresh handles its own errors via try/catch and
     // the disposed guard, so awaiting here would only block addPost on a
     // 3 s timer.
@@ -728,8 +731,28 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
       }
       final data = result.data?['fetchOgp'] as Map<String, dynamic>?;
       if (data == null) return;
-      final refreshed = Post.fromJson(data);
-      _mergeOgpFields(refreshed);
+      final ogTitle = data['ogTitle'] as String?;
+      final ogDescription = data['ogDescription'] as String?;
+      final ogImage = data['ogImage'] as String?;
+      final ogSiteName = data['ogSiteName'] as String?;
+      // Site exposed no OGP tags — backend returned a Post with all four
+      // og* fields null. Don't merge: we'd just overwrite whatever was
+      // there with the same nulls, but a blind copyWith could clobber
+      // values that were populated concurrently (e.g. user manually
+      // reloaded between the disposed-check and now).
+      if (ogTitle == null &&
+          ogDescription == null &&
+          ogImage == null &&
+          ogSiteName == null) {
+        return;
+      }
+      _mergeOgpFields(
+        postId: post.id,
+        ogTitle: ogTitle,
+        ogDescription: ogDescription,
+        ogImage: ogImage,
+        ogSiteName: ogSiteName,
+      );
     } catch (e) {
       debugPrint(
         '[TimelineNotifier] OGP auto-refresh error for ${post.id}: $e',
@@ -743,17 +766,23 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
       p.ogImage != null ||
       p.ogSiteName != null;
 
-  /// Merge OGP fields from a refreshed post into the matching timeline entry.
-  /// Does NOT touch reactions / connections / layout — OGP is render-only
-  /// and recomputing layout would jitter the node.
-  void _mergeOgpFields(Post refreshed) {
-    final idx = state.posts.indexWhere((p) => p.id == refreshed.id);
+  /// Merge OGP fields into the matching timeline entry. Does NOT touch
+  /// reactions / connections / layout — OGP is render-only and
+  /// recomputing layout would jitter the node.
+  void _mergeOgpFields({
+    required String postId,
+    required String? ogTitle,
+    required String? ogDescription,
+    required String? ogImage,
+    required String? ogSiteName,
+  }) {
+    final idx = state.posts.indexWhere((p) => p.id == postId);
     if (idx == -1) return;
     final merged = state.posts[idx].copyWith(
-      ogTitle: refreshed.ogTitle,
-      ogDescription: refreshed.ogDescription,
-      ogImage: refreshed.ogImage,
-      ogSiteName: refreshed.ogSiteName,
+      ogTitle: ogTitle,
+      ogDescription: ogDescription,
+      ogImage: ogImage,
+      ogSiteName: ogSiteName,
     );
     final posts = List<Post>.of(state.posts)..[idx] = merged;
     state = state.copyWith(posts: posts);

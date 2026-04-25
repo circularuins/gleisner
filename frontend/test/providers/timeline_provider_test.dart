@@ -24,17 +24,6 @@ class _MockLink extends Link {
   }
 }
 
-GraphQLClient _clientWith({
-  Map<String, dynamic>? data,
-  List<GraphQLError>? errors,
-  Exception? exception,
-}) {
-  return GraphQLClient(
-    link: _MockLink(data: data, errors: errors, exception: exception),
-    cache: GraphQLCache(store: InMemoryStore()),
-  );
-}
-
 ({GraphQLClient client, _MockLink link}) _clientAndLinkWith({
   Map<String, dynamic>? data,
   List<GraphQLError>? errors,
@@ -49,6 +38,13 @@ GraphQLClient _clientWith({
     link: link,
   );
 }
+
+GraphQLClient _clientWith({
+  Map<String, dynamic>? data,
+  List<GraphQLError>? errors,
+  Exception? exception,
+}) =>
+    _clientAndLinkWith(data: data, errors: errors, exception: exception).client;
 
 /// Minimal Post factory for OGP refresh tests.
 Post _linkPost({
@@ -74,9 +70,11 @@ Post _linkPost({
   );
 }
 
+/// Mocks the slim FetchOgp mutation shape (id + 4 OGP fields).
+/// All fields nullable so tests can simulate "site has no OGP" responses.
 Map<String, dynamic> _fetchOgpResponse({
   String id = 'p1',
-  String ogTitle = 'Example Title',
+  String? ogTitle = 'Example Title',
   String? ogDescription = 'Example Description',
   String? ogImage = 'https://example.com/og.png',
   String? ogSiteName = 'example.com',
@@ -91,37 +89,6 @@ Map<String, dynamic> _fetchOgpResponse({
     'fetchOgp': {
       '__typename': 'Post',
       'id': id,
-      'mediaType': 'link',
-      'title': null,
-      'body': null,
-      'bodyFormat': 'plain',
-      'mediaUrl': 'https://example.com',
-      'thumbnailUrl': null,
-      'duration': null,
-      'importance': 1.0,
-      'visibility': 'public',
-      'eventAt': null,
-      'layoutX': null,
-      'layoutY': null,
-      'contentHash': null,
-      'createdAt': '2026-01-01T00:00:00.000Z',
-      'updatedAt': '2026-01-01T00:00:00.000Z',
-      'author': {
-        '__typename': 'PublicUser',
-        'id': 'u1',
-        'username': 'alice',
-        'displayName': null,
-        'avatarUrl': null,
-      },
-      'track': null,
-      'reactionCounts': const [],
-      'myReactions': const [],
-      'outgoingConnections': const [],
-      'incomingConnections': const [],
-      'constellation': null,
-      'media': const [],
-      'articleGenre': null,
-      'externalPublish': false,
       'ogTitle': ogTitle,
       'ogDescription': ogDescription,
       'ogImage': ogImage,
@@ -446,6 +413,10 @@ void main() {
       () async {
         final pair = _clientAndLinkWith(data: _fetchOgpResponse());
         final container = _createContainer(client: pair.client);
+        // Best-effort cleanup if the test throws before the explicit
+        // dispose — ProviderContainer.dispose() is idempotent and safe to
+        // call twice.
+        addTearDown(container.dispose);
 
         final notifier = container.read(timelineProvider.notifier);
         final post = _linkPost();
@@ -466,6 +437,43 @@ void main() {
         // Should resolve without throwing and without firing a request.
         await pending;
         expect(pair.link.requests, isEmpty);
+      },
+    );
+
+    test(
+      'all-null fetchOgp response leaves existing state untouched',
+      () async {
+        // Backend returned a Post with every og* field null (site has no
+        // OGP tags). Refresh should bail rather than overwriting state
+        // with the same nulls.
+        final pair = _clientAndLinkWith(
+          data: _fetchOgpResponse(
+            ogTitle: null,
+            ogDescription: null,
+            ogImage: null,
+            ogSiteName: null,
+          ),
+        );
+        final container = _createContainer(client: pair.client);
+        addTearDown(container.dispose);
+
+        final notifier = container.read(timelineProvider.notifier);
+        final post = _linkPost();
+        notifier.debugSetState(
+          container.read(timelineProvider).copyWith(posts: [post]),
+        );
+
+        // Capture state reference to confirm it isn't replaced when the
+        // response carries no actual OGP data.
+        final beforePosts = container.read(timelineProvider).posts;
+        await notifier.scheduleOgpRefreshForTesting(post);
+
+        expect(pair.link.requests, hasLength(1));
+        // Same list instance — _mergeOgpFields was never called.
+        expect(
+          identical(container.read(timelineProvider).posts, beforePosts),
+          isTrue,
+        );
       },
     );
   });

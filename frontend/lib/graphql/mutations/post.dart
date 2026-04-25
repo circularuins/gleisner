@@ -88,11 +88,18 @@ const deletePostMutation = r'''
   }
 ''';
 
-const fetchOgpMutation =
-    '''
-  mutation FetchOgp(\$postId: String!) {
-    fetchOgp(postId: \$postId) {
-      $postFields
+/// Slim variant of fetchOgp used by the deferred auto-refresh in
+/// TimelineNotifier. Only the OGP fields (and id, for matching) are
+/// merged into local state, so requesting the full Post fragment would
+/// waste bandwidth, parsing, and GC for every newly created link post.
+const fetchOgpMutation = r'''
+  mutation FetchOgp($postId: String!) {
+    fetchOgp(postId: $postId) {
+      id
+      ogTitle
+      ogDescription
+      ogImage
+      ogSiteName
     }
   }
 ''';
