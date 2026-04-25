@@ -4,6 +4,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 
 import 'package:gleisner_web/graphql/client.dart';
 import 'package:gleisner_web/models/artist.dart';
+import 'package:gleisner_web/models/post.dart';
 import 'package:gleisner_web/models/track.dart';
 import 'package:gleisner_web/providers/timeline_provider.dart';
 
@@ -11,25 +12,89 @@ class _MockLink extends Link {
   final Map<String, dynamic>? data;
   final List<GraphQLError>? errors;
   final Exception? exception;
+  final List<Request> requests = [];
 
   _MockLink({this.data, this.errors, this.exception});
 
   @override
   Stream<Response> request(Request request, [NextLink? forward]) {
+    requests.add(request);
     if (exception != null) return Stream.error(exception!);
     return Stream.value(Response(data: data, errors: errors, response: {}));
   }
+}
+
+({GraphQLClient client, _MockLink link}) _clientAndLinkWith({
+  Map<String, dynamic>? data,
+  List<GraphQLError>? errors,
+  Exception? exception,
+}) {
+  final link = _MockLink(data: data, errors: errors, exception: exception);
+  return (
+    client: GraphQLClient(
+      link: link,
+      cache: GraphQLCache(store: InMemoryStore()),
+    ),
+    link: link,
+  );
 }
 
 GraphQLClient _clientWith({
   Map<String, dynamic>? data,
   List<GraphQLError>? errors,
   Exception? exception,
+}) =>
+    _clientAndLinkWith(data: data, errors: errors, exception: exception).client;
+
+/// Minimal Post factory for OGP refresh tests.
+Post _linkPost({
+  String id = 'p1',
+  String? ogTitle,
+  String? ogDescription,
+  String? ogImage,
+  String? ogSiteName,
 }) {
-  return GraphQLClient(
-    link: _MockLink(data: data, errors: errors, exception: exception),
-    cache: GraphQLCache(store: InMemoryStore()),
+  final now = DateTime.utc(2026, 1, 1);
+  return Post(
+    id: id,
+    mediaType: MediaType.link,
+    mediaUrl: 'https://example.com',
+    importance: 1.0,
+    createdAt: now,
+    updatedAt: now,
+    author: const PostAuthor(id: 'u1', username: 'alice'),
+    ogTitle: ogTitle,
+    ogDescription: ogDescription,
+    ogImage: ogImage,
+    ogSiteName: ogSiteName,
   );
+}
+
+/// Mocks the slim FetchOgp mutation shape (id + 4 OGP fields).
+/// All fields nullable so tests can simulate "site has no OGP" responses.
+Map<String, dynamic> _fetchOgpResponse({
+  String id = 'p1',
+  String? ogTitle = 'Example Title',
+  String? ogDescription = 'Example Description',
+  String? ogImage = 'https://example.com/og.png',
+  String? ogSiteName = 'example.com',
+}) {
+  // `__typename` is required at every object level so that the graphql
+  // client's normalizing cache (used by default via FetchPolicy.networkOnly)
+  // can ingest the mocked response without throwing
+  // UnexpectedResponseStructureException. Mirrors the pattern in
+  // tune_in_provider_test.dart.
+  return {
+    '__typename': 'Mutation',
+    'fetchOgp': {
+      '__typename': 'Post',
+      'id': id,
+      'ogTitle': ogTitle,
+      'ogDescription': ogDescription,
+      'ogImage': ogImage,
+      'ogSiteName': ogSiteName,
+    },
+  };
 }
 
 ProviderContainer _createContainer({required GraphQLClient client}) {
@@ -224,5 +289,192 @@ void main() {
         't2',
       });
     });
+  });
+
+  // Regression tests for Issue #191. The backend fires OGP fetch
+  // fire-and-forget after createPost, so a freshly added link post often
+  // lands in the timeline with every og* field still null. TimelineNotifier
+  // schedules a deferred fetchOgp after addPost to populate them.
+  group('TimelineNotifier OGP auto-refresh (#191)', () {
+    test(
+      'link post with null OGP triggers fetchOgp and merges result',
+      () async {
+        final pair = _clientAndLinkWith(data: _fetchOgpResponse());
+        final container = _createContainer(client: pair.client);
+        addTearDown(container.dispose);
+
+        final notifier = container.read(timelineProvider.notifier);
+        final post = _linkPost();
+        notifier.debugSetState(
+          container.read(timelineProvider).copyWith(posts: [post]),
+        );
+
+        await notifier.scheduleOgpRefreshForTesting(post);
+
+        expect(pair.link.requests, hasLength(1));
+        final refreshed = container.read(timelineProvider).posts.single;
+        expect(refreshed.ogTitle, 'Example Title');
+        expect(refreshed.ogDescription, 'Example Description');
+        expect(refreshed.ogImage, 'https://example.com/og.png');
+        expect(refreshed.ogSiteName, 'example.com');
+        // Non-OGP fields must be preserved verbatim from the original post.
+        // Listed individually so future copyWith arg changes (additions /
+        // removals) can be caught as regressions.
+        expect(refreshed.id, post.id);
+        expect(refreshed.mediaType, MediaType.link);
+        expect(refreshed.mediaUrl, post.mediaUrl);
+        expect(refreshed.importance, post.importance);
+        expect(refreshed.createdAt, post.createdAt);
+        expect(refreshed.updatedAt, post.updatedAt);
+        expect(refreshed.author.id, post.author.id);
+        expect(refreshed.author.username, post.author.username);
+      },
+    );
+
+    test('non-link post skips refresh entirely', () async {
+      final pair = _clientAndLinkWith(data: _fetchOgpResponse());
+      final container = _createContainer(client: pair.client);
+      addTearDown(container.dispose);
+
+      final now = DateTime.utc(2026, 1, 1);
+      final imagePost = Post(
+        id: 'p2',
+        mediaType: MediaType.image,
+        importance: 1.0,
+        createdAt: now,
+        updatedAt: now,
+        author: const PostAuthor(id: 'u1', username: 'alice'),
+      );
+
+      await container
+          .read(timelineProvider.notifier)
+          .scheduleOgpRefreshForTesting(imagePost);
+
+      expect(pair.link.requests, isEmpty);
+    });
+
+    test('link post with existing OGP skips refresh', () async {
+      final pair = _clientAndLinkWith(data: _fetchOgpResponse());
+      final container = _createContainer(client: pair.client);
+      addTearDown(container.dispose);
+
+      final post = _linkPost(ogTitle: 'Already Fetched');
+
+      await container
+          .read(timelineProvider.notifier)
+          .scheduleOgpRefreshForTesting(post);
+
+      expect(pair.link.requests, isEmpty);
+    });
+
+    test('refresh is dropped when the post has left the timeline', () async {
+      final pair = _clientAndLinkWith(data: _fetchOgpResponse());
+      final container = _createContainer(client: pair.client);
+      addTearDown(container.dispose);
+
+      final notifier = container.read(timelineProvider.notifier);
+      final post = _linkPost();
+      // Start with post absent — simulates deletion between scheduling and
+      // the delay elapsing.
+      notifier.debugSetState(
+        container.read(timelineProvider).copyWith(posts: const []),
+      );
+
+      await notifier.scheduleOgpRefreshForTesting(post);
+
+      expect(pair.link.requests, isEmpty);
+      expect(container.read(timelineProvider).posts, isEmpty);
+    });
+
+    test('GraphQL errors during refresh leave state unchanged', () async {
+      final pair = _clientAndLinkWith(
+        errors: [const GraphQLError(message: 'Rate limited')],
+      );
+      final container = _createContainer(client: pair.client);
+      addTearDown(container.dispose);
+
+      final notifier = container.read(timelineProvider.notifier);
+      final post = _linkPost();
+      notifier.debugSetState(
+        container.read(timelineProvider).copyWith(posts: [post]),
+      );
+
+      await notifier.scheduleOgpRefreshForTesting(post);
+
+      final after = container.read(timelineProvider).posts.single;
+      expect(after.ogTitle, isNull);
+      expect(after.ogDescription, isNull);
+      expect(after.ogImage, isNull);
+      expect(after.ogSiteName, isNull);
+    });
+
+    test(
+      'refresh bails out cleanly when notifier is disposed mid-delay',
+      () async {
+        final pair = _clientAndLinkWith(data: _fetchOgpResponse());
+        final container = _createContainer(client: pair.client);
+        // Best-effort cleanup if the test throws before the explicit
+        // dispose — ProviderContainer.dispose() is idempotent and safe to
+        // call twice.
+        addTearDown(container.dispose);
+
+        final notifier = container.read(timelineProvider.notifier);
+        final post = _linkPost();
+        notifier.debugSetState(
+          container.read(timelineProvider).copyWith(posts: [post]),
+        );
+
+        // Kick off a refresh with a non-zero delay so we have a window in
+        // which to dispose the container.
+        final pending = notifier.scheduleOgpRefreshForTesting(
+          post,
+          delay: const Duration(milliseconds: 50),
+        );
+        // Dispose during the delay — simulates user navigating away while
+        // the 3 s timer is pending.
+        container.dispose();
+
+        // Should resolve without throwing and without firing a request.
+        await pending;
+        expect(pair.link.requests, isEmpty);
+      },
+    );
+
+    test(
+      'all-null fetchOgp response leaves existing state untouched',
+      () async {
+        // Backend returned a Post with every og* field null (site has no
+        // OGP tags). Refresh should bail rather than overwriting state
+        // with the same nulls.
+        final pair = _clientAndLinkWith(
+          data: _fetchOgpResponse(
+            ogTitle: null,
+            ogDescription: null,
+            ogImage: null,
+            ogSiteName: null,
+          ),
+        );
+        final container = _createContainer(client: pair.client);
+        addTearDown(container.dispose);
+
+        final notifier = container.read(timelineProvider.notifier);
+        final post = _linkPost();
+        notifier.debugSetState(
+          container.read(timelineProvider).copyWith(posts: [post]),
+        );
+
+        // Capture state reference to confirm it isn't replaced when the
+        // response carries no actual OGP data.
+        final beforePosts = container.read(timelineProvider).posts;
+        await notifier.scheduleOgpRefreshForTesting(post);
+
+        expect(pair.link.requests, hasLength(1));
+        // Same list instance — _mergeOgpFields was never called.
+        expect(
+          identical(container.read(timelineProvider).posts, beforePosts),
+          isTrue,
+        );
+      },
+    );
   });
 }
