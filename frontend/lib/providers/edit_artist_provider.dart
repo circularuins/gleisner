@@ -4,7 +4,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
 import '../graphql/mutations/artist.dart';
-import '../graphql/mutations/artist-milestone.dart';
+import '../graphql/mutations/artist_milestone.dart';
 import '../graphql/mutations/genre.dart';
 import '../graphql/mutations/track.dart';
 import '../models/artist.dart';
@@ -39,17 +39,16 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
         MutationOptions(
           document: gql(updateArtistMutation),
           variables: {
-            if (displayName != null) 'displayName': displayName,
-            if (bio != null) 'bio': bio,
-            if (tagline != null) 'tagline': tagline,
-            if (location != null) 'location': location,
-            if (activeSince != null) 'activeSince': activeSince,
-            if (avatarUrl != null) 'avatarUrl': avatarUrl,
+            'displayName': ?displayName,
+            'bio': ?bio,
+            'tagline': ?tagline,
+            'location': ?location,
+            'activeSince': ?activeSince,
+            'avatarUrl': ?avatarUrl,
             if (clearAvatarUrl) 'clearAvatarUrl': true,
-            if (coverImageUrl != null) 'coverImageUrl': coverImageUrl,
+            'coverImageUrl': ?coverImageUrl,
             if (clearCoverImageUrl) 'clearCoverImageUrl': true,
-            if (profileVisibility != null)
-              'profileVisibility': profileVisibility,
+            'profileVisibility': ?profileVisibility,
           },
         ),
       );
@@ -125,7 +124,7 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
             'linkCategory': linkCategory,
             'platform': platform,
             'url': url,
-            if (position != null) 'position': position,
+            'position': ?position,
           },
         ),
       );
@@ -156,10 +155,10 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
           document: gql(updateArtistLinkMutation),
           variables: {
             'id': id,
-            if (linkCategory != null) 'linkCategory': linkCategory,
-            if (platform != null) 'platform': platform,
-            if (url != null) 'url': url,
-            if (position != null) 'position': position,
+            'linkCategory': ?linkCategory,
+            'platform': ?platform,
+            'url': ?url,
+            'position': ?position,
           },
         ),
       );
@@ -217,10 +216,7 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
       final result = await _client.mutate(
         MutationOptions(
           document: gql(addArtistGenreMutation),
-          variables: {
-            'genreId': genreId,
-            if (position != null) 'position': position,
-          },
+          variables: {'genreId': genreId, 'position': ?position},
         ),
       );
 
@@ -306,9 +302,9 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
           variables: {
             'category': category,
             'title': title,
-            if (description != null) 'description': description,
+            'description': ?description,
             'date': date,
-            if (position != null) 'position': position,
+            'position': ?position,
           },
         ),
       );
@@ -338,11 +334,11 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
           document: gql(updateArtistMilestoneMutation),
           variables: {
             'id': id,
-            if (category != null) 'category': category,
-            if (title != null) 'title': title,
+            'category': ?category,
+            'title': ?title,
             // Always send description (null clears it)
             'description': description,
-            if (date != null) 'date': date,
+            'date': ?date,
           },
         ),
       );

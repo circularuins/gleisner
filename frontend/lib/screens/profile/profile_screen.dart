@@ -205,7 +205,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           const Spacer(),
                           Switch(
                             value: artist.profileVisibility == 'public',
-                            activeColor: colorAccentGold,
+                            activeThumbColor: colorAccentGold,
                             onChanged: (isPublic) async {
                               final v = isPublic ? 'public' : 'private';
                               await ref

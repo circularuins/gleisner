@@ -42,7 +42,7 @@ class UnassignedPostsScreen extends ConsumerWidget {
           : ListView.separated(
               padding: const EdgeInsets.all(spaceLg),
               itemCount: state.posts.length,
-              separatorBuilder: (_, __) => const SizedBox(height: spaceSm),
+              separatorBuilder: (_, _) => const SizedBox(height: spaceSm),
               itemBuilder: (context, index) {
                 final post = state.posts[index];
                 return _PostTile(

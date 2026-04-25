@@ -423,7 +423,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                       controller: scrollController,
                       padding: const EdgeInsets.all(spaceLg),
                       itemCount: _milestones.length,
-                      separatorBuilder: (_, __) =>
+                      separatorBuilder: (_, _) =>
                           const SizedBox(height: spaceMd),
                       itemBuilder: (context, index) {
                         final m = _milestones[index];

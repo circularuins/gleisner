@@ -1758,7 +1758,7 @@ class _ExternalPublishToggle extends ConsumerWidget {
         ),
         Switch(
           value: externalPublish,
-          activeColor: colorAccentGold,
+          activeThumbColor: colorAccentGold,
           onChanged: (v) =>
               ref.read(createPostProvider.notifier).setExternalPublish(v),
         ),

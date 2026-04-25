@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/l10n.dart';
 import '../../models/artist.dart';
-import '../../models/post.dart' show ReactionCount;
 import '../../providers/timeline_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/milestone_category.dart';

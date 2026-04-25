@@ -51,28 +51,6 @@ final _testTrack = Track(
   createdAt: DateTime(2026),
 );
 
-const _postResponse = {
-  'createPost': {
-    'id': 'post-1',
-    'mediaType': 'text',
-    'title': 'Hello',
-    'body': 'World',
-    'mediaUrl': null,
-    'importance': 0.5,
-    'layoutX': null,
-    'layoutY': null,
-    'contentHash': 'abc123',
-    'createdAt': '2026-03-20T00:00:00Z',
-    'updatedAt': '2026-03-20T00:00:00Z',
-    'author': {
-      'id': 'user-1',
-      'username': 'test',
-      'displayName': 'Test',
-      'avatarUrl': null,
-    },
-  },
-};
-
 void main() {
   group('CreatePostNotifier', () {
     test('initial state', () {
@@ -242,7 +220,7 @@ void main() {
     });
 
     group('addConnection / removeConnection', () {
-      Post _fakePost(String id) => Post(
+      Post fakePost(String id) => Post(
         id: id,
         mediaType: MediaType.article,
         title: 'Post $id',
@@ -257,7 +235,7 @@ void main() {
         addTearDown(container.dispose);
 
         final notifier = container.read(createPostProvider.notifier);
-        notifier.addConnection(_fakePost('p1'), ConnectionType.reference);
+        notifier.addConnection(fakePost('p1'), ConnectionType.reference);
 
         final state = container.read(createPostProvider);
         expect(state.selectedConnections, hasLength(1));
@@ -274,7 +252,7 @@ void main() {
 
         final notifier = container.read(createPostProvider.notifier);
         for (var i = 1; i <= 6; i++) {
-          notifier.addConnection(_fakePost('p$i'), ConnectionType.evolution);
+          notifier.addConnection(fakePost('p$i'), ConnectionType.evolution);
         }
 
         expect(
@@ -288,8 +266,8 @@ void main() {
         addTearDown(container.dispose);
 
         final notifier = container.read(createPostProvider.notifier);
-        notifier.addConnection(_fakePost('p1'), ConnectionType.reference);
-        notifier.addConnection(_fakePost('p1'), ConnectionType.remix);
+        notifier.addConnection(fakePost('p1'), ConnectionType.reference);
+        notifier.addConnection(fakePost('p1'), ConnectionType.remix);
 
         expect(
           container.read(createPostProvider).selectedConnections,
@@ -302,8 +280,8 @@ void main() {
         addTearDown(container.dispose);
 
         final notifier = container.read(createPostProvider.notifier);
-        notifier.addConnection(_fakePost('p1'), ConnectionType.reference);
-        notifier.addConnection(_fakePost('p2'), ConnectionType.remix);
+        notifier.addConnection(fakePost('p1'), ConnectionType.reference);
+        notifier.addConnection(fakePost('p2'), ConnectionType.remix);
         notifier.removeConnection('p1');
 
         final conns = container.read(createPostProvider).selectedConnections;
@@ -316,7 +294,7 @@ void main() {
         addTearDown(container.dispose);
 
         final notifier = container.read(createPostProvider.notifier);
-        notifier.addConnection(_fakePost('p1'), ConnectionType.reply);
+        notifier.addConnection(fakePost('p1'), ConnectionType.reply);
         notifier.reset();
 
         expect(container.read(createPostProvider).selectedConnections, isEmpty);

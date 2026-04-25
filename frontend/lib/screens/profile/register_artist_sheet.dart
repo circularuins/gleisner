@@ -128,13 +128,16 @@ class _RegisterArtistSheetState extends ConsumerState<RegisterArtistSheet> {
                 border: const OutlineInputBorder(),
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty)
+                if (v == null || v.trim().isEmpty) {
                   return context.l10n.validatorRequired;
+                }
                 final trimmed = v.trim();
-                if (trimmed.length < 2)
+                if (trimmed.length < 2) {
                   return context.l10n.validatorAtLeast2Chars;
-                if (trimmed.length > 30)
+                }
+                if (trimmed.length > 30) {
                   return context.l10n.validatorMax30Chars;
+                }
                 if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(trimmed)) {
                   return context.l10n.validatorLettersNumbersUnderscoresOnly;
                 }
@@ -150,10 +153,12 @@ class _RegisterArtistSheetState extends ConsumerState<RegisterArtistSheet> {
                 border: const OutlineInputBorder(),
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty)
+                if (v == null || v.trim().isEmpty) {
                   return context.l10n.validatorRequired;
-                if (v.trim().length > 50)
+                }
+                if (v.trim().length > 50) {
                   return context.l10n.validatorMax50Chars;
+                }
                 return null;
               },
             ),
