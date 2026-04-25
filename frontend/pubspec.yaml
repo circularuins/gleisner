@@ -53,6 +53,10 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   hive_ce: ^2.19.3
+  # `gql` is already a transitive dep via graphql_flutter; declared explicitly
+  # so test/integration/_helpers.dart can import the AST types
+  # (OperationDefinitionNode) without depend_on_referenced_packages lint.
+  gql: ^1.0.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
