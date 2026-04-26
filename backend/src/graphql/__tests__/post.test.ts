@@ -2168,6 +2168,13 @@ describe("Post GraphQL integration", () => {
       }
     `;
 
+    type LinkPostSetup = {
+      token: string;
+      userId: string;
+      trackId: string;
+      postId: string;
+    };
+
     /**
      * Insert a link-type post directly into the DB.
      *
@@ -2181,12 +2188,7 @@ describe("Post GraphQL integration", () => {
     async function setupArtistTrackAndLinkPostDirectInsert(
       emailPrefix: string,
       url: string,
-    ): Promise<{
-      token: string;
-      userId: string;
-      trackId: string;
-      postId: string;
-    }> {
+    ): Promise<LinkPostSetup> {
       // signup → registerArtist → createTrack via GraphQL (these don't fire
       // the OGP path, so the mock counter stays at zero)
       const signupResult = await gql(app, SIGNUP_MUTATION, {
@@ -2392,7 +2394,7 @@ describe("Post GraphQL integration", () => {
       expect(mockedFetchOgpMetadata).toHaveBeenCalledTimes(1);
     });
 
-    it("enforces the per-user rate limit (10 fetches / minute)", async () => {
+    it("rate-limit boundary: count=10 → rejected (10 fetches/min cap)", async () => {
       const {
         token,
         userId,
@@ -2432,7 +2434,7 @@ describe("Post GraphQL integration", () => {
       expect(mockedFetchOgpMetadata).not.toHaveBeenCalled();
     });
 
-    it("reuses cached OGP data from another post with the same URL (URL-reuse cache)", async () => {
+    it("URL-reuse cache: SAME user's other post hits the cache (no fetch)", async () => {
       const sharedUrl = "https://example.com/shared-article";
 
       // Seed: a previously-fetched post with the same URL, 1h ago, with
@@ -2537,15 +2539,21 @@ describe("Post GraphQL integration", () => {
       expect(row.og_description).toBe("kept desc");
       expect(row.og_image).toBe("https://kept.example/img.png");
       expect(row.og_site_name).toBe("Kept");
-      // ogFetchedAt was bumped to "now"
+      // ogFetchedAt was bumped from the seeded "25 hours ago" to "now":
+      // both within 60 s of NOW(), and clearly NEWER than the 24h-old seed.
+      // Without the bump, subsequent fetchOgp calls would loop on the stale
+      // post forever.
       const fetchedAt = new Date(row.og_fetched_at as string);
       expect(Date.now() - fetchedAt.getTime()).toBeLessThan(60_000);
+      expect(fetchedAt.getTime()).toBeGreaterThan(
+        Date.now() - 24 * 60 * 60 * 1000,
+      );
     });
 
     // C-1 verification: URL-reuse cache MUST be scoped to the calling user.
     // Cross-user reuse would let the cache surface another user's prior
     // fetch even when the calling user has never fetched the URL itself.
-    it("does NOT reuse cached OGP from a DIFFERENT user's post (per-user scope)", async () => {
+    it("URL-reuse cache: OTHER user's post is NOT reused (per-user scope, C-1)", async () => {
       const sharedUrl = "https://example.com/cross-user-cache";
 
       // User A: post with cached OGP for sharedUrl
@@ -2590,7 +2598,7 @@ describe("Post GraphQL integration", () => {
     });
 
     // C-2 verification (boundary): exactly 9 prior fetches → still allowed.
-    it("allows the fetch when prior count is 9 (boundary just below the limit)", async () => {
+    it("rate-limit boundary: count=9 → allowed (just below the limit)", async () => {
       const { token, userId, trackId, postId } =
         await setupArtistTrackAndLinkPostDirectInsert(
           "ogprl9",

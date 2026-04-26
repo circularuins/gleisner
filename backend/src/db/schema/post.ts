@@ -69,7 +69,15 @@ export const posts = pgTable(
   (table) => [
     // OGP rate limit: count recent fetches per author
     index("posts_author_og_fetched_idx").on(table.authorId, table.ogFetchedAt),
-    // OGP URL reuse: find existing OGP data for same URL
+    // OGP URL-reuse cache (per-user scope, ADR 026 / PR #279): the cache
+    // query filters by `(author_id, media_url)` first, then narrows by
+    // og_fetched_at + non-null OGP fields. Per-user scope makes this
+    // index cheaper than the legacy `(media_url, og_fetched_at)` for the
+    // common case (one user's small post set).
+    index("posts_author_media_url_idx").on(table.authorId, table.mediaUrl),
+    // Legacy: pre-PR #279 cross-user URL-reuse path. Kept because
+    // `posts_media_url_og_fetched_idx` is also used by future
+    // mediaUrl-only cleanup jobs (Issue #230 — orphan R2 sweeper).
     index("posts_media_url_og_fetched_idx").on(
       table.mediaUrl,
       table.ogFetchedAt,

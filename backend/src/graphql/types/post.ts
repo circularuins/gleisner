@@ -1237,6 +1237,7 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Authentication required");
       }
 
+      // TODO(Issue #280): switch to explicit column projection
       const [post] = await db
         .select()
         .from(posts)
@@ -1268,6 +1269,13 @@ builder.mutationFields((t) => ({
       // Rate limit: max 10 fetches per user per minute (DB-based).
       // Excludes the target post itself so re-fetching a post that already
       // has og_fetched_at set doesn't double-count toward the limit.
+      //
+      // TOCTOU note: this is a SELECT-then-INSERT (well, UPDATE) pattern
+      // without locking, so two concurrent fetchOgp calls from the same
+      // user can both pass count<10 and bring the effective rate to 11.
+      // For Phase 0 (family of 5, link posts are rare) this is acceptable.
+      // Phase 1 should migrate to SELECT FOR UPDATE on a per-user counter
+      // row, or to a Redis token-bucket if the call pattern justifies it.
       const [{ count }] = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(posts)
@@ -1290,6 +1298,9 @@ builder.mutationFields((t) => ({
       // cached row" surprise. Self-exclusion (`id <> args.postId`) protects
       // against pathological cache hits if the 24h skip above is ever
       // refactored away.
+      //
+      // TODO(Issue #280): switch to explicit column projection (only the
+      // four og_* fields plus id are read below).
       const [existing] = await db
         .select()
         .from(posts)

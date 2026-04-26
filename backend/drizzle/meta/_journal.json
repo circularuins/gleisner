@@ -92,6 +92,13 @@
       "when": 1776311730418,
       "tag": "0012_sharp_phalanx",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1777211160563,
+      "tag": "0013_chief_marvel_zombies",
+      "breakpoints": true
     }
   ]
 }
