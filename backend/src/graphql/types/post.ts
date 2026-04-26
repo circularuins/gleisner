@@ -20,6 +20,8 @@ import {
   validateMediaUrls,
   validateUrl,
   validateDuration,
+  assertUploadedR2ObjectMatches,
+  assertUploadedR2ObjectsMatch,
 } from "../validators.js";
 import { checkArtistAccess } from "../access.js";
 import { fetchOgpMetadata } from "../../ogp/fetcher.js";
@@ -466,6 +468,9 @@ builder.mutationFields((t) => ({
           throw new GraphQLError("Media file is required for this post type");
         }
         validateMediaUrls(resolvedMediaUrls);
+        // Issue #269 / ADR 026: verify each uploaded object's bytes against
+        // its declared content-type before persisting the URL list.
+        await assertUploadedR2ObjectsMatch(resolvedMediaUrls);
       } else if (args.mediaUrls && args.mediaUrls.length > 0) {
         throw new GraphQLError("mediaUrls is only valid for image type posts");
       } else {
@@ -484,10 +489,13 @@ builder.mutationFields((t) => ({
           validateUrl(args.mediaUrl);
         } else {
           validateMediaUrl(args.mediaUrl);
+          // Issue #269 / ADR 026: magic-byte check for video/audio uploads.
+          await assertUploadedR2ObjectMatches(args.mediaUrl);
         }
       }
       if (args.thumbnailUrl != null) {
         validateMediaUrl(args.thumbnailUrl);
+        await assertUploadedR2ObjectMatches(args.thumbnailUrl);
       }
 
       // Validate duration (media-type-specific limits per ADR 025)
@@ -804,6 +812,8 @@ builder.mutationFields((t) => ({
       if (effectiveMediaType === "image") {
         if (args.mediaUrls != null && args.mediaUrls.length > 0) {
           validateMediaUrls(args.mediaUrls);
+          // Issue #269 / ADR 026: magic-byte check for newly attached images.
+          await assertUploadedR2ObjectsMatch(args.mediaUrls);
           updateMediaUrls = args.mediaUrls;
         } else if (args.mediaUrls != null && args.mediaUrls.length === 0) {
           throw new GraphQLError("At least one image is required");
@@ -828,10 +838,13 @@ builder.mutationFields((t) => ({
           validateUrl(args.mediaUrl);
         } else {
           validateMediaUrl(args.mediaUrl);
+          // Issue #269 / ADR 026: magic-byte check for video/audio uploads.
+          await assertUploadedR2ObjectMatches(args.mediaUrl);
         }
       }
       if (args.thumbnailUrl != null) {
         validateMediaUrl(args.thumbnailUrl);
+        await assertUploadedR2ObjectMatches(args.thumbnailUrl);
       }
 
       // Ensure video/audio posts always have a media file.

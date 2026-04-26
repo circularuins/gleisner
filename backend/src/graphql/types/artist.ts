@@ -3,7 +3,11 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, artistGenres } from "../../db/schema/index.js";
 import { and, eq, desc, asc, sql } from "drizzle-orm";
-import { validateProfileVisibility, validateMediaUrl } from "../validators.js";
+import {
+  validateProfileVisibility,
+  validateMediaUrl,
+  assertUploadedR2ObjectMatches,
+} from "../validators.js";
 import { checkArtistAccess } from "../access.js";
 import { deleteR2Object } from "../../storage/r2.js";
 
@@ -99,8 +103,15 @@ builder.mutationFields((t) => ({
       }
 
       // Validate URLs
-      if (args.avatarUrl != null) validateMediaUrl(args.avatarUrl);
-      if (args.coverImageUrl != null) validateMediaUrl(args.coverImageUrl);
+      if (args.avatarUrl != null) {
+        validateMediaUrl(args.avatarUrl);
+        // Issue #269 / ADR 026: magic-byte check for avatar uploads.
+        await assertUploadedR2ObjectMatches(args.avatarUrl);
+      }
+      if (args.coverImageUrl != null) {
+        validateMediaUrl(args.coverImageUrl);
+        await assertUploadedR2ObjectMatches(args.coverImageUrl);
+      }
 
       // Check if user is already an artist
       const existingArtist = await db
@@ -199,8 +210,15 @@ builder.mutationFields((t) => ({
       }
 
       // Validate URLs (null = clear, so only validate non-null strings)
-      if (args.avatarUrl != null) validateMediaUrl(args.avatarUrl);
-      if (args.coverImageUrl != null) validateMediaUrl(args.coverImageUrl);
+      if (args.avatarUrl != null) {
+        validateMediaUrl(args.avatarUrl);
+        // Issue #269 / ADR 026: magic-byte check for avatar uploads.
+        await assertUploadedR2ObjectMatches(args.avatarUrl);
+      }
+      if (args.coverImageUrl != null) {
+        validateMediaUrl(args.coverImageUrl);
+        await assertUploadedR2ObjectMatches(args.coverImageUrl);
+      }
 
       // undefined = not provided (skip), null = clear field, value = update
       const updateData: Record<string, unknown> = { updatedAt: new Date() };

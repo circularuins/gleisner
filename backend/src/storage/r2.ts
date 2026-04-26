@@ -1,12 +1,18 @@
 import {
   S3Client,
   PutObjectCommand,
+  GetObjectCommand,
+  type GetObjectCommandOutput,
   DeleteObjectCommand,
   DeleteObjectsCommand,
   ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "../env.js";
+import {
+  detectMimeFromMagicBytes,
+  isContentTypeCompatible,
+} from "./magic-bytes.js";
 
 let s3Client: S3Client | null = null;
 
@@ -215,19 +221,100 @@ export function isLocalDevUrl(url: string): boolean {
 }
 
 /**
+ * Extract the R2 object key from a public URL. Returns `null` when the URL
+ * is not an R2 public URL or the derived key fails the path-traversal guard.
+ */
+function extractR2Key(publicUrl: string): string | null {
+  if (!isR2Configured() || !isR2Url(publicUrl)) return null;
+  const prefix = env.R2_PUBLIC_URL + "/";
+  const key = publicUrl.slice(prefix.length);
+  // Path traversal guard: reject keys with .. or leading /
+  if (key.includes("..") || key.startsWith("/") || key.length === 0) {
+    return null;
+  }
+  return key;
+}
+
+/**
+ * Validate that the object at `publicUrl` actually contains bytes that
+ * match its declared `Content-Type`. See ADR 026 / Issue #269.
+ *
+ * Reads the first 64 bytes via a ranged GET (one R2 round-trip), which also
+ * returns the stored `Content-Type` metadata. If the magic bytes don't match
+ * the declared MIME (per `magic-bytes.ts` rules), the object is deleted from
+ * R2 fire-and-forget and an `R2ValidationError` is thrown — this prevents
+ * persisting a content-type-spoofed URL anywhere user-visible.
+ *
+ * No-op (resolves) when R2 is not configured or `publicUrl` is not an R2 URL
+ * (local dev with localhost-served fixtures uses `isLocalDevUrl`).
+ */
+export async function validateUploadedR2Object(
+  publicUrl: string,
+): Promise<void> {
+  const key = extractR2Key(publicUrl);
+  if (key === null) return;
+
+  let response: GetObjectCommandOutput;
+  try {
+    response = await getS3Client().send(
+      new GetObjectCommand({
+        Bucket: env.R2_BUCKET_NAME,
+        Key: key,
+        Range: "bytes=0-63",
+      }),
+    );
+  } catch (err) {
+    // Failure to fetch the just-uploaded object is itself suspicious — could
+    // indicate the upload never landed or was already removed. We do NOT
+    // attempt a delete here because there's no proof the object exists; just
+    // surface a generic failure so the mutation rejects.
+    console.error("[validateUploadedR2Object] fetch failed:", err);
+    throw new R2ValidationError("Could not verify uploaded file");
+  }
+
+  const declared = (response.ContentType ?? "").toLowerCase();
+  if (!declared) {
+    deleteR2Object(publicUrl).catch((err) =>
+      console.error("[validateUploadedR2Object] cleanup failed:", err),
+    );
+    throw new R2ValidationError("Uploaded file has no content-type");
+  }
+
+  // AWS SDK v3 streams the body. Buffer the first 64 bytes for inspection.
+  const body = response.Body;
+  if (!body) {
+    deleteR2Object(publicUrl).catch((err) =>
+      console.error("[validateUploadedR2Object] cleanup failed:", err),
+    );
+    throw new R2ValidationError("Uploaded file is empty");
+  }
+
+  // `transformToByteArray` is provided by AWS SDK v3 streams (sdk-stream-mixin).
+  // It works for both Node.js Readable streams and Web ReadableStream.
+  const bytes = await (
+    body as { transformToByteArray: () => Promise<Uint8Array> }
+  ).transformToByteArray();
+
+  const detected = detectMimeFromMagicBytes(bytes);
+  if (!detected || !isContentTypeCompatible(declared, detected)) {
+    deleteR2Object(publicUrl).catch((err) =>
+      console.error("[validateUploadedR2Object] cleanup failed:", err),
+    );
+    throw new R2ValidationError(
+      `Uploaded file does not match declared content-type ${declared}`,
+    );
+  }
+}
+
+/**
  * Delete an object from R2 by its public URL.
  * Extracts the key from the URL and sends a DeleteObjectCommand.
  * No-op if R2 is not configured (local dev) or URL is not an R2 URL.
  * Idempotent: does not throw if the object doesn't exist (S3/R2 spec).
  */
 export async function deleteR2Object(publicUrl: string): Promise<void> {
-  if (!isR2Configured() || !isR2Url(publicUrl)) return;
-
-  const prefix = env.R2_PUBLIC_URL + "/";
-  const key = publicUrl.slice(prefix.length);
-
-  // Path traversal guard: reject keys with .. or leading /
-  if (key.includes("..") || key.startsWith("/") || key.length === 0) return;
+  const key = extractR2Key(publicUrl);
+  if (key === null) return;
 
   await getS3Client().send(
     new DeleteObjectCommand({
