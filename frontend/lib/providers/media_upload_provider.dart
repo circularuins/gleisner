@@ -10,6 +10,7 @@ import '../l10n/l10n.dart';
 import '../models/post.dart' show MediaType;
 import '../utils/media_limits.dart';
 import '../utils/heic_converter.dart';
+import '../utils/image_quality.dart';
 import '../utils/image_sanitizer.dart';
 import '../utils/video_thumbnail.dart';
 import '../utils/audio_duration.dart';
@@ -132,8 +133,10 @@ final imageSanitizerProvider = Provider<ImageSanitizer>(
 
 /// Maximum JPEG/WebP quality passed to image_picker. Above 85 some platforms
 /// skip re-encoding, which would leave EXIF intact. Clamping here enforces
-/// re-encoding regardless of caller-provided quality.
-const _maxImageQuality = 85;
+/// re-encoding regardless of caller-provided quality. Re-export from
+/// `utils/image_quality.dart` so the rationale lives in one place
+/// (Issues #175 / #179).
+const _maxImageQuality = kImagePickerMaxQuality;
 
 // ── Notifier ──
 

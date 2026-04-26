@@ -4,12 +4,14 @@ import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
 
+import 'image_quality.dart';
+
 /// Convert HEIC/HEIF image bytes to JPEG using the browser's Canvas API.
 /// Works on Safari (macOS/iOS) which supports HEIC decoding natively.
 /// Returns JPEG bytes on success, or null if the browser can't decode HEIC.
 Future<Uint8List?> convertHeicToJpeg(
   Uint8List heicBytes, {
-  double quality = 0.85,
+  double quality = kHeicConversionJpegQuality,
   int maxDimension = 1280,
 }) async {
   final completer = Completer<Uint8List?>();

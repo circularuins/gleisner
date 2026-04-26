@@ -4,6 +4,8 @@ import 'dart:js_interop';
 import 'package:flutter/foundation.dart';
 import 'package:web/web.dart' as web;
 
+import 'image_quality.dart';
+
 /// Re-encode image bytes via Canvas API on Web to strip EXIF / XMP / IPTC
 /// metadata (GPS coordinates, camera identifiers, timestamps).
 ///
@@ -27,7 +29,7 @@ import 'package:web/web.dart' as web;
 Future<({Uint8List bytes, String contentType})?> sanitizeImageMetadata(
   Uint8List bytes, {
   required String contentType,
-  double quality = 0.85,
+  double quality = kImageSanitizeJpegQuality,
 }) async {
   if (!kIsWeb) {
     // JPEG: image_picker's imageQuality (clamped to 1-85 by callers) forces
