@@ -478,8 +478,23 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                   final width = constraints.maxWidth;
                                   final height = constraints.maxHeight;
                                   final useHorizontal = isDesktop(width);
+                                  // Re-dispatch when layout is missing despite
+                                  // having items: TimelineNotifier loses its
+                                  // viewport (_lastWidth=0) on Riverpod rebuild
+                                  // — e.g. guardianProvider.switchToChild
+                                  // invalidates graphqlClientProvider, which
+                                  // chains to timelineProvider. The widget-side
+                                  // width/height haven't changed so the prior
+                                  // guard skipped re-dispatch (Issue #160).
+                                  final hasItems =
+                                      timeline.posts.isNotEmpty ||
+                                      (timeline.artist?.milestones.isNotEmpty ??
+                                          false);
+                                  final layoutMissing =
+                                      timeline.layout == null && hasItems;
                                   if (_lastWidth != width ||
-                                      _lastHeight != height) {
+                                      _lastHeight != height ||
+                                      layoutMissing) {
                                     _lastWidth = width;
                                     _lastHeight = height;
                                     WidgetsBinding.instance

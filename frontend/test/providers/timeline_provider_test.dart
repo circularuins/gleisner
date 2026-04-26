@@ -289,6 +289,49 @@ void main() {
         't2',
       });
     });
+
+    // Regression test for Issue #160. When guardianProvider.switchToChild
+    // invalidates graphqlClientProvider, timelineProvider rebuilds with a
+    // fresh Notifier instance whose private viewport (_lastWidth) is 0.
+    // loadArtist then runs but _recomputeLayout skips because of the zero
+    // width, leaving state.layout null even though posts loaded. The widget
+    // (timeline_screen) guards by re-dispatching computeLayout when
+    // (posts.isNotEmpty && layout == null), which feeds the viewport back
+    // to the Notifier and unblocks layout. This test exercises the Notifier
+    // half of that recovery: layout stays null without a viewport, and
+    // computeLayout produces a layout once the widget supplies one.
+    test('Issue #160: computeLayout recovers layout after Notifier rebuild', () {
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
+
+      final notifier = container.read(timelineProvider.notifier);
+
+      // Simulate state after a fresh Notifier instance has finished loadArtist:
+      // posts populated by the backend, but layout still null because the
+      // internal _lastWidth is 0 (instance was just rebuilt).
+      final post = _linkPost(id: 'recovery-post');
+      notifier.debugSetState(
+        const TimelineState(
+          artist: Artist(
+            id: 'a1',
+            artistUsername: 'child',
+            tunedInCount: 0,
+            tracks: [],
+          ),
+        ).copyWith(posts: [post]),
+      );
+
+      // Before the widget re-dispatches computeLayout, the user sees
+      // posts but no constellation — the Issue #160 symptom.
+      expect(container.read(timelineProvider).layout, isNull);
+      expect(container.read(timelineProvider).posts, hasLength(1));
+
+      // Widget detects layoutMissing and calls computeLayout with its width.
+      notifier.computeLayout(800.0);
+
+      // Layout is now computed and the timeline can render.
+      expect(container.read(timelineProvider).layout, isNotNull);
+    });
   });
 
   // Regression tests for Issue #191. The backend fires OGP fetch
