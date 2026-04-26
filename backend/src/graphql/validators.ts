@@ -1,5 +1,11 @@
 import { GraphQLError } from "graphql";
-import { isR2Configured, isR2Url, isLocalDevUrl } from "../storage/r2.js";
+import {
+  isR2Configured,
+  isR2Url,
+  isLocalDevUrl,
+  validateUploadedR2Object,
+  R2ValidationError,
+} from "../storage/r2.js";
 
 export const MAX_PASSWORD_LENGTH = 128;
 export const MAX_IMAGES_PER_POST = 10;
@@ -81,6 +87,66 @@ export function validateMediaUrls(urls: string[]): void {
   for (const url of urls) {
     validateMediaUrl(url);
   }
+}
+
+/**
+ * Verify that the bytes already uploaded to R2 at `url` actually match the
+ * content-type declared at upload time (Issue #269 / ADR 026 — Option 2).
+ *
+ * Wraps `validateUploadedR2Object` so the GraphQL layer raises
+ * `GraphQLError` (safe to expose) instead of `R2ValidationError`.
+ * Internal AWS / SDK errors are logged and surfaced as a generic
+ * "Failed to verify uploaded file" so SDK internals don't leak.
+ *
+ * No-op when R2 is not configured or the URL is not an R2 URL — local dev
+ * with localhost-served fixtures bypasses this check the same way
+ * `validateMediaUrl` permits localhost URLs.
+ *
+ * Callers must invoke this AFTER `validateMediaUrl(url)` (so the URL is
+ * known to be a same-origin R2 URL) and BEFORE persisting the URL to any
+ * user-visible state. On failure, the R2 object is also deleted
+ * fire-and-forget by the underlying helper to avoid orphans.
+ */
+export async function assertUploadedR2ObjectMatches(
+  url: string,
+): Promise<void> {
+  try {
+    await validateUploadedR2Object(url);
+  } catch (err) {
+    if (err instanceof R2ValidationError) {
+      throw new GraphQLError(err.message);
+    }
+    if (err instanceof GraphQLError) throw err;
+    console.error("[assertUploadedR2ObjectMatches] internal error:", err);
+    throw new GraphQLError("Failed to verify uploaded file");
+  }
+}
+
+/**
+ * Apply `assertUploadedR2ObjectMatches` to each URL in parallel.
+ *
+ * No-op (resolves immediately) when `urls` is empty — `Promise.all([])`
+ * resolves synchronously. Callers don't need to length-guard, but most do
+ * because they want to skip a separate DB read used to compute the diff.
+ *
+ * `Promise.all` is intentional over a serial loop: with `MAX_IMAGES_PER_POST = 10`
+ * the serial form was up to 10× the round-trip latency, and there's no
+ * ordering dependency between per-URL checks. `Promise.all` short-circuits
+ * on the first rejection (subsequent in-flight checks are abandoned), which
+ * matches the existing semantics — a partial failure already meant the
+ * mutation aborts and any successful checks are not persisted.
+ *
+ * Partial-failure consequence: when one URL fails, the other in-flight
+ * checks complete in the background. If they detect a mismatch, their
+ * fire-and-forget delete still runs. If they detect a match, those R2
+ * objects are not deleted because the mutation rolls back (no DB write
+ * referencing them). Cleanup of those orphans relies on the future
+ * R2-orphan batch job (Issue #230).
+ */
+export async function assertUploadedR2ObjectsMatch(
+  urls: string[],
+): Promise<void> {
+  await Promise.all(urls.map((url) => assertUploadedR2ObjectMatches(url)));
 }
 
 const VALID_POST_VISIBILITY = ["public", "draft"] as const;

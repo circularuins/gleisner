@@ -3,7 +3,11 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { artists, artistGenres } from "../../db/schema/index.js";
 import { and, eq, desc, asc, sql } from "drizzle-orm";
-import { validateProfileVisibility, validateMediaUrl } from "../validators.js";
+import {
+  validateProfileVisibility,
+  validateMediaUrl,
+  assertUploadedR2ObjectMatches,
+} from "../validators.js";
 import { checkArtistAccess } from "../access.js";
 import { deleteR2Object } from "../../storage/r2.js";
 
@@ -99,8 +103,15 @@ builder.mutationFields((t) => ({
       }
 
       // Validate URLs
-      if (args.avatarUrl != null) validateMediaUrl(args.avatarUrl);
-      if (args.coverImageUrl != null) validateMediaUrl(args.coverImageUrl);
+      if (args.avatarUrl != null) {
+        validateMediaUrl(args.avatarUrl);
+        // Issue #269 / ADR 026: magic-byte check for avatar uploads.
+        await assertUploadedR2ObjectMatches(args.avatarUrl);
+      }
+      if (args.coverImageUrl != null) {
+        validateMediaUrl(args.coverImageUrl);
+        await assertUploadedR2ObjectMatches(args.coverImageUrl);
+      }
 
       // Check if user is already an artist
       const existingArtist = await db
@@ -198,9 +209,24 @@ builder.mutationFields((t) => ({
         }
       }
 
-      // Validate URLs (null = clear, so only validate non-null strings)
-      if (args.avatarUrl != null) validateMediaUrl(args.avatarUrl);
-      if (args.coverImageUrl != null) validateMediaUrl(args.coverImageUrl);
+      // Validate URLs (null = clear, so only validate non-null strings).
+      // Issue #269 / ADR 026: skip the magic-byte R2 GET when the URL
+      // already matches the row in DB — every persisted URL was validated
+      // when first stored, so re-validating buys nothing. See ADR
+      // §"Negative consequences" (skip-when-unchanged paragraph) for why
+      // strict equality is the correct primitive here.
+      if (args.avatarUrl != null) {
+        validateMediaUrl(args.avatarUrl);
+        if (args.avatarUrl !== existing.avatarUrl) {
+          await assertUploadedR2ObjectMatches(args.avatarUrl);
+        }
+      }
+      if (args.coverImageUrl != null) {
+        validateMediaUrl(args.coverImageUrl);
+        if (args.coverImageUrl !== existing.coverImageUrl) {
+          await assertUploadedR2ObjectMatches(args.coverImageUrl);
+        }
+      }
 
       // undefined = not provided (skip), null = clear field, value = update
       const updateData: Record<string, unknown> = { updatedAt: new Date() };

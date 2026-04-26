@@ -3,7 +3,11 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema/index.js";
 import { eq } from "drizzle-orm";
-import { validateProfileVisibility, validateMediaUrl } from "../validators.js";
+import {
+  validateProfileVisibility,
+  validateMediaUrl,
+  assertUploadedR2ObjectMatches,
+} from "../validators.js";
 
 export interface UserShape {
   id: string;
@@ -114,13 +118,32 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Authentication required");
       }
 
+      // Fetch the existing row up front, mirroring the updateMyArtist
+      // pattern. Currently used only for avatarUrl skip-when-unchanged,
+      // but anchoring it here means future "skip if unchanged" checks for
+      // displayName / bio / profileVisibility can reuse the same row
+      // without re-issuing SELECTs.
+      const [existing] = await db
+        .select({ avatarUrl: users.avatarUrl })
+        .from(users)
+        .where(eq(users.id, ctx.authUser.userId))
+        .limit(1);
+
       if (args.displayName != null && args.displayName.length > 50) {
         throw new GraphQLError("Display name must be 50 characters or less");
       }
       if (args.bio != null && args.bio.length > 1000) {
         throw new GraphQLError("Bio must be 1000 characters or less");
       }
-      if (args.avatarUrl != null) validateMediaUrl(args.avatarUrl);
+      if (args.avatarUrl != null) {
+        validateMediaUrl(args.avatarUrl);
+        // Issue #269 / ADR 026: magic-byte check for avatar uploads.
+        // Skip when the URL is unchanged — every persisted URL was
+        // validated when first stored, see ADR §"Negative consequences".
+        if (args.avatarUrl !== existing?.avatarUrl) {
+          await assertUploadedR2ObjectMatches(args.avatarUrl);
+        }
+      }
 
       // undefined = not provided (skip), null = clear field, value = update
       // Validation above uses != null so null (clear) skips validation intentionally

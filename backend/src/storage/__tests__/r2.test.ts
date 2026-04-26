@@ -7,6 +7,7 @@ import {
   UPLOAD_LIMITS,
   R2ValidationError,
   isAllowedContentType,
+  validateUploadedR2Object,
   type UploadCategory,
 } from "../r2.js";
 import { env } from "../../env.js";
@@ -223,6 +224,42 @@ describe("r2 utility functions", () => {
       expect(err).toBeInstanceOf(R2ValidationError);
       expect(err.name).toBe("R2ValidationError");
       expect(err.message).toBe("test");
+    });
+  });
+
+  // Issue #269 / ADR 026: full integration coverage (S3 SDK round-trip,
+  // ContentType / Body parsing, fire-and-forget DeleteObject on mismatch)
+  // is intentionally not in this unit test file — it requires either an
+  // aws-sdk-client-mock dependency or refactoring the singleton client to
+  // accept dependency injection. Tracked in Issue #278 (item 5). The no-op
+  // paths are covered here because they are reachable in normal test envs
+  // (R2 not configured, non-R2 URLs).
+  describe("validateUploadedR2Object (no-op paths)", () => {
+    it("resolves without throwing when R2 is not configured", async () => {
+      // Test env does not set R2_PUBLIC_URL etc., so isR2Configured() is false.
+      await expect(
+        validateUploadedR2Object("https://media.gleisner.app/foo.jpg"),
+      ).resolves.toBeUndefined();
+    });
+
+    it("resolves without throwing for non-R2 URLs even when R2 is configured", async () => {
+      const original = env.R2_PUBLIC_URL;
+      Object.defineProperty(env, "R2_PUBLIC_URL", {
+        value: "https://media.gleisner.app",
+        writable: true,
+        configurable: true,
+      });
+      try {
+        await expect(
+          validateUploadedR2Object("https://evil.com/exploit.jpg"),
+        ).resolves.toBeUndefined();
+      } finally {
+        Object.defineProperty(env, "R2_PUBLIC_URL", {
+          value: original,
+          writable: true,
+          configurable: true,
+        });
+      }
     });
   });
 });
