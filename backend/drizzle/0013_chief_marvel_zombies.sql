@@ -1,0 +1,1 @@
+CREATE INDEX "posts_author_media_url_idx" ON "posts" USING btree ("author_id","media_url");
