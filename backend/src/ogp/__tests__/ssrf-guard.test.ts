@@ -10,11 +10,14 @@
  *
  * `safeFetch` is intentionally not unit-tested here: it composes
  * `resolveAndValidate` with `globalThis.fetch` plus stream/redirect/timeout
- * handling, and a faithful mock would re-implement that composition. The
- * pieces it depends on are covered individually below; the integration
- * surface is exercised by `routes/__tests__/ogp.test.ts`.
+ * handling, and a faithful mock would re-implement that composition.
+ * `safeFetch`'s DNS-rebinding TOCTOU is acknowledged in `ssrf-guard.ts`
+ * (around line 122 — comment block above `safeFetch`); `resolveAndValidate`
+ * is invoked at every redirect hop there. The pieces it depends on are
+ * covered individually below; the integration surface is exercised by
+ * `routes/__tests__/ogp.test.ts`.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { isPrivateIP, resolveAndValidate, SSRFError } from "../ssrf-guard.js";
 
 vi.mock("node:dns/promises", () => ({
@@ -131,10 +134,6 @@ describe("resolveAndValidate", () => {
     mockedLookup.mockReset();
   });
 
-  afterEach(() => {
-    mockedLookup.mockReset();
-  });
-
   it("short-circuits on a public IP literal without resolving DNS", async () => {
     await expect(resolveAndValidate("8.8.8.8")).resolves.toBe("8.8.8.8");
     expect(mockedLookup).not.toHaveBeenCalled();
@@ -185,7 +184,7 @@ describe("resolveAndValidate", () => {
     );
   });
 
-  it("wraps DNS resolution failures in SSRFError without leaking the underlying error", async () => {
+  it("wraps DNS resolution failures in SSRFError", async () => {
     mockedLookup.mockRejectedValueOnce(
       Object.assign(new Error("ENOTFOUND nxdomain.example"), {
         code: "ENOTFOUND",
@@ -193,6 +192,17 @@ describe("resolveAndValidate", () => {
     );
     await expect(resolveAndValidate("nxdomain.example")).rejects.toBeInstanceOf(
       SSRFError,
+    );
+  });
+
+  it("DNS-failure SSRFError uses the generic message (no underlying error leak)", async () => {
+    // Separate test so the second assertion gets its own mockRejectedValueOnce —
+    // calling `await expect(...).rejects` twice consumes the lookup twice and
+    // would otherwise hit the real DNS the second time.
+    mockedLookup.mockRejectedValueOnce(
+      Object.assign(new Error("ENOTFOUND nxdomain.example"), {
+        code: "ENOTFOUND",
+      }),
     );
     await expect(resolveAndValidate("nxdomain.example")).rejects.toThrow(
       /DNS resolution failed/,

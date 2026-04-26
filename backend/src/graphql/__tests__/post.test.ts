@@ -2178,7 +2178,7 @@ describe("Post GraphQL integration", () => {
      * history. Inserting directly keeps the mock fresh and leaves
      * `og_fetched_at` NULL until the test sets it explicitly.
      */
-    async function setupArtistTrackAndLinkPost(
+    async function setupArtistTrackAndLinkPostDirectInsert(
       emailPrefix: string,
       url: string,
     ): Promise<{
@@ -2262,7 +2262,7 @@ describe("Post GraphQL integration", () => {
     });
 
     it("rejects when the caller is not the post author (SSRF amplification guard)", async () => {
-      const { postId } = await setupArtistTrackAndLinkPost(
+      const { postId } = await setupArtistTrackAndLinkPostDirectInsert(
         "ogpowner",
         "https://example.com/article",
       );
@@ -2305,7 +2305,7 @@ describe("Post GraphQL integration", () => {
     });
 
     it("returns the post and writes OGP fields on success", async () => {
-      const { token, postId } = await setupArtistTrackAndLinkPost(
+      const { token, postId } = await setupArtistTrackAndLinkPostDirectInsert(
         "ogpok",
         "https://example.com/post1",
       );
@@ -2339,7 +2339,7 @@ describe("Post GraphQL integration", () => {
     });
 
     it("skips the fetch when ogFetchedAt is within the last 24 hours", async () => {
-      const { token, postId } = await setupArtistTrackAndLinkPost(
+      const { token, postId } = await setupArtistTrackAndLinkPostDirectInsert(
         "ogpskip",
         "https://example.com/skip",
       );
@@ -2364,7 +2364,7 @@ describe("Post GraphQL integration", () => {
     });
 
     it("re-fetches when ogFetchedAt is older than 24 hours", async () => {
-      const { token, postId } = await setupArtistTrackAndLinkPost(
+      const { token, postId } = await setupArtistTrackAndLinkPostDirectInsert(
         "ogpstale",
         "https://example.com/stale",
       );
@@ -2398,7 +2398,7 @@ describe("Post GraphQL integration", () => {
         userId,
         trackId,
         postId: targetId,
-      } = await setupArtistTrackAndLinkPost(
+      } = await setupArtistTrackAndLinkPostDirectInsert(
         "ogprl",
         "https://example.com/rate-limited",
       );
@@ -2442,7 +2442,7 @@ describe("Post GraphQL integration", () => {
         userId,
         trackId,
         postId: newPostId,
-      } = await setupArtistTrackAndLinkPost("ogpreuse", sharedUrl);
+      } = await setupArtistTrackAndLinkPostDirectInsert("ogpreuse", sharedUrl);
       await db.execute(sql`
         INSERT INTO posts (track_id, author_id, media_type, media_url,
           og_fetched_at, og_title, og_description, og_image, og_site_name)
@@ -2472,7 +2472,7 @@ describe("Post GraphQL integration", () => {
     });
 
     it("persists ogFetchedAt even when the fetcher returns null (negative cache)", async () => {
-      const { token, postId } = await setupArtistTrackAndLinkPost(
+      const { token, postId } = await setupArtistTrackAndLinkPostDirectInsert(
         "ogpneg",
         "https://no-ogp.example/x",
       );
@@ -2489,9 +2489,140 @@ describe("Post GraphQL integration", () => {
 
       // Even on null, ogFetchedAt is set so we don't re-fetch on every render
       const [row] = await db.execute(
-        sql`SELECT og_fetched_at FROM posts WHERE id = ${postId}::uuid`,
+        sql`
+          SELECT og_fetched_at, og_title, og_description, og_image
+          FROM posts WHERE id = ${postId}::uuid
+        `,
       );
       expect(row.og_fetched_at).not.toBeNull();
+      // Negative-cache contract: a null fetcher response must NOT clear
+      // existing OGP fields. (In this test the post starts with no OGP
+      // fields, so they remain null. The contract matters when re-fetching
+      // a post that already has OGP and the new fetch returns null —
+      // we keep the old data rather than blank the post.)
+      expect(row.og_title).toBeNull();
+      expect(row.og_description).toBeNull();
+      expect(row.og_image).toBeNull();
     });
+
+    it("preserves existing OGP fields when re-fetch returns null (do not clobber)", async () => {
+      // Companion to the negative-cache test above: this version pre-populates
+      // OGP fields so we can confirm the "keep stale, don't clear" branch.
+      const { token, postId } = await setupArtistTrackAndLinkPostDirectInsert(
+        "ogpneg2",
+        "https://flaky.example/x",
+      );
+      // Seed prior OGP, > 24h ago so the skip branch doesn't short-circuit
+      await db.execute(sql`
+        UPDATE posts
+        SET og_fetched_at = NOW() - INTERVAL '25 hours',
+            og_title = 'kept on null',
+            og_description = 'kept desc',
+            og_image = 'https://kept.example/img.png',
+            og_site_name = 'Kept'
+        WHERE id = ${postId}::uuid
+      `);
+
+      mockedFetchOgpMetadata.mockResolvedValueOnce(null);
+      const result = await gql(app, FETCH_OGP_MUTATION, { postId }, token);
+      expect(result.errors).toBeUndefined();
+
+      const [row] = await db.execute(
+        sql`
+          SELECT og_fetched_at, og_title, og_description, og_image, og_site_name
+          FROM posts WHERE id = ${postId}::uuid
+        `,
+      );
+      expect(row.og_title).toBe("kept on null");
+      expect(row.og_description).toBe("kept desc");
+      expect(row.og_image).toBe("https://kept.example/img.png");
+      expect(row.og_site_name).toBe("Kept");
+      // ogFetchedAt was bumped to "now"
+      const fetchedAt = new Date(row.og_fetched_at as string);
+      expect(Date.now() - fetchedAt.getTime()).toBeLessThan(60_000);
+    });
+
+    // C-1 verification: URL-reuse cache MUST be scoped to the calling user.
+    // Cross-user reuse would let the cache surface another user's prior
+    // fetch even when the calling user has never fetched the URL itself.
+    it("does NOT reuse cached OGP from a DIFFERENT user's post (per-user scope)", async () => {
+      const sharedUrl = "https://example.com/cross-user-cache";
+
+      // User A: post with cached OGP for sharedUrl
+      const userA = await setupArtistTrackAndLinkPostDirectInsert(
+        "ogpuserA",
+        sharedUrl,
+      );
+      await db.execute(sql`
+        UPDATE posts
+        SET og_fetched_at = NOW() - INTERVAL '1 hour',
+            og_title = 'A cached title',
+            og_image = 'https://a.example/img.png'
+        WHERE id = ${userA.postId}::uuid
+      `);
+
+      // User B: separate user, new post with the same URL, no OGP yet
+      const userB = await setupArtistTrackAndLinkPostDirectInsert(
+        "ogpuserB",
+        sharedUrl,
+      );
+
+      // B's fetchOgp should NOT pick up A's cached row — it should call the
+      // fetcher fresh for B.
+      mockedFetchOgpMetadata.mockResolvedValueOnce({
+        ogTitle: "B fresh title",
+        ogDescription: null,
+        ogImage: null,
+        ogSiteName: null,
+      });
+
+      const result = await gql(
+        app,
+        FETCH_OGP_MUTATION,
+        { postId: userB.postId },
+        userB.token,
+      );
+      expect(result.errors).toBeUndefined();
+      const post = result.data!.fetchOgp as Record<string, unknown>;
+      expect(post.ogTitle).toBe("B fresh title");
+      expect(mockedFetchOgpMetadata).toHaveBeenCalledTimes(1);
+      expect(mockedFetchOgpMetadata).toHaveBeenCalledWith(sharedUrl);
+    });
+
+    // C-2 verification (boundary): exactly 9 prior fetches → still allowed.
+    it("allows the fetch when prior count is 9 (boundary just below the limit)", async () => {
+      const { token, userId, trackId, postId } =
+        await setupArtistTrackAndLinkPostDirectInsert(
+          "ogprl9",
+          "https://example.com/boundary9",
+        );
+
+      for (let i = 0; i < 9; i++) {
+        await db.execute(sql`
+          INSERT INTO posts (track_id, author_id, media_type, media_url, og_fetched_at)
+          VALUES (${trackId}::uuid, ${userId}::uuid, 'link',
+            ${`https://example.com/b9-${i}`},
+            NOW() - INTERVAL '5 seconds')
+        `);
+      }
+
+      mockedFetchOgpMetadata.mockResolvedValueOnce({
+        ogTitle: "ok",
+        ogDescription: null,
+        ogImage: null,
+        ogSiteName: null,
+      });
+
+      const result = await gql(app, FETCH_OGP_MUTATION, { postId }, token);
+      expect(result.errors).toBeUndefined();
+      expect(mockedFetchOgpMetadata).toHaveBeenCalledTimes(1);
+    });
+
+    // C-2 note: the resolver also adds `id <> args.postId` to the rate-limit
+    // count query as a defensive guard. Under the current 24h-skip flow it's
+    // a no-op (a target whose `ogFetchedAt` is < 1 min old already short-
+    // circuits at the 24h skip, so it never reaches the count query), but
+    // the guard locks in the intent if the 24h skip is ever loosened.
+    // No standalone test — there's no observable behaviour to assert today.
   });
 });

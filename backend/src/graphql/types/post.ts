@@ -1265,7 +1265,9 @@ builder.mutationFields((t) => ({
         return post;
       }
 
-      // Rate limit: max 10 fetches per user per minute (DB-based)
+      // Rate limit: max 10 fetches per user per minute (DB-based).
+      // Excludes the target post itself so re-fetching a post that already
+      // has og_fetched_at set doesn't double-count toward the limit.
       const [{ count }] = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(posts)
@@ -1273,21 +1275,31 @@ builder.mutationFields((t) => ({
           and(
             eq(posts.authorId, ctx.authUser.userId),
             sql`${posts.ogFetchedAt} > NOW() - INTERVAL '1 minute'`,
+            sql`${posts.id} <> ${args.postId}::uuid`,
           ),
         );
       if (count >= 10) {
         throw new GraphQLError("Rate limit exceeded. Please try again later.");
       }
 
-      // Check for existing OGP data for same URL (reuse from other posts)
+      // Check for existing OGP data for the same URL (reuse from this user's
+      // other posts). Per-user scope avoids any cross-user data reuse — the
+      // OGP fetcher is unauthenticated so the cached metadata is technically
+      // identical for everyone, but constraining the cache to the calling
+      // user keeps the audit trail clean and removes any "your fetch hit my
+      // cached row" surprise. Self-exclusion (`id <> args.postId`) protects
+      // against pathological cache hits if the 24h skip above is ever
+      // refactored away.
       const [existing] = await db
         .select()
         .from(posts)
         .where(
           and(
+            eq(posts.authorId, ctx.authUser.userId),
             eq(posts.mediaUrl, post.mediaUrl!),
+            sql`${posts.id} <> ${args.postId}::uuid`,
             sql`${posts.ogFetchedAt} > NOW() - INTERVAL '24 hours'`,
-            sql`${posts.ogTitle} IS NOT NULL OR ${posts.ogImage} IS NOT NULL`,
+            sql`(${posts.ogTitle} IS NOT NULL OR ${posts.ogImage} IS NOT NULL)`,
           ),
         )
         .limit(1);
