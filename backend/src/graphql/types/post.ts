@@ -1237,6 +1237,7 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Authentication required");
       }
 
+      // TODO(Issue #280): switch to explicit column projection
       const [post] = await db
         .select()
         .from(posts)
@@ -1265,7 +1266,16 @@ builder.mutationFields((t) => ({
         return post;
       }
 
-      // Rate limit: max 10 fetches per user per minute (DB-based)
+      // Rate limit: max 10 fetches per user per minute (DB-based).
+      // Excludes the target post itself so re-fetching a post that already
+      // has og_fetched_at set doesn't double-count toward the limit.
+      //
+      // TOCTOU note: this is a SELECT-then-INSERT (well, UPDATE) pattern
+      // without locking, so two concurrent fetchOgp calls from the same
+      // user can both pass count<10 and bring the effective rate to 11.
+      // For Phase 0 (family of 5, link posts are rare) this is acceptable.
+      // Phase 1 should migrate to SELECT FOR UPDATE on a per-user counter
+      // row, or to a Redis token-bucket if the call pattern justifies it.
       const [{ count }] = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(posts)
@@ -1273,21 +1283,34 @@ builder.mutationFields((t) => ({
           and(
             eq(posts.authorId, ctx.authUser.userId),
             sql`${posts.ogFetchedAt} > NOW() - INTERVAL '1 minute'`,
+            sql`${posts.id} <> ${args.postId}::uuid`,
           ),
         );
       if (count >= 10) {
         throw new GraphQLError("Rate limit exceeded. Please try again later.");
       }
 
-      // Check for existing OGP data for same URL (reuse from other posts)
+      // Check for existing OGP data for the same URL (reuse from this user's
+      // other posts). Per-user scope avoids any cross-user data reuse — the
+      // OGP fetcher is unauthenticated so the cached metadata is technically
+      // identical for everyone, but constraining the cache to the calling
+      // user keeps the audit trail clean and removes any "your fetch hit my
+      // cached row" surprise. Self-exclusion (`id <> args.postId`) protects
+      // against pathological cache hits if the 24h skip above is ever
+      // refactored away.
+      //
+      // TODO(Issue #280): switch to explicit column projection (only the
+      // four og_* fields plus id are read below).
       const [existing] = await db
         .select()
         .from(posts)
         .where(
           and(
+            eq(posts.authorId, ctx.authUser.userId),
             eq(posts.mediaUrl, post.mediaUrl!),
+            sql`${posts.id} <> ${args.postId}::uuid`,
             sql`${posts.ogFetchedAt} > NOW() - INTERVAL '24 hours'`,
-            sql`${posts.ogTitle} IS NOT NULL OR ${posts.ogImage} IS NOT NULL`,
+            sql`(${posts.ogTitle} IS NOT NULL OR ${posts.ogImage} IS NOT NULL)`,
           ),
         )
         .limit(1);
