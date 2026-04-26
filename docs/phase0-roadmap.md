@@ -91,8 +91,8 @@ Phase 0 リリースまでのタスク一覧。随時更新し、進捗を追跡
 - [ ] _buildLinkFields の create/edit 共通化
 
 ### 3.2 テスト
-- [ ] SSRF ガード / OGP フェッチャーのユニットテスト（Issue #188）
-- [ ] TOCTOU レース条件の修正（Issue #116, #118）
+- [x] SSRF ガード / OGP フェッチャー / fetchOgp mutation のユニットテスト（Issue #188）— PR #279
+- [ ] TOCTOU レース条件の修正（Issue #116, #118）— Phase 1 延期（Issue 内に明記）
 
 ---
 
@@ -175,7 +175,11 @@ Phase 0 リリースまでのタスク一覧。随時更新し、進捗を追跡
 - [x] OGP 自動リフレッシュ（Idea 022 Recommended / Issue #191）— PR #254
 - [x] HEIC サポート改善（Issue #146）— PR #253
 - [x] フロントエンド lint/test/integration の CI 化（PR #262, #265, #267, #268, #270）
+- [x] Timeline 子アカウント切替時の layout 再計算修正（Issue #160）— PR #272
+- [x] Production schema smoke test（Issue #222 — comment disable 確認）— PR #276
+- [x] Content-Type spoofing 対策: magic-byte validation（Issue #269 / ADR 026）— PR #277
+- [x] OGP/SSRF ユニットテスト + URL-reuse cache の per-user scope 強化（Issue #188）— PR #279
 
 ---
 
-*最終更新: 2026-04-26*
+*最終更新: 2026-04-27*
