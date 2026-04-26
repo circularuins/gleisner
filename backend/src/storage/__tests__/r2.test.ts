@@ -8,6 +8,7 @@ import {
   R2ValidationError,
   isAllowedContentType,
   validateUploadedR2Object,
+  _readFirstBytesForTesting,
   type UploadCategory,
 } from "../r2.js";
 import { env } from "../../env.js";
@@ -260,6 +261,91 @@ describe("r2 utility functions", () => {
           configurable: true,
         });
       }
+    });
+  });
+
+  // Issue #278 (items 1, 2): the runtime-detected helper that buffers
+  // the first ~64 bytes of an SDK response body for magic-byte
+  // inspection. The fast path uses SdkStreamMixin's
+  // `transformToByteArray`, the fallback uses raw ReadableStream.
+  // Both must enforce the byte cap defensively (the Range header
+  // request is not always honoured by intermediaries).
+  describe("readFirstBytes", () => {
+    it("uses transformToByteArray fast path when available and slices to maxBytes", async () => {
+      // 256 bytes returned (server / SDK ignores Range)
+      const fullBytes = new Uint8Array(256);
+      for (let i = 0; i < fullBytes.length; i++) fullBytes[i] = i;
+      const body = {
+        transformToByteArray: async () => fullBytes,
+      };
+      const result = await _readFirstBytesForTesting(body, 64);
+      expect(result.byteLength).toBe(64);
+      expect(result[0]).toBe(0);
+      expect(result[63]).toBe(63);
+    });
+
+    it("falls back to ReadableStream reader when transformToByteArray is missing", async () => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]));
+          controller.enqueue(new Uint8Array([9, 10, 11, 12]));
+          controller.close();
+        },
+      });
+      const result = await _readFirstBytesForTesting(stream, 64);
+      // Stream had only 12 bytes total; we shouldn't pad.
+      expect(result.byteLength).toBe(12);
+      expect(Array.from(result)).toEqual([
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+      ]);
+    });
+
+    it("trims a ReadableStream chunk that exceeds the remaining budget", async () => {
+      // Single 1024-byte chunk — proxies / SDK chunkers can deliver
+      // far more than the Range request asked for. The fallback must
+      // truncate this to maxBytes without ever holding the full chunk
+      // in the assembled buffer.
+      const oversized = new Uint8Array(1024);
+      for (let i = 0; i < oversized.length; i++) oversized[i] = i & 0xff;
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(oversized);
+          controller.close();
+        },
+      });
+      const result = await _readFirstBytesForTesting(stream, 64);
+      expect(result.byteLength).toBe(64);
+      expect(result[0]).toBe(0);
+      expect(result[63]).toBe(63);
+    });
+
+    it("stops reading once maxBytes is reached even if the stream has more", async () => {
+      let chunksDelivered = 0;
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array(40));
+          chunksDelivered++;
+          controller.enqueue(new Uint8Array(40));
+          chunksDelivered++;
+          controller.enqueue(new Uint8Array(40)); // would push us to 120 > 64
+          chunksDelivered++;
+          controller.close();
+        },
+      });
+      const result = await _readFirstBytesForTesting(stream, 64);
+      expect(result.byteLength).toBe(64);
+      // All chunks were enqueued at start time, so the counter advances
+      // — but the helper only consumed enough to reach the 64-byte cap.
+      expect(chunksDelivered).toBe(3);
+    });
+
+    it("rejects bodies that are neither SdkStreamMixin nor ReadableStream", async () => {
+      await expect(_readFirstBytesForTesting({}, 64)).rejects.toBeInstanceOf(
+        R2ValidationError,
+      );
+      await expect(_readFirstBytesForTesting(null, 64)).rejects.toBeInstanceOf(
+        R2ValidationError,
+      );
     });
   });
 });

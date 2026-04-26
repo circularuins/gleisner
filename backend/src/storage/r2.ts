@@ -251,6 +251,13 @@ function extractR2Key(publicUrl: string): string | null {
  *
  * Issue #278 (items 1, 2).
  */
+export async function _readFirstBytesForTesting(
+  body: unknown,
+  maxBytes: number,
+): Promise<Uint8Array> {
+  return readFirstBytes(body, maxBytes);
+}
+
 async function readFirstBytes(
   body: unknown,
   maxBytes: number,
@@ -283,8 +290,17 @@ async function readFirstBytes(
         const { done, value } = await reader.read();
         if (done) break;
         if (!value) continue;
-        chunks.push(value);
-        total += value.byteLength;
+        // Trim each chunk down to the remaining budget so a single
+        // oversized chunk (proxy buffering / SDK chunking that ignores
+        // the Range header) never inflates `chunks` past `maxBytes`.
+        const needed = maxBytes - total;
+        if (value.byteLength <= needed) {
+          chunks.push(value);
+          total += value.byteLength;
+        } else {
+          chunks.push(value.subarray(0, needed));
+          total = maxBytes;
+        }
       }
     } finally {
       // Cancel + release so the SDK doesn't hold the connection open

@@ -135,9 +135,20 @@ export async function assertUploadedR2ObjectMatches(
  * (Issue #230 R2 orphan sweeper) much easier (Issue #278 item 8).
  *
  * The first encountered error is re-thrown so the GraphQL caller still gets
- * a single rejection. The remaining errors are logged with [SECURITY] prefix
- * server-side. Latency cost vs `Promise.all`: bounded by the slowest URL's
- * round-trip (same worst case), not the failure-case short-circuit.
+ * a single rejection. EVERY failure is logged with [SECURITY] prefix
+ * server-side — including single-URL failures, since a one-file spoof
+ * attempt is just as worth flagging as a multi-file one.
+ *
+ * Latency: in the all-success case, bounded by the slowest URL (same as
+ * `Promise.all`). In the failure case, `Promise.allSettled` waits for ALL
+ * in-flight checks rather than short-circuiting on the first rejection —
+ * at MAX_IMAGES_PER_POST = 10 this can multiply the failure-case response
+ * time by up to 10×. The trade-off is acceptable because (a) failed
+ * mutations don't write any DB state, and (b) the full failure log set
+ * is the primary forensic output. If this becomes an availability
+ * problem (it shouldn't — round-trips target R2's same-AZ HEAD/range
+ * latency), Issue #278 item 4 (per-URL AbortSignal timeout) is the
+ * natural follow-up.
  *
  * Partial-failure consequence: each failing URL's R2 object is deleted
  * fire-and-forget by `validateUploadedR2Object`. Successful URLs that
@@ -156,14 +167,13 @@ export async function assertUploadedR2ObjectsMatch(
   );
   if (errors.length === 0) return;
 
-  // Log every failure so multi-URL spoofing patterns are visible.
-  if (errors.length > 1) {
-    for (const err of errors) {
-      console.error(
-        "[SECURITY][assertUploadedR2ObjectsMatch] partial failure:",
-        err.reason,
-      );
-    }
+  // Log every failure (including the single-error case) so a one-file
+  // spoof attempt still leaves a forensic trail.
+  for (const err of errors) {
+    console.error(
+      "[SECURITY][assertUploadedR2ObjectsMatch] validation failure:",
+      err.reason,
+    );
   }
   // Re-throw the first error so the caller's contract (single rejection)
   // is preserved. GraphQLError vs other types is preserved via re-throw.
