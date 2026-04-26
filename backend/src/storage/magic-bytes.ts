@@ -70,6 +70,25 @@ function matchesAt(
  * `buffer` should contain at least the first 12 bytes of the file. Callers
  * typically read 64 bytes via R2 ranged GET to leave room for the ftyp box
  * (which lives at offset 4..12) plus a margin for future detection rules.
+ *
+ * **Adding a new format (procedure):**
+ * 1. Add the new MIME to `ALLOWED_CONTENT_TYPES` in `r2.ts` (and to
+ *    `CONTENT_TYPE_EXT` so uploads get a sensible filename suffix).
+ * 2. Define the magic-byte constant or `ftyp` brand here (top of file).
+ * 3. Add a branch to `detectMimeFromMagicBytes` below — keep image / RIFF /
+ *    ftyp / EBML / Ogg / ID3 / MP3 ordering so prefix collisions resolve
+ *    correctly (e.g. RIFF must be checked before WebP/WAV sub-tags).
+ * 4. Add fixtures to `magic-bytes.test.ts` (the
+ *    `ALLOWED_CONTENT_TYPES coverage` table is the safety net — it fails
+ *    if a new MIME is added but never produces a recognised detection).
+ * 5. If the format has cross-MIME equivalence (HEIC/HEIF, video/webm
+ *    accepting audio/webm, etc.), extend `isContentTypeCompatible`
+ *    below.
+ *
+ * **Frontend parity:** `frontend/lib/utils/mime_from_bytes.dart` runs the
+ * same detection on the client. Mirror any rule change there as well —
+ * Issue #278 (item 6) tracks moving the fixture table to a shared
+ * location to make drift CI-detectable.
  */
 export function detectMimeFromMagicBytes(buffer: Uint8Array): string | null {
   if (buffer.length < 12) return null;
