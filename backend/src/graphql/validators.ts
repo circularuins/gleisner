@@ -122,13 +122,27 @@ export async function assertUploadedR2ObjectMatches(
   }
 }
 
-/** Same as the singular form, applied to each URL in order. */
+/**
+ * Apply `assertUploadedR2ObjectMatches` to each URL in parallel.
+ *
+ * `Promise.all` is intentional over a serial loop: with `MAX_IMAGES_PER_POST = 10`
+ * the serial form was up to 10× the round-trip latency, and there's no
+ * ordering dependency between per-URL checks. `Promise.all` short-circuits
+ * on the first rejection (subsequent in-flight checks are abandoned), which
+ * matches the existing semantics — a partial failure already meant the
+ * mutation aborts and any successful checks are not persisted.
+ *
+ * Partial-failure consequence: when one URL fails, the other in-flight
+ * checks complete in the background. If they detect a mismatch, their
+ * fire-and-forget delete still runs. If they detect a match, those R2
+ * objects are not deleted because the mutation rolls back (no DB write
+ * referencing them). Cleanup of those orphans relies on the future
+ * R2-orphan batch job (Issue #230).
+ */
 export async function assertUploadedR2ObjectsMatch(
   urls: string[],
 ): Promise<void> {
-  for (const url of urls) {
-    await assertUploadedR2ObjectMatches(url);
-  }
+  await Promise.all(urls.map((url) => assertUploadedR2ObjectMatches(url)));
 }
 
 const VALID_POST_VISIBILITY = ["public", "draft"] as const;

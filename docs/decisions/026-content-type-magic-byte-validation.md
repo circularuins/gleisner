@@ -66,14 +66,15 @@ Option 1 (re-encode) is deferred to a future Issue if and when polyglot or malfo
 3. Wire the validator into the five mutation callsites that persist a URL: `createPost.mediaUrl`, `createPost.mediaUrls[*]`, `updatePost.mediaUrl`, `updateMe.avatarUrl`, `updateMyArtist.{avatarUrl,coverUrl}`. (`generateUploadUrl` itself stays untouched — validation happens at completion, not at signing.)
 4. Tests:
    - `magic-bytes.test.ts` — every entry in `ALLOWED_CONTENT_TYPES` produces a recognised detection; SVG/HTML/JS payloads labelled as `image/jpeg` produce a mismatch.
-   - `r2.test.ts` — `validateUploadedR2Object` accepts a valid pair, rejects a mismatch, and triggers `DeleteObject` on rejection.
-   - `post.test.ts` (and equivalent for artist/user mutations) — the validator is invoked end-to-end at the mutation layer.
+   - `r2.test.ts` — covers the no-op paths (R2 unconfigured, non-R2 URLs). Full SDK glue (ranged `GetObject` round-trip, `ContentType` / `Body` parsing, fire-and-forget `DeleteObject` on mismatch) is **deferred to Issue #278** because mocking the singleton `S3Client` requires either `aws-sdk-client-mock` or a DI seam — both expand scope beyond the security fix. The no-op paths and the magic-byte rules are covered here; the SDK glue itself is small and will be exercised end-to-end on Phase 0 deploy.
+   - `post.test.ts` (and equivalent for artist/user mutations) — existing mutation tests pass unchanged because the test env has R2 unconfigured, which short-circuits the new check.
 
 ### Compatibility-equivalence rules
 
-- `image/heic` and `image/heif` share the ftyp box format. Detected ftyp brands `heic`, `heix`, `mif1`, `msf1`, `heis`, `hevc`, `hevx` are all considered acceptable for either declared MIME (mirrors the frontend `mimeFromBytes` rule pinned by PR #253).
-- `audio/mp4` and `video/mp4` share ftyp; we accept ftyp-based detection for both, distinguished by their accepted brands (`m4a`, `mp41`, `mp42`, `isom`, `avc1`, `iso5`, `iso6`).
-- WebP is detected as `RIFF....WEBP`; declared content-type must be exactly `image/webp`.
+- `image/heic` and `image/heif` share the ftyp box format. Detected ftyp brands `heic`, `heif`, `heix`, `mif1`, `msf1`, `heis` are all classified as `image/heic` and accepted under either declared MIME (mirrors the frontend `mimeFromBytes` rule pinned by PR #253). The HEVC video brands `hevc` / `hevx` are intentionally classified as `video/mp4`, **not** as still images, and are therefore rejected when the declared MIME is `image/heic` or `image/heif` — uploading HEVC video into an image slot is exactly the spoofing case this validator is meant to catch.
+- `audio/mp4` and `video/mp4` share ftyp; we distinguish them by accepted brand prefix. M4A / M4B / M4P brands are classified as `audio/mp4`; `isom`, `mp41`, `mp42`, `avc1`, etc. are classified as `video/mp4`.
+- WebP is detected as `RIFF....WEBP`; declared content-type must be exactly `image/webp`. RIFF + `WAVE` is `audio/wav`. RIFF with any other tag (e.g. AVI) is rejected.
+- WebM / EBML cannot be split into video vs audio without parsing codecs. A detected `video/webm` is therefore accepted under either declared `video/webm` or `audio/webm`.
 
 ## Consequences
 
@@ -85,9 +86,10 @@ Option 1 (re-encode) is deferred to a future Issue if and when polyglot or malfo
 
 ### Negative
 
-- Adds one R2 read per upload. At Phase 0 scale (family of 5, < 100 uploads / day), the cost is rounding error. At Phase 1 scale, R2 reads are still cheap (free egress, $0.36 per million Class B requests).
+- Adds one R2 read per upload. At Phase 0 scale (family of 5, < 100 uploads / day), the cost is rounding error. At Phase 1 scale, R2 reads are still cheap (free egress, $0.36 per million Class B requests). Update mutations skip the GET when the URL is unchanged from the DB row, so re-saving a profile or post without touching media doesn't pay the cost again.
 - `magic-bytes.ts` becomes a parallel implementation of the same rules in `frontend/lib/utils/mime_from_bytes.dart`. The two must be kept in sync; the test suite makes drift loud.
 - The TOCTOU window between PUT-complete and validation is small but non-zero. Mitigated by not persisting the URL until validation passes — the worst that can happen is a race within a single mutation, where both the validator and an attacker race for the same key. The attacker would need credentials for the user's presigned URL and would gain nothing by replacing valid bytes with invalid ones (the validator would then delete both).
+- **Partial-failure orphans.** `assertUploadedR2ObjectsMatch` runs per-URL checks in parallel with `Promise.all`. If one URL fails magic-byte validation, the failing object is deleted fire-and-forget, but other URLs that already passed (or were still in flight and complete after the rejection) remain in R2 — the mutation aborts so no DB row references them. These orphans are not cleaned up by this validator; they rely on the future R2-orphan batch job (Issue #230). For Phase 0 this is acceptable because partial failures from a normal client are rare (the frontend uploads all images before issuing the mutation, so either all are well-formed or the client itself was misbehaving).
 
 ## References
 

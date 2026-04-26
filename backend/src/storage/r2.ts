@@ -297,11 +297,22 @@ export async function validateUploadedR2Object(
 
   const detected = detectMimeFromMagicBytes(bytes);
   if (!detected || !isContentTypeCompatible(declared, detected)) {
+    // Log the (declared, detected, key) triple server-side for forensics.
+    // The client-facing message intentionally omits both values: returning
+    // `declared` would let an attacker probe what content-type a given key
+    // is stored under (a small but free oracle), and returning `detected`
+    // would let them probe what actual bytes are at a given key.
+    console.error(
+      "[validateUploadedR2Object] content-type mismatch: key=%s declared=%s detected=%s",
+      key,
+      declared,
+      detected ?? "unrecognised",
+    );
     deleteR2Object(publicUrl).catch((err) =>
       console.error("[validateUploadedR2Object] cleanup failed:", err),
     );
     throw new R2ValidationError(
-      `Uploaded file does not match declared content-type ${declared}`,
+      "Uploaded file does not match its declared type",
     );
   }
 }

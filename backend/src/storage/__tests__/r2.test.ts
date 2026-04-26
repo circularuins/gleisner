@@ -231,8 +231,8 @@ describe("r2 utility functions", () => {
   // ContentType / Body parsing, fire-and-forget DeleteObject on mismatch)
   // is intentionally not in this unit test file — it requires either an
   // aws-sdk-client-mock dependency or refactoring the singleton client to
-  // accept dependency injection. Tracked as a follow-up. The no-op paths
-  // are covered here because they are reachable in normal test envs
+  // accept dependency injection. Tracked in Issue #278 (item 5). The no-op
+  // paths are covered here because they are reachable in normal test envs
   // (R2 not configured, non-R2 URLs).
   describe("validateUploadedR2Object (no-op paths)", () => {
     it("resolves without throwing when R2 is not configured", async () => {

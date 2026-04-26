@@ -812,8 +812,23 @@ builder.mutationFields((t) => ({
       if (effectiveMediaType === "image") {
         if (args.mediaUrls != null && args.mediaUrls.length > 0) {
           validateMediaUrls(args.mediaUrls);
-          // Issue #269 / ADR 026: magic-byte check for newly attached images.
-          await assertUploadedR2ObjectsMatch(args.mediaUrls);
+          // Issue #269 / ADR 026: only magic-byte-check URLs that aren't
+          // already attached to this post. The frontend resends the entire
+          // ordered list on any reorder/replace, so the unchanged subset
+          // would otherwise eat one R2 GET per existing image.
+          let existingMediaUrls: string[] = [];
+          if (post.mediaType === "image") {
+            const existing = await db
+              .select({ mediaUrl: postMedia.mediaUrl })
+              .from(postMedia)
+              .where(eq(postMedia.postId, post.id));
+            existingMediaUrls = existing.map((m) => m.mediaUrl);
+          }
+          const existingSet = new Set(existingMediaUrls);
+          const newUrls = args.mediaUrls.filter((url) => !existingSet.has(url));
+          if (newUrls.length > 0) {
+            await assertUploadedR2ObjectsMatch(newUrls);
+          }
           updateMediaUrls = args.mediaUrls;
         } else if (args.mediaUrls != null && args.mediaUrls.length === 0) {
           throw new GraphQLError("At least one image is required");
@@ -838,13 +853,19 @@ builder.mutationFields((t) => ({
           validateUrl(args.mediaUrl);
         } else {
           validateMediaUrl(args.mediaUrl);
-          // Issue #269 / ADR 026: magic-byte check for video/audio uploads.
-          await assertUploadedR2ObjectMatches(args.mediaUrl);
+          // Skip magic-byte check when the URL hasn't changed (Issue #269
+          // review): re-saving a post without touching the media file
+          // shouldn't pay the R2 round-trip again.
+          if (args.mediaUrl !== post.mediaUrl) {
+            await assertUploadedR2ObjectMatches(args.mediaUrl);
+          }
         }
       }
       if (args.thumbnailUrl != null) {
         validateMediaUrl(args.thumbnailUrl);
-        await assertUploadedR2ObjectMatches(args.thumbnailUrl);
+        if (args.thumbnailUrl !== post.thumbnailUrl) {
+          await assertUploadedR2ObjectMatches(args.thumbnailUrl);
+        }
       }
 
       // Ensure video/audio posts always have a media file.

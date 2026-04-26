@@ -209,15 +209,22 @@ builder.mutationFields((t) => ({
         }
       }
 
-      // Validate URLs (null = clear, so only validate non-null strings)
+      // Validate URLs (null = clear, so only validate non-null strings).
+      // Issue #269 / ADR 026: skip the magic-byte R2 GET when the URL hasn't
+      // changed from what's already in DB — re-validating an already-stored
+      // value buys nothing and an old object may have been moved to a tier
+      // that makes the GET costlier.
       if (args.avatarUrl != null) {
         validateMediaUrl(args.avatarUrl);
-        // Issue #269 / ADR 026: magic-byte check for avatar uploads.
-        await assertUploadedR2ObjectMatches(args.avatarUrl);
+        if (args.avatarUrl !== existing.avatarUrl) {
+          await assertUploadedR2ObjectMatches(args.avatarUrl);
+        }
       }
       if (args.coverImageUrl != null) {
         validateMediaUrl(args.coverImageUrl);
-        await assertUploadedR2ObjectMatches(args.coverImageUrl);
+        if (args.coverImageUrl !== existing.coverImageUrl) {
+          await assertUploadedR2ObjectMatches(args.coverImageUrl);
+        }
       }
 
       // undefined = not provided (skip), null = clear field, value = update

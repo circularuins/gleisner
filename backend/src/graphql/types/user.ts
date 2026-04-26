@@ -126,8 +126,17 @@ builder.mutationFields((t) => ({
       }
       if (args.avatarUrl != null) {
         validateMediaUrl(args.avatarUrl);
-        // Issue #269 / ADR 026: magic-byte check for avatar uploads.
-        await assertUploadedR2ObjectMatches(args.avatarUrl);
+        // Issue #269 / ADR 026: magic-byte check for avatar uploads. Skip
+        // when the URL is unchanged so re-saving the profile without
+        // touching the avatar doesn't re-fetch from R2.
+        const [existing] = await db
+          .select({ avatarUrl: users.avatarUrl })
+          .from(users)
+          .where(eq(users.id, ctx.authUser.userId))
+          .limit(1);
+        if (args.avatarUrl !== existing?.avatarUrl) {
+          await assertUploadedR2ObjectMatches(args.avatarUrl);
+        }
       }
 
       // undefined = not provided (skip), null = clear field, value = update
