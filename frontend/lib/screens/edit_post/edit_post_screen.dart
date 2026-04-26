@@ -11,6 +11,7 @@ import '../../models/track.dart';
 import '../../providers/media_upload_provider.dart';
 import '../../utils/media_limits.dart' show maxImagesPerPost, uploadHintFor;
 import '../../widgets/common/image_grid_widgets.dart';
+import '../../widgets/media/link_form_fields.dart';
 import '../../widgets/media/upload_placeholder.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
@@ -1014,129 +1015,14 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   }
 
   List<Widget> _buildLinkFields() {
-    final l10n = context.l10n;
     return [
-      FocusTraversalGroup(
-        policy: OrderedTraversalPolicy(),
-        child: Column(
-          children: [
-            // URL field
-            Container(
-              decoration: BoxDecoration(
-                color: colorSurface1,
-                borderRadius: BorderRadius.circular(radiusMd),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: spaceMd),
-              child: TextFormField(
-                controller: _mediaUrlController,
-                focusNode: _urlFocusNode,
-                keyboardType: TextInputType.url,
-                textInputAction: TextInputAction.next,
-                style: TextStyle(
-                  color: colorTextPrimary,
-                  fontSize: fontSizeMd,
-                  fontFamily: monoFontFamily,
-                ),
-                decoration: InputDecoration(
-                  hintText: l10n.urlPlaceholder,
-                  hintStyle: TextStyle(
-                    color: colorTextMuted.withValues(alpha: 0.4),
-                    fontSize: fontSizeMd,
-                    fontFamily: monoFontFamily,
-                  ),
-                  icon: const Icon(
-                    Icons.link_rounded,
-                    color: colorTextMuted,
-                    size: 20,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: spaceMd),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return l10n.urlRequired;
-                  }
-                  final uri = Uri.tryParse(value.trim());
-                  if (uri == null || !['http', 'https'].contains(uri.scheme)) {
-                    return l10n.invalidUrl;
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(height: spaceSm),
-            // Title
-            Container(
-              decoration: BoxDecoration(
-                color: colorSurface1,
-                borderRadius: BorderRadius.circular(radiusMd),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: spaceMd),
-              child: TextFormField(
-                controller: _titleController,
-                focusNode: _titleFocusNode,
-                textInputAction: TextInputAction.next,
-                maxLength: 100,
-                maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                style: const TextStyle(
-                  color: colorTextPrimary,
-                  fontSize: fontSizeLg,
-                  fontWeight: weightMedium,
-                ),
-                decoration: InputDecoration(
-                  hintText: l10n.titleAutoFilled,
-                  hintStyle: const TextStyle(
-                    color: colorTextMuted,
-                    fontSize: fontSizeLg,
-                    fontWeight: weightMedium,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: spaceMd),
-                  counterStyle: TextStyle(
-                    fontSize: fontSizeXs,
-                    color: colorTextMuted.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: spaceSm),
-            // Caption
-            Container(
-              decoration: BoxDecoration(
-                color: colorSurface1,
-                borderRadius: BorderRadius.circular(radiusMd),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: spaceMd),
-              child: TextFormField(
-                controller: _bodyController,
-                focusNode: _bodyFocusNode,
-                textInputAction: TextInputAction.done,
-                maxLines: 3,
-                minLines: 2,
-                maxLength: 500,
-                maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                style: const TextStyle(
-                  color: colorTextSecondary,
-                  fontSize: fontSizeMd,
-                  height: 1.5,
-                ),
-                decoration: InputDecoration(
-                  hintText: l10n.addNote,
-                  hintStyle: const TextStyle(
-                    color: colorTextMuted,
-                    fontSize: fontSizeMd,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: spaceSm),
-                  counterStyle: TextStyle(
-                    fontSize: fontSizeXs,
-                    color: colorTextMuted.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+      LinkFormFields(
+        urlController: _mediaUrlController,
+        titleController: _titleController,
+        captionController: _bodyController,
+        urlFocusNode: _urlFocusNode,
+        titleFocusNode: _titleFocusNode,
+        captionFocusNode: _bodyFocusNode,
       ),
     ];
   }
