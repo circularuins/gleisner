@@ -890,7 +890,13 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   void _recomputeLayout() {
     final milestones = state.artist?.milestones ?? [];
     if ((state.posts.isEmpty && milestones.isEmpty) || _lastWidth == 0) {
-      state = state.copyWith(layout: null);
+      // Skip the state write when layout is already null. Otherwise every
+      // call here re-emits an identical state, which feeds the Issue #160
+      // re-dispatch path in timeline_screen.dart and can amplify into a
+      // build → notify → re-dispatch loop.
+      if (state.layout != null) {
+        state = state.copyWith(layout: null);
+      }
       return;
     }
     final timelineItems = <TimelineItem>[

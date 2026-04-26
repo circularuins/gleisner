@@ -332,6 +332,36 @@ void main() {
       // Layout is now computed and the timeline can render.
       expect(container.read(timelineProvider).layout, isNotNull);
     });
+
+    // Regression test for the re-dispatch loop hazard discussed in PR #272
+    // review (Issue #160 follow-up). `_recomputeLayout` used to write
+    // `state.copyWith(layout: null)` unconditionally on its early-return
+    // path. Combined with the widget-side recovery dispatch
+    // (layoutMissing → computeLayout), this could amplify into a build →
+    // notify → re-dispatch loop because every dispatch produced a fresh
+    // state instance even when nothing actually changed. The Notifier
+    // now skips the write when layout is already null.
+    test('Issue #160 followup: _recomputeLayout skips redundant state write '
+        'when layout is already null', () {
+      final container = _createContainer(client: _clientWith());
+      addTearDown(container.dispose);
+
+      final notifier = container.read(timelineProvider.notifier);
+
+      // Empty posts + no viewport — recomputeLayout would early-return
+      // and (previously) write layout: null to state every call.
+      // computeLayout(0) is the public path that triggers _recomputeLayout
+      // with _lastWidth still 0 because computeLayout assigns the arg
+      // first, so width=0 keeps _lastWidth at 0.
+      final original = container.read(timelineProvider);
+      expect(original.layout, isNull);
+
+      notifier.computeLayout(0.0);
+
+      final after = container.read(timelineProvider);
+      // No state change at all — Riverpod's listener bus stays quiet.
+      expect(identical(original, after), isTrue);
+    });
   });
 
   // Regression tests for Issue #191. The backend fires OGP fetch
