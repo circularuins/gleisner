@@ -24,7 +24,7 @@ import {
   assertUploadedR2ObjectsMatch,
 } from "../validators.js";
 import { checkArtistAccess } from "../access.js";
-import { fetchOgpMetadata } from "../../ogp/fetcher.js";
+import { fetchOgpMetadata, ogpUpdateSet } from "../../ogp/fetcher.js";
 import { deleteR2Object } from "../../storage/r2.js";
 
 /** Media types that require a file upload (mediaUrl must be non-null). */
@@ -606,7 +606,8 @@ builder.mutationFields((t) => ({
       }
 
       // Fire-and-forget OGP fetch for link-type posts.
-      // Always update ogFetchedAt (even on null) to prevent repeated fetches.
+      // `ogpUpdateSet` always writes ogFetchedAt (negative cache) and
+      // preserves existing fields when the fetcher returns null.
       if (args.mediaType === "link" && args.mediaUrl) {
         const postId = post.id;
         const mediaUrl = args.mediaUrl;
@@ -614,17 +615,7 @@ builder.mutationFields((t) => ({
           .then(async (ogp) => {
             await db
               .update(posts)
-              .set({
-                ...(ogp
-                  ? {
-                      ogTitle: ogp.ogTitle,
-                      ogDescription: ogp.ogDescription,
-                      ogImage: ogp.ogImage,
-                      ogSiteName: ogp.ogSiteName,
-                    }
-                  : {}),
-                ogFetchedAt: new Date(),
-              })
+              .set(ogpUpdateSet(ogp))
               .where(eq(posts.id, postId));
           })
           .catch((err) => {
@@ -1329,17 +1320,7 @@ builder.mutationFields((t) => ({
 
       const [updated] = await db
         .update(posts)
-        .set({
-          ...(ogData
-            ? {
-                ogTitle: ogData.ogTitle,
-                ogDescription: ogData.ogDescription,
-                ogImage: ogData.ogImage,
-                ogSiteName: ogData.ogSiteName,
-              }
-            : {}),
-          ogFetchedAt: new Date(),
-        })
+        .set(ogpUpdateSet(ogData))
         .where(eq(posts.id, args.postId))
         .returning();
 

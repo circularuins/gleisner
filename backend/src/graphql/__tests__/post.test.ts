@@ -16,9 +16,17 @@ vi.mock("../../storage/r2.js", async (importOriginal) => {
 // path (which chains `.then`) still works for non-OGP tests. Individual
 // fetchOgp tests configure specific responses with mockResolvedValueOnce.
 // `vi.mock` is hoisted by vitest, so this runs before any imports below.
-vi.mock("../../ogp/fetcher.js", () => ({
-  fetchOgpMetadata: vi.fn(async () => null),
-}));
+// `importOriginal` is used to keep the real `ogpUpdateSet` (Issue #189) —
+// it's a pure function the resolver calls inline and would break the
+// mutation if undefined.
+vi.mock("../../ogp/fetcher.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../ogp/fetcher.js")>();
+  return {
+    ...actual,
+    fetchOgpMetadata: vi.fn(async () => null),
+  };
+});
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { sql } from "drizzle-orm";
