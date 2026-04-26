@@ -493,6 +493,13 @@ builder.mutationFields((t) => ({
           await assertUploadedR2ObjectMatches(args.mediaUrl);
         }
       }
+      // thumbnailUrl is currently always supplied by the client (frontend
+      // generates it via Canvas / video.captureStream and uploads to R2 via
+      // the same presigned URL flow as mediaUrl), so it goes through the
+      // magic-byte check too. If a future codepath has the backend
+      // synthesise the thumbnail itself (e.g. server-side ffmpeg), that
+      // codepath should write directly into the row and bypass this
+      // resolver — the validator here is for client-supplied URLs only.
       if (args.thumbnailUrl != null) {
         validateMediaUrl(args.thumbnailUrl);
         await assertUploadedR2ObjectMatches(args.thumbnailUrl);
@@ -816,6 +823,16 @@ builder.mutationFields((t) => ({
           // already attached to this post. The frontend resends the entire
           // ordered list on any reorder/replace, so the unchanged subset
           // would otherwise eat one R2 GET per existing image.
+          //
+          // existingMediaUrls is intentionally empty when the post is
+          // changing INTO image type (post.mediaType !== "image"): every
+          // URL is genuinely new for this post, so all of them must be
+          // validated. The empty-Set diff falls through to that case
+          // without a special branch.
+          //
+          // Skip-when-unchanged is sound only because every persisted URL
+          // was validated by ADR 026 at write time — see ADR §"Negative
+          // consequences" (skip-when-unchanged paragraph).
           let existingMediaUrls: string[] = [];
           if (post.mediaType === "image") {
             const existing = await db
@@ -825,7 +842,15 @@ builder.mutationFields((t) => ({
             existingMediaUrls = existing.map((m) => m.mediaUrl);
           }
           const existingSet = new Set(existingMediaUrls);
-          const newUrls = args.mediaUrls.filter((url) => !existingSet.has(url));
+          // Dedupe with Set: a malicious or buggy client can submit the
+          // same URL multiple times in mediaUrls; without dedup each
+          // duplicate would issue its own R2 GET (cost waste + slightly
+          // wider TOCTOU window for spoof-and-race). The DB column has
+          // no unique constraint on (postId, mediaUrl), so we have to
+          // dedupe here.
+          const newUrls = [
+            ...new Set(args.mediaUrls.filter((url) => !existingSet.has(url))),
+          ];
           if (newUrls.length > 0) {
             await assertUploadedR2ObjectsMatch(newUrls);
           }
@@ -847,15 +872,14 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("mediaUrls is only valid for image type posts");
       }
 
-      // Validate mediaUrl for non-image types
+      // Validate mediaUrl for non-image types. Skip-when-unchanged is sound
+      // because every URL persisted on the row was validated when first
+      // stored — see ADR 026 §"Negative consequences".
       if (args.mediaUrl != null && effectiveMediaType !== "image") {
         if (effectiveMediaType === "link") {
           validateUrl(args.mediaUrl);
         } else {
           validateMediaUrl(args.mediaUrl);
-          // Skip magic-byte check when the URL hasn't changed (Issue #269
-          // review): re-saving a post without touching the media file
-          // shouldn't pay the R2 round-trip again.
           if (args.mediaUrl !== post.mediaUrl) {
             await assertUploadedR2ObjectMatches(args.mediaUrl);
           }

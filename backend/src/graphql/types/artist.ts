@@ -210,10 +210,11 @@ builder.mutationFields((t) => ({
       }
 
       // Validate URLs (null = clear, so only validate non-null strings).
-      // Issue #269 / ADR 026: skip the magic-byte R2 GET when the URL hasn't
-      // changed from what's already in DB — re-validating an already-stored
-      // value buys nothing and an old object may have been moved to a tier
-      // that makes the GET costlier.
+      // Issue #269 / ADR 026: skip the magic-byte R2 GET when the URL
+      // already matches the row in DB — every persisted URL was validated
+      // when first stored, so re-validating buys nothing. See ADR
+      // §"Negative consequences" (skip-when-unchanged paragraph) for why
+      // strict equality is the correct primitive here.
       if (args.avatarUrl != null) {
         validateMediaUrl(args.avatarUrl);
         if (args.avatarUrl !== existing.avatarUrl) {

@@ -125,6 +125,10 @@ export async function assertUploadedR2ObjectMatches(
 /**
  * Apply `assertUploadedR2ObjectMatches` to each URL in parallel.
  *
+ * No-op (resolves immediately) when `urls` is empty — `Promise.all([])`
+ * resolves synchronously. Callers don't need to length-guard, but most do
+ * because they want to skip a separate DB read used to compute the diff.
+ *
  * `Promise.all` is intentional over a serial loop: with `MAX_IMAGES_PER_POST = 10`
  * the serial form was up to 10× the round-trip latency, and there's no
  * ordering dependency between per-URL checks. `Promise.all` short-circuits

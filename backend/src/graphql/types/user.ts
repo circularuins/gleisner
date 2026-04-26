@@ -118,6 +118,17 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Authentication required");
       }
 
+      // Fetch the existing row up front, mirroring the updateMyArtist
+      // pattern. Currently used only for avatarUrl skip-when-unchanged,
+      // but anchoring it here means future "skip if unchanged" checks for
+      // displayName / bio / profileVisibility can reuse the same row
+      // without re-issuing SELECTs.
+      const [existing] = await db
+        .select({ avatarUrl: users.avatarUrl })
+        .from(users)
+        .where(eq(users.id, ctx.authUser.userId))
+        .limit(1);
+
       if (args.displayName != null && args.displayName.length > 50) {
         throw new GraphQLError("Display name must be 50 characters or less");
       }
@@ -126,14 +137,9 @@ builder.mutationFields((t) => ({
       }
       if (args.avatarUrl != null) {
         validateMediaUrl(args.avatarUrl);
-        // Issue #269 / ADR 026: magic-byte check for avatar uploads. Skip
-        // when the URL is unchanged so re-saving the profile without
-        // touching the avatar doesn't re-fetch from R2.
-        const [existing] = await db
-          .select({ avatarUrl: users.avatarUrl })
-          .from(users)
-          .where(eq(users.id, ctx.authUser.userId))
-          .limit(1);
+        // Issue #269 / ADR 026: magic-byte check for avatar uploads.
+        // Skip when the URL is unchanged — every persisted URL was
+        // validated when first stored, see ADR §"Negative consequences".
         if (args.avatarUrl !== existing?.avatarUrl) {
           await assertUploadedR2ObjectMatches(args.avatarUrl);
         }

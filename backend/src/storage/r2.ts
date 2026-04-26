@@ -291,9 +291,17 @@ export async function validateUploadedR2Object(
 
   // `transformToByteArray` is provided by AWS SDK v3 streams (sdk-stream-mixin).
   // It works for both Node.js Readable streams and Web ReadableStream.
-  const bytes = await (
+  //
+  // The Range header should keep R2 from sending more than 64 bytes, but we
+  // also `subarray(0, 64)` defensively in case (a) R2 ignores the Range, or
+  // (b) the SDK's stream parser ever buffers more than the requested window.
+  // Issue #278 (item 1, 2) tracks replacing the cast with a runtime guard
+  // and a hand-rolled 64-byte short-circuit for when the SDK helper is
+  // unavailable (Edge Runtime etc.).
+  const rawBytes = await (
     body as { transformToByteArray: () => Promise<Uint8Array> }
   ).transformToByteArray();
+  const bytes = rawBytes.subarray(0, 64);
 
   const detected = detectMimeFromMagicBytes(bytes);
   if (!detected || !isContentTypeCompatible(declared, detected)) {
