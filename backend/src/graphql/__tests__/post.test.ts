@@ -20,8 +20,7 @@ vi.mock("../../storage/r2.js", async (importOriginal) => {
 // it's a pure function the resolver calls inline and would break the
 // mutation if undefined.
 vi.mock("../../ogp/fetcher.js", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("../../ogp/fetcher.js")>();
+  const actual = await importOriginal<typeof import("../../ogp/fetcher.js")>();
   return {
     ...actual,
     fetchOgpMetadata: vi.fn(async () => null),
