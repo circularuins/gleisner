@@ -4,16 +4,28 @@ import 'package:flutter/services.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/gleisner_tokens.dart';
 
+/// Top-level instance reused across builds — `OrderedTraversalPolicy` is
+/// stateless so a single instance is safe and avoids the per-build
+/// allocation that the inline `OrderedTraversalPolicy()` would incur.
+final FocusTraversalPolicy _orderedTraversalPolicy = OrderedTraversalPolicy();
+
 /// Three-row form for link-type posts: URL + title + caption, wrapped in
 /// a `FocusTraversalGroup` so Tab navigation stays inside the group
 /// (works around the Flutter Web IME / Tab assertion described in
 /// `frontend/lib/utils/ime_safe_focus.dart`). Focus nodes must be
 /// IME-safe (\`createImeSafeFocusNode\`) to avoid the same assertion.
 ///
-/// The URL validator trims whitespace before parsing and accepts only
-/// http / https — this is the stricter behaviour that lived in the edit
-/// screen prior to extraction (the create screen used \`value.isEmpty\`,
-/// which let through a whitespace-only string until the trim landed).
+/// **Ownership contract**: this widget does NOT own any of the controllers
+/// or focus nodes it receives — they are constructed and disposed by the
+/// surrounding screen (`create_post_screen` / `edit_post_screen`). New
+/// callers must do the same. Disposing inside this widget would crash on
+/// the next build cycle in the parent.
+///
+/// The URL validator trims whitespace before parsing, requires a non-empty
+/// host, and accepts only http / https — this is the stricter behaviour
+/// that lived in the edit screen prior to extraction (the create screen
+/// used \`value.isEmpty\` and accepted a host-less \`https:\` URI). Both
+/// screens now share the strict form.
 ///
 /// Issue #178 (and the unfiled \`_buildLinkFields\` duplication noted in
 /// the Phase 0 roadmap §3.1) — extracted from create_post_screen and
@@ -32,31 +44,38 @@ class LinkFormFields extends StatelessWidget {
   });
 
   /// URL input controller. Validation runs on \`.trim()\`.
+  /// Owned by the parent — this widget does not dispose it.
   final TextEditingController urlController;
 
   /// Title input controller. Capped at 100 characters by the field.
+  /// Owned by the parent — this widget does not dispose it.
   final TextEditingController titleController;
 
   /// Caption input controller. Capped at 500 characters by the field.
+  /// Owned by the parent — this widget does not dispose it.
   final TextEditingController captionController;
 
   /// All three nodes should be created via \`createImeSafeFocusNode\` so
   /// Tab during IME composition is consumed instead of asserting.
+  /// Owned by the parent — this widget does not dispose them.
   final FocusNode urlFocusNode;
   final FocusNode titleFocusNode;
   final FocusNode captionFocusNode;
 
-  /// Focus the URL field on mount. True from the create screen (the
-  /// link form is the first thing the user sees), false from edit
-  /// (refocusing would steal the user's selection on the field they
-  /// actually meant to change).
+  /// Focus the URL field on mount.
+  ///
+  /// Default \`false\` is the conservative choice — calling \`autofocus: true\`
+  /// from a context where the user is mid-task (edit screen, modal layered
+  /// on existing focus) would steal selection from whatever they were
+  /// already editing. Only the create screen passes \`true\` because the
+  /// form is the first thing a brand-new \"link-type post\" interaction shows.
   final bool autofocusUrl;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return FocusTraversalGroup(
-      policy: OrderedTraversalPolicy(),
+      policy: _orderedTraversalPolicy,
       child: Column(
         children: [
           _UrlField(
@@ -137,7 +156,14 @@ class _UrlField extends StatelessWidget {
           final trimmed = value?.trim() ?? '';
           if (trimmed.isEmpty) return requiredErrorText;
           final uri = Uri.tryParse(trimmed);
-          if (uri == null || !['http', 'https'].contains(uri.scheme)) {
+          // Reject `http:` / `https:` without a host — `Uri.tryParse`
+          // accepts those as syntactically valid URIs but they're useless
+          // for OGP fetch and would cause `safeFetch` to reject them
+          // server-side anyway. Catching it client-side surfaces a
+          // friendlier error.
+          if (uri == null ||
+              !['http', 'https'].contains(uri.scheme) ||
+              uri.host.isEmpty) {
             return invalidErrorText;
           }
           return null;

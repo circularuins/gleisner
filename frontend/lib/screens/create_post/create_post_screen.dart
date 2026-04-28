@@ -557,9 +557,12 @@ class _FormStep extends ConsumerWidget {
   final TextEditingController mediaUrlController;
   final String? thumbnailUrl;
   final int? durationSeconds;
-  final FocusNode? urlFocusNode;
-  final FocusNode? linkTitleFocusNode;
-  final FocusNode? linkCaptionFocusNode;
+  // Focus nodes are always supplied by the only call site (the create
+  // screen state's `late final _urlFocusNode` etc.), so non-nullable types
+  // are strictly correct and let callers drop the `!` at the use site.
+  final FocusNode urlFocusNode;
+  final FocusNode linkTitleFocusNode;
+  final FocusNode linkCaptionFocusNode;
   final DateTime? eventAt;
   final ValueChanged<DateTime?> onEventAtChanged;
   final VoidCallback onSubmit;
@@ -575,9 +578,9 @@ class _FormStep extends ConsumerWidget {
     required this.mediaUrlController,
     this.thumbnailUrl,
     this.durationSeconds,
-    this.urlFocusNode,
-    this.linkTitleFocusNode,
-    this.linkCaptionFocusNode,
+    required this.urlFocusNode,
+    required this.linkTitleFocusNode,
+    required this.linkCaptionFocusNode,
     this.eventAt,
     required this.onEventAtChanged,
     required this.onSubmit,
@@ -1295,19 +1298,17 @@ class _FormStep extends ConsumerWidget {
 
   // link: URL (required) + title + caption
   List<Widget> _buildLinkFields(BuildContext context, ThemeData theme) {
-    // _FormStep is only instantiated by the create screen, which always
-    // wires the link focus nodes — see the `_FormStep(...)` call site
-    // around line 252. Treat the !/non-null asserts here as a contract
-    // boundary (rather than allowing `LinkFormFields` itself to take
-    // optional focus nodes — IME-safe focus is a hard requirement).
+    // Focus nodes are non-nullable on `_FormStep` since the create screen
+    // is the only caller and always wires them — `LinkFormFields` requires
+    // IME-safe nodes as a hard contract.
     return [
       LinkFormFields(
         urlController: mediaUrlController,
         titleController: titleController,
         captionController: bodyController,
-        urlFocusNode: urlFocusNode!,
-        titleFocusNode: linkTitleFocusNode!,
-        captionFocusNode: linkCaptionFocusNode!,
+        urlFocusNode: urlFocusNode,
+        titleFocusNode: linkTitleFocusNode,
+        captionFocusNode: linkCaptionFocusNode,
         autofocusUrl: true,
       ),
     ];
