@@ -26,20 +26,31 @@ class VideoMediaPreview extends StatelessWidget {
   /// frame extraction has completed).
   final String? thumbnailUrl;
 
+  /// Thumbnail height matches the 16:9 aspect of a typical video frame at
+  /// the form's content width — the captured first frame fills the box
+  /// without letterboxing on the common case (1280×720 → ~430×240).
   static const double _thumbnailHeight = 240;
-  static const double _placeholderHeight = 200;
 
-  bool get _hasThumbnail => thumbnailUrl != null && thumbnailUrl!.isNotEmpty;
+  /// Placeholder is shorter (no image content to balance) so the form
+  /// doesn't reserve unused vertical space while the thumbnail is being
+  /// generated.
+  static const double _placeholderHeight = 200;
 
   @override
   Widget build(BuildContext context) {
+    // Bind to a local so the type promotes from `String?` to `String`
+    // inside the `if (url != null)` branch — no `!` null assertion and
+    // no second read of the property when the field is non-null.
+    final url = thumbnailUrl;
+    final hasThumbnail = url != null && url.isNotEmpty;
+
     return Stack(
       children: [
-        if (_hasThumbnail)
+        if (hasThumbnail)
           ClipRRect(
             borderRadius: BorderRadius.circular(radiusLg),
             child: Image.network(
-              thumbnailUrl!,
+              url,
               width: double.infinity,
               height: _thumbnailHeight,
               fit: BoxFit.cover,
