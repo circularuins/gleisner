@@ -12,6 +12,7 @@ import '../../providers/media_upload_provider.dart';
 import '../../utils/media_limits.dart' show maxImagesPerPost, uploadHintFor;
 import '../../widgets/common/image_grid_widgets.dart';
 import '../../widgets/media/upload_placeholder.dart';
+import '../../widgets/media/video_media_preview.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
@@ -756,94 +757,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
       return _buildImageGrid();
     }
 
-    final showThumbnail =
-        mediaType == MediaType.video &&
-        _thumbnailUrl != null &&
-        _thumbnailUrl!.isNotEmpty;
-    final displayUrl = _thumbnailUrl ?? '';
-
-    return Stack(
-      children: [
-        if (showThumbnail)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(radiusLg),
-            child: Image.network(
-              displayUrl,
-              width: double.infinity,
-              height: 240,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  height: 240,
-                  decoration: BoxDecoration(
-                    color: colorSurface2,
-                    borderRadius: BorderRadius.circular(radiusLg),
-                  ),
-                );
-              },
-              errorBuilder: (_, _, _) => Container(
-                height: 240,
-                decoration: BoxDecoration(
-                  color: colorSurface2,
-                  borderRadius: BorderRadius.circular(radiusLg),
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.broken_image_outlined,
-                    size: 40,
-                    color: colorTextMuted,
-                  ),
-                ),
-              ),
-            ),
-          )
-        else
-          Container(
-            height: 200,
-            decoration: BoxDecoration(
-              color: colorSurface2,
-              borderRadius: BorderRadius.circular(radiusLg),
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.videocam_outlined,
-                size: 48,
-                color: colorAccentGold,
-              ),
-            ),
-          ),
-        // Replace badge
-        Positioned(
-          top: spaceSm,
-          right: spaceSm,
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: spaceSm,
-              vertical: spaceXs,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(radiusSm),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.swap_horiz, size: 14, color: Colors.white70),
-                const SizedBox(width: spaceXs),
-                Text(
-                  context.l10n.replace,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: fontSizeXs,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
+    // Video: shared widget (also used by create_post_screen)
+    return VideoMediaPreview(thumbnailUrl: _thumbnailUrl);
   }
 
   Widget _buildAudioPreview() {
