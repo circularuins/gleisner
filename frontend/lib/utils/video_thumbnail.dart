@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
 
+import 'image_quality.dart';
+
 /// Result of video metadata extraction and thumbnail capture.
 typedef VideoMeta = ({Uint8List? thumbnail, int? durationSeconds});
 
@@ -95,7 +97,7 @@ Future<VideoMeta> captureVideoThumbnail(
           reader.readAsArrayBuffer(blob);
         }).toJS,
         'image/jpeg',
-        0.75.toJS,
+        kThumbnailJpegQuality.toJS,
       );
     } catch (_) {
       finish(null);
