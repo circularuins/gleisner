@@ -77,6 +77,38 @@ function sanitizeImageUrl(url: string | null): string | null {
 }
 
 /**
+ * Build the `db.update(posts).set(...)` payload for persisting an OGP
+ * fetch outcome. Always sets `ogFetchedAt` (negative cache — prevents
+ * the resolver from re-running the fetch on every render). The four
+ * og_* fields are only written when the fetcher returned data, so a
+ * null response from a temporarily-broken site preserves any
+ * previously-cached metadata rather than clearing it.
+ *
+ * Used by both `createPost` (fire-and-forget) and `fetchOgp` to remove
+ * the duplicated `{ ...(ogp ? {...} : {}), ogFetchedAt: new Date() }`
+ * literal — Issue #189.
+ */
+export function ogpUpdateSet(metadata: OgpMetadata | null): {
+  ogTitle?: string | null;
+  ogDescription?: string | null;
+  ogImage?: string | null;
+  ogSiteName?: string | null;
+  ogFetchedAt: Date;
+} {
+  return {
+    ...(metadata
+      ? {
+          ogTitle: metadata.ogTitle,
+          ogDescription: metadata.ogDescription,
+          ogImage: metadata.ogImage,
+          ogSiteName: metadata.ogSiteName,
+        }
+      : {}),
+    ogFetchedAt: new Date(),
+  };
+}
+
+/**
  * Fetch OGP metadata from a URL.
  * Returns null if the URL is unreachable, blocked by SSRF guard,
  * or doesn't contain OGP tags.
