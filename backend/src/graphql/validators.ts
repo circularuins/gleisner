@@ -125,28 +125,59 @@ export async function assertUploadedR2ObjectMatches(
 /**
  * Apply `assertUploadedR2ObjectMatches` to each URL in parallel.
  *
- * No-op (resolves immediately) when `urls` is empty — `Promise.all([])`
- * resolves synchronously. Callers don't need to length-guard, but most do
- * because they want to skip a separate DB read used to compute the diff.
+ * No-op (resolves immediately) when `urls` is empty.
  *
- * `Promise.all` is intentional over a serial loop: with `MAX_IMAGES_PER_POST = 10`
- * the serial form was up to 10× the round-trip latency, and there's no
- * ordering dependency between per-URL checks. `Promise.all` short-circuits
- * on the first rejection (subsequent in-flight checks are abandoned), which
- * matches the existing semantics — a partial failure already meant the
- * mutation aborts and any successful checks are not persisted.
+ * Per-URL checks run concurrently (serial form was up to 10× the round-trip
+ * latency at MAX_IMAGES_PER_POST = 10, with no ordering dependency).
+ * `Promise.allSettled` is used instead of `Promise.all` so we collect EVERY
+ * failure rather than only the first — under a coordinated multi-file
+ * spoofing attempt this turns one log line into N, which makes forensics
+ * (Issue #230 R2 orphan sweeper) much easier (Issue #278 item 8).
  *
- * Partial-failure consequence: when one URL fails, the other in-flight
- * checks complete in the background. If they detect a mismatch, their
- * fire-and-forget delete still runs. If they detect a match, those R2
- * objects are not deleted because the mutation rolls back (no DB write
- * referencing them). Cleanup of those orphans relies on the future
- * R2-orphan batch job (Issue #230).
+ * The first encountered error is re-thrown so the GraphQL caller still gets
+ * a single rejection. EVERY failure is logged with [SECURITY] prefix
+ * server-side — including single-URL failures, since a one-file spoof
+ * attempt is just as worth flagging as a multi-file one.
+ *
+ * Latency: in the all-success case, bounded by the slowest URL (same as
+ * `Promise.all`). In the failure case, `Promise.allSettled` waits for ALL
+ * in-flight checks rather than short-circuiting on the first rejection —
+ * at MAX_IMAGES_PER_POST = 10 this can multiply the failure-case response
+ * time by up to 10×. The trade-off is acceptable because (a) failed
+ * mutations don't write any DB state, and (b) the full failure log set
+ * is the primary forensic output. If this becomes an availability
+ * problem (it shouldn't — round-trips target R2's same-AZ HEAD/range
+ * latency), Issue #278 item 4 (per-URL AbortSignal timeout) is the
+ * natural follow-up.
+ *
+ * Partial-failure consequence: each failing URL's R2 object is deleted
+ * fire-and-forget by `validateUploadedR2Object`. Successful URLs that
+ * complete before the mutation aborts remain in R2 — these orphans rely
+ * on the future R2-orphan batch job (Issue #230).
  */
 export async function assertUploadedR2ObjectsMatch(
   urls: string[],
 ): Promise<void> {
-  await Promise.all(urls.map((url) => assertUploadedR2ObjectMatches(url)));
+  if (urls.length === 0) return;
+  const results = await Promise.allSettled(
+    urls.map((url) => assertUploadedR2ObjectMatches(url)),
+  );
+  const errors = results.filter(
+    (r): r is PromiseRejectedResult => r.status === "rejected",
+  );
+  if (errors.length === 0) return;
+
+  // Log every failure (including the single-error case) so a one-file
+  // spoof attempt still leaves a forensic trail.
+  for (const err of errors) {
+    console.error(
+      "[SECURITY][assertUploadedR2ObjectsMatch] validation failure:",
+      err.reason,
+    );
+  }
+  // Re-throw the first error so the caller's contract (single rejection)
+  // is preserved. GraphQLError vs other types is preserved via re-throw.
+  throw errors[0].reason;
 }
 
 const VALID_POST_VISIBILITY = ["public", "draft"] as const;

@@ -236,6 +236,99 @@ function extractR2Key(publicUrl: string): string | null {
 }
 
 /**
+ * Read at most `maxBytes` from an AWS SDK `Body`. The body shape is loose:
+ *
+ * - Node.js path: `SdkStreamMixin.transformToByteArray()` is monkey-patched
+ *   onto Readable streams by the SDK and is the fast path.
+ * - Edge / future-SDK path: the body is a raw `ReadableStream<Uint8Array>`
+ *   without the mixin. We fall back to a hand-rolled reader and stop as soon
+ *   as the budget is met (cancel the stream so R2 stops sending bytes).
+ *
+ * In both branches we slice to `maxBytes` defensively, so a stream that
+ * delivers more than the requested window can never produce a buffer larger
+ * than the cap. This keeps the worst-case allocation bounded even if the
+ * Range header is dropped or ignored.
+ *
+ * Issue #278 (items 1, 2).
+ */
+export async function _readFirstBytesForTesting(
+  body: unknown,
+  maxBytes: number,
+): Promise<Uint8Array> {
+  return readFirstBytes(body, maxBytes);
+}
+
+async function readFirstBytes(
+  body: unknown,
+  maxBytes: number,
+): Promise<Uint8Array> {
+  // Fast path: SDK v3 SdkStreamMixin
+  if (
+    body !== null &&
+    typeof body === "object" &&
+    typeof (body as { transformToByteArray?: unknown }).transformToByteArray ===
+      "function"
+  ) {
+    const all = await (
+      body as { transformToByteArray: () => Promise<Uint8Array> }
+    ).transformToByteArray();
+    return all.subarray(0, maxBytes);
+  }
+
+  // Fallback: raw ReadableStream — accumulate until we hit maxBytes, then
+  // cancel so the producer stops sending.
+  if (
+    body !== null &&
+    typeof body === "object" &&
+    typeof (body as { getReader?: unknown }).getReader === "function"
+  ) {
+    const reader = (body as ReadableStream<Uint8Array>).getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    try {
+      while (total < maxBytes) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!value) continue;
+        // Trim each chunk down to the remaining budget so a single
+        // oversized chunk (proxy buffering / SDK chunking that ignores
+        // the Range header) never inflates `chunks` past `maxBytes`.
+        const needed = maxBytes - total;
+        if (value.byteLength <= needed) {
+          chunks.push(value);
+          total += value.byteLength;
+        } else {
+          chunks.push(value.subarray(0, needed));
+          total = maxBytes;
+        }
+      }
+    } finally {
+      // Cancel + release so the SDK doesn't hold the connection open
+      try {
+        await reader.cancel();
+      } catch {
+        // ignore — best-effort cleanup
+      }
+      reader.releaseLock();
+    }
+    const buf = new Uint8Array(Math.min(total, maxBytes));
+    let offset = 0;
+    for (const chunk of chunks) {
+      const remaining = maxBytes - offset;
+      if (remaining <= 0) break;
+      const slice = chunk.subarray(0, remaining);
+      buf.set(slice, offset);
+      offset += slice.byteLength;
+    }
+    return buf;
+  }
+
+  throw new R2ValidationError(
+    "Uploaded file body is in an unsupported stream shape",
+  );
+}
+
+/**
  * Validate that the object at `publicUrl` actually contains bytes that
  * match its declared `Content-Type`. See ADR 026 / Issue #269.
  *
@@ -275,7 +368,13 @@ export async function validateUploadedR2Object(
   const declared = (response.ContentType ?? "").toLowerCase();
   if (!declared) {
     deleteR2Object(publicUrl).catch((err) =>
-      console.error("[validateUploadedR2Object] cleanup failed:", err),
+      // [SECURITY] tag flags this for the R2 orphan sweeper (Issue #230) —
+      // a delete failure here means a content-type-spoofed object is still
+      // sitting in R2 and needs out-of-band cleanup.
+      console.error(
+        "[SECURITY][validateUploadedR2Object] cleanup failed for spoofed upload:",
+        err,
+      ),
     );
     throw new R2ValidationError("Uploaded file has no content-type");
   }
@@ -284,24 +383,30 @@ export async function validateUploadedR2Object(
   const body = response.Body;
   if (!body) {
     deleteR2Object(publicUrl).catch((err) =>
-      console.error("[validateUploadedR2Object] cleanup failed:", err),
+      // [SECURITY] tag flags this for the R2 orphan sweeper (Issue #230) —
+      // a delete failure here means a content-type-spoofed object is still
+      // sitting in R2 and needs out-of-band cleanup.
+      console.error(
+        "[SECURITY][validateUploadedR2Object] cleanup failed for spoofed upload:",
+        err,
+      ),
     );
     throw new R2ValidationError("Uploaded file is empty");
   }
 
-  // `transformToByteArray` is provided by AWS SDK v3 streams (sdk-stream-mixin).
-  // It works for both Node.js Readable streams and Web ReadableStream.
+  // Buffer the first 64 bytes for magic-byte inspection. The Range header
+  // (`bytes=0-63` above) should keep R2 from sending more than that, but we
+  // also enforce a hard 64-byte cap downstream to keep the worst case bounded
+  // even if R2 ignores Range or the SDK buffers more than expected.
   //
-  // The Range header should keep R2 from sending more than 64 bytes, but we
-  // also `subarray(0, 64)` defensively in case (a) R2 ignores the Range, or
-  // (b) the SDK's stream parser ever buffers more than the requested window.
-  // Issue #278 (item 1, 2) tracks replacing the cast with a runtime guard
-  // and a hand-rolled 64-byte short-circuit for when the SDK helper is
-  // unavailable (Edge Runtime etc.).
-  const rawBytes = await (
-    body as { transformToByteArray: () => Promise<Uint8Array> }
-  ).transformToByteArray();
-  const bytes = rawBytes.subarray(0, 64);
+  // The SDK's `SdkStreamMixin` adds `transformToByteArray` to `Body`, but the
+  // type is declared loosely (`StreamingBlobPayloadOutputTypes`) and Edge
+  // Runtime / future SDK refactors may surface a raw `ReadableStream`
+  // instead. We runtime-detect the helper and fall back to a hand-rolled
+  // ReadableStream reader, which short-circuits as soon as 64 bytes are
+  // collected (guards against pathological large bodies bypassing the
+  // ranged GET).
+  const bytes = await readFirstBytes(body, 64);
 
   const detected = detectMimeFromMagicBytes(bytes);
   if (!detected || !isContentTypeCompatible(declared, detected)) {
@@ -317,7 +422,13 @@ export async function validateUploadedR2Object(
       detected ?? "unrecognised",
     );
     deleteR2Object(publicUrl).catch((err) =>
-      console.error("[validateUploadedR2Object] cleanup failed:", err),
+      // [SECURITY] tag flags this for the R2 orphan sweeper (Issue #230) —
+      // a delete failure here means a content-type-spoofed object is still
+      // sitting in R2 and needs out-of-band cleanup.
+      console.error(
+        "[SECURITY][validateUploadedR2Object] cleanup failed for spoofed upload:",
+        err,
+      ),
     );
     throw new R2ValidationError(
       "Uploaded file does not match its declared type",
