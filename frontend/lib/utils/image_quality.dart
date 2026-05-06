@@ -37,3 +37,17 @@ const double kImageSanitizeJpegQuality = 0.85;
 /// through (per `image_picker` issue tracker). Clamp callers to 85 max so
 /// EXIF is always stripped via re-encode.
 const int kImagePickerMaxQuality = 85;
+
+/// Largest dimension (width or height) the EXIF-stripping Canvas re-encode
+/// will produce. Inputs larger than this are scaled down before
+/// `drawImage` so the canvas fits inside iOS Safari's per-canvas memory
+/// budget — a 12 MP iPhone photo (4032×3024) silently fails `toBlob` on
+/// iOS without scaling, surfacing as "Image processing failed" with no
+/// console error.
+///
+/// 2560 trades roughly 1/2 the linear resolution of a 12 MP shot for
+/// reliability on iOS Safari and a ~6.5 MP output that's still ample for
+/// Phase 0 timeline display. The HEIC converter uses a tighter 1280 cap
+/// because HEIC inputs come from the same iPhone hardware and 1280 covers
+/// post-detail viewing without further bandwidth cost.
+const int kImageSanitizeMaxDimension = 2560;
