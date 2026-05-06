@@ -2290,15 +2290,25 @@ class _VideoPlayerState extends State<_VideoPlayer> {
     final doc = web.document;
     if (doc.fullscreenElement != null) {
       doc.exitFullscreen();
-    } else {
-      // Find the <video> element created by video_player_web and
-      // request fullscreen on it directly (not the whole page).
-      final videos = doc.querySelectorAll('video');
-      if (videos.length > 0) {
-        final video = videos.item(videos.length - 1) as web.HTMLVideoElement;
-        video.requestFullscreen().toDart.catchError((_) => null);
-      }
+      return;
     }
+    // Find the <video> element created by video_player_web and request
+    // fullscreen on it directly (not the whole page).
+    final videos = doc.querySelectorAll('video');
+    if (videos.length == 0) return;
+    final video = videos.item(videos.length - 1) as web.HTMLVideoElement;
+
+    // iOS Safari refuses the standard Element.requestFullscreen API but
+    // ships a webkit-prefixed variant on HTMLVideoElement that hands the
+    // video to the native iOS player. Try it first; if it isn't there
+    // (everything else: desktop Safari, Chrome, Firefox) fall through to
+    // the standard API.
+    final ext = _VideoFullscreenJSExt(video);
+    if (ext.hasWebkitEnterFullscreen) {
+      ext.webkitEnterFullscreen();
+      return;
+    }
+    video.requestFullscreen().toDart.catchError((_) => null);
   }
 
   String _fmt(Duration d) {
@@ -2414,6 +2424,23 @@ class _VideoPlayerState extends State<_VideoPlayer> {
       ),
     );
   }
+}
+
+// JS interop wrapper for the iOS-Safari-only `webkitEnterFullscreen` on
+// `<video>`. The standard `Element.requestFullscreen` API does not work on
+// iOS Safari for embedded media; the webkit-prefixed method on the video
+// element itself hands playback to the native fullscreen player.
+//
+// Using a getter for the property and a static method call separately so
+// we can feature-detect cleanly: on browsers that don't expose the
+// prefix the property is `undefined`, and `hasProperty` returns false.
+extension type _VideoFullscreenJSExt._(web.HTMLVideoElement _video)
+    implements web.HTMLVideoElement {
+  external JSAny? get webkitEnterFullscreen_; // probe; null on non-iOS
+  bool get hasWebkitEnterFullscreen => webkitEnterFullscreen_ != null;
+  @JS('webkitEnterFullscreen')
+  external void webkitEnterFullscreen();
+  _VideoFullscreenJSExt(web.HTMLVideoElement v) : this._(v);
 }
 
 // ── Audio Player ──
