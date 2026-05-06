@@ -151,7 +151,13 @@ export async function safeFetch(url: string): Promise<string> {
         signal: controller.signal,
         redirect: "manual",
         headers: {
-          "User-Agent": "Gleisner-OGP-Fetcher/1.0",
+          // Identify as a Mozilla-compatible bot so sites that withhold
+          // OGP metadata from unrecognised UAs (notably YouTube, which
+          // serves a stripped HTML page to plain "Gleisner-OGP-Fetcher")
+          // return the full <head>. Includes our identifier + URL so
+          // operators can attribute traffic and contact us.
+          "User-Agent":
+            "Mozilla/5.0 (compatible; GleisnerBot/1.0; +https://gleisner.app)",
           Accept: "text/html",
         },
       });
