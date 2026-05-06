@@ -155,6 +155,15 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     return const MediaUploadState();
   }
 
+  /// Reset to the default state. Screens that re-open upload-capable flows
+  /// should call this on mount so a previous error/progress doesn't bleed
+  /// across navigations — the provider is shared (non-autoDispose) so
+  /// state survives create-post → back → create-post.
+  void reset() {
+    if (disposed) return;
+    state = const MediaUploadState();
+  }
+
   /// Pick an image and upload to R2.
   Future<String?> pickAndUploadImage({
     required UploadCategory category,

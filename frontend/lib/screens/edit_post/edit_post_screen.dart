@@ -75,6 +75,11 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   @override
   void initState() {
     super.initState();
+    // Clear stale upload error/progress from a previous screen visit. The
+    // provider is shared (non-autoDispose) so state otherwise persists.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(mediaUploadProvider.notifier).reset();
+    });
     _titleController = TextEditingController(text: widget.post.title ?? '');
     _bodyController = TextEditingController(text: widget.post.body ?? '');
     _mediaUrlController = TextEditingController(

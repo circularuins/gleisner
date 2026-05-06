@@ -58,6 +58,16 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   List<String> _mediaUrls = [];
 
   @override
+  void initState() {
+    super.initState();
+    // Clear stale upload error/progress from a previous screen visit. The
+    // provider is shared (non-autoDispose) so state otherwise persists.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(mediaUploadProvider.notifier).reset();
+    });
+  }
+
+  @override
   void dispose() {
     _pickMediaGeneration++; // invalidate any in-flight upload
     _titleController.dispose();
