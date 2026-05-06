@@ -90,17 +90,88 @@ Future<({Uint8List bytes, String contentType})?> sanitizeImageMetadata(
     return null;
   }
 
-  if (!_matchesMagicBytes(reencoded, contentType)) {
+  // iOS Safari's Canvas.toBlob preserves the original EXIF/XMP APP1 segment
+  // when re-encoding JPEG (it uses the segments to record orientation).
+  // Strip APPn markers from the re-encoded JPEG so containsMetadataMarkers
+  // doesn't fail-close. PNG/WebP don't have JPEG-style APPn segments so
+  // pass through unchanged.
+  final cleaned = contentType == 'image/jpeg'
+      ? stripJpegAppSegments(reencoded)
+      : reencoded;
+
+  if (!_matchesMagicBytes(cleaned, contentType)) {
     fail('reencoded-magic-mismatch');
     return null;
   }
-  if (containsMetadataMarkers(reencoded)) {
+  if (containsMetadataMarkers(cleaned)) {
     fail('reencoded-still-has-markers');
     return null;
   }
 
   lastSanitizerFailureStage = null;
-  return (bytes: reencoded, contentType: contentType);
+  return (bytes: cleaned, contentType: contentType);
+}
+
+/// Walk the JPEG segment structure and drop every APPn (`0xFFE0`–`0xFFEF`)
+/// marker. iOS Safari's Canvas re-encode preserves the original APP1 (Exif)
+/// segment for orientation continuity, which leaks the GPS / camera
+/// metadata we want to strip. Leaves SOI / SOF / SOS / DQT / DHT / EOI
+/// segments intact so the JPEG remains valid for decoders.
+///
+/// Returns the original bytes verbatim if anything is malformed (better to
+/// keep a valid JPEG and surface the metadata to `containsMetadataMarkers`
+/// downstream than corrupt the image silently).
+@visibleForTesting
+Uint8List stripJpegAppSegments(Uint8List bytes) {
+  // Must start with SOI (0xFFD8).
+  if (bytes.length < 4 || bytes[0] != 0xFF || bytes[1] != 0xD8) return bytes;
+
+  final out = <int>[0xFF, 0xD8];
+  var i = 2;
+  while (i < bytes.length - 1) {
+    // Every segment marker starts with 0xFF followed by a non-zero byte.
+    if (bytes[i] != 0xFF) return bytes; // malformed → bail out
+    final marker = bytes[i + 1];
+
+    // Start of Scan: copy the rest verbatim (entropy-coded image data).
+    if (marker == 0xDA) {
+      out.addAll(bytes.sublist(i));
+      return Uint8List.fromList(out);
+    }
+
+    // EOI standalone — done.
+    if (marker == 0xD9) {
+      out.add(0xFF);
+      out.add(0xD9);
+      return Uint8List.fromList(out);
+    }
+
+    // RSTn / TEM are standalone; everything else has a 2-byte length.
+    final isStandalone =
+        (marker >= 0xD0 && marker <= 0xD7) || marker == 0x01 || marker == 0x00;
+    if (isStandalone) {
+      out.add(0xFF);
+      out.add(marker);
+      i += 2;
+      continue;
+    }
+
+    // Length follows the marker (big-endian, includes itself).
+    if (i + 3 >= bytes.length) return bytes;
+    final segLen = (bytes[i + 2] << 8) | bytes[i + 3];
+    if (segLen < 2 || i + 2 + segLen > bytes.length) return bytes;
+
+    final isAppN = marker >= 0xE0 && marker <= 0xEF;
+    if (!isAppN) {
+      // Copy this segment whole.
+      out.addAll(bytes.sublist(i, i + 2 + segLen));
+    }
+    // Else: skip — APPn segments are exactly what we want to strip.
+
+    i += 2 + segLen;
+  }
+
+  return Uint8List.fromList(out);
 }
 
 Future<Uint8List?> _canvasReencode(
