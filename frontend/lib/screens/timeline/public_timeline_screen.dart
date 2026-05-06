@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -121,6 +122,13 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen>
           ],
         ),
         actions: [
+          // Public-link copy. Visible to everyone — visitors share the
+          // page they're already looking at, owner shares their own.
+          IconButton(
+            tooltip: context.l10n.copyPublicLink,
+            icon: const Icon(Icons.link, color: colorTextPrimary),
+            onPressed: () => _copyPublicLink(context, widget.username),
+          ),
           // Tune In button (ADR 013) — not shown on own timeline
           if (isAuthenticated && artistId != null && !isSelf)
             Padding(
@@ -430,6 +438,25 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen>
 
     if (focusedNode != null) nodes.add(focusedNode);
     return nodes;
+  }
+
+  Future<void> _copyPublicLink(
+    BuildContext context,
+    String artistUsername,
+  ) async {
+    // Build from the running origin so dev/prod and *.pages.dev
+    // preview URLs all produce a valid shareable link without
+    // hard-coding gleisner.app.
+    final url = '${Uri.base.origin}/@$artistUsername';
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.publicLinkCopied),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _handleNodeTap(String postId) {

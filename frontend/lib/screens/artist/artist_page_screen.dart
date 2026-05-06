@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -179,6 +180,22 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                             ),
                             onPressed: () => context.pop(),
                           ),
+                          // Public-link copy. Shown for every artist
+                          // (own + others, authenticated + visitor) so
+                          // anyone can share the page.
+                          actions: [
+                            IconButton(
+                              tooltip: context.l10n.copyPublicLink,
+                              icon: const Icon(
+                                Icons.link,
+                                color: colorTextPrimary,
+                              ),
+                              onPressed: () => _copyPublicLink(
+                                context,
+                                artist.artistUsername,
+                              ),
+                            ),
+                          ],
                           flexibleSpace: FlexibleSpaceBar(
                             background: Stack(
                               fit: StackFit.expand,
@@ -801,6 +818,25 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                 ],
               ],
             ),
+    );
+  }
+
+  Future<void> _copyPublicLink(
+    BuildContext context,
+    String artistUsername,
+  ) async {
+    // Build from the running origin so dev/prod and *.pages.dev
+    // preview URLs all produce a valid shareable link without
+    // hard-coding gleisner.app.
+    final url = '${Uri.base.origin}/@$artistUsername';
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.publicLinkCopied),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
