@@ -1253,4 +1253,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get monthDecember => 'December';
+
+  @override
+  String get copyPublicLink => 'Copy public link';
+
+  @override
+  String get publicLinkCopied => 'Public link copied';
 }

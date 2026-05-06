@@ -2329,6 +2329,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'December'**
   String get monthDecember;
+
+  /// Tooltip / accessibility label for the IconButton in the Profile AppBar that copies the artist's public-timeline URL (https://gleisner.app/@username) to the clipboard. Only shown when the user has registered as an artist.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy public link'**
+  String get copyPublicLink;
+
+  /// SnackBar message confirming that the artist's public-timeline URL was placed on the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Public link copied'**
+  String get publicLinkCopied;
 }
 
 class _AppLocalizationsDelegate

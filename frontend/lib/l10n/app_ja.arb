@@ -414,5 +414,8 @@
   "monthSeptember": "9月",
   "monthOctober": "10月",
   "monthNovember": "11月",
-  "monthDecember": "12月"
+  "monthDecember": "12月",
+
+  "copyPublicLink": "公開リンクをコピー",
+  "publicLinkCopied": "公開リンクをコピーしました"
 }
