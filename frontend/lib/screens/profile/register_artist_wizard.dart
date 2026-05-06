@@ -663,6 +663,13 @@ class _StepProfile extends StatelessWidget {
                         context: context,
                         builder: (ctx) => AlertDialog(
                           backgroundColor: colorSurface1,
+                          insetPadding: EdgeInsets.only(
+                            left: spaceLg,
+                            right: spaceLg,
+                            top: spaceLg,
+                            bottom:
+                                spaceLg + MediaQuery.of(ctx).viewInsets.bottom,
+                          ),
                           title: Text(
                             context.l10n.createOwnGenre,
                             style: const TextStyle(color: colorTextPrimary),
@@ -1037,6 +1044,13 @@ class _TrackChip extends StatelessWidget {
                       context: context,
                       builder: (ctx) => AlertDialog(
                         backgroundColor: colorSurface1,
+                        insetPadding: EdgeInsets.only(
+                          left: spaceLg,
+                          right: spaceLg,
+                          top: spaceLg,
+                          bottom:
+                              spaceLg + MediaQuery.of(ctx).viewInsets.bottom,
+                        ),
                         title: Text(
                           context.l10n.trackName,
                           style: const TextStyle(color: colorTextPrimary),
