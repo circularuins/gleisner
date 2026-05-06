@@ -1,0 +1,33 @@
+# Cloudflare Pages _headers
+# https://developers.cloudflare.com/pages/configuration/headers/
+#
+# App-shell files (HTML and JS bootstrap) must NEVER be cached at the
+# browser level — iPhone Safari otherwise serves a stale main.dart.js
+# even when the underlying file has changed, and the only user-side
+# escape is "Settings → Safari → Clear History and Data" (Issue #315).
+#
+# `no-cache, must-revalidate` keeps the file in the cache but forces a
+# revalidation request on every load. Cloudflare's CDN uses the ETag
+# to return 304 when nothing changed, so the bandwidth cost is a few
+# bytes per page-load instead of a full 5 MB redownload.
+#
+# Static assets (canvaskit, fonts, icons) are content-addressed by
+# Flutter's build output and safe to cache for a long time.
+
+/main.dart.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
+/flutter_bootstrap.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
+/flutter_service_worker.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
+/index.html
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
+/
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
+/version.json
+  Cache-Control: no-cache, max-age=0, must-revalidate
