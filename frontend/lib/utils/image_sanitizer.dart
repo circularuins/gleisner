@@ -103,18 +103,31 @@ Future<Uint8List?> _canvasReencode(
 
     onLoadSub = img.onLoad.listen((_) {
       try {
-        final w = img.naturalWidth;
-        final h = img.naturalHeight;
+        var w = img.naturalWidth;
+        var h = img.naturalHeight;
         if (w <= 0 || h <= 0) {
           finish(null);
           return;
+        }
+
+        // Clamp the longest side to kImageSanitizeMaxDimension. Without
+        // this, 12 MP iPhone photos exceed iOS Safari's per-canvas memory
+        // budget and toBlob silently returns null.
+        if (w > kImageSanitizeMaxDimension || h > kImageSanitizeMaxDimension) {
+          if (w >= h) {
+            h = (h * kImageSanitizeMaxDimension / w).round();
+            w = kImageSanitizeMaxDimension;
+          } else {
+            w = (w * kImageSanitizeMaxDimension / h).round();
+            h = kImageSanitizeMaxDimension;
+          }
         }
 
         final canvas = web.HTMLCanvasElement()
           ..width = w
           ..height = h;
         final ctx = canvas.getContext('2d')! as web.CanvasRenderingContext2D;
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, w.toDouble(), h.toDouble());
 
         canvas.toBlob(
           ((web.Blob? outBlob) {
