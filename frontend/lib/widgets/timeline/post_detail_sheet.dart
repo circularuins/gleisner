@@ -2298,14 +2298,29 @@ class _VideoPlayerState extends State<_VideoPlayer> {
     if (videos.length == 0) return;
     final video = videos.item(videos.length - 1) as web.HTMLVideoElement;
 
-    // iOS Safari refuses the standard Element.requestFullscreen API but
-    // ships a webkit-prefixed variant on HTMLVideoElement that hands the
-    // video to the native iOS player. Try it first; if it isn't there
-    // (everything else: desktop Safari, Chrome, Firefox) fall through to
-    // the standard API.
-    final ext = _VideoFullscreenJSExt(video);
-    if (ext.hasWebkitEnterFullscreen) {
+    // iOS Safari does not honour the standard Element.requestFullscreen
+    // API for embedded videos. Detect via `webkitSupportsFullscreen`
+    // (true on iOS Safari, undefined elsewhere) and call the
+    // webkit-prefixed `webkitEnterFullscreen()` to hand playback to the
+    // native iOS fullscreen player. If `playsinline` is set the video
+    // refuses fullscreen unless we clear it first; flutter
+    // video_player_web sets it on so we toggle it temporarily.
+    final ext = _IOSVideoExt(video);
+    final iosCanFullscreen = ext.webkitSupportsFullscreen;
+    if (iosCanFullscreen == true) {
+      // Flutter Web sets the playsinline attribute; iOS Safari treats
+      // playsinline as "stay embedded", which suppresses the fullscreen
+      // request. Remove it for the call, then restore on exit.
+      final hadPlaysinline = video.hasAttribute('playsinline');
+      if (hadPlaysinline) video.removeAttribute('playsinline');
       ext.webkitEnterFullscreen();
+      // Restore on the next frame so the fullscreen player has time
+      // to take over.
+      if (hadPlaysinline) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) video.setAttribute('playsinline', '');
+        });
+      }
       return;
     }
     video.requestFullscreen().toDart.catchError((_) => null);
@@ -2426,21 +2441,21 @@ class _VideoPlayerState extends State<_VideoPlayer> {
   }
 }
 
-// JS interop wrapper for the iOS-Safari-only `webkitEnterFullscreen` on
-// `<video>`. The standard `Element.requestFullscreen` API does not work on
-// iOS Safari for embedded media; the webkit-prefixed method on the video
-// element itself hands playback to the native fullscreen player.
+// JS interop wrapper for the iOS-Safari-only fullscreen path on `<video>`.
+// The standard `Element.requestFullscreen` API does not work on iOS
+// Safari for embedded media; the webkit-prefixed method on the video
+// element hands playback to the native fullscreen player.
 //
-// Using a getter for the property and a static method call separately so
-// we can feature-detect cleanly: on browsers that don't expose the
-// prefix the property is `undefined`, and `hasProperty` returns false.
-extension type _VideoFullscreenJSExt._(web.HTMLVideoElement _video)
+// Feature-detect via `webkitSupportsFullscreen` — defined on every
+// iOS-Safari `<video>` (true once metadata loads) and `undefined`
+// elsewhere. Reading an undefined JS property through an `external`
+// getter typed as a nullable `bool` returns `null` in Dart, which is
+// exactly the discriminator we want.
+extension type _IOSVideoExt._(web.HTMLVideoElement _video)
     implements web.HTMLVideoElement {
-  external JSAny? get webkitEnterFullscreen_; // probe; null on non-iOS
-  bool get hasWebkitEnterFullscreen => webkitEnterFullscreen_ != null;
-  @JS('webkitEnterFullscreen')
+  external bool? get webkitSupportsFullscreen;
   external void webkitEnterFullscreen();
-  _VideoFullscreenJSExt(web.HTMLVideoElement v) : this._(v);
+  _IOSVideoExt(web.HTMLVideoElement v) : this._(v);
 }
 
 // ── Audio Player ──
