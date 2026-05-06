@@ -344,9 +344,19 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen>
                   ),
                   const SizedBox(width: spaceMd),
                   Expanded(
-                    child: Text(
-                      context.l10n.discoverMoreArtists,
-                      style: textHeading.copyWith(fontSize: 13),
+                    child: InkWell(
+                      onTap: () => context.go('/discover'),
+                      borderRadius: BorderRadius.circular(radiusSm),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: spaceXs),
+                        child: Text(
+                          context.l10n.discoverMoreArtists,
+                          style: textHeading.copyWith(
+                            fontSize: 13,
+                            color: colorInteractive,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   FilledButton.tonal(
