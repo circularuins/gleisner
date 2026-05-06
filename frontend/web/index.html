@@ -35,6 +35,23 @@
 
   <title>gleisner_web</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    PHASE_0: unregister any service worker that earlier deploys registered.
+    Combined with `flutter build web --pwa-strategy=none` on Cloudflare
+    Pages, this ensures each visitor's next reload fetches main.dart.js
+    fresh from the network — iPhone Safari was caching old JS very
+    aggressively after a stale SW landed during launch testing, and only
+    "Clear History and Data" worked. Tracked in Phase 1 PWA strategy issue.
+  -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then(function (regs) { regs.forEach(function (r) { r.unregister(); }); })
+        .catch(function () {});
+    }
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
