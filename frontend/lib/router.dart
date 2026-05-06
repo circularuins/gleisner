@@ -45,14 +45,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       final path = state.uri.path;
       final status = authNotifier.value;
 
-      if (status == AuthStatus.loading) {
-        return path == '/splash' ? null : '/splash';
-      }
-
       final isAuthRoute = path == '/login' || path == '/signup';
       final isPublicProfile = _publicProfilePattern.hasMatch(path);
       final isPublicPage = path == '/about' || path == '/discover';
       final isOnboarding = path == '/onboarding';
+
+      if (status == AuthStatus.loading) {
+        // Public routes render without auth — skip the splash bounce so
+        // the original URL isn't lost. Otherwise an unauthenticated visitor
+        // landing on /@username would be redirected to /splash, then once
+        // auth resolves the redirect re-runs with path == /splash (no
+        // memory of /@username) and falls through to /login.
+        if (isAuthRoute || isPublicProfile || isPublicPage) return null;
+        return path == '/splash' ? null : '/splash';
+      }
 
       if (status == AuthStatus.unauthenticated) {
         return (isAuthRoute || isPublicProfile || isPublicPage)
