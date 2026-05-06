@@ -471,7 +471,11 @@ class MediaUploadNotifier extends Notifier<MediaUploadState>
     final sanitized = await _sanitizer(bytes, contentType: detected);
     if (disposed) return null;
     if (sanitized == null) {
-      state = MediaUploadState(error: l10n.imageProcessingFailed);
+      // Phase 0 launch debugging: surface the failure stage in the
+      // user-visible error so we can diagnose iPhone Safari issues without
+      // remote dev tools. Drop the suffix in Phase 1.
+      final stage = lastSanitizerFailureStage ?? 'unknown';
+      state = MediaUploadState(error: '${l10n.imageProcessingFailed} [$stage]');
       return null;
     }
     return sanitized;

@@ -6,6 +6,13 @@ import 'package:web/web.dart' as web;
 
 import 'image_quality.dart';
 
+/// Diagnostic — last reason `sanitizeImageMetadata` returned null. Set on
+/// every failure path (and cleared on success) so the provider can surface
+/// the stage in the user-visible error during Phase 0 launch debugging.
+/// Phase 1 cleanup: drop this once we have proper structured-error
+/// plumbing through the provider.
+String? lastSanitizerFailureStage;
+
 /// Re-encode image bytes via Canvas API on Web to strip EXIF / XMP / IPTC
 /// metadata (GPS coordinates, camera identifiers, timestamps).
 ///
@@ -31,30 +38,44 @@ Future<({Uint8List bytes, String contentType})?> sanitizeImageMetadata(
   required String contentType,
   double quality = kImageSanitizeJpegQuality,
 }) async {
+  void fail(String stage) {
+    lastSanitizerFailureStage = stage;
+    debugPrint(
+      '[sanitizer] fail at: $stage (contentType=$contentType, '
+      'size=${bytes.length})',
+    );
+  }
+
   if (!kIsWeb) {
-    // JPEG: image_picker's imageQuality (clamped to 1-85 by callers) forces
-    // re-encoding, which drops EXIF.
     if (contentType == 'image/jpeg') {
+      lastSanitizerFailureStage = null;
       return (bytes: bytes, contentType: contentType);
     }
-    // GIF: same metadata-block check as Web (no re-encoding possible).
     if (contentType == 'image/gif') {
-      if (gifContainsMetadataBlocks(bytes)) return null;
+      if (gifContainsMetadataBlocks(bytes)) {
+        fail('native-gif-has-metadata');
+        return null;
+      }
+      lastSanitizerFailureStage = null;
       return (bytes: bytes, contentType: contentType);
     }
-    // PNG / WebP / HEIC / other: no reliable native path yet — reject rather
-    // than silently upload images that may carry GPS. Tracked in Issue #227.
+    fail('native-unsupported-$contentType');
     return null;
   }
 
   if (contentType == 'image/gif') {
-    if (gifContainsMetadataBlocks(bytes)) return null;
+    if (gifContainsMetadataBlocks(bytes)) {
+      fail('web-gif-has-metadata');
+      return null;
+    }
+    lastSanitizerFailureStage = null;
     return (bytes: bytes, contentType: contentType);
   }
 
   if (contentType != 'image/jpeg' &&
       contentType != 'image/png' &&
       contentType != 'image/webp') {
+    fail('web-unsupported-$contentType');
     return null;
   }
 
@@ -63,11 +84,22 @@ Future<({Uint8List bytes, String contentType})?> sanitizeImageMetadata(
     contentType: contentType,
     quality: quality,
   );
-  if (reencoded == null) return null;
+  if (reencoded == null) {
+    // _canvasReencode sets a fine-grained stage; only set fallback if not.
+    lastSanitizerFailureStage ??= 'canvas-reencode-null';
+    return null;
+  }
 
-  if (!_matchesMagicBytes(reencoded, contentType)) return null;
-  if (containsMetadataMarkers(reencoded)) return null;
+  if (!_matchesMagicBytes(reencoded, contentType)) {
+    fail('reencoded-magic-mismatch');
+    return null;
+  }
+  if (containsMetadataMarkers(reencoded)) {
+    fail('reencoded-still-has-markers');
+    return null;
+  }
 
+  lastSanitizerFailureStage = null;
   return (bytes: reencoded, contentType: contentType);
 }
 
@@ -98,6 +130,11 @@ Future<Uint8List?> _canvasReencode(
     completer.complete(result);
   }
 
+  void failStage(String stage) {
+    lastSanitizerFailureStage = stage;
+    debugPrint('[sanitizer.canvas] fail at: $stage');
+  }
+
   try {
     final img = web.HTMLImageElement()..src = blobUrl;
 
@@ -106,13 +143,13 @@ Future<Uint8List?> _canvasReencode(
         var w = img.naturalWidth;
         var h = img.naturalHeight;
         if (w <= 0 || h <= 0) {
+          failStage('image-decoded-zero-size');
           finish(null);
           return;
         }
 
-        // Clamp the longest side to kImageSanitizeMaxDimension. Without
-        // this, 12 MP iPhone photos exceed iOS Safari's per-canvas memory
-        // budget and toBlob silently returns null.
+        final originalW = w;
+        final originalH = h;
         if (w > kImageSanitizeMaxDimension || h > kImageSanitizeMaxDimension) {
           if (w >= h) {
             h = (h * kImageSanitizeMaxDimension / w).round();
@@ -122,6 +159,11 @@ Future<Uint8List?> _canvasReencode(
             h = kImageSanitizeMaxDimension;
           }
         }
+
+        debugPrint(
+          '[sanitizer.canvas] decoded ${originalW}x$originalH '
+          '-> drawing at ${w}x$h (contentType=$contentType)',
+        );
 
         final canvas = web.HTMLCanvasElement()
           ..width = w
@@ -133,6 +175,7 @@ Future<Uint8List?> _canvasReencode(
           ((web.Blob? outBlob) {
             if (completer.isCompleted) return;
             if (outBlob == null) {
+              failStage('toblob-returned-null-${w}x$h');
               finish(null);
               return;
             }
@@ -143,6 +186,7 @@ Future<Uint8List?> _canvasReencode(
               if (result != null) {
                 finish((result as JSArrayBuffer).toDart.asUint8List());
               } else {
+                failStage('filereader-null-result');
                 finish(null);
               }
             });
@@ -151,17 +195,25 @@ Future<Uint8List?> _canvasReencode(
           contentType,
           quality.toJS,
         );
-      } catch (_) {
+      } catch (e) {
+        failStage('drawimage-or-toblob-throw-${e.runtimeType}');
         finish(null);
       }
     });
 
-    onErrorSub = img.onError.listen((_) => finish(null));
+    onErrorSub = img.onError.listen((_) {
+      failStage('image-load-error');
+      finish(null);
+    });
 
-    timeout = Timer(const Duration(seconds: 10), () => finish(null));
+    timeout = Timer(const Duration(seconds: 10), () {
+      failStage('canvas-timeout-10s');
+      finish(null);
+    });
 
     return await completer.future;
-  } catch (_) {
+  } catch (e) {
+    failStage('outer-throw-${e.runtimeType}');
     finish(null);
     return null;
   }
