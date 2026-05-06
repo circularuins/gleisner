@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../graphql/client.dart';
@@ -68,14 +67,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           style: const TextStyle(color: colorTextPrimary),
         ),
         actions: [
-          // Public-link copy. Only shown when the user has registered as
-          // an artist — the only path with a public, shareable URL.
-          if (artist != null)
-            IconButton(
-              tooltip: context.l10n.copyPublicLink,
-              icon: const Icon(Icons.link, color: colorTextSecondary),
-              onPressed: () => _copyPublicLink(context, artist.artistUsername),
-            ),
           IconButton(
             icon: const Icon(Icons.edit_outlined, color: colorTextSecondary),
             onPressed: () => _showEditSheet(context, user),
@@ -578,25 +569,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   static String _formatJoinDate(BuildContext context, DateTime date) {
     return '${monthShort(context, date.month)} ${date.year}';
-  }
-
-  Future<void> _copyPublicLink(
-    BuildContext context,
-    String artistUsername,
-  ) async {
-    // Build from the running origin so dev/prod and Pages preview URLs
-    // (e.g. <hash>.gleisner.pages.dev) all produce a valid shareable
-    // link without hard-coding gleisner.app.
-    final url = '${Uri.base.origin}/@$artistUsername';
-    await Clipboard.setData(ClipboardData(text: url));
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.l10n.publicLinkCopied),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   void _showEditSheet(BuildContext context, User user) {
