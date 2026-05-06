@@ -958,6 +958,12 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
             backgroundColor: colorSurface1,
+            insetPadding: EdgeInsets.only(
+              left: spaceLg,
+              right: spaceLg,
+              top: spaceLg,
+              bottom: spaceLg + MediaQuery.of(context).viewInsets.bottom,
+            ),
             title: Text(
               context.l10n.displayName,
               style: const TextStyle(color: colorTextPrimary),

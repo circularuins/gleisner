@@ -1017,6 +1017,12 @@ class _PostDetailContentState extends State<PostDetailContent> {
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: colorBorder,
+          insetPadding: EdgeInsets.only(
+            left: spaceLg,
+            right: spaceLg,
+            top: spaceLg,
+            bottom: spaceLg + MediaQuery.of(dialogContext).viewInsets.bottom,
+          ),
           title: Text(
             existing != null
                 ? context.l10n.nameConstellation

@@ -147,6 +147,16 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: colorSurface1,
+          // AlertDialog is centered by default and gets covered by the
+          // soft keyboard + predictive bar on iPhone Safari. Push it up
+          // by the keyboard height so the inputs and Save button stay
+          // visible while typing.
+          insetPadding: EdgeInsets.only(
+            left: spaceLg,
+            right: spaceLg,
+            top: spaceLg,
+            bottom: spaceLg + MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           title: Text(
             context.l10n.editMilestone,
             style: const TextStyle(color: colorTextPrimary),
@@ -345,157 +355,182 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                   ),
                 ),
               ),
-            // Add form
+            // Add form. Hide the milestones list while open so the form
+            // can scroll freely on small screens — Add button + date
+            // picker would otherwise drop below the soft keyboard +
+            // predictive bar on iOS Safari and become unreachable.
             if (_showAddForm)
-              Padding(
-                padding: const EdgeInsets.all(spaceLg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Category chips
-                    Wrap(
-                      spacing: spaceXs,
-                      children: milestoneCategoryKeys.map((key) {
-                        final selected = _selectedCategory == key;
-                        return ChoiceChip(
-                          label: Text(milestoneCategoryName(context, key)),
-                          avatar: Icon(milestoneCategoryIcon(key), size: 16),
-                          selected: selected,
-                          onSelected: (_) =>
-                              setState(() => _selectedCategory = key),
-                          visualDensity: VisualDensity.compact,
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: spaceMd),
-                    TextFormField(
-                      controller: _titleController,
-                      style: const TextStyle(color: colorTextPrimary),
-                      decoration: InputDecoration(
-                        labelText: context.l10n.title,
-                        border: const OutlineInputBorder(),
+              Expanded(
+                child: SingleChildScrollView(
+                  // Drag is handled by the SingleChildScrollView; pass
+                  // the DraggableScrollableSheet's controller so the
+                  // sheet can still expand/dismiss naturally as the
+                  // user pulls.
+                  controller: scrollController,
+                  padding: EdgeInsets.only(
+                    left: spaceLg,
+                    right: spaceLg,
+                    top: spaceLg,
+                    // viewInsets.bottom = soft-keyboard height. Adding
+                    // it here keeps the Add button above the keyboard
+                    // (matches the pattern in edit_profile_sheet,
+                    // register_artist_sheet, etc.).
+                    bottom: spaceLg + MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Category chips
+                      Wrap(
+                        spacing: spaceXs,
+                        children: milestoneCategoryKeys.map((key) {
+                          final selected = _selectedCategory == key;
+                          return ChoiceChip(
+                            label: Text(milestoneCategoryName(context, key)),
+                            avatar: Icon(milestoneCategoryIcon(key), size: 16),
+                            selected: selected,
+                            onSelected: (_) =>
+                                setState(() => _selectedCategory = key),
+                            visualDensity: VisualDensity.compact,
+                          );
+                        }).toList(),
                       ),
-                      maxLength: 255,
-                    ),
-                    const SizedBox(height: spaceSm),
-                    TextFormField(
-                      controller: _descriptionController,
-                      style: const TextStyle(color: colorTextPrimary),
-                      decoration: InputDecoration(
-                        labelText: context.l10n.descriptionOptional,
-                        border: const OutlineInputBorder(),
+                      const SizedBox(height: spaceMd),
+                      TextFormField(
+                        controller: _titleController,
+                        style: const TextStyle(color: colorTextPrimary),
+                        decoration: InputDecoration(
+                          labelText: context.l10n.title,
+                          border: const OutlineInputBorder(),
+                        ),
+                        maxLength: 255,
                       ),
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: spaceMd),
-                    OutlinedButton.icon(
-                      onPressed: _pickDate,
-                      icon: const Icon(Icons.calendar_today, size: 16),
-                      label: Text(
-                        '${_selectedDate.year}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.day.toString().padLeft(2, '0')}',
+                      const SizedBox(height: spaceSm),
+                      TextFormField(
+                        controller: _descriptionController,
+                        style: const TextStyle(color: colorTextPrimary),
+                        decoration: InputDecoration(
+                          labelText: context.l10n.descriptionOptional,
+                          border: const OutlineInputBorder(),
+                        ),
+                        maxLines: 2,
                       ),
-                    ),
-                    const SizedBox(height: spaceMd),
-                    FilledButton(
-                      onPressed: _isSubmitting ? null : _addMilestone,
-                      child: _isSubmitting
-                          ? const SizedBox(
-                              height: 16,
-                              width: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text(context.l10n.add),
-                    ),
-                  ],
+                      const SizedBox(height: spaceMd),
+                      OutlinedButton.icon(
+                        onPressed: _pickDate,
+                        icon: const Icon(Icons.calendar_today, size: 16),
+                        label: Text(
+                          '${_selectedDate.year}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.day.toString().padLeft(2, '0')}',
+                        ),
+                      ),
+                      const SizedBox(height: spaceMd),
+                      FilledButton(
+                        onPressed: _isSubmitting ? null : _addMilestone,
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(context.l10n.add),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            const Divider(height: 1, color: colorBorder),
-            // Milestones list
-            Expanded(
-              child: _milestones.isEmpty
-                  ? Center(
-                      child: Text(
-                        context.l10n.milestones,
-                        style: const TextStyle(color: colorTextMuted),
-                      ),
-                    )
-                  : ListView.separated(
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(spaceLg),
-                      itemCount: _milestones.length,
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(height: spaceMd),
-                      itemBuilder: (context, index) {
-                        final m = _milestones[index];
-                        return GestureDetector(
-                          onTap: () => _editMilestone(m),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                milestoneCategoryIcon(m.category),
-                                size: 20,
-                                color: colorAccentGold,
-                              ),
-                              const SizedBox(width: spaceMd),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      m.title,
-                                      style: const TextStyle(
-                                        color: colorTextPrimary,
-                                        fontWeight: weightMedium,
+            if (!_showAddForm) const Divider(height: 1, color: colorBorder),
+            // Milestones list — hidden while the add form is open so the
+            // form can occupy the full sheet height + scroll above the
+            // soft keyboard.
+            if (!_showAddForm)
+              Expanded(
+                child: _milestones.isEmpty
+                    ? Center(
+                        child: Text(
+                          context.l10n.milestones,
+                          style: const TextStyle(color: colorTextMuted),
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: scrollController,
+                        padding: const EdgeInsets.all(spaceLg),
+                        itemCount: _milestones.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(height: spaceMd),
+                        itemBuilder: (context, index) {
+                          final m = _milestones[index];
+                          return GestureDetector(
+                            onTap: () => _editMilestone(m),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  milestoneCategoryIcon(m.category),
+                                  size: 20,
+                                  color: colorAccentGold,
+                                ),
+                                const SizedBox(width: spaceMd),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        m.title,
+                                        style: const TextStyle(
+                                          color: colorTextPrimary,
+                                          fontWeight: weightMedium,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: spaceXxs),
-                                    Text(
-                                      m.date.substring(0, 7),
-                                      style: const TextStyle(
-                                        color: colorTextMuted,
-                                        fontSize: fontSizeXs,
-                                      ),
-                                    ),
-                                    if (m.description != null) ...[
                                       const SizedBox(height: spaceXxs),
                                       Text(
-                                        m.description!,
+                                        m.date.substring(0, 7),
                                         style: const TextStyle(
-                                          color: colorTextSecondary,
-                                          fontSize: fontSizeSm,
+                                          color: colorTextMuted,
+                                          fontSize: fontSizeXs,
                                         ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
+                                      if (m.description != null) ...[
+                                        const SizedBox(height: spaceXxs),
+                                        Text(
+                                          m.description!,
+                                          style: const TextStyle(
+                                            color: colorTextSecondary,
+                                            fontSize: fontSizeSm,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit_outlined,
-                                  size: 18,
-                                  color: colorInteractive,
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit_outlined,
+                                    size: 18,
+                                    color: colorInteractive,
+                                  ),
+                                  onPressed: () => _editMilestone(m),
+                                  visualDensity: VisualDensity.compact,
                                 ),
-                                onPressed: () => _editMilestone(m),
-                                visualDensity: VisualDensity.compact,
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  size: 18,
-                                  color: colorTextMuted,
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    size: 18,
+                                    color: colorTextMuted,
+                                  ),
+                                  onPressed: () => _deleteMilestone(m),
+                                  visualDensity: VisualDensity.compact,
                                 ),
-                                onPressed: () => _deleteMilestone(m),
-                                visualDensity: VisualDensity.compact,
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-            ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
           ],
         ),
       ),
