@@ -8,6 +8,88 @@ export interface OgpMetadata {
   ogSiteName: string | null;
 }
 
+/**
+ * Detect a YouTube URL and return its canonical watch URL, or null
+ * if the input isn't recognised. Covers the four shapes we see in
+ * practice: youtube.com/watch?v=, youtu.be/<id>, youtube.com/shorts/<id>,
+ * and m./music. subdomains.
+ *
+ * Used to trigger the oEmbed branch (see `fetchYouTubeOembed`) — the
+ * default HTML-scrape path does not work for YouTube from data-center
+ * IPs (Railway / AWS) because YouTube serves a stripped page that
+ * lacks `<meta property="og:image">`.
+ */
+function youtubeWatchUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "").replace(/^m\./, "");
+    if (host === "youtu.be") {
+      const id = u.pathname.slice(1).split("/")[0];
+      return /^[A-Za-z0-9_-]{6,20}$/.test(id)
+        ? `https://www.youtube.com/watch?v=${id}`
+        : null;
+    }
+    if (host === "youtube.com" || host === "music.youtube.com") {
+      if (u.pathname === "/watch") {
+        const id = u.searchParams.get("v") ?? "";
+        return /^[A-Za-z0-9_-]{6,20}$/.test(id)
+          ? `https://www.youtube.com/watch?v=${id}`
+          : null;
+      }
+      const shortsMatch = u.pathname.match(/^\/shorts\/([A-Za-z0-9_-]+)/);
+      if (shortsMatch) {
+        return `https://www.youtube.com/watch?v=${shortsMatch[1]}`;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+interface YouTubeOembed {
+  title?: unknown;
+  author_name?: unknown;
+  thumbnail_url?: unknown;
+  provider_name?: unknown;
+}
+
+/**
+ * Fetch YouTube link metadata via the public oEmbed endpoint
+ * (`https://www.youtube.com/oembed?url=...&format=json`). YouTube's
+ * oEmbed always returns JSON with the title and a thumbnail URL —
+ * unlike OGP scraping, it doesn't depend on the requester's IP or UA.
+ *
+ * Maps to OgpMetadata so the rest of the pipeline (storage, schema,
+ * UI) doesn't need to know about oEmbed at all.
+ */
+async function fetchYouTubeOembed(
+  watchUrl: string,
+): Promise<OgpMetadata | null> {
+  const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(
+    watchUrl,
+  )}&format=json`;
+  const body = await safeFetch(oembedUrl);
+  let parsed: YouTubeOembed;
+  try {
+    parsed = JSON.parse(body) as YouTubeOembed;
+  } catch {
+    return null;
+  }
+  const title = typeof parsed.title === "string" ? parsed.title : null;
+  const author =
+    typeof parsed.author_name === "string" ? parsed.author_name : null;
+  const thumbnail =
+    typeof parsed.thumbnail_url === "string" ? parsed.thumbnail_url : null;
+  if (!title && !thumbnail) return null;
+  return {
+    ogTitle: sanitize(title, 200),
+    ogDescription: author ? sanitize(`by ${author}`, 500) : null,
+    ogImage: sanitizeImageUrl(thumbnail),
+    ogSiteName: "YouTube",
+  };
+}
+
 /** Strip HTML tags and control characters, truncate to maxLength. */
 function sanitize(value: string | null, maxLength: number): string | null {
   if (!value) return null;
@@ -117,6 +199,19 @@ export async function fetchOgpMetadata(
   url: string,
 ): Promise<OgpMetadata | null> {
   try {
+    // YouTube serves a stripped HTML page to data-center IPs (Railway,
+    // AWS, etc.) without OGP meta tags — fall back to the public
+    // oEmbed endpoint which is IP/UA-agnostic by design.
+    const ytWatch = youtubeWatchUrl(url);
+    if (ytWatch) {
+      const metadata = await fetchYouTubeOembed(ytWatch);
+      if (metadata) return metadata;
+      // oEmbed failed (rare — usually means the video is private or
+      // removed). Don't fall back to HTML scrape; YouTube's HTML path
+      // is broken from data-center IPs anyway.
+      return null;
+    }
+
     const html = await safeFetch(url);
     const metadata = parseOgpTags(html);
 
