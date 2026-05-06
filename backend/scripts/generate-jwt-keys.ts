@@ -6,7 +6,9 @@
 import { generateKeyPair, exportPKCS8, exportSPKI } from "jose";
 
 async function main() {
-  const { privateKey, publicKey } = await generateKeyPair("EdDSA");
+  const { privateKey, publicKey } = await generateKeyPair("EdDSA", {
+    extractable: true,
+  });
   const privPem = await exportPKCS8(privateKey);
   const pubPem = await exportSPKI(publicKey);
 
