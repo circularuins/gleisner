@@ -112,8 +112,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   TextFormField(
                     controller: _displayNameController,
                     decoration: InputDecoration(
-                      labelText: context.l10n.displayName,
+                      labelText: context.l10n.displayNameOptional,
                       hintText: context.l10n.displayNameHint,
+                      helperText: context.l10n.displayNameHelper,
+                      helperMaxLines: 2,
                       border: const OutlineInputBorder(),
                     ),
                   ),
@@ -122,6 +124,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     controller: _usernameController,
                     decoration: InputDecoration(
                       labelText: context.l10n.username,
+                      hintText: context.l10n.usernameHint,
+                      helperText: context.l10n.usernameHelper,
+                      helperMaxLines: 3,
+                      prefixText: '@',
                       border: const OutlineInputBorder(),
                     ),
                     validator: validateUsernameL10n(context.l10n),

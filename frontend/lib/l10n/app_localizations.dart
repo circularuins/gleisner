@@ -272,17 +272,41 @@ abstract class AppLocalizations {
   /// **'Display Name'**
   String get displayName;
 
-  /// No description provided for @displayNameHint.
+  /// Signup form label for the optional display-name field. Pairs with displayNameHelper.
   ///
   /// In en, this message translates to:
-  /// **'How you want to be known'**
+  /// **'Display Name (optional)'**
+  String get displayNameOptional;
+
+  /// Placeholder example shown inside the display-name field on signup. Use a name format users in this locale would recognize.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., Maya Yamamoto'**
   String get displayNameHint;
+
+  /// Helper text under the display-name field on signup. Explains visibility (public-facing) and mutability (can be edited later) so users distinguish it from the immutable username.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown on your profile and posts. Can be changed anytime.'**
+  String get displayNameHelper;
 
   /// No description provided for @username.
   ///
   /// In en, this message translates to:
   /// **'Username'**
   String get username;
+
+  /// Placeholder example shown inside the username field on signup. ASCII-only because the username regex disallows non-ASCII.
+  ///
+  /// In en, this message translates to:
+  /// **'yamada_taro'**
+  String get usernameHint;
+
+  /// Helper text under the username field on signup. Explains its identity-like role (URL handle), the format constraint, and that it is permanent — so users distinguish it from the editable display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Used in your profile URL. 2–30 characters: letters, numbers, underscores. Cannot be changed later.'**
+  String get usernameHelper;
 
   /// No description provided for @birthYearMonth.
   ///
@@ -740,17 +764,29 @@ abstract class AppLocalizations {
   /// **'Artist Username'**
   String get artistUsername;
 
-  /// No description provided for @chooseUniqueHandle.
+  /// Placeholder example shown inside the artist-username field in the registration wizard. ASCII-only because the username regex disallows non-ASCII.
   ///
   /// In en, this message translates to:
-  /// **'Choose your unique handle'**
-  String get chooseUniqueHandle;
+  /// **'your_artist_name'**
+  String get artistUsernameHint;
 
-  /// No description provided for @yourProfessionalName.
+  /// Helper text under the artist-username field in the registration wizard. Explains its identity-like role (URL handle), the format constraint, and that it is permanent — so users distinguish it from the editable display name.
   ///
   /// In en, this message translates to:
-  /// **'Your professional name'**
-  String get yourProfessionalName;
+  /// **'Used in your artist page URL (gleisner.app/@username). 2–30 characters: letters, numbers, underscores. Cannot be changed later.'**
+  String get artistUsernameHelper;
+
+  /// Placeholder example shown inside the display-name field in the artist registration wizard. Use a name format users in this locale would recognize.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., Maya Yamamoto'**
+  String get artistDisplayNameHint;
+
+  /// Helper text under the display-name field in the artist registration wizard. Explains visibility (public-facing) and mutability (can be edited later) so users distinguish it from the immutable artist username.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown on your artist page and timeline. Can be changed anytime.'**
+  String get artistDisplayNameHelper;
 
   /// No description provided for @tagline.
   ///

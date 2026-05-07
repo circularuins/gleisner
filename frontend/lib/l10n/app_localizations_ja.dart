@@ -98,10 +98,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String get displayName => '表示名';
 
   @override
-  String get displayNameHint => '表示したい名前';
+  String get displayNameOptional => '表示名（任意）';
+
+  @override
+  String get displayNameHint => '例: 山田太郎';
+
+  @override
+  String get displayNameHelper => 'プロフィールや投稿に表示されます。後から変更できます。';
 
   @override
   String get username => 'ユーザー名';
+
+  @override
+  String get usernameHint => 'yamada_taro';
+
+  @override
+  String get usernameHelper =>
+      'プロフィール URL に使われます。半角英数字とアンダースコア（2〜30文字）。後から変更できません。';
 
   @override
   String get birthYearMonth => '生年月';
@@ -360,10 +373,17 @@ class AppLocalizationsJa extends AppLocalizations {
   String get artistUsername => 'アーティストユーザー名';
 
   @override
-  String get chooseUniqueHandle => 'ユニークなハンドルを選択';
+  String get artistUsernameHint => 'your_artist_name';
 
   @override
-  String get yourProfessionalName => 'プロフェッショナルネーム';
+  String get artistUsernameHelper =>
+      'アーティストページ URL (gleisner.app/@username) に使われます。半角英数字とアンダースコア（2〜30文字）。後から変更できません。';
+
+  @override
+  String get artistDisplayNameHint => '例: 山田太郎';
+
+  @override
+  String get artistDisplayNameHelper => 'アーティストページやタイムラインに表示されます。後から変更できます。';
 
   @override
   String get tagline => 'タグライン';
