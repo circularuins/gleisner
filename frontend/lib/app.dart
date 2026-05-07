@@ -9,6 +9,7 @@ import 'graphql/client.dart';
 import 'l10n/l10n.dart';
 import 'theme/gleisner_tokens.dart';
 import 'router.dart';
+import 'utils/keyboard_debug_overlay.dart';
 
 // Cache theme data to avoid rebuilding on every frame.
 final _darkTextTheme = ThemeData.dark().textTheme;
@@ -48,6 +49,12 @@ class GleisnerApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: _gleisnerTheme,
         routerConfig: router,
+        // Diagnostics overlay for the iPhone Safari soft-keyboard issue.
+        // Active only when the URL contains `?debug=keyboard`. Pass-through
+        // (single child) when the flag is absent. Remove together with
+        // `keyboard_debug_overlay.dart` once the root cause is fixed.
+        builder: (context, child) =>
+            KeyboardDebugOverlay(child: child ?? const SizedBox.shrink()),
         localizationsDelegates: [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
