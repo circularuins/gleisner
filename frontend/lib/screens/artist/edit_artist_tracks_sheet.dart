@@ -109,12 +109,12 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
     final name = _nameController.text.trim();
     final color = trackColorPresets[_tracks.length % trackColorPresets.length];
 
-    final ok = await ref
+    final track = await ref
         .read(editArtistProvider.notifier)
         .createTrack(name, color);
     if (!mounted) return;
 
-    if (ok) {
+    if (track != null) {
       // Reload to get the new track with server-assigned id
       await ref
           .read(artistPageProvider.notifier)
