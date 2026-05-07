@@ -12,6 +12,7 @@ import '../../providers/create_post_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../utils/ime_safe_focus.dart';
+import '../../utils/keyboard_height_observer.dart';
 import '../../widgets/common/connection_type_picker.dart';
 import '../../widgets/common/error_banner.dart';
 import '../../widgets/common/event_at_picker.dart';
@@ -429,7 +430,7 @@ class _TrackStep extends ConsumerWidget {
                 left: spaceLg,
                 right: spaceLg,
                 top: spaceLg,
-                bottom: spaceLg + MediaQuery.of(ctx).viewInsets.bottom,
+                bottom: spaceLg + KeyboardHeight.of(ctx),
               ),
               title: Text(l10n.newTrack),
               content: Column(

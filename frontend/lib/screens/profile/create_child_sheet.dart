@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/l10n.dart';
 import '../../providers/guardian_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../utils/keyboard_height_observer.dart';
 
 class CreateChildSheet extends ConsumerStatefulWidget {
   const CreateChildSheet({super.key});
@@ -55,7 +56,7 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
               spaceXl,
               spaceXl,
               spaceXl,
-              spaceXl + MediaQuery.of(context).viewInsets.bottom,
+              spaceXl + KeyboardHeight.of(context),
             ),
             children: [
               Center(

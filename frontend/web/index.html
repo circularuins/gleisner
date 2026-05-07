@@ -18,6 +18,15 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <!--
+    Explicit viewport meta. Flutter's bootstrap inserts a permissive viewport
+    on its own, but iOS Safari's visualViewport API behaves more predictably
+    when the page declares its viewport up front. Without this, the page is
+    laid out at ~980px on first paint and visualViewport.height jitters as
+    Safari rescales, which breaks the soft-keyboard height calculation in
+    `lib/utils/keyboard_height_observer.dart`.
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="Gleisner — Your creative journey, your universe">
 
   <!-- PHASE_0_REVERT: Phase 1 (public launch) 移行時に以下 2 行を削除。docs/phase1-revert-checklist.md 参照 -->
