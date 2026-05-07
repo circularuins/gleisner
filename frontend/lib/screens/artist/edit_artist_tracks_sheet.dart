@@ -8,6 +8,7 @@ import '../../providers/edit_artist_provider.dart';
 import '../../l10n/l10n.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../widgets/common/track_color_picker.dart';
 
 class EditArtistTracksSheet extends ConsumerStatefulWidget {
   final Artist artist;
@@ -24,6 +25,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
   bool _showAddForm = false;
   bool _isSubmitting = false;
   String? _error;
+  String _selectedColor = trackColorPresets[0];
   final _nameController = TextEditingController();
   final _addFormKey = GlobalKey<FormState>();
   late final FocusNode _nameFocusNode;
@@ -107,7 +109,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
     });
 
     final name = _nameController.text.trim();
-    final color = trackColorPresets[_tracks.length % trackColorPresets.length];
+    final color = _selectedColor;
 
     final track = await ref
         .read(editArtistProvider.notifier)
@@ -220,7 +222,15 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
                     IconButton(
                       icon: const Icon(Icons.add, color: colorAccentGold),
                       onPressed: () {
-                        setState(() => _showAddForm = true);
+                        setState(() {
+                          _showAddForm = true;
+                          // Seed the picker with the next auto-color so users
+                          // who don't care about color get the same rotation
+                          // they had before, while still being able to override.
+                          _selectedColor =
+                              trackColorPresets[_tracks.length %
+                                  trackColorPresets.length];
+                        });
                         // Scroll to bottom after the form is rendered
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           _scrollController?.animateTo(
@@ -335,6 +345,12 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
                           }
                           return null;
                         },
+                      ),
+                      const SizedBox(height: spaceLg),
+                      TrackColorPicker(
+                        selectedHex: _selectedColor,
+                        onChanged: (hex) =>
+                            setState(() => _selectedColor = hex),
                       ),
                       const SizedBox(height: spaceLg),
                       Row(

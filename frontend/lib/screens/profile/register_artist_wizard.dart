@@ -11,6 +11,7 @@ import '../../models/genre.dart';
 import '../../l10n/l10n.dart';
 import '../../providers/my_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../widgets/common/track_color_picker.dart';
 
 /// ADR 013: 4-step artist registration wizard.
 /// Step 1: Intro — feature overview
@@ -910,6 +911,14 @@ class _StepTracks extends StatelessWidget {
                   );
                   onTracksChanged(updated);
                 },
+                onColorChange: (newColor) {
+                  final updated = List<_TrackDraft>.from(tracks);
+                  updated[i] = _TrackDraft(
+                    name: tracks[i].name,
+                    color: newColor,
+                  );
+                  onTracksChanged(updated);
+                },
               ),
             const SizedBox(height: spaceMd),
           ],
@@ -1008,12 +1017,49 @@ class _TrackChip extends StatelessWidget {
   final _TrackDraft track;
   final VoidCallback onRemove;
   final ValueChanged<String> onRename;
+  final ValueChanged<String> onColorChange;
 
   const _TrackChip({
     required this.track,
     required this.onRemove,
     required this.onRename,
+    required this.onColorChange,
   });
+
+  Future<void> _editColor(BuildContext context) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        var selectedHex = track.color;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            backgroundColor: colorSurface1,
+            scrollable: true,
+            insetPadding: const EdgeInsets.all(spaceLg),
+            title: Text(
+              context.l10n.selectColor,
+              style: const TextStyle(color: colorTextPrimary),
+            ),
+            content: TrackColorPicker(
+              selectedHex: selectedHex,
+              onChanged: (hex) => setDialogState(() => selectedHex = hex),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(context.l10n.cancel),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, selectedHex),
+                child: Text(context.l10n.save),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (result != null && result != track.color) onColorChange(result);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1032,10 +1078,31 @@ class _TrackChip extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+            Semantics(
+              button: true,
+              label: context.l10n.selectColor,
+              child: InkWell(
+                onTap: () => _editColor(context),
+                borderRadius: BorderRadius.circular(22),
+                child: SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: Center(
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: color,
+                        border: Border.all(
+                          color: color.withValues(alpha: 0.4),
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
             const SizedBox(width: spaceMd),
             Expanded(

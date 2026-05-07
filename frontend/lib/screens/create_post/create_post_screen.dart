@@ -16,6 +16,7 @@ import '../../widgets/common/connection_type_picker.dart';
 import '../../widgets/common/error_banner.dart';
 import '../../widgets/common/event_at_picker.dart';
 import '../../widgets/common/related_post_picker.dart';
+import '../../widgets/common/track_color_picker.dart';
 import '../../widgets/editor/rich_text_editor.dart';
 import '../../widgets/editor/text_body_counter.dart';
 import '../../theme/gleisner_tokens.dart';
@@ -384,48 +385,55 @@ class _TrackStep extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
+        // All dialog-local state lives inside the builder scope so the
+        // StatefulBuilder's setDialogState rebuilds reach every value
+        // (per PR #346 review F3 — variables outside StatefulBuilder
+        // are never observed by the inner setState).
         var isCreating = false;
         String? errorText;
-
-        Future<void> submit(StateSetter setDialogState) async {
-          final name = controller.text.trim();
-          if (name.isEmpty) {
-            setDialogState(
-              () => errorText = l10n.fieldRequired(l10n.trackName),
-            );
-            return;
-          }
-          if (tracks.any((t) => t.name.toLowerCase() == name.toLowerCase())) {
-            setDialogState(() => errorText = l10n.trackAlreadyExists(name));
-            return;
-          }
-
-          setDialogState(() {
-            isCreating = true;
-            errorText = null;
-          });
-
-          final track = await notifier.createTrack(name, autoColor);
-          if (track != null) {
-            if (dialogContext.mounted) Navigator.pop(dialogContext);
-          } else {
-            if (dialogContext.mounted) {
-              setDialogState(() {
-                isCreating = false;
-                errorText = l10n.failedCreateTrack;
-              });
-            }
-          }
-        }
+        var selectedColor = autoColor;
 
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
+            Future<void> submit() async {
+              final name = controller.text.trim();
+              if (name.isEmpty) {
+                setDialogState(
+                  () => errorText = l10n.fieldRequired(l10n.trackName),
+                );
+                return;
+              }
+              if (tracks.any(
+                (t) => t.name.toLowerCase() == name.toLowerCase(),
+              )) {
+                setDialogState(() => errorText = l10n.trackAlreadyExists(name));
+                return;
+              }
+
+              setDialogState(() {
+                isCreating = true;
+                errorText = null;
+              });
+
+              final track = await notifier.createTrack(name, selectedColor);
+              if (track != null) {
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              } else {
+                if (dialogContext.mounted) {
+                  setDialogState(() {
+                    isCreating = false;
+                    errorText = l10n.failedCreateTrack;
+                  });
+                }
+              }
+            }
+
             return AlertDialog(
               // PR #342 made Flutter's automatic insetPadding addition work
               // on iPhone Safari (by injecting visualViewport into MediaQuery),
               // so the dialog no longer flies off the top. But on small visible
               // areas (iPhone Safari with the keyboard up leaves ~358px of
-              // viewport height), the title + TextField + color preview row +
+              // viewport height), the title + TextField + color picker +
               // Cancel/Create buttons collectively exceed the available
               // vertical space, and the top edge of the dialog gets clipped.
               // `scrollable: true` makes Flutter wrap the title+content+actions
@@ -452,27 +460,13 @@ class _TrackStep extends ConsumerWidget {
                       border: const OutlineInputBorder(),
                       errorText: errorText,
                     ),
-                    onSubmitted: isCreating
-                        ? null
-                        : (_) => submit(setDialogState),
+                    onSubmitted: isCreating ? null : (_) => submit(),
                   ),
                   const SizedBox(height: spaceSm),
-                  Row(
-                    children: [
-                      Container(
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: parseHexColor(autoColor),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: spaceSm),
-                      Text(
-                        l10n.colorAutoAssigned,
-                        style: Theme.of(ctx).textTheme.labelSmall,
-                      ),
-                    ],
+                  TrackColorPicker(
+                    selectedHex: selectedColor,
+                    onChanged: (hex) =>
+                        setDialogState(() => selectedColor = hex),
                   ),
                 ],
               ),
@@ -482,7 +476,7 @@ class _TrackStep extends ConsumerWidget {
                   child: Text(l10n.cancel),
                 ),
                 FilledButton(
-                  onPressed: isCreating ? null : () => submit(setDialogState),
+                  onPressed: isCreating ? null : submit,
                   child: isCreating
                       ? const SizedBox(
                           width: 16,
