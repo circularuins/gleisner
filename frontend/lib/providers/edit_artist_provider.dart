@@ -291,6 +291,52 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
     }
   }
 
+  /// Update a track's name and/or color.
+  ///
+  /// Either or both of [name] and [color] may be provided. Omitted
+  /// arguments are not sent to the server, leaving that column
+  /// unchanged. Returns the updated [Track] on success, or `null` on
+  /// failure. Server-side error details are logged via `debugPrint`
+  /// only — see PR #346 and `.claude/rules/frontend-implementation.md`
+  /// "サーバーエラーメッセージを UI に露出しない".
+  Future<Track?> updateTrack({
+    required String id,
+    String? name,
+    String? color,
+  }) async {
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(updateTrackMutation),
+          variables: {'id': id, 'name': ?name, 'color': ?color},
+        ),
+      );
+
+      if (result.hasException) {
+        debugPrint(
+          '[EditArtistNotifier] updateTrack error: ${result.exception}',
+        );
+        return null;
+      }
+
+      final data = result.data?['updateTrack'] as Map<String, dynamic>?;
+      if (data == null) {
+        debugPrint('[EditArtistNotifier] updateTrack: no data returned');
+        return null;
+      }
+
+      // Refresh myArtistProvider only on confirmed success — same
+      // ordering as createTrack to avoid a wasted full-artist refetch
+      // on the (!hasException && data == null) edge case.
+      await ref.read(myArtistProvider.notifier).load();
+
+      return Track.fromJson(data);
+    } catch (e) {
+      debugPrint('[EditArtistNotifier] updateTrack error: $e');
+      return null;
+    }
+  }
+
   Future<bool> deleteTrack(String id) async {
     try {
       final result = await _client.mutate(

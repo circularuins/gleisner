@@ -13,7 +13,20 @@ import '../../widgets/common/track_color_picker.dart';
 class EditArtistTracksSheet extends ConsumerStatefulWidget {
   final Artist artist;
 
-  const EditArtistTracksSheet({super.key, required this.artist});
+  /// Defense-in-depth flag: even though the sheet is only opened from
+  /// `artist_page_screen` when `isSelf == true`, mutation UI (Add,
+  /// edit, delete) is also gated on this so future call sites that
+  /// forget the outer check cannot accidentally surface the buttons.
+  /// The backend ownership check in `updateTrack` / `deleteTrack` is
+  /// the final defense, but rendering disabled buttons would still
+  /// expose a confusing UX. See PR #346 review S2.
+  final bool isOwner;
+
+  const EditArtistTracksSheet({
+    super.key,
+    required this.artist,
+    this.isOwner = false,
+  });
 
   @override
   ConsumerState<EditArtistTracksSheet> createState() =>
@@ -139,6 +152,140 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
     }
   }
 
+  Future<void> _editTrack(Track track) async {
+    final updated = await showDialog<Track>(
+      context: context,
+      builder: (dialogContext) {
+        final nameController = TextEditingController(text: track.name);
+        // All dialog-local state lives inside the StatefulBuilder scope so
+        // setDialogState rebuilds reach every value (PR #346 review F3).
+        var selectedColor = track.color;
+        var isSubmitting = false;
+        String? errorText;
+
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            Future<void> save() async {
+              final newName = nameController.text.trim();
+              if (newName.isEmpty) {
+                setDialogState(() => errorText = ctx.l10n.trackNameRequired);
+                return;
+              }
+              // Reject duplicate names against the current local list,
+              // skipping the row being edited (otherwise renaming to the
+              // same name would always fail).
+              if (_tracks.any(
+                (t) =>
+                    t.id != track.id &&
+                    t.name.toLowerCase() == newName.toLowerCase(),
+              )) {
+                setDialogState(
+                  () => errorText = ctx.l10n.trackNameAlreadyExists,
+                );
+                return;
+              }
+
+              final nameChanged = newName != track.name;
+              final colorChanged = selectedColor != track.color;
+              if (!nameChanged && !colorChanged) {
+                Navigator.pop(dialogContext);
+                return;
+              }
+
+              setDialogState(() {
+                isSubmitting = true;
+                errorText = null;
+              });
+
+              final result = await ref
+                  .read(editArtistProvider.notifier)
+                  .updateTrack(
+                    id: track.id,
+                    name: nameChanged ? newName : null,
+                    color: colorChanged ? selectedColor : null,
+                  );
+
+              if (!dialogContext.mounted) return;
+              if (result != null) {
+                Navigator.pop(dialogContext, result);
+              } else {
+                setDialogState(() {
+                  isSubmitting = false;
+                  errorText = ctx.l10n.failedUpdateTrackRetry;
+                });
+              }
+            }
+
+            return AlertDialog(
+              backgroundColor: colorSurface1,
+              scrollable: true,
+              insetPadding: const EdgeInsets.all(spaceLg),
+              title: Text(
+                ctx.l10n.editTrack,
+                style: const TextStyle(color: colorTextPrimary),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    autofocus: true,
+                    maxLength: 30,
+                    style: const TextStyle(color: colorTextPrimary),
+                    decoration: InputDecoration(
+                      labelText: ctx.l10n.trackName,
+                      labelStyle: const TextStyle(color: colorTextMuted),
+                      border: const OutlineInputBorder(),
+                      errorText: errorText,
+                    ),
+                    enabled: !isSubmitting,
+                    onSubmitted: isSubmitting ? null : (_) => save(),
+                  ),
+                  const SizedBox(height: spaceMd),
+                  TrackColorPicker(
+                    selectedHex: selectedColor,
+                    onChanged: (hex) =>
+                        setDialogState(() => selectedColor = hex),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.pop(dialogContext),
+                  child: Text(ctx.l10n.cancel),
+                ),
+                FilledButton(
+                  onPressed: isSubmitting ? null : save,
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(ctx.l10n.save),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (updated == null || !mounted) return;
+    setState(() {
+      final idx = _tracks.indexWhere((t) => t.id == updated.id);
+      if (idx != -1) _tracks = [..._tracks]..[idx] = updated;
+    });
+    // Refresh the artist page so the updated color/name shows up in the
+    // timeline + node renderings, mirroring _deleteTrack's reload step.
+    await ref
+        .read(artistPageProvider.notifier)
+        .loadArtist(widget.artist.artistUsername);
+  }
+
   Future<void> _deleteTrack(Track track) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -218,7 +365,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
                   Expanded(
                     child: Text(context.l10n.manageTracks, style: textTitle),
                   ),
-                  if (!_showAddForm && _tracks.length < 10)
+                  if (widget.isOwner && !_showAddForm && _tracks.length < 10)
                     IconButton(
                       icon: const Icon(Icons.add, color: colorAccentGold),
                       onPressed: () {
@@ -273,7 +420,8 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
               ..._tracks.map(
                 (track) => _TrackRow(
                   track: track,
-                  onDelete: () => _deleteTrack(track),
+                  onDelete: widget.isOwner ? () => _deleteTrack(track) : null,
+                  onEdit: widget.isOwner ? () => _editTrack(track) : null,
                 ),
               ),
 
@@ -402,9 +550,15 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
 
 class _TrackRow extends StatelessWidget {
   final Track track;
-  final VoidCallback onDelete;
+  // Both callbacks are nullable so the row can render in read-only
+  // contexts (PR #346 review F2 — keep StatelessWidget + delegate
+  // dialog management to the parent State, mirroring _TrackChip in
+  // register_artist_wizard.dart). The parent already gates these on
+  // EditArtistTracksSheet.isOwner; null hides the corresponding icon.
+  final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
 
-  const _TrackRow({required this.track, required this.onDelete});
+  const _TrackRow({required this.track, this.onDelete, this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -441,14 +595,25 @@ class _TrackRow extends StatelessWidget {
                 ),
               ),
             ),
-            IconButton(
-              icon: const Icon(
-                Icons.delete_outline,
-                size: 18,
-                color: colorError,
+            if (onEdit != null)
+              IconButton(
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  size: 18,
+                  color: colorAccentGold,
+                ),
+                tooltip: context.l10n.editTrack,
+                onPressed: onEdit,
               ),
-              onPressed: onDelete,
-            ),
+            if (onDelete != null)
+              IconButton(
+                icon: const Icon(
+                  Icons.delete_outline,
+                  size: 18,
+                  color: colorError,
+                ),
+                onPressed: onDelete,
+              ),
           ],
         ),
       ),
