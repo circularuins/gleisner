@@ -98,10 +98,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get displayName => 'Display Name';
 
   @override
-  String get displayNameHint => 'How you want to be known';
+  String get displayNameOptional => 'Display Name (optional)';
+
+  @override
+  String get displayNameHint => 'e.g., Maya Yamamoto';
+
+  @override
+  String get displayNameHelper =>
+      'Shown on your profile and posts. Can be changed anytime.';
 
   @override
   String get username => 'Username';
+
+  @override
+  String get usernameHint => 'yamada_taro';
+
+  @override
+  String get usernameHelper =>
+      'Used in your profile URL. 2–30 characters: letters, numbers, underscores. Cannot be changed later.';
 
   @override
   String get birthYearMonth => 'Birth Year & Month';
@@ -369,6 +383,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get yourProfessionalName => 'Your professional name';
+
+  @override
+  String get artistUsernameHint => 'your_artist_name';
+
+  @override
+  String get artistUsernameHelper =>
+      'Used in your artist page URL (gleisner.app/@username). 2–30 characters: letters, numbers, underscores. Cannot be changed later.';
+
+  @override
+  String get artistDisplayNameHint => 'e.g., Maya Yamamoto';
+
+  @override
+  String get artistDisplayNameHelper =>
+      'Shown on your artist page and timeline. Can be changed anytime.';
 
   @override
   String get tagline => 'Tagline';

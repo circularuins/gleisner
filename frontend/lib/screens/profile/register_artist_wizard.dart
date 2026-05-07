@@ -524,9 +524,11 @@ class _StepProfile extends StatelessWidget {
               style: const TextStyle(color: colorTextPrimary),
               decoration: InputDecoration(
                 labelText: '${context.l10n.artistUsername} *',
-                hintText: context.l10n.chooseUniqueHandle,
+                hintText: context.l10n.artistUsernameHint,
+                helperText: context.l10n.artistUsernameHelper,
+                helperMaxLines: 3,
+                prefixText: '@',
                 border: const OutlineInputBorder(),
-                helperText: context.l10n.usernameFormat,
               ),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) {
@@ -551,7 +553,9 @@ class _StepProfile extends StatelessWidget {
               style: const TextStyle(color: colorTextPrimary),
               decoration: InputDecoration(
                 labelText: '${context.l10n.displayName} *',
-                hintText: context.l10n.yourProfessionalName,
+                hintText: context.l10n.artistDisplayNameHint,
+                helperText: context.l10n.artistDisplayNameHelper,
+                helperMaxLines: 2,
                 border: const OutlineInputBorder(),
               ),
               validator: (v) {
