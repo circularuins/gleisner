@@ -117,6 +117,24 @@ bool isTabletOrWider(double width) => width >= breakpointTablet;
 /// True if the width is desktop (>= 1024px).
 bool isDesktop(double width) => width >= breakpointDesktop;
 
+/// True when the timeline should use horizontal (DAW-style) scrolling.
+///
+/// Tied to the same breakpoint as the NavigationRail (Idea 030): the
+/// timeline orientation flips together with the side nav. Reads the screen
+/// width via [MediaQuery.sizeOf] (size-only dependency) so it can be safely
+/// called outside `LayoutBuilder` — `LayoutBuilder` builders should never
+/// touch `MediaQuery.of` directly because non-size changes (textScale,
+/// viewInsets) would trigger redundant constraint rebuilds.
+///
+/// At the lower edge of the breakpoint (≥600 px screen) the NavigationRail
+/// consumes [navRailWidth] (72 px) plus a 1 px divider, so the effective
+/// horizontal canvas can be as narrow as ~527 px. [ConstellationLayout]
+/// must keep nodes legible at that width — verify when changing layout
+/// constants. The desktop side panel ([sidePanelWidth]) opens only at
+/// ≥1024 px, where there is enough room left for the canvas.
+bool useHorizontalTimeline(BuildContext context) =>
+    isTabletOrWider(MediaQuery.sizeOf(context).width);
+
 /// Responsive grid column count for card grids (Discover, etc.).
 int responsiveGridColumns(double width) {
   if (width >= breakpointDesktop) return 4;

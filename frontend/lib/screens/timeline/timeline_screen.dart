@@ -38,6 +38,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     with SingleTickerProviderStateMixin {
   double? _lastWidth;
   double? _lastHeight;
+  bool? _lastUseHorizontal;
   // Issue #160 recovery path: when layout is null but items exist (Notifier
   // rebuild zeroed _lastWidth), schedule a single computeLayout dispatch.
   // The flag prevents addPostFrameCallback from being re-registered every
@@ -165,6 +166,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     setState(() {
       _focusedPostId = null;
       _lastWidth = null; // Force layout recalculation
+      // Setting _lastWidth = null already forces viewportChanged on the next
+      // build (null != width), so the redispatch always runs. Reset
+      // _lastUseHorizontal in lockstep so the cached state never lies — if
+      // a future refactor narrows the viewportChanged predicate, this
+      // assignment keeps the orientation cache from going stale.
+      _lastHeight = null;
+      _lastUseHorizontal = null;
     });
   }
 
@@ -178,6 +186,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
 
     final theme = Theme.of(context);
     final isOwn = _isOwnTimeline;
+    // Decide orientation outside LayoutBuilder so it depends on the screen
+    // width (size-only MediaQuery dependency) rather than the inner
+    // constraint, which the NavigationRail / side panel shrink. Idea 030
+    // ties horizontal scroll to the same breakpoint as the side nav.
+    final useHorizontal = useHorizontalTimeline(context);
 
     // Show first-post tutorial when: artist mode + no posts + not seen + loaded
     final tutorialState = ref.watch(tutorialProvider);
@@ -311,6 +324,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                           setState(() {
                             _focusedPostId = null;
                             _lastWidth = null;
+                            _lastHeight = null;
+                            _lastUseHorizontal = null;
                           });
                         }
                       },
@@ -491,7 +506,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                 builder: (context, constraints) {
                                   final width = constraints.maxWidth;
                                   final height = constraints.maxHeight;
-                                  final useHorizontal = isDesktop(width);
                                   // Re-dispatch when layout is missing despite
                                   // having items: TimelineNotifier loses its
                                   // viewport (_lastWidth=0) on Riverpod rebuild
@@ -500,6 +514,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                   // chains to timelineProvider. The widget-side
                                   // width/height haven't changed so the prior
                                   // guard skipped re-dispatch (Issue #160).
+                                  // Also re-dispatch when useHorizontal flips
+                                  // at the same constraint size (rare, but a
+                                  // screen-level resize crossing the tablet
+                                  // breakpoint can leave constraints stable
+                                  // when the rail toggles in/out).
                                   final hasItems =
                                       timeline.posts.isNotEmpty ||
                                       (timeline.artist?.milestones.isNotEmpty ??
@@ -508,7 +527,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                       timeline.layout == null && hasItems;
                                   final viewportChanged =
                                       _lastWidth != width ||
-                                      _lastHeight != height;
+                                      _lastHeight != height ||
+                                      _lastUseHorizontal != useHorizontal;
                                   if (viewportChanged) {
                                     // Viewport actually changed — always
                                     // redispatch and reset the recovery flag
@@ -516,6 +536,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                     // dispatch again.
                                     _lastWidth = width;
                                     _lastHeight = height;
+                                    _lastUseHorizontal = useHorizontal;
                                     _layoutDispatchInFlight = false;
                                     _scheduleComputeLayout(
                                       width,
@@ -962,10 +983,31 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
               onNameConstellation: isOwn
                   ? (postId, name) => notifier.nameConstellation(postId, name)
                   : null,
+              // Constellation deletion only dissolves the grouping — the
+              // post itself stays in the timeline, so unlike onDeletePost we
+              // intentionally do NOT clear _sidePanelPostId here.
+              // PostDetailContent updates its own UI by tracking removed
+              // ids in _removedConstellationIds, which is why we don't need
+              // to react to the future at this layer either.
+              onDeleteConstellation: isOwn
+                  ? (id) => notifier.deleteConstellation(id)
+                  : null,
               onEdit: isOwn
                   ? () {
                       setState(() => _sidePanelPostId = null);
                       _openEditPost(post);
+                    }
+                  : null,
+              // Unlike the bottom-sheet path, PostDetailContent in embedded
+              // mode skips Navigator.pop, so we must close the side panel
+              // ourselves once the post is gone from the timeline.
+              onDeletePost: isOwn
+                  ? () async {
+                      final success = await notifier.deletePost(post.id);
+                      if (success && mounted) {
+                        setState(() => _sidePanelPostId = null);
+                      }
+                      return success;
                     }
                   : null,
               allPosts: timeline.posts,
@@ -1021,6 +1063,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
               _openEditPost(post);
             }
           : null,
+      // Bottom-sheet path: PostDetailContent's _confirmDeletePost calls
+      // Navigator.pop after a successful delete (since embedded == false),
+      // so we don't need to close the modal ourselves here. The embedded
+      // counterpart in _buildSidePanel handles its own close.
       onDeletePost: isOwn ? () => notifier.deletePost(post.id) : null,
       allPosts: ref.read(timelineProvider).posts,
     );
