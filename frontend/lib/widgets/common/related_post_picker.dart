@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/l10n.dart';
 import '../../models/post.dart';
 import '../../models/track.dart' show parseHexColor;
+import '../../theme/gleisner_tokens.dart';
 
 /// Bottom sheet picker for selecting a related post.
 class RelatedPostPicker extends StatefulWidget {
@@ -153,7 +154,13 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
                     )
                   : SingleChildScrollView(
                       controller: scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      // Reserve space for the soft keyboard so the search
+                      // field above stays visible while typing.
+                      padding: EdgeInsets.only(
+                        left: spaceLg,
+                        right: spaceLg,
+                        bottom: MediaQuery.of(context).viewInsets.bottom,
+                      ),
                       child: Wrap(
                         spacing: 8,
                         runSpacing: 8,

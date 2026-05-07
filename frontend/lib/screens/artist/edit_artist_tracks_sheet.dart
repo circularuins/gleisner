@@ -26,18 +26,53 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
   String? _error;
   final _nameController = TextEditingController();
   final _addFormKey = GlobalKey<FormState>();
+  late final FocusNode _nameFocusNode;
+  bool _focusScrollPending = false;
   ScrollController? _scrollController;
 
   @override
   void initState() {
     super.initState();
     _tracks = List.from(widget.artist.tracks);
+    _nameFocusNode = FocusNode()
+      // Keep the input visible above the soft keyboard. Inside a
+      // DraggableScrollableSheet, Flutter's default focus auto-scroll is
+      // unreliable: the initial scroll-to-bottom runs before the keyboard
+      // appears, so the form ends up hidden behind the IME on the first
+      // focus. Re-running animateTo on focus uses the post-keyboard
+      // maxScrollExtent and reveals the field.
+      ..addListener(_handleNameFocusChanged);
   }
 
   @override
   void dispose() {
+    _nameFocusNode
+      ..removeListener(_handleNameFocusChanged)
+      ..dispose();
     _nameController.dispose();
     super.dispose();
+  }
+
+  void _handleNameFocusChanged() {
+    if (!_nameFocusNode.hasFocus || !_showAddForm) return;
+    // Guard against re-entrancy: focus events can fire several times in
+    // quick succession while the soft keyboard animates in, and we only
+    // need a single animateTo per burst. Without this, multiple concurrent
+    // animateTo calls compete inside the DraggableScrollableSheet.
+    if (_focusScrollPending) return;
+    final controller = _scrollController;
+    if (controller == null || !controller.hasClients) return;
+    _focusScrollPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusScrollPending = false;
+      if (!mounted) return;
+      if (!controller.hasClients) return;
+      controller.animateTo(
+        controller.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   Future<void> _addTrack() async {
@@ -243,6 +278,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
                       const SizedBox(height: spaceMd),
                       TextFormField(
                         controller: _nameController,
+                        focusNode: _nameFocusNode,
                         maxLength: 30,
                         style: const TextStyle(color: colorTextPrimary),
                         decoration: InputDecoration(

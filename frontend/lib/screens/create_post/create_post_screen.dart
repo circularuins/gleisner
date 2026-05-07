@@ -419,8 +419,18 @@ class _TrackStep extends ConsumerWidget {
         }
 
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (ctx, setDialogState) {
             return AlertDialog(
+              // AlertDialog is centered by default and gets covered by the
+              // soft keyboard + predictive bar on iPhone Safari. Push it up
+              // by the keyboard height so the input and Create button stay
+              // visible while typing.
+              insetPadding: EdgeInsets.only(
+                left: spaceLg,
+                right: spaceLg,
+                top: spaceLg,
+                bottom: spaceLg + MediaQuery.of(ctx).viewInsets.bottom,
+              ),
               title: Text(l10n.newTrack),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -452,7 +462,7 @@ class _TrackStep extends ConsumerWidget {
                       const SizedBox(width: spaceSm),
                       Text(
                         l10n.colorAutoAssigned,
-                        style: Theme.of(context).textTheme.labelSmall,
+                        style: Theme.of(ctx).textTheme.labelSmall,
                       ),
                     ],
                   ),

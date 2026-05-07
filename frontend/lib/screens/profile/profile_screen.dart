@@ -427,6 +427,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colorSurface1,
+        // AlertDialog is centered by default and gets covered by the soft
+        // keyboard + predictive bar on iPhone Safari. Push it up by the
+        // keyboard height so the password field and Delete button stay
+        // visible while typing.
+        insetPadding: EdgeInsets.only(
+          left: spaceLg,
+          right: spaceLg,
+          top: spaceLg,
+          bottom: spaceLg + MediaQuery.of(ctx).viewInsets.bottom,
+        ),
         title: Text(
           context.l10n.deleteAccountConfirmTitle,
           style: const TextStyle(color: colorTextPrimary),

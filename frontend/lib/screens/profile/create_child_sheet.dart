@@ -48,7 +48,15 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
           key: _formKey,
           child: ListView(
             controller: scrollController,
-            padding: const EdgeInsets.all(spaceXl),
+            // Add viewInsets.bottom so the password field at the bottom of
+            // the form stays above the soft keyboard. Matches the pattern
+            // used in edit_artist_links_sheet, edit_milestones_sheet, etc.
+            padding: EdgeInsets.fromLTRB(
+              spaceXl,
+              spaceXl,
+              spaceXl,
+              spaceXl + MediaQuery.of(context).viewInsets.bottom,
+            ),
             children: [
               Center(
                 child: Container(
