@@ -517,9 +517,13 @@ describe("Reaction GraphQL integration", () => {
       expect(reactions).toHaveLength(1);
       const reaction = reactions[0];
       const user = reaction.user as Record<string, unknown>;
-      const post = reaction.post as Record<string, unknown>;
+      // ReactionType.post is nullable (#250: hides child / non-public author
+      // posts). Public author flow stays non-null but guard the assertion
+      // so future test additions for hidden authors don't TypeError.
+      const post = reaction.post as Record<string, unknown> | null;
       expect(user.username).toBe("reluser1");
-      expect(post.id).toBe(postId);
+      expect(post).not.toBeNull();
+      expect(post!.id).toBe(postId);
     });
   });
 });

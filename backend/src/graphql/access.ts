@@ -48,3 +48,34 @@ export async function checkArtistAccess(
 
   return { accessible: false };
 }
+
+/**
+ * Decide whether a post's author can be exposed to the viewer.
+ *
+ * Used to hide posts authored by child accounts (`guardianId !== null`) or by
+ * users with non-public `users.profileVisibility` from third parties. Applied
+ * in every post-returning resolver to keep the authorization filter uniform
+ * (see `.claude/rules/backend-implementation.md` 「認可フィルタの全経路統一」).
+ *
+ * Note: `profileVisibility` here MUST refer to `users.profileVisibility`
+ * (Layer 0 — human existence visibility, ADR 021), NOT
+ * `artists.profileVisibility` (Layer 1 — artist persona visibility).
+ *
+ * - viewer is the author themselves → always visible
+ * - author has a guardian (child account, ADR 019) → not visible
+ * - author's profileVisibility is not "public" → not visible
+ * - otherwise → visible
+ */
+export function isAuthorVisibleToViewer(
+  author: {
+    userId: string;
+    guardianId: string | null;
+    profileVisibility: string;
+  },
+  viewerUserId: string | null,
+): boolean {
+  if (viewerUserId !== null && viewerUserId === author.userId) return true;
+  if (author.guardianId !== null) return false;
+  if (author.profileVisibility !== "public") return false;
+  return true;
+}

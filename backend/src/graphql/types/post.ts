@@ -23,7 +23,7 @@ import {
   assertUploadedR2ObjectMatches,
   assertUploadedR2ObjectsMatch,
 } from "../validators.js";
-import { checkArtistAccess } from "../access.js";
+import { checkArtistAccess, isAuthorVisibleToViewer } from "../access.js";
 import { fetchOgpMetadata, ogpUpdateSet } from "../../ogp/fetcher.js";
 import { deleteR2Object } from "../../storage/r2.js";
 
@@ -185,14 +185,46 @@ async function attachPostMedia(results: PostShape[]): Promise<void> {
 }
 
 /**
+ * Internal-only author metadata used by `isAuthorVisibleToViewer` to hide
+ * child / non-public author posts. Kept on a separate `authorMeta` key (NOT
+ * merged into `_author`) so it cannot leak into the GraphQL `PublicUser`
+ * shape — `_author` must always be exactly `PublicUserShape`.
+ */
+const authorMetaColumns = {
+  userId: users.id,
+  guardianId: users.guardianId,
+  profileVisibility: users.profileVisibility,
+} as const;
+
+/** Filter rows where the author is visible to the viewer (see access.ts). */
+function filterByAuthorVisibility<
+  T extends {
+    authorMeta: {
+      userId: string;
+      guardianId: string | null;
+      profileVisibility: string;
+    };
+  },
+>(rows: T[], viewerUserId: string | null): T[] {
+  return rows.filter((r) =>
+    isAuthorVisibleToViewer(r.authorMeta, viewerUserId),
+  );
+}
+
+/**
  * Base query for post list resolvers that need author prefetch (#180).
- * Projects `posts` + `publicUserColumns` only, so passwordHash / email /
- * publicKey can never leak through list paths. Callers chain `.where(...)`
- * and friends, then map `(r) => ({ ...r.post, _author: r.author })`.
+ * Projects `posts` + `publicUserColumns` + `authorMeta` for visibility checks.
+ * `_author` only ever carries publicUserColumns (PublicUserShape), so
+ * passwordHash / email / publicKey / guardianId never leak through list paths.
+ * Callers chain `.where(...)`, then map via `mapPostsWithAuthor()`.
  */
 function selectPostsWithAuthor() {
   return db
-    .select({ post: posts, author: publicUserColumns })
+    .select({
+      post: posts,
+      author: publicUserColumns,
+      authorMeta: authorMetaColumns,
+    })
     .from(posts)
     .innerJoin(users, eq(posts.authorId, users.id));
 }
@@ -207,7 +239,12 @@ function selectPostsWithAuthor() {
  */
 function selectPostsWithTrackAndAuthor() {
   return db
-    .select({ post: posts, track: tracks, author: publicUserColumns })
+    .select({
+      post: posts,
+      track: tracks,
+      author: publicUserColumns,
+      authorMeta: authorMetaColumns,
+    })
     .from(posts)
     .innerJoin(tracks, sql`${posts.trackId} = ${tracks.id}`)
     .innerJoin(users, eq(posts.authorId, users.id));
@@ -1362,6 +1399,23 @@ builder.queryFields((t) => ({
           if (!access.accessible) return null;
         }
       }
+      // Hide posts whose author is a child / non-public user from third parties.
+      // Schema defines `post(id)` as nullable, so returning null is safe (#250).
+      const [authorMeta] = await db
+        .select({
+          userId: users.id,
+          guardianId: users.guardianId,
+          profileVisibility: users.profileVisibility,
+        })
+        .from(users)
+        .where(eq(users.id, post.authorId))
+        .limit(1);
+      if (
+        !authorMeta ||
+        !isAuthorVisibleToViewer(authorMeta, ctx.authUser?.userId ?? null)
+      ) {
+        return null;
+      }
       await attachPostMedia([post]);
       return post;
     },
@@ -1395,7 +1449,14 @@ builder.queryFields((t) => ({
       const rows = await selectPostsWithTrackAndAuthor().where(
         and(eq(tracks.id, args.trackId), visibilityFilter),
       );
-      const results = rows.map((r) => ({
+      // Hide posts authored by child / non-public users from third parties
+      // (#250 — author visibility check, applied after the visibility filter
+      // so the two are layered consistently).
+      const visibleRows = filterByAuthorVisibility(
+        rows,
+        ctx.authUser?.userId ?? null,
+      );
+      const results = visibleRows.map((r) => ({
         ...r.post,
         _track: r.track,
         _author: r.author,
@@ -1424,6 +1485,9 @@ builder.queryFields((t) => ({
         )
         .orderBy(desc(posts.createdAt))
         .limit(limit);
+      // Skip filterByAuthorVisibility: this resolver only returns the viewer's
+      // own posts (eq(authorId, authUser.userId)), and isAuthorVisibleToViewer
+      // returns true for self regardless of guardianId / profileVisibility.
       const results = rows.map((r) => ({ ...r.post, _author: r.author }));
       await attachPostMedia(results);
       return results;
@@ -1452,7 +1516,12 @@ builder.queryFields((t) => ({
         .where(and(eq(tracks.artistId, args.artistId), visibilityFilter))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
-      const results = rows.map((r) => ({
+      // Hide posts authored by child / non-public users from third parties (#250).
+      const visibleRows = filterByAuthorVisibility(
+        rows,
+        ctx.authUser?.userId ?? null,
+      );
+      const results = visibleRows.map((r) => ({
         ...r.post,
         _track: r.track,
         _author: r.author,
@@ -1472,8 +1541,15 @@ builder.objectFields(ArtistType, (t) => ({
     },
     // INNER JOIN intentionally excludes trackId=NULL posts (#67)
     resolve: async (artist, args, ctx) => {
-      const isSelf = !!(ctx.authUser && artist.userId === ctx.authUser.userId);
-      const visibilityFilter = isSelf
+      // Route via checkArtistAccess so private artists' posts cannot leak through
+      // deep paths like myTuneIns → TuneInType.artist → recentPosts. Previously
+      // this resolver derived `isSelf` from the parent artist row directly,
+      // which bypassed the visibility check when the parent was reached from a
+      // resolver that prefetched the artist without authorization (#250 sec-1).
+      const access = await checkArtistAccess(artist.id, ctx.authUser);
+      if (!access.accessible) return [];
+
+      const visibilityFilter = access.isSelf
         ? undefined
         : eq(posts.visibility, "public");
 
@@ -1482,7 +1558,12 @@ builder.objectFields(ArtistType, (t) => ({
         .where(and(eq(tracks.artistId, artist.id), visibilityFilter))
         .orderBy(desc(posts.createdAt))
         .limit(limit);
-      const results = rows.map((r) => ({
+      // Hide posts authored by child / non-public users from third parties (#250).
+      const visibleRows = filterByAuthorVisibility(
+        rows,
+        ctx.authUser?.userId ?? null,
+      );
+      const results = visibleRows.map((r) => ({
         ...r.post,
         _track: r.track,
         _author: r.author,
@@ -1507,7 +1588,12 @@ builder.objectFields(TrackType, (t) => ({
       const rows = await selectPostsWithAuthor().where(
         and(sql`${posts.trackId} = ${track.id}`, visibilityFilter),
       );
-      const results = rows.map((r) => ({
+      // Hide posts authored by child / non-public users from third parties (#250).
+      const visibleRows = filterByAuthorVisibility(
+        rows,
+        ctx.authUser?.userId ?? null,
+      );
+      const results = visibleRows.map((r) => ({
         ...r.post,
         _track: track,
         _author: r.author,
