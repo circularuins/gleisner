@@ -61,6 +61,113 @@
         .catch(function () {});
     }
   </script>
+
+  <!--
+    DOM-side soft-keyboard diagnostics HUD.
+
+    Activated only when the URL contains `?debug=keyboard`. Lives outside the
+    Flutter <flt-glass-pane>, anchored with `position: fixed` so it stays put
+    even when iPhone Safari auto-scrolls the page on input focus (the same
+    auto-scroll that pushes AlertDialogs off the top of the screen — see
+    PR #340 follow-up). The Flutter-side overlay
+    (`lib/utils/keyboard_debug_overlay.dart`) gets clipped/hidden by Safari's
+    scroll, so this DOM HUD is the only reliable readout once the keyboard is
+    up.
+
+    Pass-through when the flag is absent: the script returns immediately, no
+    DOM is added, no listeners are registered. Remove together with the
+    Flutter-side overlay once the root cause is fixed.
+  -->
+  <style>
+    #kb-debug-hud {
+      position: fixed;
+      top: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2147483647;
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 4px 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px;
+      line-height: 1.3;
+      border: 1px solid #ffeb3b;
+      border-radius: 4px;
+      pointer-events: none;
+      max-width: 92vw;
+      white-space: pre;
+    }
+    #kb-debug-hud .y { color: #ffeb3b; }
+    #kb-debug-hud .b { color: #4fc3f7; }
+  </style>
+  <script>
+    (function () {
+      if (!location.search.includes("debug=keyboard")) return;
+
+      var hud;
+      function ensureHud() {
+        if (hud) return hud;
+        hud = document.createElement("div");
+        hud.id = "kb-debug-hud";
+        document.body.appendChild(hud);
+        return hud;
+      }
+
+      function pad(n, w) { var s = String(n); while (s.length < w) s = " " + s; return s; }
+
+      function update() {
+        var vv = window.visualViewport;
+        var innerH = window.innerHeight;
+        var innerW = window.innerWidth;
+        var docH = (document.documentElement && document.documentElement.clientHeight) || 0;
+        var scrollY = window.scrollY || 0;
+        var pageY = window.pageYOffset || 0;
+        var vvH = vv ? vv.height : 0;
+        var vvW = vv ? vv.width : 0;
+        var vvTop = vv ? vv.offsetTop : 0;
+        var vvLeft = vv ? vv.offsetLeft : 0;
+        var vvScale = vv ? vv.scale : 0;
+        var calcKb = vv ? Math.max(0, innerH - vvH - vvTop) : 0;
+
+        var fmt = function (n) { return Number(n).toFixed(1); };
+        var lines = [
+          '<span class="y">KB DEBUG (DOM)</span>',
+          'win.inner ' + pad(innerW, 4) + ' x ' + pad(innerH, 4),
+          'docEl.cliH ' + pad(docH, 4),
+          'vv.size   ' + fmt(vvW) + ' x ' + fmt(vvH),
+          'vv.offset ' + fmt(vvLeft) + ', ' + fmt(vvTop),
+          'vv.scale  ' + fmt(vvScale),
+          'scrollY   ' + fmt(scrollY) + ' / pageY ' + fmt(pageY),
+          '<span class="y">calc kbH ' + fmt(calcKb) + '</span>',
+          '<span class="b">activeElem ' + (document.activeElement && document.activeElement.tagName || '?') + '</span>',
+        ];
+        ensureHud().innerHTML = lines.join('\n');
+      }
+
+      function start() {
+        update();
+        var vv = window.visualViewport;
+        if (vv) {
+          vv.addEventListener("resize", update);
+          vv.addEventListener("scroll", update);
+        }
+        window.addEventListener("resize", update);
+        window.addEventListener("scroll", update, true);
+        // Some iOS Safari builds don't fire visualViewport events reliably;
+        // a slow tick guarantees we never go stale for more than 250ms.
+        setInterval(update, 250);
+        // Surface focus changes so we can see exactly when the page jumps.
+        document.addEventListener("focusin", update, true);
+        document.addEventListener("focusout", update, true);
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", start);
+      } else {
+        start();
+      }
+    })();
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
