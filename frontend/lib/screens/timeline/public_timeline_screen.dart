@@ -191,7 +191,12 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen>
                       builder: (context, constraints) {
                         final width = constraints.maxWidth;
                         final height = constraints.maxHeight;
-                        final useHorizontal = isDesktop(width);
+                        // Tie horizontal scroll to the same breakpoint as the
+                        // NavigationRail (Idea 030), and use the screen width
+                        // so the decision is consistent with the authenticated
+                        // timeline.
+                        final screenWidth = MediaQuery.of(context).size.width;
+                        final useHorizontal = isTabletOrWider(screenWidth);
                         if (_lastWidth != width || _lastHeight != height) {
                           _lastWidth = width;
                           _lastHeight = height;

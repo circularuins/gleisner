@@ -491,7 +491,19 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                                 builder: (context, constraints) {
                                   final width = constraints.maxWidth;
                                   final height = constraints.maxHeight;
-                                  final useHorizontal = isDesktop(width);
+                                  // Tie horizontal scroll to the same
+                                  // breakpoint as the NavigationRail so the
+                                  // timeline orientation flips together with
+                                  // the side nav (Idea 030). Use the screen
+                                  // width — not constraints.maxWidth — so the
+                                  // decision stays stable when the side detail
+                                  // panel opens and shrinks the inner column.
+                                  final screenWidth = MediaQuery.of(
+                                    context,
+                                  ).size.width;
+                                  final useHorizontal = isTabletOrWider(
+                                    screenWidth,
+                                  );
                                   // Re-dispatch when layout is missing despite
                                   // having items: TimelineNotifier loses its
                                   // viewport (_lastWidth=0) on Riverpod rebuild
@@ -962,10 +974,25 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
               onNameConstellation: isOwn
                   ? (postId, name) => notifier.nameConstellation(postId, name)
                   : null,
+              onDeleteConstellation: isOwn
+                  ? (id) => notifier.deleteConstellation(id)
+                  : null,
               onEdit: isOwn
                   ? () {
                       setState(() => _sidePanelPostId = null);
                       _openEditPost(post);
+                    }
+                  : null,
+              onDeletePost: isOwn
+                  ? () async {
+                      final success = await notifier.deletePost(post.id);
+                      // PostDetailContent skips Navigator.pop in embedded
+                      // mode, so the side panel must close itself when
+                      // the post is gone from the timeline.
+                      if (success && mounted) {
+                        setState(() => _sidePanelPostId = null);
+                      }
+                      return success;
                     }
                   : null,
               allPosts: timeline.posts,
