@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/l10n.dart';
 import '../../providers/guardian_provider.dart';
 import '../../theme/gleisner_tokens.dart';
-import '../../utils/keyboard_height_observer.dart';
 
 class CreateChildSheet extends ConsumerStatefulWidget {
   const CreateChildSheet({super.key});
@@ -52,12 +51,7 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
             // Add viewInsets.bottom so the password field at the bottom of
             // the form stays above the soft keyboard. Matches the pattern
             // used in edit_artist_links_sheet, edit_milestones_sheet, etc.
-            padding: EdgeInsets.fromLTRB(
-              spaceXl,
-              spaceXl,
-              spaceXl,
-              spaceXl + KeyboardHeight.of(context),
-            ),
+            padding: EdgeInsets.fromLTRB(spaceXl, spaceXl, spaceXl, spaceXl),
             children: [
               Center(
                 child: Container(

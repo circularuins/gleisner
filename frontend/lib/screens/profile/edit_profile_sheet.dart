@@ -5,7 +5,6 @@ import '../../l10n/l10n.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/media_upload_provider.dart';
 import '../../theme/gleisner_tokens.dart';
-import '../../utils/keyboard_height_observer.dart';
 import '../../widgets/media/avatar_image.dart';
 
 class EditProfileSheet extends ConsumerStatefulWidget {
@@ -124,12 +123,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
             key: _formKey,
             child: ListView(
               controller: scrollController,
-              padding: EdgeInsets.fromLTRB(
-                spaceXl,
-                spaceLg,
-                spaceXl,
-                spaceXl + KeyboardHeight.of(context),
-              ),
+              padding: EdgeInsets.fromLTRB(spaceXl, spaceLg, spaceXl, spaceXl),
               children: [
                 // Handle bar
                 Center(

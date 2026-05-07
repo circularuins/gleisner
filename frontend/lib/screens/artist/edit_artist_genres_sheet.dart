@@ -10,7 +10,6 @@ import '../../providers/artist_page_provider.dart';
 import '../../l10n/l10n.dart';
 import '../../providers/edit_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
-import '../../utils/keyboard_height_observer.dart';
 
 class EditArtistGenresSheet extends ConsumerStatefulWidget {
   final Artist artist;
@@ -143,12 +142,7 @@ class _EditArtistGenresSheetState extends ConsumerState<EditArtistGenresSheet> {
           ),
           child: ListView(
             controller: scrollController,
-            padding: EdgeInsets.fromLTRB(
-              spaceXl,
-              spaceLg,
-              spaceXl,
-              spaceXl + KeyboardHeight.of(context),
-            ),
+            padding: EdgeInsets.fromLTRB(spaceXl, spaceLg, spaceXl, spaceXl),
             children: [
               Center(
                 child: Container(

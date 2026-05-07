@@ -6,7 +6,6 @@ import '../../providers/artist_page_provider.dart';
 import '../../l10n/l10n.dart';
 import '../../providers/edit_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
-import '../../utils/keyboard_height_observer.dart';
 
 const _linkCategories = [
   'music',
@@ -148,12 +147,7 @@ class _EditArtistLinksSheetState extends ConsumerState<EditArtistLinksSheet> {
           ),
           child: ListView(
             controller: scrollController,
-            padding: EdgeInsets.fromLTRB(
-              spaceXl,
-              spaceLg,
-              spaceXl,
-              spaceXl + KeyboardHeight.of(context),
-            ),
+            padding: EdgeInsets.fromLTRB(spaceXl, spaceLg, spaceXl, spaceXl),
             children: [
               // Handle bar
               Center(

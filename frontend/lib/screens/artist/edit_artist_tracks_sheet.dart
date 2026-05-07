@@ -8,7 +8,6 @@ import '../../providers/edit_artist_provider.dart';
 import '../../l10n/l10n.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../theme/gleisner_tokens.dart';
-import '../../utils/keyboard_height_observer.dart';
 
 class EditArtistTracksSheet extends ConsumerStatefulWidget {
   final Artist artist;
@@ -198,12 +197,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
           ),
           child: ListView(
             controller: scrollController,
-            padding: EdgeInsets.fromLTRB(
-              spaceXl,
-              spaceLg,
-              spaceXl,
-              spaceXl + KeyboardHeight.of(context),
-            ),
+            padding: EdgeInsets.fromLTRB(spaceXl, spaceLg, spaceXl, spaceXl),
             children: [
               Center(
                 child: Container(
