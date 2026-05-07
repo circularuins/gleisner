@@ -19,6 +19,10 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
     with DisposableNotifier {
   late GraphQLClient _client;
 
+  /// Tracks postIds whose deletion mutation is in flight, so a tap-storm on
+  /// the trash button does not fire the mutation twice for the same post.
+  final Set<String> _inFlightDeletes = <String>{};
+
   @override
   UnassignedPostsState build() {
     _client = ref.watch(graphqlClientProvider);
@@ -135,6 +139,37 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
     state = UnassignedPostsState(
       posts: state.posts.where((p) => p.id != postId).toList(),
     );
+  }
+
+  /// Delete an unassigned post via the GraphQL `deletePost` mutation.
+  /// Returns true on success, false on validation/IDOR/race/network failure.
+  ///
+  /// Defenses layered on top of the server-side `authorId` check:
+  /// 1. The post must currently exist in `state.posts` (prevents callers from
+  ///    issuing deletes against arbitrary IDs that were never rendered).
+  /// 2. `_inFlightDeletes` blocks duplicate concurrent mutations for the same
+  ///    postId while the network call is pending.
+  Future<bool> deletePost(String postId) async {
+    if (!state.posts.any((p) => p.id == postId)) return false;
+    if (!_inFlightDeletes.add(postId)) return false;
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(deletePostMutation),
+          variables: {'id': postId},
+        ),
+      );
+      if (disposed) return false;
+      if (result.hasException) return false;
+      removePost(postId);
+      return true;
+    } catch (e) {
+      debugPrint('[UnassignedPosts] deletePost error: $e');
+      if (disposed) return false;
+      return false;
+    } finally {
+      _inFlightDeletes.remove(postId);
+    }
   }
 }
 

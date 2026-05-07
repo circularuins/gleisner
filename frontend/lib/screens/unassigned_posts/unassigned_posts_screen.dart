@@ -51,6 +51,7 @@ class UnassignedPostsScreen extends ConsumerWidget {
                   onTap: () => _openDetail(context, ref, post),
                   onAssign: (trackId) =>
                       _assignToTrack(context, ref, post.id, trackId),
+                  onDelete: () => _deletePost(context, ref, post.id),
                 );
               },
             ),
@@ -70,6 +71,21 @@ class UnassignedPostsScreen extends ConsumerWidget {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(context.l10n.failedAssignPost)));
+    }
+  }
+
+  Future<void> _deletePost(
+    BuildContext context,
+    WidgetRef ref,
+    String postId,
+  ) async {
+    final success = await ref
+        .read(unassignedPostsProvider.notifier)
+        .deletePost(postId);
+    if (!success && context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.failedDeletePost)));
     }
   }
 
@@ -106,12 +122,14 @@ class _PostTile extends StatelessWidget {
   final List<Track> tracks;
   final VoidCallback onTap;
   final ValueChanged<String> onAssign;
+  final Future<void> Function() onDelete;
 
   const _PostTile({
     required this.post,
     required this.tracks,
     required this.onTap,
     required this.onAssign,
+    required this.onDelete,
   });
 
   @override
@@ -174,10 +192,52 @@ class _PostTile extends StatelessWidget {
                 size: 18,
                 color: colorInteractiveMuted,
               ),
+            IconButton(
+              icon: const Icon(
+                Icons.delete_outline,
+                size: 20,
+                color: colorTextMuted,
+              ),
+              onPressed: () => _confirmDelete(context),
+              tooltip: context.l10n.delete,
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final l10n = context.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colorSurface1,
+        title: Text(
+          l10n.deletePostConfirm,
+          style: const TextStyle(color: colorTextPrimary),
+        ),
+        content: Text(
+          l10n.cannotBeUndone,
+          style: const TextStyle(color: colorTextSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.delete, style: const TextStyle(color: colorError)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await onDelete();
   }
 
   void _showTrackPicker(BuildContext context) {
