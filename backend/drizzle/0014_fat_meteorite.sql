@@ -1,0 +1,14 @@
+-- Avatar rail / myTuneIns sort: aggregate MAX(posts.updated_at) per author
+-- after filtering by visibility = 'public'. (author_id, visibility,
+-- updated_at) is the matching index order.
+--
+-- ⚠ Production note: this `CREATE INDEX` is non-CONCURRENTLY, which takes
+-- a ShareLock on `posts` and blocks INSERT/UPDATE/DELETE while the index
+-- is built. Drizzle Kit runs migrations inside a transaction, so adding
+-- CONCURRENTLY here is not an option. The `IF NOT EXISTS` clause makes the
+-- statement idempotent so the production workflow is:
+--   1. Run `CREATE INDEX CONCURRENTLY` manually (zero downtime).
+--   2. Run `pnpm db:migrate` — this statement becomes a no-op but drizzle
+--      still records the migration as applied.
+-- See `docs/infrastructure.md` §6.2.1.
+CREATE INDEX IF NOT EXISTS "posts_author_visibility_updated_idx" ON "posts" USING btree ("author_id","visibility","updated_at");

@@ -17,6 +17,13 @@ class TunedInArtist {
   final String profileVisibility;
   final DateTime tunedInAt;
 
+  /// MAX(posts.updated_at) of the followed artist's public posts. null when
+  /// the artist has never posted (or only has draft posts). The avatar rail
+  /// uses backend ordering (lastPostActivityAt DESC NULLS LAST, then
+  /// tunedInAt ASC) so the field is informational here, but kept on the
+  /// model in case future UX wants to render "last seen X minutes ago".
+  final DateTime? lastPostActivityAt;
+
   const TunedInArtist({
     required this.id,
     required this.artistUsername,
@@ -25,12 +32,14 @@ class TunedInArtist {
     required this.tunedInCount,
     this.profileVisibility = 'public',
     required this.tunedInAt,
+    this.lastPostActivityAt,
   });
 
   bool get isPrivate => profileVisibility == 'private';
 
   factory TunedInArtist.fromJson(Map<String, dynamic> json) {
     final artist = json['artist'] as Map<String, dynamic>;
+    final lastActivity = json['lastPostActivityAt'] as String?;
     return TunedInArtist(
       id: artist['id'] as String,
       artistUsername: artist['artistUsername'] as String,
@@ -39,6 +48,9 @@ class TunedInArtist {
       tunedInCount: artist['tunedInCount'] as int,
       profileVisibility: artist['profileVisibility'] as String? ?? 'public',
       tunedInAt: DateTime.parse(json['createdAt'] as String),
+      lastPostActivityAt: lastActivity != null
+          ? DateTime.parse(lastActivity)
+          : null,
     );
   }
 }
@@ -146,7 +158,15 @@ class TuneInNotifier extends Notifier<TuneInState> with DisposableNotifier {
         );
         return false;
       } else {
-        // Tuned in (got data back) — deduplicate to prevent race with loadMyTuneIns
+        // Tuned in (got data back) — deduplicate to prevent race with loadMyTuneIns.
+        //
+        // The optimistic position is the END of the rail. The backend returns
+        // `lastPostActivityAt: null` for newly created tune-ins, which under
+        // the avatar-rail sort (DESC NULLS LAST, then tunedInAt ASC) places
+        // them after every artist that has posted. The next loadMyTuneIns —
+        // typically triggered when navigating into the timeline — will move
+        // the artist to its correct sort position if they actually have
+        // public posts.
         final newTuneIn = TunedInArtist.fromJson(data as Map<String, dynamic>);
         final filtered = state.tunedInArtists
             .where((a) => a.id != newTuneIn.id)

@@ -82,5 +82,14 @@ export const posts = pgTable(
       table.mediaUrl,
       table.ogFetchedAt,
     ),
+    // Avatar rail / myTuneIns sort: filter by author + visibility, aggregate
+    // MAX(updated_at). The (author_id, visibility, updated_at) leading
+    // columns let the planner skip draft posts and stream rows in
+    // updated_at order per author.
+    index("posts_author_visibility_updated_idx").on(
+      table.authorId,
+      table.visibility,
+      table.updatedAt,
+    ),
   ],
 );

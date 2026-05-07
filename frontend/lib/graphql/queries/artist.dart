@@ -129,6 +129,7 @@ const myTuneInsQuery = r'''
   query MyTuneIns {
     myTuneIns {
       createdAt
+      lastPostActivityAt
       artist {
         id
         artistUsername

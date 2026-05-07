@@ -197,6 +197,29 @@ railway run --service backend pnpm db:migrate
 > ⚠ 本番では `db:push` を**使わない**。テーブル再作成でデータが消える可能性がある。Drizzle の migration ファイル経由で適用する。
 > （参照: `project_gleisner_migration_policy.md`）
 
+#### 6.2.1 大きなテーブルへの `CREATE INDEX` は手動で CONCURRENTLY 実行
+
+Drizzle Kit は migration をトランザクション内で実行するため、`CREATE INDEX CONCURRENTLY`（PostgreSQL でテーブルロックを避ける唯一の手段）を使えない。素の `CREATE INDEX` は `posts` のような書き込み多発テーブルに ShareLock を取り、index ビルドが完了するまで INSERT/UPDATE/DELETE をブロックする。
+
+該当する migration（例: `0014_fat_meteorite.sql` — `posts_author_visibility_updated_idx`）は、本番では以下の手順で適用する:
+
+1. **手動で CONCURRENTLY 実行**（書き込みをブロックしない）:
+   ```bash
+   railway run --service backend psql "$DATABASE_URL" -c \
+     "CREATE INDEX CONCURRENTLY IF NOT EXISTS posts_author_visibility_updated_idx \
+      ON posts USING btree (author_id, visibility, updated_at);"
+   ```
+2. **`pnpm db:migrate` を通常実行**:
+   ```bash
+   railway run --service backend pnpm db:migrate
+   ```
+   migration SQL 側に `CREATE INDEX IF NOT EXISTS` を付けてあるため、ステップ 1 で既に index が存在していれば SQL は no-op で完了する。drizzle はこの migration を「適用済み」として `__drizzle_migrations` に記録するので、以降のデプロイで再実行されない。
+
+判定基準:
+- **数百行以下のテーブル** → `pnpm db:migrate` で素直に実行（一瞬で終わる）
+- **`posts` / `comments` / `reactions` 等の書き込み多発テーブル** → 上記の手動 CONCURRENTLY 手順
+- **新規 index migration を追加するときは SQL 側に `IF NOT EXISTS` を必ず付ける** — drizzle-kit が自動付与しない場合は手動で追記すること
+
 ### 6.3 admin:setup（管理者 + 招待コード生成）
 
 ```bash
