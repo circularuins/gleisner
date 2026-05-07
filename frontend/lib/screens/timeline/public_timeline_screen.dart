@@ -37,6 +37,7 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen>
     with SingleTickerProviderStateMixin {
   double? _lastWidth;
   double? _lastHeight;
+  bool? _lastUseHorizontal;
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _scrollOffset = ValueNotifier(0);
   String? _focusedPostId;
@@ -82,6 +83,10 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen>
         isAuthenticated &&
         timeline.artist != null &&
         timeline.artist!.artistUsername == widget.username;
+    // Compute outside LayoutBuilder so the orientation decision is taken
+    // from the screen width (size-only MediaQuery dependency) rather than
+    // the inner constraint, which the NavigationRail / side panel shrink.
+    final useHorizontal = useHorizontalTimeline(context);
 
     return Scaffold(
       backgroundColor: colorSurface0,
@@ -191,15 +196,16 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen>
                       builder: (context, constraints) {
                         final width = constraints.maxWidth;
                         final height = constraints.maxHeight;
-                        // Tie horizontal scroll to the same breakpoint as the
-                        // NavigationRail (Idea 030), and use the screen width
-                        // so the decision is consistent with the authenticated
-                        // timeline.
-                        final screenWidth = MediaQuery.of(context).size.width;
-                        final useHorizontal = isTabletOrWider(screenWidth);
-                        if (_lastWidth != width || _lastHeight != height) {
+                        // Re-dispatch when orientation flips at the same
+                        // viewport size (e.g. screen-level resize that crosses
+                        // the tablet breakpoint without the inner constraint
+                        // changing).
+                        if (_lastWidth != width ||
+                            _lastHeight != height ||
+                            _lastUseHorizontal != useHorizontal) {
                           _lastWidth = width;
                           _lastHeight = height;
+                          _lastUseHorizontal = useHorizontal;
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             if (!context.mounted) return;
                             ref
