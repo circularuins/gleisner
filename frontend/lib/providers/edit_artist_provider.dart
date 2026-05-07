@@ -257,14 +257,6 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
   /// must display a localized fallback message rather than surfacing GraphQL
   /// error text directly. See `.claude/rules/frontend-implementation.md`
   /// "サーバーエラーメッセージを UI に露出しない".
-  ///
-  /// Note: this notifier's other create/delete methods still return
-  /// `Future<bool>` for historical reasons. Aligning `createTrack` to
-  /// `Future<Track?>` keeps the signature in sync with
-  /// `TimelineNotifier.createTrack`, so a grep across `createTrackMutation`
-  /// callers no longer surfaces a confusing API mismatch (PR #346 review).
-  /// A broader sweep to unify the rest of this notifier is intentionally
-  /// out of scope.
   Future<Track?> createTrack(String name, String color) async {
     try {
       final result = await _client.mutate(
@@ -281,13 +273,17 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
         return null;
       }
 
-      await ref.read(myArtistProvider.notifier).load();
-
       final data = result.data?['createTrack'] as Map<String, dynamic>?;
       if (data == null) {
         debugPrint('[EditArtistNotifier] createTrack: no data returned');
         return null;
       }
+
+      // Refresh myArtistProvider only on confirmed success — avoids a
+      // wasted full-artist refetch on the (!hasException && data == null)
+      // edge case (PR #346 review).
+      await ref.read(myArtistProvider.notifier).load();
+
       return Track.fromJson(data);
     } catch (e) {
       debugPrint('[EditArtistNotifier] createTrack error: $e');

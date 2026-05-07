@@ -191,6 +191,15 @@ Widget が必要とするのはコールバック（`onToggleReaction`, `onReact
 - ❌ `setState(() { _error = e.toString(); })` で生エラーを表示
 - ❌ `_error = result.exception?.graphqlErrors.firstOrNull?.message` でサーバーメッセージを直接表示
 
+**対処可能エラー（重複名・上限超過・rate-limit 等）の扱い**:
+
+「サーバーメッセージは出さない」と「対処可能なエラー種別をユーザーに伝える」は両立する。次のいずれかを選ぶ:
+
+1. **クライアント側事前バリデーション**（Phase 0 の標準）: 既存名チェック・件数カウント等を Notifier 呼び出し前に実施し、`l10n.trackAlreadyExists(name)` 等の固定 l10n キーで局所表示する
+2. **error code を返す sealed class**: サーバー側 unique 制約や rate-limit が後から追加された時、Notifier の戻り値を `Result<T, AppError>` 型（または `T?` + state.error: sealed class）に拡張し、UI で `switch` する。詳細は本ファイル「Notifier の error state に解決済み文字列を入れない」セクション
+
+Notifier の戻り値を `(T?, String?)` 等で「サーバー文字列を引き回す」設計は、上記いずれにも進めず再びポリシー違反を生むため避ける（PR #346 教訓）。新規 Notifier の mutation メソッドは最初から `Future<T?>` + `debugPrint` のみを返すか、error code を返す sealed class でモデリングすること。
+
 ### 「自分のアーティスト情報」と「閲覧中のアーティスト」を混同しない
 
 **`timelineProvider.artist` は現在閲覧中のアーティストを返す。ファンモードでは他人のデータになる。**
