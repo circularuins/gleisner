@@ -166,6 +166,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     setState(() {
       _focusedPostId = null;
       _lastWidth = null; // Force layout recalculation
+      // Setting _lastWidth = null already forces viewportChanged on the next
+      // build (null != width), so the redispatch always runs. Reset
+      // _lastUseHorizontal in lockstep so the cached state never lies — if
+      // a future refactor narrows the viewportChanged predicate, this
+      // assignment keeps the orientation cache from going stale.
+      _lastHeight = null;
+      _lastUseHorizontal = null;
     });
   }
 
@@ -317,6 +324,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                           setState(() {
                             _focusedPostId = null;
                             _lastWidth = null;
+                            _lastHeight = null;
+                            _lastUseHorizontal = null;
                           });
                         }
                       },
@@ -974,9 +983,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
               onNameConstellation: isOwn
                   ? (postId, name) => notifier.nameConstellation(postId, name)
                   : null,
-              // Constellation removal updates the post locally (the post
-              // stays in the timeline), so the side panel can stay open and
-              // PostDetailContent updates its own UI via _removedConstellationIds.
+              // Constellation deletion only dissolves the grouping — the
+              // post itself stays in the timeline, so unlike onDeletePost we
+              // intentionally do NOT clear _sidePanelPostId here.
+              // PostDetailContent updates its own UI by tracking removed
+              // ids in _removedConstellationIds, which is why we don't need
+              // to react to the future at this layer either.
               onDeleteConstellation: isOwn
                   ? (id) => notifier.deleteConstellation(id)
                   : null,
