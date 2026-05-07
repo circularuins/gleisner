@@ -26,18 +26,75 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
   String? _error;
   final _nameController = TextEditingController();
   final _addFormKey = GlobalKey<FormState>();
+  late final FocusNode _nameFocusNode;
+
+  /// True while a focus-driven scroll-to-bottom is in flight. Set when an
+  /// animateTo is queued, cleared inside `whenComplete` once the animation
+  /// finishes (or via the early-out paths). Guards against concurrent
+  /// animateTo calls when focus events fire repeatedly during the keyboard
+  /// slide-in animation, and prevents reuse of a stale post-frame callback
+  /// after dispose.
+  bool _focusScrollPending = false;
   ScrollController? _scrollController;
 
   @override
   void initState() {
     super.initState();
     _tracks = List.from(widget.artist.tracks);
+    _nameFocusNode = FocusNode()
+      // Keep the input visible above the soft keyboard. Inside a
+      // DraggableScrollableSheet, Flutter's default focus auto-scroll is
+      // unreliable: the initial scroll-to-bottom runs before the keyboard
+      // appears, so the form ends up hidden behind the IME on the first
+      // focus. Re-running animateTo on focus uses the post-keyboard
+      // maxScrollExtent and reveals the field.
+      ..addListener(_handleNameFocusChanged);
   }
 
   @override
   void dispose() {
+    _nameFocusNode
+      ..removeListener(_handleNameFocusChanged)
+      ..dispose();
     _nameController.dispose();
     super.dispose();
+  }
+
+  void _handleNameFocusChanged() {
+    if (!_nameFocusNode.hasFocus || !_showAddForm) return;
+    // Guard against re-entrancy: focus events can fire several times in
+    // quick succession while the soft keyboard animates in, and we only
+    // need a single animateTo per burst. Without this, multiple concurrent
+    // animateTo calls compete inside the DraggableScrollableSheet.
+    if (_focusScrollPending) return;
+    final controller = _scrollController;
+    if (controller == null || !controller.hasClients) return;
+    _focusScrollPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        // Widget was disposed before the post-frame callback ran. Reset the
+        // flag in case the State is somehow reused; mounted is false after
+        // dispose so any further focus events would early-out anyway.
+        _focusScrollPending = false;
+        return;
+      }
+      if (!controller.hasClients) {
+        _focusScrollPending = false;
+        return;
+      }
+      controller
+          .animateTo(
+            controller.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+          )
+          .whenComplete(() {
+            // Release the guard only after animateTo settles, so a focus
+            // event arriving mid-animation does not schedule a second one.
+            // Skip the reset if we were disposed during the animation.
+            if (mounted) _focusScrollPending = false;
+          });
+    });
   }
 
   Future<void> _addTrack() async {
@@ -243,6 +300,7 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
                       const SizedBox(height: spaceMd),
                       TextFormField(
                         controller: _nameController,
+                        focusNode: _nameFocusNode,
                         maxLength: 30,
                         style: const TextStyle(color: colorTextPrimary),
                         decoration: InputDecoration(
