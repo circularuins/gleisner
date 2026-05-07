@@ -6,6 +6,7 @@ import '../../providers/artist_page_provider.dart';
 import '../../l10n/l10n.dart';
 import '../../providers/edit_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../utils/keyboard_height_observer.dart';
 import '../../utils/milestone_category.dart';
 
 class EditMilestonesSheet extends ConsumerStatefulWidget {
@@ -155,7 +156,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
             left: spaceLg,
             right: spaceLg,
             top: spaceLg,
-            bottom: spaceLg + MediaQuery.of(ctx).viewInsets.bottom,
+            bottom: spaceLg + KeyboardHeight.of(ctx),
           ),
           title: Text(
             context.l10n.editMilestone,
@@ -375,7 +376,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                     // it here keeps the Add button above the keyboard
                     // (matches the pattern in edit_profile_sheet,
                     // register_artist_wizard, etc.).
-                    bottom: spaceLg + MediaQuery.of(context).viewInsets.bottom,
+                    bottom: spaceLg + KeyboardHeight.of(context),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,

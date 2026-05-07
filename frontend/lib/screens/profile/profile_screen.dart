@@ -15,6 +15,7 @@ import '../../providers/tutorial_provider.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../l10n/l10n.dart';
 import '../../utils/account_switch_helper.dart';
+import '../../utils/keyboard_height_observer.dart';
 import '../../utils/month_names.dart';
 import '../../theme/gleisner_tokens.dart';
 import 'create_child_sheet.dart';
@@ -435,7 +436,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           left: spaceLg,
           right: spaceLg,
           top: spaceLg,
-          bottom: spaceLg + MediaQuery.of(ctx).viewInsets.bottom,
+          bottom: spaceLg + KeyboardHeight.of(ctx),
         ),
         // All l10n lookups inside the dialog use the builder's `ctx` rather
         // than the outer `_showDeleteAccountDialog` `context`. The outer

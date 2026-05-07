@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../l10n/l10n.dart';
+import '../../utils/keyboard_height_observer.dart';
 import '../../utils/open_url.dart';
 
 import '../../models/artist.dart';
@@ -998,7 +999,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
               left: spaceLg,
               right: spaceLg,
               top: spaceLg,
-              bottom: spaceLg + MediaQuery.of(context).viewInsets.bottom,
+              bottom: spaceLg + KeyboardHeight.of(context),
             ),
             title: Text(
               context.l10n.displayName,

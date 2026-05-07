@@ -9,6 +9,7 @@ import '../../models/post.dart';
 import '../../models/track.dart' show parseHexColor;
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/constellation_graph.dart';
+import '../../utils/keyboard_height_observer.dart';
 import '../../utils/open_url.dart';
 import '../../utils/reading_time.dart';
 import '../common/connection_type_picker.dart';
@@ -1021,7 +1022,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
             left: spaceLg,
             right: spaceLg,
             top: spaceLg,
-            bottom: spaceLg + MediaQuery.of(dialogContext).viewInsets.bottom,
+            bottom: spaceLg + KeyboardHeight.of(dialogContext),
           ),
           title: Text(
             existing != null

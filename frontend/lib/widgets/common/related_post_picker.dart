@@ -4,6 +4,7 @@ import '../../l10n/l10n.dart';
 import '../../models/post.dart';
 import '../../models/track.dart' show parseHexColor;
 import '../../theme/gleisner_tokens.dart';
+import '../../utils/keyboard_height_observer.dart';
 
 /// Bottom sheet picker for selecting a related post.
 class RelatedPostPicker extends StatefulWidget {
@@ -159,7 +160,7 @@ class _RelatedPostPickerState extends State<RelatedPostPicker> {
                       padding: EdgeInsets.only(
                         left: spaceLg,
                         right: spaceLg,
-                        bottom: MediaQuery.of(context).viewInsets.bottom,
+                        bottom: KeyboardHeight.of(context),
                       ),
                       child: Wrap(
                         spacing: 8,

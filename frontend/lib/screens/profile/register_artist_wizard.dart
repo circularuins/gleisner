@@ -11,6 +11,7 @@ import '../../models/genre.dart';
 import '../../l10n/l10n.dart';
 import '../../providers/my_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../utils/keyboard_height_observer.dart';
 
 /// ADR 013: 4-step artist registration wizard.
 /// Step 1: Intro — feature overview
@@ -498,7 +499,7 @@ class _StepProfile extends StatelessWidget {
         left: spaceXl,
         right: spaceXl,
         top: spaceXl,
-        bottom: MediaQuery.of(context).viewInsets.bottom + spaceXl,
+        bottom: KeyboardHeight.of(context) + spaceXl,
       ),
       child: Form(
         key: formKey,
@@ -671,8 +672,7 @@ class _StepProfile extends StatelessWidget {
                             left: spaceLg,
                             right: spaceLg,
                             top: spaceLg,
-                            bottom:
-                                spaceLg + MediaQuery.of(ctx).viewInsets.bottom,
+                            bottom: spaceLg + KeyboardHeight.of(ctx),
                           ),
                           title: Text(
                             context.l10n.createOwnGenre,
@@ -1052,8 +1052,7 @@ class _TrackChip extends StatelessWidget {
                           left: spaceLg,
                           right: spaceLg,
                           top: spaceLg,
-                          bottom:
-                              spaceLg + MediaQuery.of(ctx).viewInsets.bottom,
+                          bottom: spaceLg + KeyboardHeight.of(ctx),
                         ),
                         title: Text(
                           context.l10n.trackName,

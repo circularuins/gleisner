@@ -6,6 +6,7 @@ import '../../providers/artist_page_provider.dart';
 import '../../l10n/l10n.dart';
 import '../../providers/edit_artist_provider.dart';
 import '../../theme/gleisner_tokens.dart';
+import '../../utils/keyboard_height_observer.dart';
 
 class EditArtistAboutSheet extends ConsumerStatefulWidget {
   final Artist artist;
@@ -109,7 +110,7 @@ class _EditArtistAboutSheetState extends ConsumerState<EditArtistAboutSheet> {
               spaceXl,
               spaceLg,
               spaceXl,
-              spaceXl + MediaQuery.of(context).viewInsets.bottom,
+              spaceXl + KeyboardHeight.of(context),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
