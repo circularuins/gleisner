@@ -27,6 +27,13 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
   final _nameController = TextEditingController();
   final _addFormKey = GlobalKey<FormState>();
   late final FocusNode _nameFocusNode;
+
+  /// True while a focus-driven scroll-to-bottom is in flight. Set when an
+  /// animateTo is queued, cleared inside `whenComplete` once the animation
+  /// finishes (or via the early-out paths). Guards against concurrent
+  /// animateTo calls when focus events fire repeatedly during the keyboard
+  /// slide-in animation, and prevents reuse of a stale post-frame callback
+  /// after dispose.
   bool _focusScrollPending = false;
   ScrollController? _scrollController;
 
@@ -64,14 +71,29 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
     if (controller == null || !controller.hasClients) return;
     _focusScrollPending = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusScrollPending = false;
-      if (!mounted) return;
-      if (!controller.hasClients) return;
-      controller.animateTo(
-        controller.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      if (!mounted) {
+        // Widget was disposed before the post-frame callback ran. Reset the
+        // flag in case the State is somehow reused; mounted is false after
+        // dispose so any further focus events would early-out anyway.
+        _focusScrollPending = false;
+        return;
+      }
+      if (!controller.hasClients) {
+        _focusScrollPending = false;
+        return;
+      }
+      controller
+          .animateTo(
+            controller.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+          )
+          .whenComplete(() {
+            // Release the guard only after animateTo settles, so a focus
+            // event arriving mid-animation does not schedule a second one.
+            // Skip the reset if we were disposed during the animation.
+            if (mounted) _focusScrollPending = false;
+          });
     });
   }
 

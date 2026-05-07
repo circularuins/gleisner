@@ -437,8 +437,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           top: spaceLg,
           bottom: spaceLg + MediaQuery.of(ctx).viewInsets.bottom,
         ),
+        // All l10n lookups inside the dialog use the builder's `ctx` rather
+        // than the outer `_showDeleteAccountDialog` `context`. The outer
+        // context can become stale during deletion: authProvider.deleteAccount
+        // logs out, the router redirects to /login, and the parent Profile
+        // widget is unmounted while this AlertDialog is still on screen.
+        // The outer `context` is reserved for post-dialog `mounted` checks
+        // and ScaffoldMessenger.of(context) below.
         title: Text(
-          context.l10n.deleteAccountConfirmTitle,
+          ctx.l10n.deleteAccountConfirmTitle,
           style: const TextStyle(color: colorTextPrimary),
         ),
         content: Column(
@@ -446,7 +453,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              context.l10n.cannotBeUndone,
+              ctx.l10n.cannotBeUndone,
               style: const TextStyle(
                 color: colorTextPrimary,
                 fontWeight: weightSemibold,
@@ -454,12 +461,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: spaceSm),
             Text(
-              context.l10n.deleteAccountWarning,
+              ctx.l10n.deleteAccountWarning,
               style: const TextStyle(color: colorTextSecondary),
             ),
             const SizedBox(height: spaceXs),
             Text(
-              context.l10n.deleteAccountDetails,
+              ctx.l10n.deleteAccountDetails,
               style: const TextStyle(
                 color: colorTextSecondary,
                 fontSize: fontSizeSm,
@@ -471,7 +478,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               controller: passwordController,
               obscureText: true,
               decoration: InputDecoration(
-                labelText: context.l10n.enterPasswordToConfirm,
+                labelText: ctx.l10n.enterPasswordToConfirm,
                 border: const OutlineInputBorder(),
               ),
             ),
@@ -480,12 +487,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.l10n.cancel),
+            child: Text(ctx.l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
-              context.l10n.deleteAccount,
+              ctx.l10n.deleteAccount,
               style: const TextStyle(color: colorError),
             ),
           ),
