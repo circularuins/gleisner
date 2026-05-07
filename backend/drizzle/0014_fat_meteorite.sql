@@ -1,1 +1,11 @@
+-- Avatar rail / myTuneIns sort: aggregate MAX(posts.updated_at) per author
+-- after filtering by visibility = 'public'. (author_id, visibility,
+-- updated_at) is the matching index order.
+--
+-- ⚠ Production note: this `CREATE INDEX` is non-CONCURRENTLY, which takes
+-- a ShareLock on `posts` and blocks INSERT/UPDATE/DELETE while the index
+-- is built. Drizzle Kit runs migrations inside a transaction, so adding
+-- CONCURRENTLY here is not an option. See `docs/infrastructure.md` §6.2
+-- for the recommended production procedure (run CREATE INDEX CONCURRENTLY
+-- manually, then mark this migration as applied).
 CREATE INDEX "posts_author_visibility_updated_idx" ON "posts" USING btree ("author_id","visibility","updated_at");

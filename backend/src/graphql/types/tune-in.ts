@@ -27,7 +27,11 @@ TuneInType.implement({
     }),
     user: t.field({
       type: PublicUserType,
-      resolve: async (tuneIn) => {
+      resolve: async (tuneIn, _args, ctx) => {
+        // Use prefetched cache from the followers-list resolvers (tuneIns,
+        // Artist.tuneIns) when available — avoids N+1 SELECTs.
+        const cached = ctx.tuneInUserCache?.get(tuneIn.userId);
+        if (cached) return cached;
         const [user] = await db
           .select(publicUserColumns)
           .from(users)
@@ -170,6 +174,69 @@ async function assertArtistOwnership(
   return artist;
 }
 
+/**
+ * Variant of {@link assertArtistOwnership} for callers that already hold the
+ * artist row (e.g. the `Artist.tuneIns` field resolver receives `artist`
+ * from its parent). Avoids a redundant DB roundtrip while preserving the
+ * same uniform "Forbidden" semantics.
+ */
+function assertArtistOwnerByUserId(
+  artistUserId: string,
+  authUserId: string | undefined,
+): void {
+  if (!authUserId) {
+    throw new GraphQLError("Authentication required");
+  }
+  if (artistUserId !== authUserId) {
+    throw new GraphQLError("Forbidden");
+  }
+}
+
+/**
+ * Common shape returned by the followers-list resolvers (`tuneIns(artistId)`
+ * and `Artist.tuneIns`). They both fetch tune-in rows joined with the
+ * follower's public-user columns and populate the per-request cache so
+ * `TuneInType.user` does not re-issue SELECTs for each follower.
+ */
+async function fetchFollowersWithUsers(
+  artistId: string,
+  ctx: import("../builder.js").GraphQLContext,
+): Promise<
+  {
+    userId: string;
+    artistId: string;
+    createdAt: Date;
+    lastPostActivityAt: null;
+  }[]
+> {
+  const rows = await db
+    .select({
+      userId: tuneIns.userId,
+      artistId: tuneIns.artistId,
+      createdAt: tuneIns.createdAt,
+      user: publicUserColumns,
+    })
+    .from(tuneIns)
+    .innerJoin(users, eq(users.id, tuneIns.userId))
+    .where(eq(tuneIns.artistId, artistId));
+
+  if (!ctx.tuneInUserCache) {
+    ctx.tuneInUserCache = new Map();
+  }
+  for (const row of rows) {
+    ctx.tuneInUserCache.set(row.userId, row.user);
+  }
+
+  // The followers list does not need lastPostActivityAt — that field is
+  // about the followed artist's activity, not about each follower.
+  return rows.map((r) => ({
+    userId: r.userId,
+    artistId: r.artistId,
+    createdAt: r.createdAt,
+    lastPostActivityAt: null,
+  }));
+}
+
 builder.queryFields((t) => ({
   tuneIns: t.field({
     type: [TuneInType],
@@ -180,18 +247,7 @@ builder.queryFields((t) => ({
       // Followers list is private to the artist owner. See
       // assertArtistOwnership() for rationale.
       await assertArtistOwnership(args.artistId, ctx.authUser?.userId);
-      const rows = await db
-        .select()
-        .from(tuneIns)
-        .where(eq(tuneIns.artistId, args.artistId));
-      // The followers list does not need lastPostActivityAt — that field is
-      // about the followed artist's activity, not about each follower.
-      return rows.map((r) => ({
-        userId: r.userId,
-        artistId: r.artistId,
-        createdAt: r.createdAt,
-        lastPostActivityAt: null,
-      }));
+      return fetchFollowersWithUsers(args.artistId, ctx);
     },
   }),
 
@@ -232,8 +288,10 @@ builder.queryFields((t) => ({
         // dependency analysis lets us SELECT artists.* and ti.created_at
         // without listing them here.
         .groupBy(tuneIns.userId, tuneIns.artistId, artists.id)
+        // Reuse the SELECT alias rather than repeating the MAX(...)
+        // expression so the two stay in sync if the aggregate changes.
         .orderBy(
-          sql`MAX(${posts.updatedAt}) DESC NULLS LAST`,
+          sql`last_post_activity_at DESC NULLS LAST`,
           asc(tuneIns.createdAt),
         );
 
@@ -266,17 +324,10 @@ builder.objectFields(ArtistType, (t) => ({
   tuneIns: t.field({
     type: [TuneInType],
     resolve: async (artist, _args, ctx) => {
-      await assertArtistOwnership(artist.id, ctx.authUser?.userId);
-      const rows = await db
-        .select()
-        .from(tuneIns)
-        .where(eq(tuneIns.artistId, artist.id));
-      return rows.map((r) => ({
-        userId: r.userId,
-        artistId: r.artistId,
-        createdAt: r.createdAt,
-        lastPostActivityAt: null,
-      }));
+      // Parent already provides artist.userId, so we can authorize with a
+      // direct comparison instead of re-fetching the artist row.
+      assertArtistOwnerByUserId(artist.userId, ctx.authUser?.userId);
+      return fetchFollowersWithUsers(artist.id, ctx);
     },
   }),
 }));

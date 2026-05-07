@@ -36,6 +36,25 @@ export interface GraphQLContext {
       updatedAt: Date;
     }
   >;
+  /**
+   * Per-request cache for tune-in follower lookups (avoids N+1 on
+   * `TuneInType.user` when resolving the followers list of an artist).
+   * Populated by the `tuneIns(artistId)` query and the `Artist.tuneIns`
+   * field — both prefetch the user via JOIN and store the
+   * `publicUserColumns` shape here.
+   */
+  tuneInUserCache?: Map<
+    string,
+    {
+      id: string;
+      did: string;
+      username: string;
+      displayName: string | null;
+      bio: string | null;
+      avatarUrl: string | null;
+      createdAt: Date;
+    }
+  >;
 }
 
 export const builder = new SchemaBuilder<{
