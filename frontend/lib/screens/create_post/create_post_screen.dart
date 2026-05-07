@@ -421,10 +421,18 @@ class _TrackStep extends ConsumerWidget {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return AlertDialog(
-              // AlertDialog is centered by default and gets covered by the
-              // soft keyboard + predictive bar on iPhone Safari. Push it up
-              // by the keyboard height so the input and Create button stay
-              // visible while typing.
+              // PR #342 made Flutter's automatic insetPadding addition work
+              // on iPhone Safari (by injecting visualViewport into MediaQuery),
+              // so the dialog no longer flies off the top. But on small visible
+              // areas (iPhone Safari with the keyboard up leaves ~358px of
+              // viewport height), the title + TextField + color preview row +
+              // Cancel/Create buttons collectively exceed the available
+              // vertical space, and the top edge of the dialog gets clipped.
+              // `scrollable: true` makes Flutter wrap the title+content+actions
+              // in a scroll view so the whole dialog fits inside the visible
+              // area, with internal scrolling if the user wants to peek at
+              // anything that's offscreen.
+              scrollable: true,
               insetPadding: EdgeInsets.only(
                 left: spaceLg,
                 right: spaceLg,
