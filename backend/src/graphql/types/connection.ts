@@ -1,8 +1,9 @@
 import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
-import { connections, posts } from "../../db/schema/index.js";
+import { connections, posts, users } from "../../db/schema/index.js";
 import { and, eq, or } from "drizzle-orm";
+import { isAuthorVisibleToViewer } from "../access.js";
 import { PostType } from "./post.js";
 
 const ConnectionTypeEnum = builder.enumType("ConnectionType", {
@@ -33,24 +34,58 @@ ConnectionObjectType.implement({
     }),
     source: t.field({
       type: PostType,
-      resolve: async (conn) => {
-        const [post] = await db
-          .select()
+      nullable: true,
+      resolve: async (conn, _args, ctx) => {
+        // Hide posts whose author is a child / non-public user (#250 sec-2).
+        // INNER JOIN users so we can apply isAuthorVisibleToViewer in the
+        // same query and avoid leaking the source post's existence.
+        const [row] = await db
+          .select({
+            post: posts,
+            authorMeta: {
+              userId: users.id,
+              guardianId: users.guardianId,
+              profileVisibility: users.profileVisibility,
+            },
+          })
           .from(posts)
+          .innerJoin(users, eq(posts.authorId, users.id))
           .where(eq(posts.id, conn.sourceId))
           .limit(1);
-        return post;
+        if (!row) return null;
+        if (
+          !isAuthorVisibleToViewer(row.authorMeta, ctx.authUser?.userId ?? null)
+        ) {
+          return null;
+        }
+        return row.post;
       },
     }),
     target: t.field({
       type: PostType,
-      resolve: async (conn) => {
-        const [post] = await db
-          .select()
+      nullable: true,
+      resolve: async (conn, _args, ctx) => {
+        // Hide posts whose author is a child / non-public user (#250 sec-2).
+        const [row] = await db
+          .select({
+            post: posts,
+            authorMeta: {
+              userId: users.id,
+              guardianId: users.guardianId,
+              profileVisibility: users.profileVisibility,
+            },
+          })
           .from(posts)
+          .innerJoin(users, eq(posts.authorId, users.id))
           .where(eq(posts.id, conn.targetId))
           .limit(1);
-        return post;
+        if (!row) return null;
+        if (
+          !isAuthorVisibleToViewer(row.authorMeta, ctx.authUser?.userId ?? null)
+        ) {
+          return null;
+        }
+        return row.post;
       },
     }),
   }),
@@ -90,14 +125,22 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Source post not found");
       }
 
-      // Verify target post exists and is accessible (not draft, unless own)
+      // Verify target post exists and is accessible (not draft, not authored
+      // by a child / non-public user — same enumeration-oracle guard as
+      // toggleReaction; see #250 sec-2).
       const [targetPost] = await db
         .select({
           id: posts.id,
           visibility: posts.visibility,
           authorId: posts.authorId,
+          authorMeta: {
+            userId: users.id,
+            guardianId: users.guardianId,
+            profileVisibility: users.profileVisibility,
+          },
         })
         .from(posts)
+        .innerJoin(users, eq(posts.authorId, users.id))
         .where(eq(posts.id, args.targetId))
         .limit(1);
       if (!targetPost) {
@@ -106,6 +149,14 @@ builder.mutationFields((t) => ({
       if (
         targetPost.visibility === "draft" &&
         targetPost.authorId !== ctx.authUser.userId
+      ) {
+        throw new GraphQLError("Target post not found");
+      }
+      if (
+        !isAuthorVisibleToViewer(
+          targetPost.authorMeta,
+          ctx.authUser?.userId ?? null,
+        )
       ) {
         throw new GraphQLError("Target post not found");
       }

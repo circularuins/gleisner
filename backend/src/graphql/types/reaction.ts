@@ -3,6 +3,7 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { posts, reactions, users } from "../../db/schema/index.js";
 import { and, eq, sql, desc } from "drizzle-orm";
+import { isAuthorVisibleToViewer } from "../access.js";
 import { PostType } from "./post.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 
@@ -35,13 +36,31 @@ ReactionType.implement({
     }),
     post: t.field({
       type: PostType,
-      resolve: async (reaction) => {
-        const [post] = await db
-          .select()
+      nullable: true,
+      resolve: async (reaction, _args, ctx) => {
+        // Join users so we can apply isAuthorVisibleToViewer in the same
+        // SELECT and avoid leaking child / non-public author posts via
+        // ReactionType.post (#250 sec-4).
+        const [row] = await db
+          .select({
+            post: posts,
+            authorMeta: {
+              userId: users.id,
+              guardianId: users.guardianId,
+              profileVisibility: users.profileVisibility,
+            },
+          })
           .from(posts)
+          .innerJoin(users, eq(posts.authorId, users.id))
           .where(eq(posts.id, reaction.postId))
           .limit(1);
-        return post;
+        if (!row) return null;
+        if (
+          !isAuthorVisibleToViewer(row.authorMeta, ctx.authUser?.userId ?? null)
+        ) {
+          return null;
+        }
+        return row.post;
       },
     }),
   }),
@@ -69,13 +88,30 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Emoji must be 10 characters or less");
       }
 
-      // Verify post exists
-      const [post] = await db
-        .select({ id: posts.id })
+      // Verify post exists AND its author is visible to the viewer.
+      // Child / non-public authors must not be reachable as reaction targets;
+      // returning the same "Post not found" message keeps existence and
+      // visibility indistinguishable (no enumeration oracle, #250 sec-4).
+      const [postRow] = await db
+        .select({
+          id: posts.id,
+          authorMeta: {
+            userId: users.id,
+            guardianId: users.guardianId,
+            profileVisibility: users.profileVisibility,
+          },
+        })
         .from(posts)
+        .innerJoin(users, eq(posts.authorId, users.id))
         .where(eq(posts.id, args.postId))
         .limit(1);
-      if (!post) {
+      if (
+        !postRow ||
+        !isAuthorVisibleToViewer(
+          postRow.authorMeta,
+          ctx.authUser?.userId ?? null,
+        )
+      ) {
         throw new GraphQLError("Post not found");
       }
 
@@ -160,6 +196,32 @@ builder.queryFields((t) => ({
     resolve: async (_parent, args, ctx) => {
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
+      }
+      // Refuse to surface reactions for posts whose author is a child /
+      // non-public user. Without this guard, a viewer who knows a child
+      // author's post id can enumerate its reactions even though
+      // toggleReaction / ReactionType.post block direct access (#250 sec-3).
+      const [postRow] = await db
+        .select({
+          id: posts.id,
+          authorMeta: {
+            userId: users.id,
+            guardianId: users.guardianId,
+            profileVisibility: users.profileVisibility,
+          },
+        })
+        .from(posts)
+        .innerJoin(users, eq(posts.authorId, users.id))
+        .where(eq(posts.id, args.postId))
+        .limit(1);
+      if (
+        !postRow ||
+        !isAuthorVisibleToViewer(
+          postRow.authorMeta,
+          ctx.authUser?.userId ?? null,
+        )
+      ) {
+        return [];
       }
       return db
         .select()
