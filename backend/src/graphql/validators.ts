@@ -180,6 +180,38 @@ export async function assertUploadedR2ObjectsMatch(
   throw errors[0].reason;
 }
 
+/**
+ * RFC 4122 UUID format: 8-4-4-4-12 hex digits.
+ * Accepts any version (v1/v4/v7) and both upper/lower case hex.
+ *
+ * Strict format check before passing untrusted input to `eq(..., args.id)` /
+ * Drizzle parameter binding. Without this, malformed strings reach Postgres
+ * and trigger `invalid input syntax for type uuid` errors that surface raw DB
+ * details (driver name, query fragments) through GraphQL errors. The check
+ * also stops basic enumeration probes that rely on engaging DB error paths.
+ */
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Validate that a value is a well-formed RFC 4122 UUID.
+ *
+ * `fieldName` is rendered into the error message so multi-arg resolvers
+ * (e.g. `createConnection(sourceId, targetId)`) tell the client which
+ * argument is malformed without exposing the rejected value itself.
+ *
+ * Convention: pass a human-readable, lower-case, space-separated phrase
+ * (`"post id"`, `"track id"`, `"source post id"`). The substring is used
+ * verbatim as `Invalid <fieldName>`, and is asserted by tests
+ * (`__tests__/validators.test.ts`, `__tests__/track-author-visibility.test.ts`),
+ * so renaming a field name is a contract change — match the existing tone.
+ */
+export function validateUUID(value: unknown, fieldName: string): void {
+  if (typeof value !== "string" || !UUID_REGEX.test(value)) {
+    throw new GraphQLError(`Invalid ${fieldName}`);
+  }
+}
+
 const VALID_POST_VISIBILITY = ["public", "draft"] as const;
 const VALID_PROFILE_VISIBILITY = ["public", "private"] as const;
 

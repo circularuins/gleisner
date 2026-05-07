@@ -19,6 +19,7 @@ import {
   MAX_IMAGES_PER_POST,
   assertUploadedR2ObjectsMatch,
   assertUploadedR2ObjectMatches,
+  validateUUID,
 } from "../validators.js";
 import { GraphQLError } from "graphql";
 import {
@@ -224,5 +225,110 @@ describe("assertUploadedR2ObjectsMatch", () => {
     await expect(
       assertUploadedR2ObjectMatches("https://r2.example/x.jpg"),
     ).rejects.toBeInstanceOf(GraphQLError);
+  });
+});
+
+// PR-B G5: stop malformed UUIDs from reaching `eq(..., args.id)` so Postgres'
+// `invalid input syntax for type uuid` cannot leak as a GraphQL error message,
+// and so basic enumeration probes that engage DB error paths are short-circuited.
+describe("validateUUID", () => {
+  // Lower-case canonical, the form Postgres emits.
+  it("accepts a lowercase RFC 4122 UUID (v4 canonical)", () => {
+    expect(() =>
+      validateUUID("550e8400-e29b-41d4-a716-446655440000", "post id"),
+    ).not.toThrow();
+  });
+
+  // Postgres returns lowercase, but clients may pass either case; both must pass.
+  it("accepts an uppercase UUID (case-insensitive)", () => {
+    expect(() =>
+      validateUUID("550E8400-E29B-41D4-A716-446655440000", "post id"),
+    ).not.toThrow();
+  });
+
+  // PG accepts any UUID variant — v1, v4, v7 — so the check must be
+  // version-agnostic. Drizzle stores them all as `uuid` regardless of variant.
+  it.each([
+    ["v1", "6fa459ea-ee8a-11de-9264-0800200c9a66"],
+    ["v4", "f47ac10b-58cc-4372-a567-0e02b2c3d479"],
+    ["v7", "01890c6f-9c8b-7c5e-9f3a-3a2b1c0d4e5f"],
+  ])("accepts a valid UUID%s", (_, uuid) => {
+    expect(() => validateUUID(uuid, "post id")).not.toThrow();
+  });
+
+  it("rejects empty string", () => {
+    expect(() => validateUUID("", "post id")).toThrow(GraphQLError);
+    expect(() => validateUUID("", "post id")).toThrow("Invalid post id");
+  });
+
+  it("rejects strings missing dashes (no group separators)", () => {
+    expect(() =>
+      validateUUID("550e8400e29b41d4a716446655440000", "post id"),
+    ).toThrow(GraphQLError);
+  });
+
+  it("rejects strings shorter than 36 chars", () => {
+    expect(() =>
+      validateUUID("550e8400-e29b-41d4-a716-44665544000", "post id"),
+    ).toThrow(GraphQLError);
+  });
+
+  it("rejects strings longer than 36 chars", () => {
+    expect(() =>
+      validateUUID("550e8400-e29b-41d4-a716-4466554400000", "post id"),
+    ).toThrow(GraphQLError);
+  });
+
+  it("rejects strings with non-hex characters", () => {
+    expect(() =>
+      validateUUID("zzzzzzzz-e29b-41d4-a716-446655440000", "post id"),
+    ).toThrow(GraphQLError);
+  });
+
+  it("rejects strings with wrong group lengths (8-4-4-4-12 violation)", () => {
+    expect(() =>
+      validateUUID("550e840-e29b-41d4-a716-4466554400000", "post id"),
+    ).toThrow(GraphQLError);
+  });
+
+  // Belt-and-braces — GraphQL's `String!` schema check rejects non-strings
+  // before the resolver runs, but the validator is also called from internal
+  // helpers that don't share that contract.
+  it("rejects non-string values (defensive)", () => {
+    expect(() => validateUUID(42 as unknown, "post id")).toThrow(GraphQLError);
+    expect(() => validateUUID(null as unknown, "post id")).toThrow(
+      GraphQLError,
+    );
+    expect(() => validateUUID(undefined as unknown, "post id")).toThrow(
+      GraphQLError,
+    );
+    expect(() => validateUUID({} as unknown, "post id")).toThrow(GraphQLError);
+  });
+
+  // fieldName interpolation matters because `createConnection` passes both
+  // `sourceId` and `targetId` through validateUUID — a generic message would
+  // not tell the client which arg was rejected.
+  it("interpolates fieldName into the error message", () => {
+    expect(() => validateUUID("not-a-uuid", "track id")).toThrow(
+      "Invalid track id",
+    );
+    expect(() => validateUUID("not-a-uuid", "source post id")).toThrow(
+      "Invalid source post id",
+    );
+  });
+
+  it("does NOT include the rejected value in the error message", () => {
+    // Don't echo unverified input back — keeps log lines from carrying
+    // attacker-controlled bytes and avoids reflected-XSS-shaped surface in
+    // any client that renders error messages without escaping.
+    const evil = "<script>alert(1)</script>";
+    try {
+      validateUUID(evil, "post id");
+      throw new Error("expected validateUUID to throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(GraphQLError);
+      expect((err as GraphQLError).message).toBe("Invalid post id");
+      expect((err as GraphQLError).message).not.toContain(evil);
+    }
   });
 });

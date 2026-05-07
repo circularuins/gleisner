@@ -5,6 +5,7 @@ import { connections, posts, users } from "../../db/schema/index.js";
 import { and, eq, or, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { isAuthorVisibleToViewer } from "../access.js";
+import { validateUUID } from "../validators.js";
 import { PostType } from "./post.js";
 
 /**
@@ -156,6 +157,8 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.sourceId, "source post id");
+      validateUUID(args.targetId, "target post id");
 
       // Self-reference check
       if (args.sourceId === args.targetId) {
@@ -239,6 +242,7 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.id, "connection id");
 
       // Fetch connection
       const [connection] = await db
@@ -282,6 +286,7 @@ builder.queryFields((t) => ({
       postId: t.arg.string({ required: true }),
     },
     resolve: async (_parent, args, ctx) => {
+      validateUUID(args.postId, "post id");
       // Drop rows where either endpoint's author is hidden — without this,
       // sourceId / targetId leak in plaintext for connections involving a
       // child / private author's post (#250 review C2).

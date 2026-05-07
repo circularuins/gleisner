@@ -4,6 +4,7 @@ import { db } from "../../db/index.js";
 import { artists, posts, tuneIns, users } from "../../db/schema/index.js";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
+import { validateUUID } from "../validators.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 
 const TuneInType = builder.objectRef<{
@@ -80,6 +81,7 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.artistId, "artist id");
 
       // Verify artist exists
       const [artist] = await db
@@ -255,6 +257,7 @@ builder.queryFields((t) => ({
       artistId: t.arg.string({ required: true }),
     },
     resolve: async (_parent, args, ctx) => {
+      validateUUID(args.artistId, "artist id");
       // Followers list is private to the artist owner. See
       // assertArtistOwnership() for rationale.
       await assertArtistOwnership(args.artistId, ctx.authUser?.userId);
