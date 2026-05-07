@@ -592,5 +592,39 @@
   "publicLinkCopied": "Public link copied",
   "@publicLinkCopied": {
     "description": "SnackBar message confirming that the artist's public-timeline URL was placed on the clipboard."
+  },
+
+  "selectColor": "Select a color",
+  "@selectColor": {
+    "description": "Section heading inside the track color picker. Reused by the new-track dialog, the artist registration wizard, and the edit-track dialog."
+  },
+  "moreColors": "More colors",
+  "@moreColors": {
+    "description": "Button label that expands the inline preset color grid into the full HSV color picker for entering an arbitrary HEX value."
+  },
+  "customColorHex": "Custom color (HEX)",
+  "@customColorHex": {
+    "description": "Label of the text field where users can type or paste an arbitrary #RRGGBB HEX color when the preset grid does not have what they want."
+  },
+  "invalidHexFormat": "Invalid HEX format (e.g. #ff0000)",
+  "@invalidHexFormat": {
+    "description": "Validation error shown when the HEX color text field contains anything other than a #RRGGBB 6-digit value. Mirrors the backend validation regex in track.ts."
+  },
+  "editTrack": "Edit track",
+  "@editTrack": {
+    "description": "Title of the track edit dialog (rename + recolor) opened by tapping the edit icon on a track row in the Edit Artist tracks sheet."
+  },
+  "failedUpdateTrack": "Failed to update track",
+  "@failedUpdateTrack": {
+    "description": "Generic fallback shown when the updateTrack mutation fails. Server error details are logged via debugPrint only and never surfaced to the UI per .claude/rules/frontend-implementation.md."
+  },
+  "failedUpdateTrackRetry": "Failed to update track. Please try again.",
+  "@failedUpdateTrackRetry": {
+    "description": "Same as failedUpdateTrack with an explicit retry hint, mirroring failedCreateTrackRetry."
+  },
+  "colorPresetLabel": "Color {hex}",
+  "@colorPresetLabel": {
+    "description": "Semantics label for each tappable color swatch in the track color picker preset grid. Read by screen readers as e.g. 'Color #f97316'.",
+    "placeholders": { "hex": { "type": "String" } }
   }
 }

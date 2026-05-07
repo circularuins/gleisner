@@ -2377,6 +2377,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Public link copied'**
   String get publicLinkCopied;
+
+  /// Section heading inside the track color picker. Reused by the new-track dialog, the artist registration wizard, and the edit-track dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a color'**
+  String get selectColor;
+
+  /// Button label that expands the inline preset color grid into the full HSV color picker for entering an arbitrary HEX value.
+  ///
+  /// In en, this message translates to:
+  /// **'More colors'**
+  String get moreColors;
+
+  /// Label of the text field where users can type or paste an arbitrary #RRGGBB HEX color when the preset grid does not have what they want.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom color (HEX)'**
+  String get customColorHex;
+
+  /// Validation error shown when the HEX color text field contains anything other than a #RRGGBB 6-digit value. Mirrors the backend validation regex in track.ts.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid HEX format (e.g. #ff0000)'**
+  String get invalidHexFormat;
+
+  /// Title of the track edit dialog (rename + recolor) opened by tapping the edit icon on a track row in the Edit Artist tracks sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit track'**
+  String get editTrack;
+
+  /// Generic fallback shown when the updateTrack mutation fails. Server error details are logged via debugPrint only and never surfaced to the UI per .claude/rules/frontend-implementation.md.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update track'**
+  String get failedUpdateTrack;
+
+  /// Same as failedUpdateTrack with an explicit retry hint, mirroring failedCreateTrackRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update track. Please try again.'**
+  String get failedUpdateTrackRetry;
+
+  /// Semantics label for each tappable color swatch in the track color picker preset grid. Read by screen readers as e.g. 'Color #f97316'.
+  ///
+  /// In en, this message translates to:
+  /// **'Color {hex}'**
+  String colorPresetLabel(String hex);
 }
 
 class _AppLocalizationsDelegate

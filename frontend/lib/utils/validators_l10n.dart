@@ -1,4 +1,5 @@
 import '../l10n/l10n.dart';
+import 'color_hex.dart';
 
 /// Validator function type alias.
 typedef Validator = String? Function(String?);
@@ -41,5 +42,13 @@ Validator validateInviteCodeL10n(AppLocalizations l10n) => (value) {
   if (!_inviteCodeRegex.hasMatch(value.trim())) {
     return l10n.invalidInviteCode;
   }
+  return null;
+};
+
+/// Returns a localized HEX color (`#RRGGBB`) validator. Empty / null
+/// values are treated as required and rejected.
+Validator validateHexColorL10n(AppLocalizations l10n) => (value) {
+  if (value == null || value.isEmpty) return l10n.invalidHexFormat;
+  if (!isValidHex6(value)) return l10n.invalidHexFormat;
   return null;
 };

@@ -1240,4 +1240,30 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get publicLinkCopied => '公開リンクをコピーしました';
+
+  @override
+  String get selectColor => '色を選択';
+
+  @override
+  String get moreColors => 'もっと色';
+
+  @override
+  String get customColorHex => 'カスタムカラー（HEX）';
+
+  @override
+  String get invalidHexFormat => 'HEX形式が正しくありません（例: #ff0000）';
+
+  @override
+  String get editTrack => 'トラックを編集';
+
+  @override
+  String get failedUpdateTrack => 'トラックの更新に失敗しました';
+
+  @override
+  String get failedUpdateTrackRetry => 'トラックの更新に失敗しました。再試行してください。';
+
+  @override
+  String colorPresetLabel(String hex) {
+    return '色 $hex';
+  }
 }
