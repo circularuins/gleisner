@@ -48,6 +48,9 @@ Map<String, dynamic> _tuneInResponse(
   return {
     'toggleTuneIn': {
       'createdAt': '2026-01-01T00:00:00Z',
+      // Newly tuned-in artists always start with null; the next loadMyTuneIns
+      // refresh fills it in if the artist has public posts.
+      'lastPostActivityAt': null,
       'artist': {
         'id': id,
         'artistUsername': username,
@@ -72,6 +75,10 @@ Map<String, dynamic> _myTuneInsResponse(List<Map<String, dynamic>> artists) {
           (a) => {
             '__typename': 'TuneIn',
             'createdAt': '2026-01-01T00:00:00Z',
+            // Field is part of the query — graphql_flutter raises a partial-
+            // data exception if the mock omits it. null = artist has not
+            // posted (or only has draft posts).
+            'lastPostActivityAt': null,
             'artist': a,
           },
         )
@@ -267,6 +274,138 @@ void main() {
         await notifier.toggleTuneIn('a1');
         expect(container.read(tuneInProvider).isTunedIn('a1'), isFalse);
       });
+    });
+
+    group('lastPostActivityAt and avatar rail order', () {
+      // Server-side ordering: `myTuneIns` returns artists sorted by
+      // MAX(posts.updated_at) DESC NULLS LAST, then tunedInAt ASC. The
+      // notifier preserves that order; no client-side re-sorting.
+
+      Map<String, dynamic> activityResponse(
+        List<
+          ({String id, String username, String? lastActivity, String tunedInAt})
+        >
+        entries,
+      ) {
+        return {
+          '__typename': 'Query',
+          'myTuneIns': entries
+              .map(
+                (e) => {
+                  '__typename': 'TuneIn',
+                  'createdAt': e.tunedInAt,
+                  'lastPostActivityAt': e.lastActivity,
+                  'artist': {
+                    '__typename': 'Artist',
+                    'id': e.id,
+                    'artistUsername': e.username,
+                    'displayName': e.username,
+                    'avatarUrl': null,
+                    'tunedInCount': 1,
+                    'profileVisibility': 'public',
+                  },
+                },
+              )
+              .toList(),
+        };
+      }
+
+      test('parses lastPostActivityAt as DateTime when present', () async {
+        final client = _clientWithResponses([
+          activityResponse([
+            (
+              id: 'a1',
+              username: 'artist1',
+              lastActivity: '2026-03-01T12:34:56Z',
+              tunedInAt: '2026-01-01T00:00:00Z',
+            ),
+          ]),
+        ]);
+        final container = _createContainer(client: client);
+        addTearDown(container.dispose);
+
+        await container.read(tuneInProvider.notifier).loadMyTuneIns();
+        final artist = container.read(tuneInProvider).tunedInArtists.single;
+        expect(artist.lastPostActivityAt, isNotNull);
+        expect(
+          artist.lastPostActivityAt!.toUtc().toIso8601String(),
+          '2026-03-01T12:34:56.000Z',
+        );
+      });
+
+      test(
+        'parses lastPostActivityAt as null when artist has no posts',
+        () async {
+          final client = _clientWithResponses([
+            activityResponse([
+              (
+                id: 'a1',
+                username: 'artist1',
+                lastActivity: null,
+                tunedInAt: '2026-01-01T00:00:00Z',
+              ),
+            ]),
+          ]);
+          final container = _createContainer(client: client);
+          addTearDown(container.dispose);
+
+          await container.read(tuneInProvider.notifier).loadMyTuneIns();
+          expect(
+            container
+                .read(tuneInProvider)
+                .tunedInArtists
+                .single
+                .lastPostActivityAt,
+            isNull,
+          );
+        },
+      );
+
+      test(
+        'preserves server-provided order (active first, no-activity last)',
+        () async {
+          // Server has already sorted: b (recent) > c (older) > a, d (no activity,
+          // tunedInAt ASC). The notifier must not re-sort.
+          final client = _clientWithResponses([
+            activityResponse([
+              (
+                id: 'b',
+                username: 'mart_b',
+                lastActivity: '2026-03-01T00:00:00Z',
+                tunedInAt: '2026-01-02T00:00:00Z',
+              ),
+              (
+                id: 'c',
+                username: 'mart_c',
+                lastActivity: '2026-02-01T00:00:00Z',
+                tunedInAt: '2026-01-03T00:00:00Z',
+              ),
+              (
+                id: 'a',
+                username: 'mart_a',
+                lastActivity: null,
+                tunedInAt: '2026-01-01T00:00:00Z',
+              ),
+              (
+                id: 'd',
+                username: 'mart_d',
+                lastActivity: null,
+                tunedInAt: '2026-01-04T00:00:00Z',
+              ),
+            ]),
+          ]);
+          final container = _createContainer(client: client);
+          addTearDown(container.dispose);
+
+          await container.read(tuneInProvider.notifier).loadMyTuneIns();
+          final usernames = container
+              .read(tuneInProvider)
+              .tunedInArtists
+              .map((a) => a.artistUsername)
+              .toList();
+          expect(usernames, ['mart_b', 'mart_c', 'mart_a', 'mart_d']);
+        },
+      );
     });
 
     group('Tune Out sequence (simulating Timeline behavior)', () {

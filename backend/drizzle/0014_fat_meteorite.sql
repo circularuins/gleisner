@@ -1,0 +1,1 @@
+CREATE INDEX "posts_author_visibility_updated_idx" ON "posts" USING btree ("author_id","visibility","updated_at");
