@@ -253,6 +253,26 @@ builder.objectFields(PostType, (t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      // Defense-in-depth (#250 review C1): even if a future resolver path
+      // reaches PostType without going through post(id) / list filtering,
+      // never reveal reactions when the parent post's author is hidden
+      // (child / non-public). The viewer's own posts are still visible
+      // because isAuthorVisibleToViewer returns true for self.
+      const [authorMeta] = await db
+        .select({
+          userId: users.id,
+          guardianId: users.guardianId,
+          profileVisibility: users.profileVisibility,
+        })
+        .from(users)
+        .where(eq(users.id, post.authorId))
+        .limit(1);
+      if (
+        !authorMeta ||
+        !isAuthorVisibleToViewer(authorMeta, ctx.authUser.userId)
+      ) {
+        return [];
+      }
       return db.select().from(reactions).where(eq(reactions.postId, post.id));
     },
   }),

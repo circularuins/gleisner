@@ -3,8 +3,57 @@ import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { connections, posts, users } from "../../db/schema/index.js";
 import { and, eq, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { isAuthorVisibleToViewer } from "../access.js";
 import { PostType } from "./post.js";
+
+/**
+ * Drop connection rows where either endpoint's author is hidden from the
+ * viewer (child / non-public). Hides the existence and IDs (sourceId /
+ * targetId) of those endpoints in list resolvers (#250 review C2).
+ *
+ * Two aliases on `posts` and `users` allow joining both endpoints in one
+ * query — the field resolvers (`source` / `target`) still re-check visibility
+ * as defense-in-depth in case a row reaches them from another path.
+ */
+async function selectVisibleConnections(args: {
+  whereClause: ReturnType<typeof or>;
+  viewerUserId: string | null;
+  limit: number;
+}) {
+  const srcPosts = alias(posts, "src_posts");
+  const srcUsers = alias(users, "src_users");
+  const tgtPosts = alias(posts, "tgt_posts");
+  const tgtUsers = alias(users, "tgt_users");
+  const rows = await db
+    .select({
+      conn: connections,
+      srcAuthorMeta: {
+        userId: srcUsers.id,
+        guardianId: srcUsers.guardianId,
+        profileVisibility: srcUsers.profileVisibility,
+      },
+      tgtAuthorMeta: {
+        userId: tgtUsers.id,
+        guardianId: tgtUsers.guardianId,
+        profileVisibility: tgtUsers.profileVisibility,
+      },
+    })
+    .from(connections)
+    .innerJoin(srcPosts, eq(connections.sourceId, srcPosts.id))
+    .innerJoin(srcUsers, eq(srcPosts.authorId, srcUsers.id))
+    .innerJoin(tgtPosts, eq(connections.targetId, tgtPosts.id))
+    .innerJoin(tgtUsers, eq(tgtPosts.authorId, tgtUsers.id))
+    .where(args.whereClause)
+    .limit(args.limit);
+  return rows
+    .filter(
+      (r) =>
+        isAuthorVisibleToViewer(r.srcAuthorMeta, args.viewerUserId) &&
+        isAuthorVisibleToViewer(r.tgtAuthorMeta, args.viewerUserId),
+    )
+    .map((r) => r.conn);
+}
 
 const ConnectionTypeEnum = builder.enumType("ConnectionType", {
   values: ["reply", "remix", "reference", "evolution"] as const,
@@ -229,17 +278,18 @@ builder.queryFields((t) => ({
     args: {
       postId: t.arg.string({ required: true }),
     },
-    resolve: async (_parent, args) => {
-      return db
-        .select()
-        .from(connections)
-        .where(
-          or(
-            eq(connections.sourceId, args.postId),
-            eq(connections.targetId, args.postId),
-          ),
-        )
-        .limit(100);
+    resolve: async (_parent, args, ctx) => {
+      // Drop rows where either endpoint's author is hidden — without this,
+      // sourceId / targetId leak in plaintext for connections involving a
+      // child / private author's post (#250 review C2).
+      return selectVisibleConnections({
+        whereClause: or(
+          eq(connections.sourceId, args.postId),
+          eq(connections.targetId, args.postId),
+        ),
+        viewerUserId: ctx.authUser?.userId ?? null,
+        limit: 100,
+      });
     },
   }),
 }));
@@ -248,22 +298,22 @@ builder.queryFields((t) => ({
 builder.objectFields(PostType, (t) => ({
   outgoingConnections: t.field({
     type: [ConnectionObjectType],
-    resolve: async (post) => {
-      return db
-        .select()
-        .from(connections)
-        .where(eq(connections.sourceId, post.id))
-        .limit(50);
+    resolve: async (post, _args, ctx) => {
+      return selectVisibleConnections({
+        whereClause: eq(connections.sourceId, post.id),
+        viewerUserId: ctx.authUser?.userId ?? null,
+        limit: 50,
+      });
     },
   }),
   incomingConnections: t.field({
     type: [ConnectionObjectType],
-    resolve: async (post) => {
-      return db
-        .select()
-        .from(connections)
-        .where(eq(connections.targetId, post.id))
-        .limit(50);
+    resolve: async (post, _args, ctx) => {
+      return selectVisibleConnections({
+        whereClause: eq(connections.targetId, post.id),
+        viewerUserId: ctx.authUser?.userId ?? null,
+        limit: 50,
+      });
     },
   }),
 }));
