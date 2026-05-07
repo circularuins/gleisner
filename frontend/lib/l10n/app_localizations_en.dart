@@ -379,12 +379,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get artistUsername => 'Artist Username';
 
   @override
-  String get chooseUniqueHandle => 'Choose your unique handle';
-
-  @override
-  String get yourProfessionalName => 'Your professional name';
-
-  @override
   String get artistUsernameHint => 'your_artist_name';
 
   @override

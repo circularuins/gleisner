@@ -764,18 +764,6 @@ abstract class AppLocalizations {
   /// **'Artist Username'**
   String get artistUsername;
 
-  /// No description provided for @chooseUniqueHandle.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose your unique handle'**
-  String get chooseUniqueHandle;
-
-  /// No description provided for @yourProfessionalName.
-  ///
-  /// In en, this message translates to:
-  /// **'Your professional name'**
-  String get yourProfessionalName;
-
   /// Placeholder example shown inside the artist-username field in the registration wizard. ASCII-only because the username regex disallows non-ASCII.
   ///
   /// In en, this message translates to:

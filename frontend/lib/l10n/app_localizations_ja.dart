@@ -373,12 +373,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get artistUsername => 'アーティストユーザー名';
 
   @override
-  String get chooseUniqueHandle => 'ユニークなハンドルを選択';
-
-  @override
-  String get yourProfessionalName => 'プロフェッショナルネーム';
-
-  @override
   String get artistUsernameHint => 'your_artist_name';
 
   @override

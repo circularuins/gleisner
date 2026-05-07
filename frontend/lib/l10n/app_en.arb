@@ -137,8 +137,6 @@
   "learnMore": "Learn More",
   "createArtistProfile": "Create Your Artist Profile",
   "artistUsername": "Artist Username",
-  "chooseUniqueHandle": "Choose your unique handle",
-  "yourProfessionalName": "Your professional name",
   "artistUsernameHint": "your_artist_name",
   "@artistUsernameHint": { "description": "Placeholder example shown inside the artist-username field in the registration wizard. ASCII-only because the username regex disallows non-ASCII." },
   "artistUsernameHelper": "Used in your artist page URL (gleisner.app/@username). 2–30 characters: letters, numbers, underscores. Cannot be changed later.",

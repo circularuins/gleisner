@@ -374,7 +374,7 @@ class _EditMilestonesSheetState extends ConsumerState<EditMilestonesSheet> {
                     // viewInsets.bottom = soft-keyboard height. Adding
                     // it here keeps the Add button above the keyboard
                     // (matches the pattern in edit_profile_sheet,
-                    // register_artist_sheet, etc.).
+                    // register_artist_wizard, etc.).
                     bottom: spaceLg + MediaQuery.of(context).viewInsets.bottom,
                   ),
                   child: Column(
