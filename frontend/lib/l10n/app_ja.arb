@@ -423,5 +423,14 @@
   "monthDecember": "12月",
 
   "copyPublicLink": "公開リンクをコピー",
-  "publicLinkCopied": "公開リンクをコピーしました"
+  "publicLinkCopied": "公開リンクをコピーしました",
+
+  "selectColor": "色を選択",
+  "moreColors": "もっと色",
+  "customColorHex": "カスタムカラー（HEX）",
+  "invalidHexFormat": "HEX形式が正しくありません（例: #ff0000）",
+  "editTrack": "トラックを編集",
+  "failedUpdateTrack": "トラックの更新に失敗しました",
+  "failedUpdateTrackRetry": "トラックの更新に失敗しました。再試行してください。",
+  "colorPresetLabel": "色 {hex}"
 }

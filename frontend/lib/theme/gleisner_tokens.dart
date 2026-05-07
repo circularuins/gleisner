@@ -83,6 +83,19 @@ const radiusSheet = 20.0;
 const radiusFull = 999.0;
 
 // ---------------------------------------------------------------------------
+// Tap target / swatch sizes
+// ---------------------------------------------------------------------------
+
+/// Minimum interactive tap target per Material guidelines (matches
+/// Flutter's `kMinInteractiveDimension`).
+const tapTargetMin = 44.0;
+
+/// Visible diameter of a color swatch dot inside a tappable cell. The
+/// outer cell is `tapTargetMin` so the dot floats inside a generous
+/// touch zone for color-vision-deficient users.
+const swatchVisibleSize = 32.0;
+
+// ---------------------------------------------------------------------------
 // Responsive breakpoints (Idea 030)
 // ---------------------------------------------------------------------------
 
@@ -112,7 +125,14 @@ int responsiveGridColumns(double width) {
 }
 
 // ---------------------------------------------------------------------------
-// Track color presets (for auto-assignment)
+// Track color presets
+//
+// Used for both
+//   (1) auto-assigning a color when a track is created without an explicit
+//       picker selection (e.g. the artist registration wizard's default
+//       drafts), and
+//   (2) the preset swatch grid in `TrackColorPicker` so the quick-pick
+//       chips share the same palette as the auto-assignment rotation.
 // ---------------------------------------------------------------------------
 
 const trackColorPresets = [

@@ -1281,4 +1281,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get publicLinkCopied => 'Public link copied';
+
+  @override
+  String get selectColor => 'Select a color';
+
+  @override
+  String get moreColors => 'More colors';
+
+  @override
+  String get customColorHex => 'Custom color (HEX)';
+
+  @override
+  String get invalidHexFormat => 'Invalid HEX format (e.g. #ff0000)';
+
+  @override
+  String get editTrack => 'Edit track';
+
+  @override
+  String get failedUpdateTrack => 'Failed to update track';
+
+  @override
+  String get failedUpdateTrackRetry =>
+      'Failed to update track. Please try again.';
+
+  @override
+  String colorPresetLabel(String hex) {
+    return 'Color $hex';
+  }
 }

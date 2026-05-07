@@ -1097,11 +1097,16 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
   }
 
   void _showEditTracksSheet(BuildContext context, Artist artist) {
+    // The sheet is only triggered from the `isSelf` branches in this
+    // screen (lines 206/258/272 etc), but pass `isOwner: true`
+    // explicitly so EditArtistTracksSheet's internal mutation gating
+    // does not silently fall back to its conservative default.
+    // See PR #346 review S2.
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => EditArtistTracksSheet(artist: artist),
+      builder: (_) => EditArtistTracksSheet(artist: artist, isOwner: true),
     );
   }
 }
