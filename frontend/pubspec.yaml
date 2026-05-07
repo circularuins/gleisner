@@ -44,7 +44,7 @@ dependencies:
   collection: ^1.18.0
   google_fonts: ^8.1.0
   flutter_svg: ^2.1.0
-  image_picker: ^1.2.1
+  image_picker: ^1.2.2
   http: ^1.6.0
   video_player: ^2.11.1
   flutter_quill: ^11.5.0
