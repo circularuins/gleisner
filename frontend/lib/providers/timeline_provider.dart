@@ -211,8 +211,13 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   }
 
   /// Create a new track via API and add it to local state.
-  /// Returns `(Track, null)` on success, `(null, errorMessage)` on failure.
-  Future<(Track?, String?)> createTrack(String name, String color) async {
+  ///
+  /// Returns the created [Track] on success, or `null` on failure.
+  /// Server-side error details are logged via `debugPrint` only — callers
+  /// must display a localized fallback message rather than surfacing GraphQL
+  /// error text directly. See `.claude/rules/frontend-implementation.md`
+  /// "サーバーエラーメッセージを UI に露出しない".
+  Future<Track?> createTrack(String name, String color) async {
     try {
       final result = await _client.mutate(
         MutationOptions(
@@ -222,20 +227,22 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
       );
 
       if (result.hasException) {
-        final message =
-            result.exception?.graphqlErrors.firstOrNull?.message ??
-            'Failed to create track';
-        return (null, message);
+        debugPrint('[TimelineNotifier] createTrack error: ${result.exception}');
+        return null;
       }
 
       final data = result.data?['createTrack'] as Map<String, dynamic>?;
-      if (data == null) return (null, 'No data returned');
+      if (data == null) {
+        debugPrint('[TimelineNotifier] createTrack: no data returned');
+        return null;
+      }
 
       final track = Track.fromJson(data);
       _addTrackToState(track);
-      return (track, null);
+      return track;
     } catch (e) {
-      return (null, e.toString());
+      debugPrint('[TimelineNotifier] createTrack error: $e');
+      return null;
     }
   }
 

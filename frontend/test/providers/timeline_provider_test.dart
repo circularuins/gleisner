@@ -203,7 +203,11 @@ void main() {
       expect(state.posts, isEmpty);
     });
 
-    test('createTrack returns error on GraphQL failure', () async {
+    test('createTrack returns null on GraphQL failure', () async {
+      // Server-side error details are intentionally not exposed; callers
+      // must surface a localized fallback message. See
+      // .claude/rules/frontend-implementation.md
+      // "サーバーエラーメッセージを UI に露出しない".
       final container = _createContainer(
         client: _clientWith(
           errors: [const GraphQLError(message: 'Duplicate name')],
@@ -211,12 +215,11 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final (track, error) = await container
+      final track = await container
           .read(timelineProvider.notifier)
           .createTrack('Dup', '#ff0000');
 
       expect(track, isNull);
-      expect(error, 'Duplicate name');
     });
 
     test('addTrackToState adds track to artist and selectedTrackIds', () {

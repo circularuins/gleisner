@@ -405,14 +405,14 @@ class _TrackStep extends ConsumerWidget {
             errorText = null;
           });
 
-          final (track, error) = await notifier.createTrack(name, autoColor);
+          final track = await notifier.createTrack(name, autoColor);
           if (track != null) {
             if (dialogContext.mounted) Navigator.pop(dialogContext);
           } else {
             if (dialogContext.mounted) {
               setDialogState(() {
                 isCreating = false;
-                errorText = error ?? l10n.failedCreateTrack;
+                errorText = l10n.failedCreateTrack;
               });
             }
           }
