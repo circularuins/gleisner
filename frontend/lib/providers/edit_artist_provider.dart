@@ -9,6 +9,7 @@ import '../graphql/mutations/genre.dart';
 import '../graphql/mutations/track.dart';
 import '../models/artist.dart';
 import '../models/genre.dart';
+import '../models/track.dart';
 import 'my_artist_provider.dart';
 import 'timeline_provider.dart';
 
@@ -249,7 +250,14 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
     }
   }
 
-  Future<bool> createTrack(String name, String color) async {
+  /// Create a new track via API.
+  ///
+  /// Returns the created [Track] on success, or `null` on failure.
+  /// Server-side error details are logged via `debugPrint` only — callers
+  /// must display a localized fallback message rather than surfacing GraphQL
+  /// error text directly. See `.claude/rules/frontend-implementation.md`
+  /// "サーバーエラーメッセージを UI に露出しない".
+  Future<Track?> createTrack(String name, String color) async {
     try {
       final result = await _client.mutate(
         MutationOptions(
@@ -258,13 +266,28 @@ class EditArtistNotifier extends Notifier<AsyncValue<void>> {
         ),
       );
 
-      if (result.hasException) return false;
+      if (result.hasException) {
+        debugPrint(
+          '[EditArtistNotifier] createTrack error: ${result.exception}',
+        );
+        return null;
+      }
 
+      final data = result.data?['createTrack'] as Map<String, dynamic>?;
+      if (data == null) {
+        debugPrint('[EditArtistNotifier] createTrack: no data returned');
+        return null;
+      }
+
+      // Refresh myArtistProvider only on confirmed success — avoids a
+      // wasted full-artist refetch on the (!hasException && data == null)
+      // edge case (PR #346 review).
       await ref.read(myArtistProvider.notifier).load();
-      return true;
+
+      return Track.fromJson(data);
     } catch (e) {
       debugPrint('[EditArtistNotifier] createTrack error: $e');
-      return false;
+      return null;
     }
   }
 

@@ -203,7 +203,11 @@ void main() {
       expect(state.posts, isEmpty);
     });
 
-    test('createTrack returns error on GraphQL failure', () async {
+    test('createTrack returns null on GraphQL failure', () async {
+      // Server-side error details are intentionally not exposed; callers
+      // must surface a localized fallback message. See
+      // .claude/rules/frontend-implementation.md
+      // "サーバーエラーメッセージを UI に露出しない".
       final container = _createContainer(
         client: _clientWith(
           errors: [const GraphQLError(message: 'Duplicate name')],
@@ -211,13 +215,61 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final (track, error) = await container
+      final track = await container
           .read(timelineProvider.notifier)
           .createTrack('Dup', '#ff0000');
 
       expect(track, isNull);
-      expect(error, 'Duplicate name');
     });
+
+    test(
+      'createTrack returns track and adds it to artist on success',
+      () async {
+        // Mirrors the existing addTrackToState test by seeding an artist with
+        // an empty tracks list, then verifies that a successful createTrack
+        // mutation both returns the parsed Track and pipes through
+        // _addTrackToState (artist.tracks + selectedTrackIds updated).
+        final container = _createContainer(
+          client: _clientWith(
+            data: {
+              '__typename': 'Mutation',
+              'createTrack': {
+                '__typename': 'Track',
+                'id': 't-new',
+                'name': 'New Track',
+                'color': '#a78bfa',
+                'createdAt': '2026-01-01T00:00:00Z',
+              },
+            },
+          ),
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(timelineProvider.notifier);
+        notifier.debugSetState(
+          const TimelineState(
+            artist: Artist(
+              id: 'a1',
+              artistUsername: 'alice',
+              tunedInCount: 0,
+              tracks: [],
+            ),
+          ),
+        );
+
+        final track = await notifier.createTrack('New Track', '#a78bfa');
+
+        expect(track, isNotNull);
+        expect(track!.id, 't-new');
+        expect(track.name, 'New Track');
+        expect(track.color, '#a78bfa');
+
+        final state = container.read(timelineProvider);
+        expect(state.artist!.tracks, hasLength(1));
+        expect(state.artist!.tracks.first.id, 't-new');
+        expect(state.selectedTrackIds, contains('t-new'));
+      },
+    );
 
     test('addTrackToState adds track to artist and selectedTrackIds', () {
       final container = _createContainer(client: _clientWith());
