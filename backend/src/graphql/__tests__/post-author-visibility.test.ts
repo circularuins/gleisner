@@ -123,6 +123,24 @@ const CONNECTIONS_QUERY = `
   }
 `;
 
+const POST_WITH_OUTGOING_CONNECTIONS_QUERY = `
+  query PostOutgoing($id: String!) {
+    post(id: $id) {
+      id
+      outgoingConnections { id source { id } target { id } }
+    }
+  }
+`;
+
+const POST_WITH_INCOMING_CONNECTIONS_QUERY = `
+  query PostIncoming($id: String!) {
+    post(id: $id) {
+      id
+      incomingConnections { id source { id } target { id } }
+    }
+  }
+`;
+
 type App = Awaited<ReturnType<typeof getTestApp>>;
 
 interface AuthorFixture {
@@ -734,6 +752,112 @@ describe("post author visibility (Issue #250)", () => {
       const conns = viewResp.data!.connections as Array<unknown>;
       // The connection to child's post must be dropped completely
       expect(conns).toEqual([]);
+    });
+
+    it("outgoingConnections: drops rows when target author goes private", async () => {
+      const src = await createAuthorWithPost(
+        app,
+        "src@test.com",
+        "src",
+        "src_artist",
+      );
+      const tgt = await createAuthorWithPost(
+        app,
+        "tgt@test.com",
+        "tgt",
+        "tgt_artist",
+      );
+      await gql(
+        app,
+        CREATE_CONNECTION_MUTATION,
+        {
+          sourceId: src.postId,
+          targetId: tgt.postId,
+          connectionType: "reference",
+        },
+        src.token,
+      );
+      // Make target author private after connection is created
+      await setUserPrivate(tgt.token, app);
+
+      const resp = await gql(
+        app,
+        POST_WITH_OUTGOING_CONNECTIONS_QUERY,
+        { id: src.postId },
+        src.token, // self-view to keep src.post visible
+      );
+      const post = resp.data!.post as {
+        outgoingConnections: Array<unknown>;
+      } | null;
+      expect(post).not.toBeNull();
+      expect(post!.outgoingConnections).toEqual([]);
+    });
+
+    it("incomingConnections: drops rows when source author goes private", async () => {
+      const src = await createAuthorWithPost(
+        app,
+        "src@test.com",
+        "src",
+        "src_artist",
+      );
+      const tgt = await createAuthorWithPost(
+        app,
+        "tgt@test.com",
+        "tgt",
+        "tgt_artist",
+      );
+      await gql(
+        app,
+        CREATE_CONNECTION_MUTATION,
+        {
+          sourceId: src.postId,
+          targetId: tgt.postId,
+          connectionType: "reference",
+        },
+        src.token,
+      );
+      // Make source author private; tgt's incoming connection from src must
+      // disappear (sec-2: drop entire row, no sourceId leak).
+      await setUserPrivate(src.token, app);
+
+      const resp = await gql(
+        app,
+        POST_WITH_INCOMING_CONNECTIONS_QUERY,
+        { id: tgt.postId },
+        tgt.token,
+      );
+      const post = resp.data!.post as {
+        incomingConnections: Array<unknown>;
+      } | null;
+      expect(post).not.toBeNull();
+      expect(post!.incomingConnections).toEqual([]);
+    });
+
+    it("outgoingConnections: drops rows when target is a child author's post (ADR 019)", async () => {
+      const src = await createAuthorWithPost(
+        app,
+        "src@test.com",
+        "src",
+        "src_artist",
+      );
+      const child = await createChildAuthorWithPost(app);
+      // Insert connection directly to bypass createConnection guard
+      await db.execute(
+        sql`INSERT INTO connections (source_id, target_id, connection_type)
+            VALUES (${src.postId}::uuid, ${child.postId}::uuid, 'reference')`,
+      );
+
+      const resp = await gql(
+        app,
+        POST_WITH_OUTGOING_CONNECTIONS_QUERY,
+        { id: src.postId },
+        src.token,
+      );
+      const post = resp.data!.post as {
+        outgoingConnections: Array<unknown>;
+      } | null;
+      expect(post).not.toBeNull();
+      expect(post!.outgoingConnections).toEqual([]);
     });
 
     it("connections(postId): self viewer still sees their own private connections", async () => {

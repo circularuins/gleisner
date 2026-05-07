@@ -2,7 +2,7 @@ import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
 import { connections, posts, users } from "../../db/schema/index.js";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, or, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { isAuthorVisibleToViewer } from "../access.js";
 import { PostType } from "./post.js";
@@ -17,7 +17,10 @@ import { PostType } from "./post.js";
  * as defense-in-depth in case a row reaches them from another path.
  */
 async function selectVisibleConnections(args: {
-  whereClause: ReturnType<typeof or>;
+  // SQL<unknown> accepts eq() / or() / and() — callers pass either single
+  // equality (outgoingConnections / incomingConnections) or a disjunction
+  // (connections(postId)).
+  whereClause: SQL<unknown>;
   viewerUserId: string | null;
   limit: number;
 }) {
@@ -282,11 +285,15 @@ builder.queryFields((t) => ({
       // Drop rows where either endpoint's author is hidden — without this,
       // sourceId / targetId leak in plaintext for connections involving a
       // child / private author's post (#250 review C2).
+      // or() returns SQL<unknown> | undefined; both args are concrete eq()
+      // expressions so the result is always defined here.
+      const where = or(
+        eq(connections.sourceId, args.postId),
+        eq(connections.targetId, args.postId),
+      );
+      if (!where) return [];
       return selectVisibleConnections({
-        whereClause: or(
-          eq(connections.sourceId, args.postId),
-          eq(connections.targetId, args.postId),
-        ),
+        whereClause: where,
         viewerUserId: ctx.authUser?.userId ?? null,
         limit: 100,
       });
