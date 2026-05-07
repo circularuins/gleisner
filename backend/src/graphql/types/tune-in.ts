@@ -11,8 +11,19 @@ const TuneInType = builder.objectRef<{
   artistId: string;
   createdAt: Date;
   // Computed: MAX(posts.updated_at) for the followed artist's public posts.
-  // null when the artist has never posted (or only has draft posts). Used by
-  // the avatar rail to sort by recent activity. See ADR / Issue link in PR.
+  // Used by the avatar rail (`myTuneIns`) to sort by recent activity.
+  //
+  // Semantics of null:
+  //   - In `myTuneIns`: the followed artist has no public posts (yet, or
+  //     only has drafts). Sort places these last (NULLS LAST + tunedInAt).
+  //   - In `tuneIns(artistId)` and `Artist.tuneIns` (followers list): the
+  //     field is meaningless in this context — those resolvers return
+  //     followers of an artist, not artists being followed — so the value
+  //     is *always* null. Clients SHOULD omit the field from those
+  //     selections; it remains exposed only because GraphQL field shapes
+  //     are typed once per object type. A future split into `MyTuneIn`
+  //     vs `ArtistFollower` is tracked in a follow-up issue if/when this
+  //     becomes a real source of confusion.
   lastPostActivityAt: Date | null;
 }>("TuneIn");
 

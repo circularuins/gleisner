@@ -203,26 +203,22 @@ Drizzle Kit は migration をトランザクション内で実行するため、
 
 該当する migration（例: `0014_fat_meteorite.sql` — `posts_author_visibility_updated_idx`）は、本番では以下の手順で適用する:
 
-1. **手動で CONCURRENTLY 実行**:
+1. **手動で CONCURRENTLY 実行**（書き込みをブロックしない）:
    ```bash
    railway run --service backend psql "$DATABASE_URL" -c \
      "CREATE INDEX CONCURRENTLY IF NOT EXISTS posts_author_visibility_updated_idx \
       ON posts USING btree (author_id, visibility, updated_at);"
    ```
-2. **migration を「適用済み」としてマーク**（drizzle が再度実行しないようにする）:
+2. **`pnpm db:migrate` を通常実行**:
    ```bash
-   railway run --service backend psql "$DATABASE_URL" -c \
-     "INSERT INTO drizzle.__drizzle_migrations (hash, created_at) \
-      SELECT hash, EXTRACT(EPOCH FROM NOW())::bigint * 1000 \
-      FROM (VALUES ('<migration hash from drizzle journal>')) AS t(hash) \
-      ON CONFLICT (hash) DO NOTHING;"
+   railway run --service backend pnpm db:migrate
    ```
-   migration hash は `backend/drizzle/meta/_journal.json` に記録されている。
-3. **以降のリリースで `pnpm db:migrate` を通常実行** — 上記でマーク済みの migration は skip される。
+   migration SQL 側に `CREATE INDEX IF NOT EXISTS` を付けてあるため、ステップ 1 で既に index が存在していれば SQL は no-op で完了する。drizzle はこの migration を「適用済み」として `__drizzle_migrations` に記録するので、以降のデプロイで再実行されない。
 
 判定基準:
 - **数百行以下のテーブル** → `pnpm db:migrate` で素直に実行（一瞬で終わる）
 - **`posts` / `comments` / `reactions` 等の書き込み多発テーブル** → 上記の手動 CONCURRENTLY 手順
+- **新規 index migration を追加するときは SQL 側に `IF NOT EXISTS` を必ず付ける** — drizzle-kit が自動付与しない場合は手動で追記すること
 
 ### 6.3 admin:setup（管理者 + 招待コード生成）
 

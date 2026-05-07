@@ -1,5 +1,17 @@
 import SchemaBuilder from "@pothos/core";
 import type { AuthUser } from "../auth/middleware.js";
+import type { artists } from "../db/schema/index.js";
+// `import type` erases at compile time, so this does not create a runtime
+// import cycle with `./types/user.ts` (which imports from this file).
+import type { PublicUserShape } from "./types/user.js";
+
+/**
+ * Drizzle-derived row shape for the `artists` table — kept in sync with
+ * the schema automatically. Used as the cache value type below so a column
+ * addition to `db/schema/artist.ts` does not silently drift from the
+ * cache.
+ */
+type ArtistRow = typeof artists.$inferSelect;
 
 export interface GraphQLContext {
   authUser?: AuthUser;
@@ -16,26 +28,13 @@ export interface GraphQLContext {
   >;
   /** Promise guard to prevent parallel cache initialization. */
   constellationCachePromise?: Promise<void>;
-  /** Per-request cache for tune-in artist lookups (avoids N+1 in myTuneIns). */
-  tuneInArtistCache?: Map<
-    string,
-    {
-      id: string;
-      userId: string;
-      artistUsername: string;
-      displayName: string | null;
-      bio: string | null;
-      tagline: string | null;
-      location: string | null;
-      activeSince: number | null;
-      avatarUrl: string | null;
-      coverImageUrl: string | null;
-      profileVisibility: string;
-      tunedInCount: number;
-      createdAt: Date;
-      updatedAt: Date;
-    }
-  >;
+  /**
+   * Per-request cache for tune-in artist lookups. Populated by the
+   * `myTuneIns` query (which JOINs `artists`) and read by the
+   * `TuneInType.artist` field resolver to avoid a per-row SELECT against
+   * the `artists` table.
+   */
+  tuneInArtistCache?: Map<string, ArtistRow>;
   /**
    * Per-request cache for tune-in follower lookups (avoids N+1 on
    * `TuneInType.user` when resolving the followers list of an artist).
@@ -43,18 +42,7 @@ export interface GraphQLContext {
    * field — both prefetch the user via JOIN and store the
    * `publicUserColumns` shape here.
    */
-  tuneInUserCache?: Map<
-    string,
-    {
-      id: string;
-      did: string;
-      username: string;
-      displayName: string | null;
-      bio: string | null;
-      avatarUrl: string | null;
-      createdAt: Date;
-    }
-  >;
+  tuneInUserCache?: Map<string, PublicUserShape>;
 }
 
 export const builder = new SchemaBuilder<{
