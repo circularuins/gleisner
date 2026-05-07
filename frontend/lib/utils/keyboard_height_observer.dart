@@ -169,9 +169,34 @@ class _KeyboardHeightObserverState extends State<KeyboardHeightObserver>
 
   @override
   Widget build(BuildContext context) {
-    return _KeyboardHeightInherited(
-      keyboardHeight: _keyboardHeight,
-      child: widget.child,
+    final mq = MediaQuery.of(context);
+
+    // Inject our cross-checked keyboard height into MediaQuery's viewInsets so
+    // every descendant — Scaffold's resizeToAvoidBottomInset,
+    // DraggableScrollableSheet, BottomSheet, AlertDialog, anything that reads
+    // viewInsets.bottom directly — sees the value Flutter would normally
+    // provide on native. Flutter Web on iOS Safari fails to propagate
+    // visualViewport changes to viewInsets.bottom (it stays at 0 even while
+    // the soft keyboard occupies ~50% of the screen, see
+    // flutter/flutter#42211, #56039, #146726). Live readings on iPhone
+    // Safari with the DOM HUD (PR #341) confirmed this exact divergence:
+    // visualViewport.height collapses from 695 to 358 (= 337px keyboard) while
+    // MediaQuery.viewInsets.bottom remains 0.
+    //
+    // Without this override, no amount of `viewInsets.bottom`-based padding
+    // helps because the framework still lays out at `MediaQuery.size.height`
+    // pixels and pins sheets/dialogs to the bottom of that taller-than-visible
+    // box — pushing their lower halves behind the keyboard.
+    final patchedMq = mq.copyWith(
+      viewInsets: mq.viewInsets.copyWith(bottom: _keyboardHeight),
+    );
+
+    return MediaQuery(
+      data: patchedMq,
+      child: _KeyboardHeightInherited(
+        keyboardHeight: _keyboardHeight,
+        child: widget.child,
+      ),
     );
   }
 }
