@@ -67,7 +67,17 @@ class _TrackColorPickerState extends State<TrackColorPicker> {
       if (parsed != null) _customColor = parsed;
       final upper = widget.selectedHex.toUpperCase();
       if (_hexController.text != upper) {
+        // Preserve the cursor position when possible: assigning to
+        // `.text` resets `selection` to the end, which yanks the caret
+        // away if the user is mid-edit while the wheel changes the
+        // controller text (PR #349 review I-1). Restoring the previous
+        // selection only when it still fits the new text avoids out-of-
+        // bounds errors when shrinking.
+        final prevSelection = _hexController.selection;
         _hexController.text = upper;
+        if (prevSelection.isValid && prevSelection.end <= upper.length) {
+          _hexController.selection = prevSelection;
+        }
       }
     }
   }
@@ -109,6 +119,9 @@ class _TrackColorPickerState extends State<TrackColorPicker> {
     if (!isValidHex6(value)) {
       // Don't propagate invalid input upstream; the validator decoration
       // surfaces the error via the field's helperText/errorText below.
+      // The empty `setState` is intentional — it re-runs `_hexFieldError`
+      // in `build()` so the InputDecoration.errorText reflects the new
+      // controller value (PR #349 review N-3).
       setState(() {});
       return;
     }
@@ -211,21 +224,23 @@ class _PresetSwatch extends StatelessWidget {
       selected: isSelected,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        // 44x44 logical px meets the Material minimum tap target while
-        // keeping the visible swatch a calmer 32x32 dot. The check icon
-        // doubles as a non-color cue for color-vision-deficient users
-        // (PR #346 review F5).
+        // Pill-shaped ripple sized to the cell so the visual feedback
+        // stays inside the tap zone (radius = tapTargetMin / 2).
+        borderRadius: BorderRadius.circular(tapTargetMin / 2),
+        // `tapTargetMin` meets the Material minimum tap target while
+        // keeping the visible swatch a calmer `swatchVisibleSize` dot.
+        // The check icon doubles as a non-color cue for color-vision-
+        // deficient users (PR #346 review F5).
         child: SizedBox(
-          width: 44,
-          height: 44,
+          width: tapTargetMin,
+          height: tapTargetMin,
           child: Center(
             child: Stack(
               alignment: Alignment.center,
               children: [
                 Container(
-                  width: 32,
-                  height: 32,
+                  width: swatchVisibleSize,
+                  height: swatchVisibleSize,
                   decoration: BoxDecoration(
                     color: color,
                     shape: BoxShape.circle,
@@ -235,7 +250,13 @@ class _PresetSwatch extends StatelessWidget {
                   ),
                 ),
                 if (isSelected)
-                  const Icon(Icons.check, size: 16, color: Colors.white),
+                  // Sized to read clearly on the dot without dominating it
+                  // (≈ swatchVisibleSize / 2).
+                  Icon(
+                    Icons.check,
+                    size: swatchVisibleSize / 2,
+                    color: Colors.white,
+                  ),
               ],
             ),
           ),

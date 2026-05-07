@@ -131,5 +131,50 @@ void main() {
         expect(emitCount, 0);
       },
     );
+
+    testWidgets(
+      'didUpdateWidget syncs the highlighted preset when selectedHex changes externally',
+      (tester) async {
+        // The selected swatch is the only one that overlays Icons.check on
+        // its dot, so we use that as a stable visual signal that the
+        // highlight has propagated. This sidesteps the SemanticsFlag API
+        // (which has shifted between Flutter versions) while still proving
+        // didUpdateWidget reaches build().
+        Finder checkIconInside(String hex) => find.descendant(
+          of: find.bySemanticsLabel('Color $hex'),
+          matching: find.byIcon(Icons.check),
+        );
+
+        // Phase 1: parent says preset[0] is selected.
+        await tester.pumpWidget(
+          _wrap(
+            TrackColorPicker(
+              selectedHex: trackColorPresets[0],
+              onChanged: (_) {},
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(checkIconInside(trackColorPresets[0]), findsOneWidget);
+        expect(checkIconInside(trackColorPresets[3]), findsNothing);
+
+        // Phase 2: parent forces a different selection (e.g. the user
+        // tapped preset[3] from a sibling control); didUpdateWidget should
+        // propagate the highlight without any local taps.
+        await tester.pumpWidget(
+          _wrap(
+            TrackColorPicker(
+              selectedHex: trackColorPresets[3],
+              onChanged: (_) {},
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(checkIconInside(trackColorPresets[3]), findsOneWidget);
+        expect(checkIconInside(trackColorPresets[0]), findsNothing);
+      },
+    );
   });
 }

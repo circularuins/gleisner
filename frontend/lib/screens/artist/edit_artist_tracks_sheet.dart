@@ -153,137 +153,147 @@ class _EditArtistTracksSheetState extends ConsumerState<EditArtistTracksSheet> {
   }
 
   Future<void> _editTrack(Track track) async {
-    final updated = await showDialog<Track>(
-      context: context,
-      builder: (dialogContext) {
-        final nameController = TextEditingController(text: track.name);
-        // All dialog-local state lives inside the StatefulBuilder scope so
-        // setDialogState rebuilds reach every value (PR #346 review F3).
-        var selectedColor = track.color;
-        var isSubmitting = false;
-        String? errorText;
+    // The controller lives outside `showDialog` so it can be disposed in
+    // `finally`. `StatefulBuilder` does not provide a `State.dispose()`
+    // hook, and creating the controller inside `builder` would leak it
+    // every time the user opens the edit dialog (PR #349 review C-1).
+    // Mirrors the try/finally pattern in register_artist_wizard.dart's
+    // rename dialog.
+    final nameController = TextEditingController(text: track.name);
+    try {
+      final updated = await showDialog<Track>(
+        context: context,
+        builder: (dialogContext) {
+          // All dialog-local state lives inside the StatefulBuilder scope so
+          // setDialogState rebuilds reach every value (PR #346 review F3).
+          var selectedColor = track.color;
+          var isSubmitting = false;
+          String? errorText;
 
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            Future<void> save() async {
-              final newName = nameController.text.trim();
-              if (newName.isEmpty) {
-                setDialogState(() => errorText = ctx.l10n.trackNameRequired);
-                return;
-              }
-              // Reject duplicate names against the current local list,
-              // skipping the row being edited (otherwise renaming to the
-              // same name would always fail).
-              if (_tracks.any(
-                (t) =>
-                    t.id != track.id &&
-                    t.name.toLowerCase() == newName.toLowerCase(),
-              )) {
-                setDialogState(
-                  () => errorText = ctx.l10n.trackNameAlreadyExists,
-                );
-                return;
-              }
-
-              final nameChanged = newName != track.name;
-              final colorChanged = selectedColor != track.color;
-              if (!nameChanged && !colorChanged) {
-                Navigator.pop(dialogContext);
-                return;
-              }
-
-              setDialogState(() {
-                isSubmitting = true;
-                errorText = null;
-              });
-
-              final result = await ref
-                  .read(editArtistProvider.notifier)
-                  .updateTrack(
-                    id: track.id,
-                    name: nameChanged ? newName : null,
-                    color: colorChanged ? selectedColor : null,
+          return StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              Future<void> save() async {
+                final newName = nameController.text.trim();
+                if (newName.isEmpty) {
+                  setDialogState(() => errorText = ctx.l10n.trackNameRequired);
+                  return;
+                }
+                // Reject duplicate names against the current local list,
+                // skipping the row being edited (otherwise renaming to the
+                // same name would always fail).
+                if (_tracks.any(
+                  (t) =>
+                      t.id != track.id &&
+                      t.name.toLowerCase() == newName.toLowerCase(),
+                )) {
+                  setDialogState(
+                    () => errorText = ctx.l10n.trackNameAlreadyExists,
                   );
+                  return;
+                }
 
-              if (!dialogContext.mounted) return;
-              if (result != null) {
-                Navigator.pop(dialogContext, result);
-              } else {
+                final nameChanged = newName != track.name;
+                final colorChanged = selectedColor != track.color;
+                if (!nameChanged && !colorChanged) {
+                  Navigator.pop(dialogContext);
+                  return;
+                }
+
                 setDialogState(() {
-                  isSubmitting = false;
-                  errorText = ctx.l10n.failedUpdateTrackRetry;
+                  isSubmitting = true;
+                  errorText = null;
                 });
-              }
-            }
 
-            return AlertDialog(
-              backgroundColor: colorSurface1,
-              scrollable: true,
-              insetPadding: const EdgeInsets.all(spaceLg),
-              title: Text(
-                ctx.l10n.editTrack,
-                style: const TextStyle(color: colorTextPrimary),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    autofocus: true,
-                    maxLength: 30,
-                    style: const TextStyle(color: colorTextPrimary),
-                    decoration: InputDecoration(
-                      labelText: ctx.l10n.trackName,
-                      labelStyle: const TextStyle(color: colorTextMuted),
-                      border: const OutlineInputBorder(),
-                      errorText: errorText,
+                final result = await ref
+                    .read(editArtistProvider.notifier)
+                    .updateTrack(
+                      id: track.id,
+                      name: nameChanged ? newName : null,
+                      color: colorChanged ? selectedColor : null,
+                    );
+
+                if (!dialogContext.mounted) return;
+                if (result != null) {
+                  Navigator.pop(dialogContext, result);
+                } else {
+                  setDialogState(() {
+                    isSubmitting = false;
+                    errorText = ctx.l10n.failedUpdateTrackRetry;
+                  });
+                }
+              }
+
+              return AlertDialog(
+                backgroundColor: colorSurface1,
+                scrollable: true,
+                insetPadding: const EdgeInsets.all(spaceLg),
+                title: Text(
+                  ctx.l10n.editTrack,
+                  style: const TextStyle(color: colorTextPrimary),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      autofocus: true,
+                      maxLength: 30,
+                      style: const TextStyle(color: colorTextPrimary),
+                      decoration: InputDecoration(
+                        labelText: ctx.l10n.trackName,
+                        labelStyle: const TextStyle(color: colorTextMuted),
+                        border: const OutlineInputBorder(),
+                        errorText: errorText,
+                      ),
+                      enabled: !isSubmitting,
+                      onSubmitted: isSubmitting ? null : (_) => save(),
                     ),
-                    enabled: !isSubmitting,
-                    onSubmitted: isSubmitting ? null : (_) => save(),
+                    const SizedBox(height: spaceMd),
+                    TrackColorPicker(
+                      selectedHex: selectedColor,
+                      onChanged: (hex) =>
+                          setDialogState(() => selectedColor = hex),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () => Navigator.pop(dialogContext),
+                    child: Text(ctx.l10n.cancel),
                   ),
-                  const SizedBox(height: spaceMd),
-                  TrackColorPicker(
-                    selectedHex: selectedColor,
-                    onChanged: (hex) =>
-                        setDialogState(() => selectedColor = hex),
+                  FilledButton(
+                    onPressed: isSubmitting ? null : save,
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(ctx.l10n.save),
                   ),
                 ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () => Navigator.pop(dialogContext),
-                  child: Text(ctx.l10n.cancel),
-                ),
-                FilledButton(
-                  onPressed: isSubmitting ? null : save,
-                  child: isSubmitting
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(ctx.l10n.save),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+              );
+            },
+          );
+        },
+      );
 
-    if (updated == null || !mounted) return;
-    setState(() {
-      final idx = _tracks.indexWhere((t) => t.id == updated.id);
-      if (idx != -1) _tracks = [..._tracks]..[idx] = updated;
-    });
-    // Refresh the artist page so the updated color/name shows up in the
-    // timeline + node renderings, mirroring _deleteTrack's reload step.
-    await ref
-        .read(artistPageProvider.notifier)
-        .loadArtist(widget.artist.artistUsername);
+      if (updated == null || !mounted) return;
+      setState(() {
+        final idx = _tracks.indexWhere((t) => t.id == updated.id);
+        if (idx != -1) _tracks = [..._tracks]..[idx] = updated;
+      });
+      // Refresh the artist page so the updated color/name shows up in the
+      // timeline + node renderings, mirroring _deleteTrack's reload step.
+      await ref
+          .read(artistPageProvider.notifier)
+          .loadArtist(widget.artist.artistUsername);
+    } finally {
+      nameController.dispose();
+    }
   }
 
   Future<void> _deleteTrack(Track track) async {
