@@ -716,6 +716,30 @@ abstract class AppLocalizations {
   /// **'Child accounts start with their posts hidden. The guardian can choose to make them publicly visible at any time.'**
   String get childAccountPrivateNote;
 
+  /// Hint text shown inside the username field on the child account creation sheet. Suggests a kid-friendly username example.
+  ///
+  /// In en, this message translates to:
+  /// **'natsuko_kid'**
+  String get childUsernameHint;
+
+  /// Helper text below the username field on the child account creation sheet. Mirrors the parent signup helper but addresses the guardian.
+  ///
+  /// In en, this message translates to:
+  /// **'Used in your child\'s profile URL. 2–30 characters: letters, numbers, underscores. Cannot be changed later.'**
+  String get childUsernameHelper;
+
+  /// Hint text shown inside the display name field on the child account creation sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., Natsuko'**
+  String get childDisplayNameHint;
+
+  /// Helper text below the display name field on the child account creation sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown on your child\'s profile and posts. Can be changed anytime.'**
+  String get childDisplayNameHelper;
+
   /// Label for the Switch that controls whether a child's posts are visible to other users (Layer 0: users.profileVisibility).
   ///
   /// In en, this message translates to:
