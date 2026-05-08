@@ -189,7 +189,7 @@ export const SWITCH_BACK_MUTATION = `
 
 export const MY_CHILDREN_QUERY = `
   query MyChildren {
-    myChildren { id username displayName birthYearMonth createdAt }
+    myChildren { id username displayName birthYearMonth profileVisibility createdAt }
   }
 `;
 

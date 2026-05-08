@@ -55,3 +55,12 @@ const myChildrenQuery =
     }
   }
 ''';
+
+const setChildProfileVisibilityMutation =
+    '''
+  mutation SetChildProfileVisibility(\$childId: String!, \$profileVisibility: String!) {
+    setChildProfileVisibility(childId: \$childId, profileVisibility: \$profileVisibility) {
+      $_childUserFields
+    }
+  }
+''';
