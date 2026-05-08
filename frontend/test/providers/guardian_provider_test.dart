@@ -5,17 +5,21 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:gleisner_web/graphql/client.dart';
 import 'package:gleisner_web/providers/guardian_provider.dart';
 
-/// Mock Link — same pattern as timeline_provider_test._MockLink.
-/// Returns the same [data] for every request (mutation + re-fetch query).
+/// Mock Link for the GraphQL-error scenario.
+///
+/// Only the error path is exercised here — `data` is never read by the
+/// caller because graphql_flutter short-circuits to `result.exception`
+/// when `errors` is present. Keeping the field caused
+/// `unused_element_parameter` to fire under `flutter analyze` (which
+/// includes `test/`); the success-path link is `_DispatchLink` below.
 class _MockLink extends Link {
-  final Map<String, dynamic>? data;
   final List<GraphQLError>? errors;
 
-  _MockLink({this.data, this.errors});
+  _MockLink({this.errors});
 
   @override
   Stream<Response> request(Request request, [NextLink? forward]) {
-    return Stream.value(Response(data: data, errors: errors, response: {}));
+    return Stream.value(Response(errors: errors, response: {}));
   }
 }
 
