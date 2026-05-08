@@ -361,7 +361,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String unlockChildVisibilityBody(String name) {
-    return '他のユーザーが投稿を閲覧できるようになります。いつでも非公開に戻せます。';
+    return '他のユーザーが $name の投稿を閲覧できるようになります。いつでも非公開に戻せます。';
   }
 
   @override

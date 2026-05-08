@@ -583,11 +583,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 style: textCaption.copyWith(color: colorTextMuted),
               ),
               const Spacer(),
-              Switch(
-                value: isPublic,
-                activeThumbColor: colorAccentGold,
-                onChanged: (toPublic) =>
-                    _toggleChildVisibility(child, toPublic),
+              Semantics(
+                // Screen readers otherwise hear "switch, on" with no idea
+                // whose visibility is being toggled, since the displayName
+                // sits in a sibling subtree.
+                label:
+                    "${child.displayName ?? child.username}: ${context.l10n.childPostVisibility}",
+                toggled: isPublic,
+                child: Switch(
+                  value: isPublic,
+                  activeThumbColor: colorAccentGold,
+                  activeTrackColor: colorAccentGold.withValues(alpha: 0.4),
+                  onChanged: (toPublic) =>
+                      _toggleChildVisibility(child, toPublic),
+                ),
               ),
             ],
           ),
