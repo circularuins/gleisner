@@ -352,6 +352,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'Child accounts start with their posts hidden. The guardian can choose to make them publicly visible at any time.';
 
   @override
+  String get childUsernameHint => 'natsuko_kid';
+
+  @override
+  String get childUsernameHelper =>
+      'Used in your child\'s profile URL. 2–30 characters: letters, numbers, underscores. Cannot be changed later.';
+
+  @override
+  String get childDisplayNameHint => 'e.g., Natsuko';
+
+  @override
+  String get childDisplayNameHelper =>
+      'Shown on your child\'s profile and posts. Can be changed anytime.';
+
+  @override
   String get childPostVisibility => 'Post-author visibility';
 
   @override

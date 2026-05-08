@@ -348,6 +348,19 @@ class AppLocalizationsJa extends AppLocalizations {
       '子アカウントの投稿はデフォルトで非公開です。保護者が公開設定を切り替えられます。いつでも非公開に戻せます。';
 
   @override
+  String get childUsernameHint => 'natsuko_kid';
+
+  @override
+  String get childUsernameHelper =>
+      'お子さまのプロフィール URL に使われます。半角英数字とアンダースコア（2〜30文字）。後から変更できません。';
+
+  @override
+  String get childDisplayNameHint => '例: ナツコ';
+
+  @override
+  String get childDisplayNameHelper => 'お子さまのプロフィールや投稿に表示されます。後から変更できます。';
+
+  @override
   String get childPostVisibility => '投稿の公開設定';
 
   @override

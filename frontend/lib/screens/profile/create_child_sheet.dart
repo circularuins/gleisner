@@ -97,9 +97,14 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
                 controller: _usernameCtrl,
                 decoration: InputDecoration(
                   labelText: context.l10n.username,
-                  hintText: context.l10n.usernameFormat,
+                  hintText: context.l10n.childUsernameHint,
+                  helperText: context.l10n.childUsernameHelper,
+                  helperMaxLines: 3,
+                  prefixText: '@',
                   labelStyle: const TextStyle(color: colorTextMuted),
                   hintStyle: const TextStyle(color: colorInteractiveMuted),
+                  helperStyle: const TextStyle(color: colorTextMuted),
+                  prefixStyle: const TextStyle(color: colorTextPrimary),
                   enabledBorder: OutlineInputBorder(
                     borderSide: const BorderSide(color: colorBorder),
                     borderRadius: BorderRadius.circular(radiusMd),
@@ -135,8 +140,13 @@ class _CreateChildSheetState extends ConsumerState<CreateChildSheet> {
               TextFormField(
                 controller: _displayNameCtrl,
                 decoration: InputDecoration(
-                  labelText: context.l10n.displayName,
+                  labelText: context.l10n.displayNameOptional,
+                  hintText: context.l10n.childDisplayNameHint,
+                  helperText: context.l10n.childDisplayNameHelper,
+                  helperMaxLines: 2,
                   labelStyle: const TextStyle(color: colorTextMuted),
+                  hintStyle: const TextStyle(color: colorInteractiveMuted),
+                  helperStyle: const TextStyle(color: colorTextMuted),
                   enabledBorder: OutlineInputBorder(
                     borderSide: const BorderSide(color: colorBorder),
                     borderRadius: BorderRadius.circular(radiusMd),
