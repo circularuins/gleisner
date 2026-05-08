@@ -459,6 +459,10 @@ describe("artist / track read authorization (Issue #350 + sec-3)", () => {
       const resp = await gql(app, TRACK_QUERY, { id: "not-a-uuid" });
       expect(resp.errors).toBeDefined();
       expect(resp.errors![0].message).toBe("Invalid track id");
+      // Wire-level contract: clients should branch on `extensions.code`,
+      // not the message string. Asserting it here catches regressions
+      // where yoga's error masking strips the code in production mode.
+      expect(resp.errors![0].extensions?.code).toBe("BAD_USER_INPUT");
     });
 
     it("post(id) rejects malformed UUID with 'Invalid post id'", async () => {
@@ -467,6 +471,7 @@ describe("artist / track read authorization (Issue #350 + sec-3)", () => {
       });
       expect(resp.errors).toBeDefined();
       expect(resp.errors![0].message).toBe("Invalid post id");
+      expect(resp.errors![0].extensions?.code).toBe("BAD_USER_INPUT");
     });
   });
 });

@@ -189,6 +189,10 @@ export async function assertUploadedR2ObjectsMatch(
  * and trigger `invalid input syntax for type uuid` errors that surface raw DB
  * details (driver name, query fragments) through GraphQL errors. The check
  * also stops basic enumeration probes that rely on engaging DB error paths.
+ *
+ * @internal Internal to validators.ts — call `validateUUID` instead. Kept
+ * file-private (no `export`) so future refactors can move to a more
+ * targeted regex (e.g. version-specific) without breaking call sites.
  */
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -283,6 +283,13 @@ builder.objectFields(ArtistType, (t) => ({
       // intact if a future code path returns ArtistType without a prior
       // check (mirrors `ArtistType.recentPosts` pattern from PR-A / #363).
       //
+      // The only path that exercises this guard *today* is a self-view of
+      // a private artist — the top-level resolver lets the owner through,
+      // and this re-check confirms downstream callers see the same set.
+      // See `track-author-visibility.test.ts` "self viewer sees own
+      // private artist's tracks via the field resolver" for the asserted
+      // contract.
+      //
       // TODO(#372): `checkArtistAccess` issues up to 2 SELECTs per artist
       // (artists + tuneIns). Already triggerable today via
       // `myTuneIns { artist { tracks { id } } }` — N tune-ins fan out to

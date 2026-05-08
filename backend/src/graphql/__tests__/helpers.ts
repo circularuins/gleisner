@@ -73,7 +73,14 @@ export async function gql(
   });
   return res.json() as Promise<{
     data?: Record<string, unknown>;
-    errors?: Array<{ message: string }>;
+    // `extensions` is the wire-stable contract that clients should match
+    // on (`extensions.code === "BAD_USER_INPUT"` etc.) — keep it in the
+    // smoke-test return type so we can regress-test that codes actually
+    // make it onto the wire, not just live in the GraphQLError instance.
+    errors?: Array<{
+      message: string;
+      extensions?: Record<string, unknown>;
+    }>;
   }>;
 }
 
