@@ -331,4 +331,17 @@ describe("validateUUID", () => {
       expect((err as GraphQLError).message).not.toContain(evil);
     }
   });
+
+  // Code-based discrimination is the contract clients should rely on, not
+  // the human-readable message. Without this assertion a future fieldName
+  // rename would silently change the wire surface for every consumer.
+  it("emits extensions.code = BAD_USER_INPUT", () => {
+    try {
+      validateUUID("not-a-uuid", "post id");
+      throw new Error("expected validateUUID to throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(GraphQLError);
+      expect((err as GraphQLError).extensions?.code).toBe("BAD_USER_INPUT");
+    }
+  });
 });

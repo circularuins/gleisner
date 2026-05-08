@@ -208,7 +208,14 @@ const UUID_REGEX =
  */
 export function validateUUID(value: unknown, fieldName: string): void {
   if (typeof value !== "string" || !UUID_REGEX.test(value)) {
-    throw new GraphQLError(`Invalid ${fieldName}`);
+    // `extensions.code: BAD_USER_INPUT` lets clients (Apollo / urql /
+    // graphql-request) match on the code rather than the message string —
+    // important because `validateUUID` is now applied to ~20 resolvers and
+    // any future `fieldName` rename would be a silent contract break for
+    // anyone parsing `error.message`.
+    throw new GraphQLError(`Invalid ${fieldName}`, {
+      extensions: { code: "BAD_USER_INPUT" },
+    });
   }
 }
 

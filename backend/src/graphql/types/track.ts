@@ -283,12 +283,13 @@ builder.objectFields(ArtistType, (t) => ({
       // intact if a future code path returns ArtistType without a prior
       // check (mirrors `ArtistType.recentPosts` pattern from PR-A / #363).
       //
-      // TODO(N+1): `checkArtistAccess` issues up to 2 SELECTs per artist
-      // (artists + tuneIns). Today this only runs for single-artist
-      // queries (`artist(username)`), but if a list-returning parent is
-      // ever added (e.g. `searchArtists`, `tunedInArtists` exposing
-      // `tracks { ... }`), switch to a ctx-cached or prefetched access
-      // map per `.claude/rules/backend-implementation.md` (N+1 pattern).
+      // TODO(#372): `checkArtistAccess` issues up to 2 SELECTs per artist
+      // (artists + tuneIns). Already triggerable today via
+      // `myTuneIns { artist { tracks { id } } }` — N tune-ins fan out to
+      // N × 2 SELECTs for the visibility gate. The fix path is a
+      // ctx-cached access map or prefetched `_access` embedding (see
+      // `.claude/rules/backend-implementation.md` N+1 pattern). Paired
+      // with #371 (`checkArtistAccess` overload), the close-out is small.
       const access = await checkArtistAccess(artist.id, ctx.authUser);
       if (!access.accessible) {
         return [];
