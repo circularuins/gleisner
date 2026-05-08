@@ -20,6 +20,7 @@ import {
   validateMediaUrls,
   validateUrl,
   validateDuration,
+  validateUUID,
   assertUploadedR2ObjectMatches,
   assertUploadedR2ObjectsMatch,
 } from "../validators.js";
@@ -380,6 +381,7 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.trackId, "track id");
 
       // Find artist for this user
       const [artist] = await db
@@ -693,6 +695,7 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.id, "post id");
 
       const [post] = await db
         .select()
@@ -959,6 +962,7 @@ builder.mutationFields((t) => ({
 
       // Validate trackId — must belong to the author's artist profile
       if (args.trackId != null) {
+        validateUUID(args.trackId, "track id");
         const [track] = await db
           .select({ id: tracks.id, artistId: tracks.artistId })
           .from(tracks)
@@ -1203,6 +1207,7 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.id, "post id");
 
       const [post] = await db
         .select({
@@ -1264,6 +1269,7 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.postId, "post id");
 
       // TODO(Issue #280): switch to explicit column projection
       const [post] = await db
@@ -1374,6 +1380,7 @@ builder.queryFields((t) => ({
       id: t.arg.string({ required: true }),
     },
     resolve: async (_parent, args, ctx) => {
+      validateUUID(args.id, "post id");
       const [post] = await db
         .select()
         .from(posts)
@@ -1427,6 +1434,7 @@ builder.queryFields((t) => ({
       trackId: t.arg.string({ required: true }),
     },
     resolve: async (_parent, args, ctx) => {
+      validateUUID(args.trackId, "track id");
       // Verify track's artist is accessible
       const [track] = await db
         .select({ artistId: tracks.artistId })
@@ -1503,6 +1511,7 @@ builder.queryFields((t) => ({
       limit: t.arg.int(),
     },
     resolve: async (_parent, args, ctx) => {
+      validateUUID(args.artistId, "artist id");
       const access = await checkArtistAccess(args.artistId, ctx.authUser);
       if (!access.accessible) return [];
 

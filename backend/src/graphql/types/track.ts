@@ -4,6 +4,8 @@ import { db } from "../../db/index.js";
 import { artists, tracks } from "../../db/schema/index.js";
 import { and, eq, sql } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
+import { checkArtistAccess } from "../access.js";
+import { validateUUID } from "../validators.js";
 
 export const TrackType = builder.objectRef<{
   id: string;
@@ -105,6 +107,7 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.id, "track id");
 
       // Fetch the track
       const [track] = await db
@@ -186,6 +189,7 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.id, "track id");
 
       const [track] = await db
         .select()
@@ -223,13 +227,21 @@ builder.queryFields((t) => ({
     args: {
       id: t.arg.string({ required: true }),
     },
-    resolve: async (_parent, args) => {
+    resolve: async (_parent, args, ctx) => {
+      validateUUID(args.id, "track id");
       const [track] = await db
         .select()
         .from(tracks)
         .where(eq(tracks.id, args.id))
         .limit(1);
-      return track ?? null;
+      if (!track) return null;
+      // Hide tracks owned by inaccessible artists (#350).
+      // Schema is nullable; null is consistent with `post(id)` (#250) and
+      // does not distinguish "missing" from "private" — closes the
+      // enumeration oracle on track ids.
+      const access = await checkArtistAccess(track.artistId, ctx.authUser);
+      if (!access.accessible) return null;
+      return track;
     },
   }),
 
@@ -238,7 +250,7 @@ builder.queryFields((t) => ({
     args: {
       artistUsername: t.arg.string({ required: true }),
     },
-    resolve: async (_parent, args) => {
+    resolve: async (_parent, args, ctx) => {
       // Find artist by username, then get their tracks
       const [artist] = await db
         .select({ id: artists.id })
@@ -246,6 +258,13 @@ builder.queryFields((t) => ({
         .where(eq(artists.artistUsername, args.artistUsername))
         .limit(1);
       if (!artist) {
+        return [];
+      }
+      // Gate by artist visibility (sec-3). Inaccessible artists return an
+      // empty list, indistinguishable from "exists with no tracks" — same
+      // enumeration-oracle posture as `posts(trackId)` (#363).
+      const access = await checkArtistAccess(artist.id, ctx.authUser);
+      if (!access.accessible) {
         return [];
       }
 
@@ -258,7 +277,30 @@ builder.queryFields((t) => ({
 builder.objectFields(ArtistType, (t) => ({
   tracks: t.field({
     type: [TrackType],
-    resolve: async (artist) => {
+    resolve: async (artist, _args, ctx) => {
+      // Defense-in-depth: top-level `artist(username)` already gates
+      // ArtistType visibility, but field-level access keeps the guard
+      // intact if a future code path returns ArtistType without a prior
+      // check (mirrors `ArtistType.recentPosts` pattern from PR-A / #363).
+      //
+      // The only path that exercises this guard *today* is a self-view of
+      // a private artist — the top-level resolver lets the owner through,
+      // and this re-check confirms downstream callers see the same set.
+      // See `track-author-visibility.test.ts` "self viewer sees own
+      // private artist's tracks via the field resolver" for the asserted
+      // contract.
+      //
+      // TODO(#372): `checkArtistAccess` issues up to 2 SELECTs per artist
+      // (artists + tuneIns). Already triggerable today via
+      // `myTuneIns { artist { tracks { id } } }` — N tune-ins fan out to
+      // N × 2 SELECTs for the visibility gate. The fix path is a
+      // ctx-cached access map or prefetched `_access` embedding (see
+      // `.claude/rules/backend-implementation.md` N+1 pattern). Paired
+      // with #371 (`checkArtistAccess` overload), the close-out is small.
+      const access = await checkArtistAccess(artist.id, ctx.authUser);
+      if (!access.accessible) {
+        return [];
+      }
       return db.select().from(tracks).where(eq(tracks.artistId, artist.id));
     },
   }),

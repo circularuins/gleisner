@@ -4,6 +4,7 @@ import { db } from "../../db/index.js";
 import { posts, reactions, users } from "../../db/schema/index.js";
 import { and, eq, sql, desc } from "drizzle-orm";
 import { isAuthorVisibleToViewer } from "../access.js";
+import { validateUUID } from "../validators.js";
 import { PostType } from "./post.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 
@@ -78,6 +79,7 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.postId, "post id");
 
       // Validate emoji
       const emoji = args.emoji.trim();
@@ -160,6 +162,7 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.id, "reaction id");
 
       // Single query with both id and userId to avoid existence oracle
       const [reaction] = await db
@@ -197,6 +200,7 @@ builder.queryFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.postId, "post id");
       // Refuse to surface reactions for posts whose author is a child /
       // non-public user. Without this guard, a viewer who knows a child
       // author's post id can enumerate its reactions even though
