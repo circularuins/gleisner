@@ -115,37 +115,47 @@ builder.mutationFields((t) => ({
       // sequence into a single race-safe path: parallel double-clicks no
       // longer race past `existing` and surface as 500 ("Failed to create
       // reaction") on the unique-constraint violation.
-      const [inserted] = await db
-        .insert(reactions)
-        .values({
-          postId: args.postId,
-          userId: ctx.authUser.userId,
-          emoji,
-        })
-        .onConflictDoNothing({
-          target: [reactions.postId, reactions.userId, reactions.emoji],
-        })
-        .returning();
+      //
+      // Wrapped in a transaction so the INSERT-or-DELETE pair stays
+      // atomic from the client's perspective and stays symmetric with
+      // `toggleMilestoneReaction` (which has been transactional from
+      // the start). Without this wrapper the failure mode is benign
+      // today — DELETE following a swallowed INSERT cannot leave a
+      // stale row — but the symmetry makes future "add a per-user cap
+      // here too" / "audit-log this mutation" extensions straightforward.
+      return await db.transaction(async (tx) => {
+        const [inserted] = await tx
+          .insert(reactions)
+          .values({
+            postId: args.postId,
+            userId: ctx.authUser!.userId,
+            emoji,
+          })
+          .onConflictDoNothing({
+            target: [reactions.postId, reactions.userId, reactions.emoji],
+          })
+          .returning();
 
-      if (inserted) {
-        // Toggle on: row was newly created.
-        return inserted;
-      }
+        if (inserted) {
+          // Toggle on: row was newly created.
+          return inserted;
+        }
 
-      // Row already existed → toggle off. DELETE returns 0 rows iff a
-      // concurrent caller has already toggled off in the gap, which is the
-      // exact same observable end state we want — so we always return null
-      // here without distinguishing the two paths.
-      await db
-        .delete(reactions)
-        .where(
-          and(
-            eq(reactions.postId, args.postId),
-            eq(reactions.userId, ctx.authUser.userId),
-            eq(reactions.emoji, emoji),
-          ),
-        );
-      return null;
+        // Row already existed → toggle off. DELETE returns 0 rows iff a
+        // concurrent caller has already toggled off in the gap, which is
+        // the exact same observable end state we want — so we always
+        // return null here without distinguishing the two paths.
+        await tx
+          .delete(reactions)
+          .where(
+            and(
+              eq(reactions.postId, args.postId),
+              eq(reactions.userId, ctx.authUser!.userId),
+              eq(reactions.emoji, emoji),
+            ),
+          );
+        return null;
+      });
     },
   }),
 
@@ -160,26 +170,28 @@ builder.mutationFields((t) => ({
       }
       validateUUID(args.id, "reaction id");
 
-      // Single query with both id and userId to avoid existence oracle
-      const [reaction] = await db
-        .select()
-        .from(reactions)
+      // Single DELETE with both id and userId. Two pieces of safety:
+      //   1. Ownership: the userId predicate makes the DELETE a no-op
+      //      for someone else's reaction id, even if a future refactor
+      //      drops the explicit ownership SELECT we used to run here.
+      //      DELETE-then-throw with a guarded WHERE is more
+      //      future-proof than SELECT-then-DELETE because the WHERE is
+      //      what actually authorizes the row removal.
+      //   2. Enumeration: returning the same "Reaction not found"
+      //      message for "row missing" and "row owned by someone else"
+      //      keeps existence indistinguishable from non-ownership.
+      const [deleted] = await db
+        .delete(reactions)
         .where(
           and(
             eq(reactions.id, args.id),
             eq(reactions.userId, ctx.authUser.userId),
           ),
         )
-        .limit(1);
-      if (!reaction) {
+        .returning();
+      if (!deleted) {
         throw new GraphQLError("Reaction not found");
       }
-
-      const [deleted] = await db
-        .delete(reactions)
-        .where(eq(reactions.id, args.id))
-        .returning();
-
       return deleted;
     },
   }),

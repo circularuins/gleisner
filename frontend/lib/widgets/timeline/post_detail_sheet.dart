@@ -295,9 +295,7 @@ class _PostDetailContentState extends State<PostDetailContent> {
     _myReactions = Set.from(widget.post.myReactions);
     _outgoingConnections = List.from(widget.post.outgoingConnections);
     _incomingConnections = List.from(widget.post.incomingConnections);
-    _randomPresets = ([
-      ..._reactionPresets,
-    ]..shuffle(Random())).take(_inlineQuickPickCount).toList();
+    _randomPresets = _pickRandomPresets();
     _pageController = PageController();
     // Initialize Quill resources for delta posts
     if (widget.post.bodyFormat == BodyFormat.delta &&
@@ -324,10 +322,17 @@ class _PostDetailContentState extends State<PostDetailContent> {
       // PostDetailContent State across multiple post.id values). Without
       // this, the user keeps seeing the previous post's three random
       // emojis on the new one.
-      _randomPresets = ([
-        ..._reactionPresets,
-      ]..shuffle(Random())).take(_inlineQuickPickCount).toList();
+      _randomPresets = _pickRandomPresets();
     }
+  }
+
+  /// Draw [_inlineQuickPickCount] emojis from [_reactionPresets] in a
+  /// per-call random order. Centralized so the `initState` first-draw
+  /// and the `didUpdateWidget` post-recycle re-roll stay in lockstep.
+  List<String> _pickRandomPresets() {
+    return ([
+      ..._reactionPresets,
+    ]..shuffle(Random())).take(_inlineQuickPickCount).toList();
   }
 
   @override
