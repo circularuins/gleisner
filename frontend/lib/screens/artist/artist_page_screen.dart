@@ -159,10 +159,17 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                           expandedHeight: 200,
                           pinned: true,
                           backgroundColor: colorSurface0,
+                          // The leading + action icons sit on top of an
+                          // arbitrary cover image. Near-white icons get washed
+                          // out on light photos (sky, snow, paper). Apply the
+                          // same two-layer dark shadow used for cover-image
+                          // text overlays (see post_detail_sheet.dart) so the
+                          // icons stay legible regardless of the cover.
                           leading: IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.arrow_back,
                               color: colorTextPrimary,
+                              shadows: coverIconShadows,
                             ),
                             onPressed: () => context.pop(),
                           ),
@@ -172,9 +179,10 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                           actions: [
                             IconButton(
                               tooltip: context.l10n.copyPublicLink,
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.link,
                                 color: colorTextPrimary,
+                                shadows: coverIconShadows,
                               ),
                               onPressed: () => _copyPublicLink(
                                 context,
