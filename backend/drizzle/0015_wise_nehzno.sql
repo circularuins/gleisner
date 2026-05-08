@@ -1,0 +1,1 @@
+CREATE INDEX "users_guardian_id_idx" ON "users" USING btree ("guardian_id");

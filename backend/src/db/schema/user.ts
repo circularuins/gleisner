@@ -1,5 +1,6 @@
 import {
   type AnyPgColumn,
+  index,
   pgTable,
   uuid,
   varchar,
@@ -7,30 +8,41 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
-export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  did: varchar("did", { length: 255 }).unique().notNull(),
-  email: varchar("email", { length: 255 }).unique().notNull(),
-  username: varchar("username", { length: 30 }).unique().notNull(),
-  displayName: varchar("display_name", { length: 50 }),
-  bio: text("bio"),
-  avatarUrl: text("avatar_url"),
-  profileVisibility: varchar("profile_visibility", { length: 20 })
-    .default("public")
-    .notNull(),
-  passwordHash: text("password_hash").notNull(),
-  passwordSalt: text("password_salt").notNull(),
-  publicKey: text("public_key").notNull(),
-  encryptedPrivateKey: text("encrypted_private_key").notNull(),
-  encryptionSalt: text("encryption_salt").notNull(),
-  birthYearMonth: varchar("birth_year_month", { length: 7 }),
-  guardianId: uuid("guardian_id").references((): AnyPgColumn => users.id, {
-    onDelete: "cascade",
-  }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    did: varchar("did", { length: 255 }).unique().notNull(),
+    email: varchar("email", { length: 255 }).unique().notNull(),
+    username: varchar("username", { length: 30 }).unique().notNull(),
+    displayName: varchar("display_name", { length: 50 }),
+    bio: text("bio"),
+    avatarUrl: text("avatar_url"),
+    profileVisibility: varchar("profile_visibility", { length: 20 })
+      .default("public")
+      .notNull(),
+    passwordHash: text("password_hash").notNull(),
+    passwordSalt: text("password_salt").notNull(),
+    publicKey: text("public_key").notNull(),
+    encryptedPrivateKey: text("encrypted_private_key").notNull(),
+    encryptionSalt: text("encryption_salt").notNull(),
+    birthYearMonth: varchar("birth_year_month", { length: 7 }),
+    guardianId: uuid("guardian_id").references((): AnyPgColumn => users.id, {
+      onDelete: "cascade",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    // Postgres does NOT auto-index FK columns. Every guardian-side path
+    // (`myChildren`, `switchToChild`, `setChildProfileVisibility` — added
+    // in PR #377) does `WHERE guardianId = ?` and would fall back to a
+    // sequential scan as the user table grows. Index it now while the
+    // table is still small enough that the migration is essentially free.
+    index("users_guardian_id_idx").on(table.guardianId),
+  ],
+);

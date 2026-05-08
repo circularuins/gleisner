@@ -690,3 +690,214 @@ describe("login / signup child defenses", () => {
     expect(result.data?.signup).toBeTruthy();
   });
 });
+
+// =============================================================================
+// setChildProfileVisibility (ADR 019 Phase 0 amendment)
+// =============================================================================
+
+describe("setChildProfileVisibility (ADR 019 Phase 0 amendment)", () => {
+  const SET_CHILD_VISIBILITY = `
+    mutation SetVis($childId: String!, $profileVisibility: String!) {
+      setChildProfileVisibility(childId: $childId, profileVisibility: $profileVisibility) {
+        id profileVisibility
+      }
+    }
+  `;
+
+  // Each test creates a fresh guardian + child — `beforeEach` TRUNCATE happens.
+
+  it("guardian can flip own child to public", async () => {
+    const { guardianToken, childId } = await signupAndCreateChild(
+      app,
+      "g@test.com",
+      "g_user",
+      "kiddo",
+    );
+    const resp = await gql(
+      app,
+      SET_CHILD_VISIBILITY,
+      { childId, profileVisibility: "public" },
+      guardianToken,
+    );
+    expect(resp.errors).toBeUndefined();
+    const u = resp.data!.setChildProfileVisibility as {
+      id: string;
+      profileVisibility: string;
+    };
+    expect(u.id).toBe(childId);
+    expect(u.profileVisibility).toBe("public");
+  });
+
+  it("guardian can flip own child back to private", async () => {
+    const { guardianToken, childId } = await signupAndCreateChild(
+      app,
+      "g@test.com",
+      "g_user",
+      "kiddo",
+    );
+    // public → private round-trip
+    await gql(
+      app,
+      SET_CHILD_VISIBILITY,
+      { childId, profileVisibility: "public" },
+      guardianToken,
+    );
+    const resp = await gql(
+      app,
+      SET_CHILD_VISIBILITY,
+      { childId, profileVisibility: "private" },
+      guardianToken,
+    );
+    expect(resp.errors).toBeUndefined();
+    expect(
+      (
+        resp.data!.setChildProfileVisibility as {
+          profileVisibility: string;
+        }
+      ).profileVisibility,
+    ).toBe("private");
+  });
+
+  it("anonymous viewer rejected with Authentication required", async () => {
+    const { childId } = await signupAndCreateChild(
+      app,
+      "g@test.com",
+      "g_user",
+      "kiddo",
+    );
+    const resp = await gql(app, SET_CHILD_VISIBILITY, {
+      childId,
+      profileVisibility: "public",
+    });
+    expect(resp.errors).toBeDefined();
+    expect(resp.errors![0].message).toBe("Authentication required");
+  });
+
+  it("child token (acting as the child) is rejected with Child accounts cannot manage children", async () => {
+    const { guardianToken, childId } = await signupAndCreateChild(
+      app,
+      "g@test.com",
+      "g_user",
+      "kiddo",
+    );
+    const childToken = await switchToChildAndGetToken(
+      app,
+      guardianToken,
+      childId,
+    );
+    const resp = await gql(
+      app,
+      SET_CHILD_VISIBILITY,
+      { childId, profileVisibility: "public" },
+      childToken,
+    );
+    expect(resp.errors).toBeDefined();
+    expect(resp.errors![0].message).toBe(
+      "Child accounts cannot manage children",
+    );
+  });
+
+  it("a different guardian's child is hidden as 'Child account not found'", async () => {
+    // guardian A with their own child
+    const a = await signupAndCreateChild(app, "a@test.com", "a_user", "a_kid");
+    // guardian B
+    const bToken = await signupAndGetToken(app, "b@test.com", "b_user");
+    const resp = await gql(
+      app,
+      SET_CHILD_VISIBILITY,
+      { childId: a.childId, profileVisibility: "public" },
+      bToken,
+    );
+    expect(resp.errors).toBeDefined();
+    expect(resp.errors![0].message).toBe("Child account not found");
+  });
+
+  it("targeting an adult user (guardianId IS NULL) is hidden as 'Child account not found'", async () => {
+    const guardianToken = await signupAndGetToken(app, "g@test.com", "g_user");
+    // get the guardian's own user id via me query
+    const meResp = await gql(app, `{ me { id } }`, undefined, guardianToken);
+    const guardianId = (meResp.data!.me as { id: string }).id;
+    const resp = await gql(
+      app,
+      SET_CHILD_VISIBILITY,
+      { childId: guardianId, profileVisibility: "public" },
+      guardianToken,
+    );
+    expect(resp.errors).toBeDefined();
+    expect(resp.errors![0].message).toBe("Child account not found");
+  });
+
+  it("nonexistent (well-formed) child id is hidden as 'Child account not found'", async () => {
+    const guardianToken = await signupAndGetToken(app, "g@test.com", "g_user");
+    const resp = await gql(
+      app,
+      SET_CHILD_VISIBILITY,
+      {
+        childId: "00000000-0000-4000-8000-000000000000",
+        profileVisibility: "public",
+      },
+      guardianToken,
+    );
+    expect(resp.errors).toBeDefined();
+    expect(resp.errors![0].message).toBe("Child account not found");
+  });
+
+  it("malformed UUID rejected with Invalid child id (BAD_USER_INPUT)", async () => {
+    const guardianToken = await signupAndGetToken(app, "g@test.com", "g_user");
+    const resp = await gql(
+      app,
+      SET_CHILD_VISIBILITY,
+      { childId: "not-a-uuid", profileVisibility: "public" },
+      guardianToken,
+    );
+    expect(resp.errors).toBeDefined();
+    expect(resp.errors![0].message).toBe("Invalid child id");
+    expect(resp.errors![0].extensions?.code).toBe("BAD_USER_INPUT");
+  });
+
+  it("invalid profileVisibility value rejected", async () => {
+    const { guardianToken, childId } = await signupAndCreateChild(
+      app,
+      "g@test.com",
+      "g_user",
+      "kiddo",
+    );
+    const resp = await gql(
+      app,
+      SET_CHILD_VISIBILITY,
+      { childId, profileVisibility: "everyone" },
+      guardianToken,
+    );
+    expect(resp.errors).toBeDefined();
+    expect(resp.errors![0].message).toMatch(/profileVisibility/i);
+  });
+});
+
+// =============================================================================
+// createChildAccount default visibility guard (ADR 019 multi-layer)
+// =============================================================================
+
+describe("createChildAccount default visibility (ADR 019 multi-layer)", () => {
+  it("freshly created child has profileVisibility = 'private' (multi-layer guard for ADR 019)", async () => {
+    const { guardianToken, childId } = await signupAndCreateChild(
+      app,
+      "g@test.com",
+      "g_user",
+      "kiddo",
+    );
+    // Read back via myChildren — that's the guardian-side surface
+    const resp = await gql(
+      app,
+      `query { myChildren { id profileVisibility } }`,
+      undefined,
+      guardianToken,
+    );
+    const kids = resp.data!.myChildren as Array<{
+      id: string;
+      profileVisibility: string;
+    }>;
+    const kid = kids.find((k) => k.id === childId);
+    expect(kid).toBeDefined();
+    expect(kid!.profileVisibility).toBe("private");
+  });
+});

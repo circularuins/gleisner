@@ -454,11 +454,26 @@ describe("post author visibility (Issue #250)", () => {
     });
   });
 
+  // ADR 019 Phase 0 amendment (2026-05-08, gleisner#377):
+  // `users.guardianId` no longer gates author visibility on its own. The
+  // rule that powered the original PR-A protection — `guardianId !== null
+  // → hide` — has been replaced by `users.profileVisibility` being the
+  // sole Layer 0 gate. Children remain hidden by default because
+  // `createChildAccount` writes `'private'`, but the unlock path now
+  // exists. If you ever feel like reintroducing a guardianId-based
+  // blanket hide here, please first read `access.ts:isAuthorVisibleToViewer`
+  // and ADR 019 §"Cross-file constraint (do not edit in isolation)" so
+  // the gate doesn't end up half-installed.
   describe("child author (ADR 019)", () => {
     it("post(id): anon viewer gets null (child author hidden)", async () => {
       const fix = await createChildAuthorWithPost(app);
-      // Child's own visibility is private by default (Tier 1), but even if it
-      // were public the post must still be hidden because guardianId !== null.
+      // Child's user-level visibility (`users.profileVisibility`) is `'private'`
+      // by default at `createChildAccount`, so `isAuthorVisibleToViewer`
+      // returns false here for any non-self viewer. The blanket
+      // `guardianId !== null → hide` rule is gone (ADR 019 Phase 0 amendment);
+      // the guardian opts in via `setChildProfileVisibility` to flip the user
+      // row to `'public'`. See the "guardian-unlocked child" describe block
+      // below for that path.
       const resp = await gql(app, POST_QUERY, { id: fix.postId });
       expect(resp.data!.post).toBeNull();
     });
@@ -486,6 +501,123 @@ describe("post author visibility (Issue #250)", () => {
         fix.childToken,
       );
       expect((resp.data!.post as { id: string } | null)?.id).toBe(fix.postId);
+    });
+  });
+
+  describe("guardian-unlocked child (ADR 019 Phase 0 amendment)", () => {
+    // Once the guardian flips `users.profileVisibility` to 'public' via
+    // `setChildProfileVisibility`, the child's posts behave like any other
+    // public author's: visible to anonymous viewers, reactable, and
+    // connectable. This block re-exercises the same paths the
+    // `"child author (ADR 019)"` block hides, asserting they now surface.
+
+    // helper: same as `createChildAuthorWithPost`, then unlock via guardian.
+    // Unlocking requires two steps:
+    //   1. Guardian flips `users.profileVisibility` (Layer 0) to 'public' via
+    //      `setChildProfileVisibility`.
+    //   2. Child (or guardian acting as child) flips `artists.profileVisibility`
+    //      (Layer 1) to 'public' via `updateArtist` — child artists are
+    //      forced-private at registration time.
+    // Both layers must be public for posts to surface to anonymous viewers.
+    async function createUnlockedChildAuthor(
+      testApp: App,
+    ): Promise<ChildAuthorFixture> {
+      const fix = await createChildAuthorWithPost(testApp);
+
+      // Layer 0: unlock user-level visibility via guardian token
+      const visResp = await gql(
+        testApp,
+        `mutation Unlock($childId: String!, $profileVisibility: String!) {
+           setChildProfileVisibility(childId: $childId, profileVisibility: $profileVisibility) {
+             id profileVisibility
+           }
+         }`,
+        { childId: fix.childId, profileVisibility: "public" },
+        fix.guardianToken,
+      );
+      if (visResp.errors) {
+        throw new Error(
+          "setChildProfileVisibility failed in fixture: " +
+            JSON.stringify(visResp.errors),
+        );
+      }
+
+      // Layer 1: unlock artist-level visibility via child token
+      // (child artists are forced-private at registerArtist time — ADR 019)
+      const artistResp = await gql(
+        testApp,
+        `mutation { updateArtist(profileVisibility: "public") { profileVisibility } }`,
+        undefined,
+        fix.childToken,
+      );
+      if (artistResp.errors) {
+        throw new Error(
+          "updateArtist failed in fixture: " +
+            JSON.stringify(artistResp.errors),
+        );
+      }
+
+      return fix;
+    }
+
+    it("post(id): anon viewer sees the post after guardian unlock", async () => {
+      const fix = await createUnlockedChildAuthor(app);
+      const resp = await gql(app, POST_QUERY, { id: fix.postId });
+      const post = resp.data!.post as { id: string } | null;
+      expect(post?.id).toBe(fix.postId);
+    });
+
+    it("posts(trackId): anon viewer sees the post after guardian unlock", async () => {
+      const fix = await createUnlockedChildAuthor(app);
+      const resp = await gql(app, POSTS_QUERY, { trackId: fix.trackId });
+      const list = resp.data!.posts as Array<{ id: string }>;
+      expect(list).toHaveLength(1);
+      expect(list[0].id).toBe(fix.postId);
+    });
+
+    it("artistPosts: anon viewer sees the post after guardian unlock", async () => {
+      const fix = await createUnlockedChildAuthor(app);
+      const resp = await gql(app, ARTIST_POSTS_QUERY, {
+        artistId: fix.artistId,
+      });
+      const list = resp.data!.artistPosts as Array<{ id: string }>;
+      expect(list).toHaveLength(1);
+      expect(list[0].id).toBe(fix.postId);
+    });
+
+    it("toggleReaction: succeeds against an unlocked child's post (Tier 2 behavior)", async () => {
+      const fix = await createUnlockedChildAuthor(app);
+      const fanToken = await signupAndGetToken(app, "fan@test.com", "fan_user");
+      const resp = await gql(
+        app,
+        TOGGLE_REACTION_MUTATION,
+        { postId: fix.postId, emoji: "👍" },
+        fanToken,
+      );
+      expect(resp.errors).toBeUndefined();
+      expect((resp.data!.toggleReaction as { emoji: string }).emoji).toBe("👍");
+    });
+
+    it("createConnection: succeeds when targeting an unlocked child's post", async () => {
+      const fix = await createUnlockedChildAuthor(app);
+      const fan = await createAuthorWithPost(
+        app,
+        "fan@test.com",
+        "fan_user",
+        "fan_artist",
+      );
+      const resp = await gql(
+        app,
+        CREATE_CONNECTION_MUTATION,
+        {
+          sourceId: fan.postId,
+          targetId: fix.postId,
+          connectionType: "reference",
+        },
+        fan.token,
+      );
+      expect(resp.errors).toBeUndefined();
+      expect((resp.data!.createConnection as { id: string }).id).toBeDefined();
     });
   });
 

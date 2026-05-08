@@ -349,7 +349,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get childAccountPrivateNote =>
-      'Child accounts have private profiles by default and cannot be changed.';
+      'Child accounts start with their posts hidden. The guardian can choose to make them publicly visible at any time.';
+
+  @override
+  String get childPostVisibility => 'Post-author visibility';
+
+  @override
+  String get childPostVisibilityHint =>
+      'When ON, family members and other people can see this child\'s posts. The artist profile visibility (set on the artist\'s own profile screen) is a separate setting and must also be Public for the timeline to appear.';
+
+  @override
+  String unlockChildVisibilityTitle(String name) {
+    return 'Make $name\'s posts publicly visible?';
+  }
+
+  @override
+  String unlockChildVisibilityBody(String name) {
+    return 'Other users will be able to see $name\'s posts. You can switch this off at any time.';
+  }
+
+  @override
+  String get unlockChildVisibilityConfirm => 'Make public';
+
+  @override
+  String get setChildVisibilityFailed =>
+      'Failed to update child visibility. Please try again.';
 
   @override
   String get firstName => 'First Name';

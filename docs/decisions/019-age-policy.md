@@ -4,6 +4,8 @@
 
 Draft — **Requires legal counsel review before implementation**
 
+> **Phase 0 Amendment (2026-05-08)** — see "Phase 0 Amendment" section near the end of this ADR. The Tier-1 "private locked" default is implemented as `users.profileVisibility = 'private'` at child creation, but the unlock path is exposed to the guardian (rather than locked entirely) for the duration of Phase 0's family-only deployment. The Tier-1 locked + COPPA-grade verification is deferred to Phase 1 SNS opening.
+
 ## Context
 
 Gleisner's vision (ADR 001) includes lifelong creative logging — an artist's journey captured from childhood practice videos to professional performances. The founder's explicit intent is to avoid arbitrary age restrictions that other platforms impose, viewing them as a pain point Gleisner was built to solve.
@@ -316,6 +318,105 @@ Cost: Varies by program, typically $5,000-$15,000/year for small platforms.
 | LC-6 | Guardian abuse/custody dispute handling: legal obligations? | Pre-launch |
 | LC-7 | GDPR Art.8 age thresholds: must Gleisner detect user's EU country for correct threshold? | Pre-EU-launch |
 | LC-8 | Data retention for consent records: how long after child turns 18? | Pre-launch |
+| LC-9 | Phase 0 amendment (guardian-only unlock without per-tier age check) acceptable under COPPA / UK Children's Code, given the family-only / non-discoverable / 0-yen deployment scope? | Pre-Phase-1 |
+
+## Phase 0 Amendment (2026-05-08)
+
+### Context
+
+The full design above (Tier 1 locked, Tier 2 guardian-approved unlock, Tier 3 self unlock) targets a public SNS deployment. Phase 0 of Gleisner's release strategy
+(`project_phased_launch_strategy.md`) is **family-only lifelong logging**, not a public SNS:
+
+- 0-yen, invite-distributed
+- No discovery feed, no search engine indexing, no federated propagation
+- Members reach the platform through the founder's personal network — there is no path
+  for an unrelated stranger to find a child's account
+
+A bug in the post-author-visibility filter (PR-A / gleisner#363) hid every child-authored
+post from every viewer, including the family members the platform exists for. This
+amendment defines the minimum unlock path needed for Phase 0 to function while
+deferring the legally-loaded pieces of the full design to Phase 1.
+
+### What Phase 0 implements
+
+- **`users.profileVisibility` is the source of truth for the post-author-visibility
+  layer (Layer 0).** A child's posts are hidden from third parties iff
+  `users.profileVisibility !== 'public'`. The `guardianId !== null` blanket hide
+  introduced in PR-A is removed.
+- **`createChildAccount` continues to insert `profileVisibility = 'private'`.** New
+  child accounts remain hidden from third parties at creation time — the public path
+  is opt-in.
+- **A new mutation `setChildProfileVisibility(childId, profileVisibility)` lets the
+  child's guardian flip the value.** Authorisation is `users.guardianId = ctx.authUser.userId`
+  on the target row. The child themselves still cannot change their own
+  `profileVisibility` (`updateMe` retains the existing `ctx.authUser.guardianId` reject).
+- **The artist-visibility layer (`artists.profileVisibility`, Layer 1) is unchanged.**
+  ADR 016's two-axis model is preserved: the user-level switch governs whether the
+  child appears as a post author; the artist-level switch governs whether the artist
+  profile and tracks are reachable. Both must be `'public'` for unauthenticated viewers
+  to see the timeline.
+
+### What Phase 0 deliberately defers (Phase 1 work)
+
+| Phase 0 stance | Phase 1 target |
+|---|---|
+| Guardian unlock applies regardless of age tier | **Tier 1 (<13) `private` is locked** — guardian unlock disabled for under-13 accounts (COPPA §312.5 / UK Children's Code) |
+| No tier-based UI variation | Tier 2 (13-15) shows guardian-approved unlock; Tier 3 (16-17) shows self unlock |
+| No VPC (Verifiable Parental Consent) flow | Email-Plus VPC at `createChildAccount` time, recorded with guardian DID signature |
+| No federated propagation rules per tier | `propagation: none / restricted / standard` per Tier 1 / 2 / 3+ |
+
+### Why this is acceptable for Phase 0 only
+
+The amendment widens the unlock path **but the deployment surface is closed**:
+
+- **Not discoverable.** No `searchUsers` / `searchArtists` resolver exposes child rows
+  outside the family-invite network. (PR-B / gleisner#370 added the artist-side gate;
+  the user side is still closed because no public-facing user search exists.)
+- **Not federated.** Phase 0 is single-instance Railway — no cross-node propagation.
+- **Not indexed.** `robots.txt` denies search engines; no sitemap, no public profile
+  HTML pages.
+- **Membership is human-vetted.** The founder distributes invites personally; there
+  is no anonymous signup path that lands a stranger on a child's profile.
+
+These properties hold by deployment fact, not by code-level enforcement, so they
+**must be re-verified before Phase 1 opens**. If any of them stop holding, Phase 1's
+re-implementation of Tier-1 locking becomes a launch blocker rather than a planned
+feature. This is captured as **LC-9** above and tracked as a Phase 1 SNS-release
+preflight item.
+
+### Phase 1 re-implementation checklist
+
+When Phase 1 closes this amendment (replacing Tier-1 unlock with the locked design):
+
+- [ ] `setChildProfileVisibility` rejects under-13 targets (`users.birthYearMonth` →
+      derived age) with COPPA-friendly error
+- [ ] VPC capture in `createChildAccount` (Email-Plus method, recorded with guardian
+      Ed25519 signature)
+- [ ] Tier-2 / Tier-3 differentiated UI (the user-level toggle becomes
+      self-controllable at Tier 3)
+- [ ] Federated propagation rules per tier (relevant once federation lands)
+- [ ] LC-9 cleared by counsel: amendment-period exposure was within COPPA / UK
+      Children's Code tolerance for non-discoverable, family-only deployment
+
+### Cross-file constraint (do not edit in isolation)
+
+`backend/src/graphql/access.ts` keeps `guardianId` on the
+`isAuthorVisibleToViewer` input shape — and `backend/src/graphql/types/post.ts`
+keeps fetching it as part of the `_authorMeta` prefetch — even though the
+field stopped driving the boolean during this amendment. That isn't dead code:
+the Tier-1 lock that Phase 1 re-installs needs the same prefetched
+`guardianId` to refuse author visibility for under-13 children regardless of
+their `users.profileVisibility` setting.
+
+**Restoration must happen in a single PR.** When closing this amendment, the
+PR that re-introduces a guardianId-aware branch in `isAuthorVisibleToViewer`
+MUST also (a) install the Tier-1 reject in `setChildProfileVisibility`,
+(b) gate the frontend Switch on the same tier, and (c) close
+gleisner#378 + #381. Splitting these changes leaves the gate half-installed
+on `main` and re-creates the original bug from PR-A in inverted form.
+
+The TODO comment in `setChildProfileVisibility` cross-references this
+section — they should always move together.
 
 ## Related
 

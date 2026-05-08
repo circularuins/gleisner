@@ -62,9 +62,25 @@ export async function checkArtistAccess(
  * `artists.profileVisibility` (Layer 1 — artist persona visibility).
  *
  * - viewer is the author themselves → always visible
- * - author has a guardian (child account, ADR 019) → not visible
  * - author's profileVisibility is not "public" → not visible
  * - otherwise → visible
+ *
+ * Child accounts: ADR 019 Phase 0 amendment makes `users.profileVisibility`
+ * the sole gate. `createChildAccount` inserts `'private'` so a child author
+ * is hidden by default; the guardian opts in via `setChildProfileVisibility`.
+ * The previous `guardianId !== null → hide` rule (PR-A / #363) is removed
+ * because it overrode the guardian's stored decision and broke Phase 0's
+ * family-lifelog use case (the founder's child was invisible to her own
+ * family). Tier-1 (<13) lock + COPPA-grade verification is deferred to
+ * Phase 1 SNS opening — see ADR 019 §"Phase 0 Amendment".
+ *
+ * Therefore: do not reintroduce a guardianId-based blanket hide here without
+ * also rebuilding the guardian-side unlock UI to match.
+ *
+ * `guardianId` is intentionally still part of the input shape so callers
+ * keep passing it (selecting `users.guardianId` is part of the
+ * `_authorMeta` prefetch contract used by post / connection / reaction
+ * resolvers); it just no longer drives the boolean.
  */
 export function isAuthorVisibleToViewer(
   author: {
@@ -75,7 +91,6 @@ export function isAuthorVisibleToViewer(
   viewerUserId: string | null,
 ): boolean {
   if (viewerUserId !== null && viewerUserId === author.userId) return true;
-  if (author.guardianId !== null) return false;
   if (author.profileVisibility !== "public") return false;
   return true;
 }

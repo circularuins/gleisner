@@ -524,6 +524,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildChildCard(User child) {
+    final isPublic = child.profileVisibility == 'public';
     return Container(
       padding: const EdgeInsets.all(spaceMd),
       decoration: BoxDecoration(
@@ -531,39 +532,127 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         borderRadius: BorderRadius.circular(radiusMd),
         border: Border.all(color: colorBorder),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AvatarImage(
-            imageUrl: child.avatarUrl,
-            seed: child.username,
-            size: 36,
-          ),
-          const SizedBox(width: spaceMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  child.displayName ?? child.username,
-                  style: textBody.copyWith(fontWeight: FontWeight.w500),
+          Row(
+            children: [
+              AvatarImage(
+                imageUrl: child.avatarUrl,
+                seed: child.username,
+                size: 36,
+              ),
+              const SizedBox(width: spaceMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      child.displayName ?? child.username,
+                      style: textBody.copyWith(fontWeight: FontWeight.w500),
+                    ),
+                    Text(
+                      '@${child.username}',
+                      style: textCaption.copyWith(color: colorTextMuted),
+                    ),
+                  ],
                 ),
-                Text(
-                  '@${child.username}',
-                  style: textCaption.copyWith(color: colorTextMuted),
+              ),
+              TextButton(
+                onPressed: () => _switchToChild(child.id),
+                child: Text(
+                  context.l10n.switchToChild(
+                    child.displayName ?? child.username,
+                  ),
+                  style: textLabel.copyWith(color: colorAccentGold),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => _switchToChild(child.id),
+          const SizedBox(height: spaceSm),
+          Row(
+            children: [
+              Icon(
+                isPublic ? Icons.visibility : Icons.visibility_off,
+                size: 14,
+                color: colorTextMuted,
+              ),
+              const SizedBox(width: spaceXs),
+              Text(
+                context.l10n.childPostVisibility,
+                style: textCaption.copyWith(color: colorTextMuted),
+              ),
+              const Spacer(),
+              Semantics(
+                // Screen readers otherwise hear "switch, on" with no idea
+                // whose visibility is being toggled, since the displayName
+                // sits in a sibling subtree.
+                label:
+                    "${child.displayName ?? child.username}: ${context.l10n.childPostVisibility}",
+                toggled: isPublic,
+                child: Switch(
+                  value: isPublic,
+                  activeThumbColor: colorAccentGold,
+                  activeTrackColor: colorAccentGold.withValues(alpha: 0.4),
+                  onChanged: (toPublic) =>
+                      _toggleChildVisibility(child, toPublic),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: spaceXxs),
             child: Text(
-              context.l10n.switchToChild(child.displayName ?? child.username),
-              style: textLabel.copyWith(color: colorAccentGold),
+              context.l10n.childPostVisibilityHint,
+              style: textCaption.copyWith(color: colorTextMuted, fontSize: 11),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _toggleChildVisibility(User child, bool toPublic) async {
+    if (toPublic) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(
+            context.l10n.unlockChildVisibilityTitle(
+              child.displayName ?? child.username,
+            ),
+          ),
+          content: Text(
+            context.l10n.unlockChildVisibilityBody(
+              child.displayName ?? child.username,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(context.l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(context.l10n.unlockChildVisibilityConfirm),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+    final ok = await ref
+        .read(guardianProvider.notifier)
+        .setChildProfileVisibility(
+          childId: child.id,
+          profileVisibility: toPublic ? 'public' : 'private',
+        );
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.setChildVisibilityFailed)),
+      );
+    }
   }
 
   Future<void> _switchToChild(String childId) async {

@@ -713,8 +713,44 @@ abstract class AppLocalizations {
   /// No description provided for @childAccountPrivateNote.
   ///
   /// In en, this message translates to:
-  /// **'Child accounts have private profiles by default and cannot be changed.'**
+  /// **'Child accounts start with their posts hidden. The guardian can choose to make them publicly visible at any time.'**
   String get childAccountPrivateNote;
+
+  /// Label for the Switch that controls whether a child's posts are visible to other users (Layer 0: users.profileVisibility).
+  ///
+  /// In en, this message translates to:
+  /// **'Post-author visibility'**
+  String get childPostVisibility;
+
+  /// Hint text under the child post-visibility Switch. Explains Layer 0 vs Layer 1 independence so guardians understand both must be public.
+  ///
+  /// In en, this message translates to:
+  /// **'When ON, family members and other people can see this child\'s posts. The artist profile visibility (set on the artist\'s own profile screen) is a separate setting and must also be Public for the timeline to appear.'**
+  String get childPostVisibilityHint;
+
+  /// AlertDialog title shown when the guardian toggles a child's post visibility from private to public. Includes child's display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Make {name}\'s posts publicly visible?'**
+  String unlockChildVisibilityTitle(String name);
+
+  /// AlertDialog body for unlocking child post visibility. Includes child's display name and assurance that it's reversible.
+  ///
+  /// In en, this message translates to:
+  /// **'Other users will be able to see {name}\'s posts. You can switch this off at any time.'**
+  String unlockChildVisibilityBody(String name);
+
+  /// Confirmation button in the unlock-child-visibility AlertDialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Make public'**
+  String get unlockChildVisibilityConfirm;
+
+  /// SnackBar error message shown when setChildProfileVisibility mutation fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update child visibility. Please try again.'**
+  String get setChildVisibilityFailed;
 
   /// No description provided for @firstName.
   ///

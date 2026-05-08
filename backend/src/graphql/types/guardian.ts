@@ -13,7 +13,12 @@ import {
 } from "../../auth/crypto.js";
 import { generateDid } from "../../auth/did.js";
 import { signToken } from "../../auth/jwt.js";
-import { MAX_PASSWORD_LENGTH, validateBirthYearMonth } from "../validators.js";
+import {
+  MAX_PASSWORD_LENGTH,
+  validateBirthYearMonth,
+  validateProfileVisibility,
+  validateUUID,
+} from "../validators.js";
 
 const MAX_CHILDREN_PER_GUARDIAN = 10;
 const CHILD_EMAIL_DOMAIN = "@child.gleisner.local";
@@ -174,6 +179,11 @@ builder.mutationFields((t) => ({
             publicKey,
             encryptedPrivateKey: childEncryptedPrivateKey,
             encryptionSalt,
+            // Default-private is the cornerstone of ADR 019 Phase 0
+            // amendment: `isAuthorVisibleToViewer` no longer hides
+            // children unconditionally, so the safe default has to live
+            // here at insert time. Tier-1 (<13) lock will move enforcement
+            // back into the validator/access layer in Phase 1.
             profileVisibility: "private",
             birthYearMonth: args.birthYearMonth,
             guardianId: ctx.authUser!.userId,
@@ -233,6 +243,93 @@ builder.mutationFields((t) => ({
         guardianId: ctx.authUser.userId,
       });
       return { token, user: child };
+    },
+  }),
+
+  // ADR 019 Phase 0 amendment — guardian-only unlock for the user-level
+  // (Layer 0) visibility of a child account. The child themselves still
+  // cannot move their own visibility (`updateMe` retains the
+  // `ctx.authUser.guardianId` reject); only their guardian can.
+  //
+  // TODO(phase1-coppa) — gleisner#378 / #381 / ADR 019 §"Phase 1
+  // re-implementation checklist".
+  //
+  // ⚠ Phase 1 trigger condition: the day **any** of the following PRs
+  // is opened against `main`, this resolver MUST gain a Tier-1 (<13)
+  // age-tier reject in the same PR (or block the merge):
+  //   - a `searchUsers` / `searchArtists` resolver returning
+  //     guardian-managed accounts to anonymous viewers,
+  //   - a sitemap / `robots.txt` change that flips child profile pages
+  //     from `noindex` to `index`,
+  //   - any federation / cross-instance propagation rollout,
+  //   - opening signup beyond the founder's invite list (i.e. the
+  //     deployment ceases to be family-only / non-discoverable).
+  //
+  // This file's TODO and ADR 019's "Why this is acceptable for Phase 0
+  // only" reference each other — neither should be edited in
+  // isolation. ADR 019 also notes that `_authorMeta.guardianId` is
+  // still prefetched in `post.ts`; restoring tier-1 hide here means
+  // restoring that field's role in `isAuthorVisibleToViewer`, and the
+  // two changes belong in the same PR so callers don't see a
+  // half-installed gate.
+  setChildProfileVisibility: t.field({
+    type: UserType,
+    args: {
+      childId: t.arg.string({ required: true }),
+      profileVisibility: t.arg.string({ required: true }),
+    },
+    resolve: async (_parent, args, ctx) => {
+      if (!ctx.authUser) {
+        throw new GraphQLError("Authentication required");
+      }
+
+      // Child token cannot manage other children. (`ctx.authUser.guardianId`
+      // is set when the caller is acting as a child, even if their account
+      // technically has children of its own; in Phase 0 only top-level
+      // adult accounts can be guardians, so any non-null guardianId at this
+      // point is the wrong shape of caller.)
+      if (ctx.authUser.guardianId) {
+        throw new GraphQLError("Child accounts cannot manage children");
+      }
+
+      // `validateUUID` rejects malformed input with `extensions.code:
+      // BAD_USER_INPUT`. The format-error vs not-found split is documented
+      // for `validateUUID` itself — clients branch on the code, not the
+      // message — so it does not reopen an enumeration oracle on top of
+      // the unified "Child account not found" below.
+      validateUUID(args.childId, "child id");
+      validateProfileVisibility(args.profileVisibility);
+
+      // Single AND query verifies all three things at once and gives the
+      // attacker the same response for every "you can't touch this row"
+      // case (wrong guardian / not a child / nonexistent id):
+      //   - target row exists
+      //   - target's guardianId matches the caller (caller IS this child's guardian)
+      //   - target IS a child (guardianId is not null)
+      // The third clause is redundant given the second (guardianId can't
+      // both match a non-null id and be null), but it documents the
+      // intent at the resolver level — adult users must never be writable
+      // through this path.
+      const [updated] = await db
+        .update(users)
+        .set({
+          profileVisibility: args.profileVisibility,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(users.id, args.childId),
+            eq(users.guardianId, ctx.authUser.userId),
+            sql`${users.guardianId} IS NOT NULL`,
+          ),
+        )
+        .returning(userColumns);
+
+      if (!updated) {
+        throw new GraphQLError("Child account not found");
+      }
+
+      return updated;
     },
   }),
 

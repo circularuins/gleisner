@@ -344,7 +344,31 @@ class AppLocalizationsJa extends AppLocalizations {
       '子アカウントでは、お子さまが保護者の管理のもとクリエイティブな活動を始められます。\n\n• プロフィールからいつでも自分のアカウントとお子さまのアカウントを切り替えられます\n• お子さまはアーティスト登録や投稿ができます\n• ユーザープロフィールはデフォルトで非公開です\n• アーティストページの公開/非公開は保護者が管理します';
 
   @override
-  String get childAccountPrivateNote => '子アカウントのプロフィールはデフォルトで非公開であり、変更できません。';
+  String get childAccountPrivateNote =>
+      '子アカウントの投稿はデフォルトで非公開です。保護者が公開設定を切り替えられます。いつでも非公開に戻せます。';
+
+  @override
+  String get childPostVisibility => '投稿の公開設定';
+
+  @override
+  String get childPostVisibilityHint =>
+      'ON にすると、family 内外の人がこの子の投稿を閲覧できるようになります。アーティストプロフィールの公開設定 (アーティストのプロフィール画面で設定) は別軸で、タイムラインに表示するには両方を Public にする必要があります。';
+
+  @override
+  String unlockChildVisibilityTitle(String name) {
+    return '$name の投稿を公開しますか？';
+  }
+
+  @override
+  String unlockChildVisibilityBody(String name) {
+    return '他のユーザーが $name の投稿を閲覧できるようになります。いつでも非公開に戻せます。';
+  }
+
+  @override
+  String get unlockChildVisibilityConfirm => '公開する';
+
+  @override
+  String get setChildVisibilityFailed => '公開設定を更新できませんでした。もう一度お試しください。';
 
   @override
   String get firstName => '名前';

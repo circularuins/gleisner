@@ -133,6 +133,58 @@ class GuardianNotifier extends Notifier<GuardianState>
     return true;
   }
 
+  Future<bool> setChildProfileVisibility({
+    required String childId,
+    required String profileVisibility,
+  }) async {
+    if (disposed) return false;
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(setChildProfileVisibilityMutation),
+          variables: {
+            'childId': childId,
+            'profileVisibility': profileVisibility,
+          },
+        ),
+      );
+      if (disposed) return false;
+
+      if (result.hasException) {
+        final serverMsg =
+            result.exception?.graphqlErrors.firstOrNull?.message ?? '';
+        // log only — UI gets a fixed message
+        debugPrint('[setChildProfileVisibility] server error: $serverMsg');
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Failed to update child visibility',
+        );
+        return false;
+      }
+
+      // refetch authoritative state — same pattern as createChild
+      await loadChildren(forceReload: true);
+      if (disposed) return false;
+      // The mutation succeeded server-side, but the re-fetch may have
+      // failed (network blip, auth churn). Treating that as a hard
+      // failure here lets the caller flip the Switch back to the value
+      // it was about to commit, so the UI does not lie about the DB
+      // state for `myChildren`-driven views (gleisner#377 review I-3).
+      if (state.error != null) return false;
+      return true;
+    } catch (e) {
+      if (disposed) return false;
+      debugPrint('[setChildProfileVisibility] unexpected: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to update child visibility',
+      );
+      return false;
+    }
+  }
+
   Future<bool> switchToChild(String childId) async {
     state = state.copyWith(isLoading: true, error: null);
 
