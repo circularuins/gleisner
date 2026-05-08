@@ -453,5 +453,6 @@
   "search": "検索",
   "reactionPickerTitle": "リアクションを追加",
   "reactionPickerHint": "絵文字をタップで追加・解除",
-  "reactWith": "{emoji} でリアクション"
+  "reactWith": "{emoji} でリアクション",
+  "yourReactions": "あなたのリアクション"
 }

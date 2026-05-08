@@ -2509,6 +2509,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'React with {emoji}'**
   String reactWith(String emoji);
+
+  /// Section label inside the emoji picker bottom sheet, above a chip row that shows the emojis the current viewer has already reacted with on this post. Tapping a chip removes that reaction. Lets users see what they've already selected so the picker feels persistent rather than fire-and-forget.
+  ///
+  /// In en, this message translates to:
+  /// **'Your reactions'**
+  String get yourReactions;
 }
 
 class _AppLocalizationsDelegate

@@ -664,5 +664,9 @@
   "@reactWith": {
     "description": "Semantics label for each individual quick-pick emoji button in the post detail view (the inline 3 + ‘+’ row). Read by screen readers as e.g. 'React with party-popper'.",
     "placeholders": { "emoji": { "type": "String" } }
+  },
+  "yourReactions": "Your reactions",
+  "@yourReactions": {
+    "description": "Section label inside the emoji picker bottom sheet, above a chip row that shows the emojis the current viewer has already reacted with on this post. Tapping a chip removes that reaction. Lets users see what they've already selected so the picker feels persistent rather than fire-and-forget."
   }
 }
