@@ -908,51 +908,25 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
       color: colorSurface1,
       child: Column(
         children: [
-          // Header with close + edit buttons
+          // Minimal close-only header strip. Title / edit / delete are all
+          // owned by PostDetailContent (title in _buildContentSection, edit +
+          // delete inline in _buildDateRow), so the side panel header
+          // intentionally omits them to avoid duplicate rendering. The thin
+          // bar with a single close button mirrors the bottom-sheet "drag
+          // handle to dismiss" affordance for desktop.
           Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: spaceLg,
-              vertical: spaceSm,
+              horizontal: spaceSm,
+              vertical: spaceXxs,
             ),
+            alignment: Alignment.centerRight,
             decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: colorBorder)),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    post.title ?? context.l10n.untitled,
-                    style: const TextStyle(
-                      color: colorTextPrimary,
-                      fontSize: fontSizeLg,
-                      fontWeight: weightSemibold,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (isOwn)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.edit_outlined,
-                      size: 18,
-                      color: colorInteractive,
-                    ),
-                    onPressed: () {
-                      setState(() => _sidePanelPostId = null);
-                      _openEditPost(post);
-                    },
-                    tooltip: context.l10n.edit,
-                  ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.close,
-                    size: 18,
-                    color: colorInteractive,
-                  ),
-                  onPressed: () => setState(() => _sidePanelPostId = null),
-                  tooltip: context.l10n.close,
-                ),
-              ],
+            child: IconButton(
+              icon: const Icon(Icons.close, size: 18, color: colorInteractive),
+              onPressed: () => setState(() => _sidePanelPostId = null),
+              tooltip: context.l10n.close,
             ),
           ),
           // Shared content
