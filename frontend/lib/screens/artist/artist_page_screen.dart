@@ -83,37 +83,23 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
       color: colorSurface1,
       child: Column(
         children: [
+          // Minimal close-only header strip. Title is owned by
+          // PostDetailContent's _buildContentSection, so the side panel
+          // header omits it to avoid duplicate rendering. Matches
+          // timeline_screen's side panel.
           Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: spaceLg,
-              vertical: spaceSm,
+              horizontal: spaceSm,
+              vertical: spaceXxs,
             ),
+            alignment: Alignment.centerRight,
             decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: colorBorder)),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    post.title ?? context.l10n.untitled,
-                    style: const TextStyle(
-                      color: colorTextPrimary,
-                      fontSize: fontSizeLg,
-                      fontWeight: weightSemibold,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.close,
-                    size: 18,
-                    color: colorInteractive,
-                  ),
-                  onPressed: () => setState(() => _sidePanelPostId = null),
-                  tooltip: context.l10n.close,
-                ),
-              ],
+            child: IconButton(
+              icon: const Icon(Icons.close, size: 18, color: colorInteractive),
+              onPressed: () => setState(() => _sidePanelPostId = null),
+              tooltip: context.l10n.close,
             ),
           ),
           Expanded(
