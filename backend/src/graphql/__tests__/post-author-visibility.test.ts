@@ -454,6 +454,16 @@ describe("post author visibility (Issue #250)", () => {
     });
   });
 
+  // ADR 019 Phase 0 amendment (2026-05-08, gleisner#377):
+  // `users.guardianId` no longer gates author visibility on its own. The
+  // rule that powered the original PR-A protection — `guardianId !== null
+  // → hide` — has been replaced by `users.profileVisibility` being the
+  // sole Layer 0 gate. Children remain hidden by default because
+  // `createChildAccount` writes `'private'`, but the unlock path now
+  // exists. If you ever feel like reintroducing a guardianId-based
+  // blanket hide here, please first read `access.ts:isAuthorVisibleToViewer`
+  // and ADR 019 §"Cross-file constraint (do not edit in isolation)" so
+  // the gate doesn't end up half-installed.
   describe("child author (ADR 019)", () => {
     it("post(id): anon viewer gets null (child author hidden)", async () => {
       const fix = await createChildAuthorWithPost(app);

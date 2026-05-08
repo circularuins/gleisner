@@ -166,6 +166,13 @@ class GuardianNotifier extends Notifier<GuardianState>
 
       // refetch authoritative state — same pattern as createChild
       await loadChildren(forceReload: true);
+      if (disposed) return false;
+      // The mutation succeeded server-side, but the re-fetch may have
+      // failed (network blip, auth churn). Treating that as a hard
+      // failure here lets the caller flip the Switch back to the value
+      // it was about to commit, so the UI does not lie about the DB
+      // state for `myChildren`-driven views (gleisner#377 review I-3).
+      if (state.error != null) return false;
       return true;
     } catch (e) {
       if (disposed) return false;

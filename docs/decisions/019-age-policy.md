@@ -398,6 +398,26 @@ When Phase 1 closes this amendment (replacing Tier-1 unlock with the locked desi
 - [ ] LC-9 cleared by counsel: amendment-period exposure was within COPPA / UK
       Children's Code tolerance for non-discoverable, family-only deployment
 
+### Cross-file constraint (do not edit in isolation)
+
+`backend/src/graphql/access.ts` keeps `guardianId` on the
+`isAuthorVisibleToViewer` input shape — and `backend/src/graphql/types/post.ts`
+keeps fetching it as part of the `_authorMeta` prefetch — even though the
+field stopped driving the boolean during this amendment. That isn't dead code:
+the Tier-1 lock that Phase 1 re-installs needs the same prefetched
+`guardianId` to refuse author visibility for under-13 children regardless of
+their `users.profileVisibility` setting.
+
+**Restoration must happen in a single PR.** When closing this amendment, the
+PR that re-introduces a guardianId-aware branch in `isAuthorVisibleToViewer`
+MUST also (a) install the Tier-1 reject in `setChildProfileVisibility`,
+(b) gate the frontend Switch on the same tier, and (c) close
+gleisner#378 + #381. Splitting these changes leaves the gate half-installed
+on `main` and re-creates the original bug from PR-A in inverted form.
+
+The TODO comment in `setChildProfileVisibility` cross-references this
+section — they should always move together.
+
 ## Related
 
 - ADR 001 — Project Vision (lifelong creative logging)

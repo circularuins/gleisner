@@ -251,13 +251,27 @@ builder.mutationFields((t) => ({
   // cannot move their own visibility (`updateMe` retains the
   // `ctx.authUser.guardianId` reject); only their guardian can.
   //
-  // TODO(phase1-coppa): Tier-1 (<13) accounts must NOT be unlock-able
-  // when Phase 1 SNS opening lands. Add an age-tier check here that
-  // rejects `'public'` for children under 13 with a COPPA-friendly
-  // error, and pair it with the deferred VPC + tier-aware UI items in
-  // ADR 019. The current resolver is intentionally tier-agnostic
-  // because Phase 0 is family-only / non-discoverable / non-federated
-  // (see ADR 019 §"Phase 0 Amendment" for the rationale).
+  // TODO(phase1-coppa) — gleisner#378 / #381 / ADR 019 §"Phase 1
+  // re-implementation checklist".
+  //
+  // ⚠ Phase 1 trigger condition: the day **any** of the following PRs
+  // is opened against `main`, this resolver MUST gain a Tier-1 (<13)
+  // age-tier reject in the same PR (or block the merge):
+  //   - a `searchUsers` / `searchArtists` resolver returning
+  //     guardian-managed accounts to anonymous viewers,
+  //   - a sitemap / `robots.txt` change that flips child profile pages
+  //     from `noindex` to `index`,
+  //   - any federation / cross-instance propagation rollout,
+  //   - opening signup beyond the founder's invite list (i.e. the
+  //     deployment ceases to be family-only / non-discoverable).
+  //
+  // This file's TODO and ADR 019's "Why this is acceptable for Phase 0
+  // only" reference each other — neither should be edited in
+  // isolation. ADR 019 also notes that `_authorMeta.guardianId` is
+  // still prefetched in `post.ts`; restoring tier-1 hide here means
+  // restoring that field's role in `isAuthorVisibleToViewer`, and the
+  // two changes belong in the same PR so callers don't see a
+  // half-installed gate.
   setChildProfileVisibility: t.field({
     type: UserType,
     args: {

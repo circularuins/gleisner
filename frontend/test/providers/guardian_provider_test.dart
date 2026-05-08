@@ -93,7 +93,15 @@ void main() {
     test('returns true on success', () async {
       final client = _clientForSuccess(
         mutationData: {'setChildProfileVisibility': _childUserMap()},
-        queryData: {'myChildren': <dynamic>[]},
+        // `__typename: 'Query'` lets graphql_flutter's InMemoryStore
+        // normalize the root entry — the `loadChildren` re-fetch uses
+        // FetchPolicy.networkOnly + writes to cache, so without the
+        // typename the cache write throws and surfaces on
+        // `state.error`. Since gleisner#377 review I-3 added a
+        // re-fetch-failure guard, the test would otherwise see
+        // `setChildProfileVisibility` return `false` (state.error
+        // non-null) and the assertion `expect(ok, isTrue)` would fail.
+        queryData: {'__typename': 'Query', 'myChildren': <dynamic>[]},
       );
 
       final container = ProviderContainer(
