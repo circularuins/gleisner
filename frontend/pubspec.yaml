@@ -58,6 +58,7 @@ dependencies:
   # "More colors" HSV picker fallback. Already a transitive dep via
   # flutter_quill; declared explicitly to satisfy `depend_on_referenced_packages`.
   flutter_colorpicker: ^1.1.0
+  emoji_picker_flutter: ^4.4.0
 
 dev_dependencies:
   flutter_test:

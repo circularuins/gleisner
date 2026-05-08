@@ -2485,6 +2485,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Color {hex}'**
   String colorPresetLabel(String hex);
+
+  /// Generic search placeholder used in input fields and search bars (e.g. emoji picker hint, future global search). Single word imperative verb to keep it short on narrow inputs.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get search;
+
+  /// Title shown at the top of the emoji picker bottom sheet that opens when the user taps the '+' button next to the inline quick-pick reactions in the post detail view. Also used as the tooltip / Semantics label on the '+' button itself.
+  ///
+  /// In en, this message translates to:
+  /// **'Add reaction'**
+  String get reactionPickerTitle;
+
+  /// Hint text shown inside the emoji picker bottom sheet, just below the title. Explains the toggle semantics (each tap on an emoji adds or removes that reaction; the sheet stays open across multiple taps until the user dismisses it).
+  ///
+  /// In en, this message translates to:
+  /// **'Tap an emoji to add or remove'**
+  String get reactionPickerHint;
+
+  /// Semantics label for each individual quick-pick emoji button in the post detail view (the inline 3 + ‘+’ row). Read by screen readers as e.g. 'React with party-popper'.
+  ///
+  /// In en, this message translates to:
+  /// **'React with {emoji}'**
+  String reactWith(String emoji);
 }
 
 class _AppLocalizationsDelegate

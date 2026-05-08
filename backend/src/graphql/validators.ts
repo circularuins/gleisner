@@ -266,6 +266,83 @@ export function ageFromBirthYearMonth(value: string): number {
   return age;
 }
 
+/**
+ * Maximum UTF-16 code-unit length permitted for a reaction emoji string
+ * after trimming. Long enough to accommodate ZWJ sequences such as
+ * 👨‍👩‍👧‍👦 (11 code units), 👨🏻‍❤️‍💋‍👨🏿 (17), the longest
+ * RGI sequences in current Unicode emoji data (~24), and a small headroom
+ * for future Unicode revisions, while still bounding storage on the
+ * unique-keyed `(post_id, user_id, emoji)` row. Must match `varchar(64)`
+ * on `reactions.emoji` and `milestone_reactions.emoji` (see
+ * `db/schema/reaction.ts` / `milestone-reaction.ts`).
+ *
+ * Note on units: this limit counts JavaScript `String.length` (UTF-16
+ * code units), whereas PostgreSQL `varchar(64)` counts Unicode
+ * codepoints. A single 4-byte emoji (e.g. 🔥, U+1F525) is 2 code units
+ * here but 1 codepoint in Postgres, so anything we accept always fits
+ * the column. There is no input we reject that the DB would accept,
+ * and no input we accept that the DB would truncate. Future allowlist
+ * work (Idea 004 paid packs) should keep this asymmetry in mind when
+ * picking a stricter bound.
+ */
+export const MAX_EMOJI_LENGTH = 64;
+
+/**
+ * Reject Unicode control and bidirectional / format characters that have no
+ * place in a reaction emoji string. The picker UI (emoji_picker_flutter)
+ * cannot produce these, so any input containing them is either a non-picker
+ * client or an attempt to embed invisible payload. Specifically:
+ *
+ * - U+0000-U+001F, U+007F-U+009F: C0 / C1 control chars (NUL, LF,
+ *   DEL, etc.). Break logs, JSON, and screen reader output.
+ * - U+200B (ZWSP), U+200C (ZWNJ), U+200E (LRM), U+200F (RLM):
+ *   zero-width space / non-joiner and bidirectional marks. Hide payload
+ *   inside what looks like a single emoji and can flip line direction in
+ *   adjacent UI text. ZWJ (U+200D) is INTENTIONALLY EXCLUDED —
+ *   family / profession emoji depend on it (e.g. man + ZWJ + woman + ZWJ
+ *   + girl + ZWJ + boy renders as a single family glyph).
+ * - U+202A-U+202E, U+2066-U+2069: bidi override / isolate. Allow an
+ *   attacker to render reaction text as right-to-left or override visual
+ *   ordering of surrounding labels (Trojan Source family).
+ * - U+FEFF: byte-order mark / ZWNBSP. Same hiding-payload concern as ZWSP.
+ *
+ * Variation selectors (U+FE00-U+FE0F) are kept (e.g. heart + VS-16 = ❤️).
+ */
+const REACTION_EMOJI_FORBIDDEN_RE =
+  // eslint-disable-next-line no-control-regex
+  /[\u0000-\u001F\u007F-\u009F\u200B\u200C\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/;
+
+/**
+ * Validate a reaction emoji string.
+ *
+ * Returns the trimmed value so callers can persist exactly what was checked
+ * (avoid the accidental "validate trimmed, store untrimmed" footgun).
+ *
+ * Phase 0 keeps the value space free-form within the length / forbidden-char
+ * envelope: the picker constrains the input on the client, and the family
+ * Phase 0 deployment has no need for a server-side allowlist. Phase 1's
+ * default-set / paid-pack model (Idea 004) is the natural place to add an
+ * allowlist; this helper is the single point that needs to change.
+ */
+export function validateEmoji(value: unknown): string {
+  if (typeof value !== "string") {
+    throw new GraphQLError("Emoji is required");
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new GraphQLError("Emoji is required");
+  }
+  if (trimmed.length > MAX_EMOJI_LENGTH) {
+    throw new GraphQLError(
+      `Emoji must be ${MAX_EMOJI_LENGTH} characters or less`,
+    );
+  }
+  if (REACTION_EMOJI_FORBIDDEN_RE.test(trimmed)) {
+    throw new GraphQLError("Emoji contains disallowed characters");
+  }
+  return trimmed;
+}
+
 const COPPA_MIN_AGE = 13;
 
 /**

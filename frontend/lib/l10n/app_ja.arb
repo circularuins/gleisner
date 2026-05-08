@@ -448,5 +448,10 @@
   "editTrack": "トラックを編集",
   "failedUpdateTrack": "トラックの更新に失敗しました",
   "failedUpdateTrackRetry": "トラックの更新に失敗しました。再試行してください。",
-  "colorPresetLabel": "色 {hex}"
+  "colorPresetLabel": "色 {hex}",
+
+  "search": "検索",
+  "reactionPickerTitle": "リアクションを追加",
+  "reactionPickerHint": "絵文字をタップで追加・解除",
+  "reactWith": "{emoji} でリアクション"
 }

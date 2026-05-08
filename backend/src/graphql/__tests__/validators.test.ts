@@ -20,6 +20,8 @@ import {
   assertUploadedR2ObjectsMatch,
   assertUploadedR2ObjectMatches,
   validateUUID,
+  validateEmoji,
+  MAX_EMOJI_LENGTH,
 } from "../validators.js";
 import { GraphQLError } from "graphql";
 import {
@@ -343,5 +345,109 @@ describe("validateUUID", () => {
       expect(err).toBeInstanceOf(GraphQLError);
       expect((err as GraphQLError).extensions?.code).toBe("BAD_USER_INPUT");
     }
+  });
+});
+
+// Reaction emoji input gating. Phase 0 keeps the picker as the only client
+// path, so the server check exists for non-picker clients and abuse cases:
+// over-length payloads, control / bidi characters that hide payload, and
+// the empty / whitespace-only edge.
+describe("validateEmoji", () => {
+  it("accepts a single-codepoint emoji", () => {
+    expect(validateEmoji("🔥")).toBe("🔥");
+  });
+
+  it("accepts an emoji with a Variation Selector (heart + VS-16)", () => {
+    // ❤ + U+FE0F renders as the red-heart glyph; VS chars must NOT be
+    // rejected or the entire heart family becomes invalid.
+    expect(validateEmoji("❤️")).toBe("❤️");
+  });
+
+  it("accepts a ZWJ family emoji (man + ZWJ + woman + ZWJ + girl + ZWJ + boy)", () => {
+    // The whole point of expanding from varchar(10) to varchar(64): the
+    // family glyph is 4 surrogate-pair codepoints joined by 3 ZWJ chars =
+    // 11 UTF-16 code units, which the previous varchar(10) silently
+    // truncated. Without ZWJ exemption (U+200D), the
+    // emoji_picker_flutter "people" category would also be unusable.
+    const family = "👨‍👩‍👧‍👦";
+    expect(family.length).toBe(11);
+    expect(family.length).toBeGreaterThan(10); // Regression guard for the previous limit.
+    expect(validateEmoji(family)).toBe(family);
+  });
+
+  it("accepts a kiss-with-skin-tone ZWJ sequence (well above the old 10-char limit)", () => {
+    // Documents that the helper handles deeper ZWJ sequences than the
+    // family case. The exact code-unit count varies by source-string
+    // representation (with/without VS-16 on the heart, etc.); the
+    // important contract is "the old varchar(10) cut this off, the new
+    // limit accepts it".
+    const kiss = "👨🏻‍❤️‍💋‍👨🏿";
+    expect(kiss.length).toBeGreaterThan(10);
+    expect(validateEmoji(kiss)).toBe(kiss);
+  });
+
+  it("trims surrounding whitespace and returns the trimmed value", () => {
+    expect(validateEmoji("  🎉  ")).toBe("🎉");
+  });
+
+  it("accepts exactly MAX_EMOJI_LENGTH code units", () => {
+    const value = "a".repeat(MAX_EMOJI_LENGTH);
+    expect(validateEmoji(value)).toBe(value);
+  });
+
+  it("rejects values longer than MAX_EMOJI_LENGTH after trimming", () => {
+    const value = "a".repeat(MAX_EMOJI_LENGTH + 1);
+    expect(() => validateEmoji(value)).toThrow(GraphQLError);
+    expect(() => validateEmoji(value)).toThrow(
+      `Emoji must be ${MAX_EMOJI_LENGTH} characters or less`,
+    );
+  });
+
+  it("rejects empty string", () => {
+    expect(() => validateEmoji("")).toThrow("Emoji is required");
+  });
+
+  it("rejects whitespace-only string", () => {
+    expect(() => validateEmoji("   \t\n  ")).toThrow("Emoji is required");
+  });
+
+  it("rejects non-string values (defensive)", () => {
+    expect(() => validateEmoji(undefined)).toThrow(GraphQLError);
+    expect(() => validateEmoji(null)).toThrow(GraphQLError);
+    expect(() => validateEmoji(42 as unknown)).toThrow(GraphQLError);
+    expect(() => validateEmoji({} as unknown)).toThrow(GraphQLError);
+  });
+
+  // Trojan Source / invisible-payload defense. Each char would be
+  // rendered invisibly inside an otherwise normal-looking emoji string and
+  // could either hide payload or flip the visual direction of adjacent
+  // labels (e.g. usernames rendered next to the reaction count).
+  it.each([
+    ["NUL (U+0000)", " "],
+    ["LF (U+000A)", "\n"],
+    ["DEL (U+007F)", ""],
+    ["C1 control (U+0085 next-line)", ""],
+    ["ZWSP (U+200B)", "​"],
+    ["ZWNJ (U+200C)", "‌"],
+    ["LRM (U+200E)", "‎"],
+    ["RLM (U+200F)", "‏"],
+    ["RLO (U+202E bidi override)", "‮"],
+    ["RLI (U+2067 bidi isolate)", "⁧"],
+    ["BOM / ZWNBSP (U+FEFF)", "﻿"],
+  ])("rejects %s embedded in the emoji string", (_, ch) => {
+    expect(() => validateEmoji(`🎉${ch}🎉`)).toThrow("disallowed characters");
+  });
+
+  // Belt-and-braces — a single forbidden char alone (no surrounding emoji)
+  // must still be rejected, not slip through as "1 char ≤ MAX".
+  it("rejects a value that is ONLY a forbidden char", () => {
+    expect(() => validateEmoji("​")).toThrow("disallowed characters");
+  });
+
+  // Regression guard for the ZWJ exemption: U+200D must NOT be in the
+  // forbidden set. If a future refactor narrows the regex range and
+  // accidentally re-includes ZWJ, this test fails.
+  it("does NOT reject ZWJ on its own (regression guard for family emoji)", () => {
+    expect(() => validateEmoji("a‍b")).not.toThrow();
   });
 });

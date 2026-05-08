@@ -4,7 +4,7 @@ import { db } from "../../db/index.js";
 import { posts, reactions, users } from "../../db/schema/index.js";
 import { and, eq, sql, desc } from "drizzle-orm";
 import { isAuthorVisibleToViewer } from "../access.js";
-import { validateUUID } from "../validators.js";
+import { validateEmoji, validateUUID } from "../validators.js";
 import { PostType } from "./post.js";
 import { PublicUserType, publicUserColumns } from "./user.js";
 
@@ -80,15 +80,7 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Authentication required");
       }
       validateUUID(args.postId, "post id");
-
-      // Validate emoji
-      const emoji = args.emoji.trim();
-      if (emoji.length === 0) {
-        throw new GraphQLError("Emoji is required");
-      }
-      if (emoji.length > 10) {
-        throw new GraphQLError("Emoji must be 10 characters or less");
-      }
+      const emoji = validateEmoji(args.emoji);
 
       // Verify post exists AND its author is visible to the viewer.
       // Child / non-public authors must not be reachable as reaction targets;
@@ -117,39 +109,53 @@ builder.mutationFields((t) => ({
         throw new GraphQLError("Post not found");
       }
 
-      // Check if reaction already exists
-      const [existing] = await db
-        .select()
-        .from(reactions)
-        .where(
-          and(
-            eq(reactions.postId, args.postId),
-            eq(reactions.userId, ctx.authUser.userId),
-            eq(reactions.emoji, emoji),
-          ),
-        )
-        .limit(1);
-
-      if (existing) {
-        // Toggle off: delete and return null
-        await db.delete(reactions).where(eq(reactions.id, existing.id));
-        return null;
-      }
-
-      // Toggle on: create
-      try {
-        const [reaction] = await db
+      // Idempotent toggle: try to INSERT first; on unique-constraint
+      // collision the (postId, userId, emoji) row already exists and we
+      // DELETE instead. This collapses the previous SELECT → DELETE/INSERT
+      // sequence into a single race-safe path: parallel double-clicks no
+      // longer race past `existing` and surface as 500 ("Failed to create
+      // reaction") on the unique-constraint violation.
+      //
+      // Wrapped in a transaction so the INSERT-or-DELETE pair stays
+      // atomic from the client's perspective and stays symmetric with
+      // `toggleMilestoneReaction` (which has been transactional from
+      // the start). Without this wrapper the failure mode is benign
+      // today — DELETE following a swallowed INSERT cannot leave a
+      // stale row — but the symmetry makes future "add a per-user cap
+      // here too" / "audit-log this mutation" extensions straightforward.
+      return await db.transaction(async (tx) => {
+        const [inserted] = await tx
           .insert(reactions)
           .values({
             postId: args.postId,
-            userId: ctx.authUser.userId,
+            userId: ctx.authUser!.userId,
             emoji,
           })
+          .onConflictDoNothing({
+            target: [reactions.postId, reactions.userId, reactions.emoji],
+          })
           .returning();
-        return reaction;
-      } catch {
-        throw new GraphQLError("Failed to create reaction");
-      }
+
+        if (inserted) {
+          // Toggle on: row was newly created.
+          return inserted;
+        }
+
+        // Row already existed → toggle off. DELETE returns 0 rows iff a
+        // concurrent caller has already toggled off in the gap, which is
+        // the exact same observable end state we want — so we always
+        // return null here without distinguishing the two paths.
+        await tx
+          .delete(reactions)
+          .where(
+            and(
+              eq(reactions.postId, args.postId),
+              eq(reactions.userId, ctx.authUser!.userId),
+              eq(reactions.emoji, emoji),
+            ),
+          );
+        return null;
+      });
     },
   }),
 
@@ -164,26 +170,28 @@ builder.mutationFields((t) => ({
       }
       validateUUID(args.id, "reaction id");
 
-      // Single query with both id and userId to avoid existence oracle
-      const [reaction] = await db
-        .select()
-        .from(reactions)
+      // Single DELETE with both id and userId. Two pieces of safety:
+      //   1. Ownership: the userId predicate makes the DELETE a no-op
+      //      for someone else's reaction id, even if a future refactor
+      //      drops the explicit ownership SELECT we used to run here.
+      //      DELETE-then-throw with a guarded WHERE is more
+      //      future-proof than SELECT-then-DELETE because the WHERE is
+      //      what actually authorizes the row removal.
+      //   2. Enumeration: returning the same "Reaction not found"
+      //      message for "row missing" and "row owned by someone else"
+      //      keeps existence indistinguishable from non-ownership.
+      const [deleted] = await db
+        .delete(reactions)
         .where(
           and(
             eq(reactions.id, args.id),
             eq(reactions.userId, ctx.authUser.userId),
           ),
         )
-        .limit(1);
-      if (!reaction) {
+        .returning();
+      if (!deleted) {
         throw new GraphQLError("Reaction not found");
       }
-
-      const [deleted] = await db
-        .delete(reactions)
-        .where(eq(reactions.id, args.id))
-        .returning();
-
       return deleted;
     },
   }),
@@ -296,7 +304,19 @@ builder.objectFields(PostType, (t) => ({
       return rows.map((r) => r.emoji);
     },
   }),
-  // Aggregated counts only (no user info) — intentionally public
+  // Aggregated counts only (no user info) — intentionally public.
+  //
+  // Phase 0 trade-off: this resolver does NOT apply
+  // `isAuthorVisibleToViewer`. With everyone in the family-launch tier
+  // running `profileVisibility: "public"`, the only emoji content
+  // surfaced here is from authors that are already visible elsewhere.
+  // Phase 1 SNS expansion needs to plug this — once child / private
+  // authors become routinely reachable through public bots and feed
+  // links, leaking their reaction emoji set turns into a
+  // micro-enumeration oracle. Tracked as a separate Issue (linked from
+  // this PR's description); the surrounding `Post.reactions` and
+  // `reactions(postId)` already enforce the same guard so the upgrade
+  // is mechanical.
   reactionCounts: t.field({
     type: [ReactionCountType],
     resolve: async (post) => {
