@@ -1317,4 +1317,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String reactWith(String emoji) {
     return '$emoji でリアクション';
   }
+
+  @override
+  String get yourReactions => 'あなたのリアクション';
 }

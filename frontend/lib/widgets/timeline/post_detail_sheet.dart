@@ -955,55 +955,126 @@ class _PostDetailContentState extends State<PostDetailContent> {
           minChildSize: 0.4,
           maxChildSize: 0.92,
           builder: (sheetInnerContext, scrollController) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: colorSurface1,
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(radiusSheet),
-                ),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: spaceSm),
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: colorBorder,
-                      borderRadius: BorderRadius.circular(radiusFull),
+            // The picker library does not expose a "this emoji is
+            // already toggled on" highlight, and the modal route's
+            // own Element subtree is independent of the parent
+            // PostDetailContent State — so without an explicit
+            // `setSheetState` the chip strip below would never
+            // re-render after a toggle. StatefulBuilder gives us a
+            // local setState scoped to the sheet contents.
+            return StatefulBuilder(
+              builder: (statefulCtx, setSheetState) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    color: colorSurface1,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(radiusSheet),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: spaceLg,
-                      vertical: spaceMd,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(l10n.reactionPickerTitle, style: textHeading),
-                        const SizedBox(height: spaceXxs),
-                        Text(l10n.reactionPickerHint, style: textCaption),
-                      ],
-                    ),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: spaceSm),
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: colorBorder,
+                          borderRadius: BorderRadius.circular(radiusFull),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: spaceLg,
+                          vertical: spaceMd,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(l10n.reactionPickerTitle, style: textHeading),
+                            const SizedBox(height: spaceXxs),
+                            Text(l10n.reactionPickerHint, style: textCaption),
+                            if (_myReactions.isNotEmpty) ...[
+                              const SizedBox(height: spaceMd),
+                              Text(l10n.yourReactions, style: textLabel),
+                              const SizedBox(height: spaceXs),
+                              _buildSheetActiveReactionsRow(setSheetState),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: EmojiPicker(
+                          scrollController: scrollController,
+                          onEmojiSelected: (_, emoji) async {
+                            // Don't close the sheet — the user toggles
+                            // multiple emojis and dismisses themselves.
+                            // Await so the sheet's chip strip re-renders
+                            // only after the parent state has been
+                            // mutated (or rolled back).
+                            await _toggleReaction(emoji.emoji);
+                            if (statefulCtx.mounted) setSheetState(() {});
+                          },
+                          config: pickerConfig,
+                        ),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    child: EmojiPicker(
-                      scrollController: scrollController,
-                      onEmojiSelected: (_, emoji) {
-                        // Don't close the sheet — the user toggles
-                        // multiple emojis and dismisses themselves.
-                        _toggleReaction(emoji.emoji);
-                      },
-                      config: pickerConfig,
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             );
           },
         );
       },
+    );
+  }
+
+  /// "Your reactions" chip strip rendered above the EmojiPicker grid
+  /// inside [_openEmojiPicker]'s sheet. Each chip is a `[emoji ×]`
+  /// affordance that toggles the reaction off when tapped. The strip
+  /// is what makes a tap on the picker grid feel persistent: as soon
+  /// as a new emoji is added it shows up here, and tapping it again
+  /// removes it. Receives the sheet's local `setSheetState` so the
+  /// strip can re-render after the parent State mutates `_myReactions`.
+  Widget _buildSheetActiveReactionsRow(StateSetter setSheetState) {
+    return Wrap(
+      spacing: spaceXs,
+      runSpacing: spaceXs,
+      children: _myReactions.map((emoji) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _isToggling
+              ? null
+              : () async {
+                  await _toggleReaction(emoji);
+                  if (mounted) setSheetState(() {});
+                },
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: spaceSm,
+              vertical: 5,
+            ),
+            decoration: BoxDecoration(
+              color: colorAccentGold.withValues(alpha: opacitySubtle),
+              borderRadius: BorderRadius.circular(radiusXl),
+              border: Border.all(
+                color: colorAccentGold.withValues(alpha: opacityBorder),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(emoji, style: const TextStyle(fontSize: fontSizeLg)),
+                const SizedBox(width: spaceXs),
+                const Icon(
+                  Icons.close,
+                  size: fontSizeSm,
+                  color: colorInteractiveMuted,
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 

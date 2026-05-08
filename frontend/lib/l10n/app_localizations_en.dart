@@ -1360,4 +1360,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String reactWith(String emoji) {
     return 'React with $emoji';
   }
+
+  @override
+  String get yourReactions => 'Your reactions';
 }
