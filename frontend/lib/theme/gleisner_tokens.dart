@@ -220,3 +220,22 @@ final textLabel = GoogleFonts.plusJakartaSans(
 
 /// Monospace font family for URLs and code.
 final monoFontFamily = GoogleFonts.jetBrainsMono().fontFamily;
+
+// ---------------------------------------------------------------------------
+// Shadows — Stacked drop shadows for foreground content over cover images
+// ---------------------------------------------------------------------------
+
+/// Two-layer black shadow for icons / text rendered on top of an arbitrary
+/// cover image or hero photo. The tight inner shadow defines a sharp dark
+/// silhouette around the glyph; the wider outer shadow adds a soft halo
+/// that keeps near-white foreground content legible even on light photos
+/// (sky, snow, paper). Use this in preference to wrapping icons in a
+/// semi-transparent backdrop chip, which adds visual weight.
+///
+/// Color literals are const-friendly forms of `Colors.black.withValues(...)`:
+///   0xB3000000 ≈ alpha 0.70  (179/255)
+///   0x66000000 ≈ alpha 0.40  (102/255)
+const coverIconShadows = <Shadow>[
+  Shadow(color: Color(0xB3000000), blurRadius: 8),
+  Shadow(color: Color(0x66000000), blurRadius: 16),
+];
