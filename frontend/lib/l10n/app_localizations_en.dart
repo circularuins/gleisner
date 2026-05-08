@@ -1346,4 +1346,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String colorPresetLabel(String hex) {
     return 'Color $hex';
   }
+
+  @override
+  String get search => 'Search';
+
+  @override
+  String get reactionPickerTitle => 'Add reaction';
+
+  @override
+  String get reactionPickerHint => 'Tap an emoji to add or remove';
+
+  @override
+  String reactWith(String emoji) {
+    return 'React with $emoji';
+  }
 }

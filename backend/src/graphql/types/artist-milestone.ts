@@ -7,6 +7,7 @@ import {
   milestoneReactions,
 } from "../../db/schema/index.js";
 import { and, eq, desc, sql } from "drizzle-orm";
+import { validateEmoji, validateUUID } from "../validators.js";
 
 const MAX_MILESTONES_PER_ARTIST = 200;
 import { ArtistType } from "./artist.js";
@@ -203,6 +204,7 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.id, "milestone id");
 
       const artistId = await getOwnArtistId(ctx.authUser.userId);
 
@@ -258,6 +260,7 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
+      validateUUID(args.id, "milestone id");
 
       const artistId = await getOwnArtistId(ctx.authUser.userId);
 
@@ -309,14 +312,8 @@ builder.mutationFields((t) => ({
       if (!ctx.authUser) {
         throw new GraphQLError("Authentication required");
       }
-
-      const emoji = args.emoji.trim();
-      if (emoji.length === 0) {
-        throw new GraphQLError("Emoji is required");
-      }
-      if (emoji.length > 10) {
-        throw new GraphQLError("Emoji must be 10 characters or less");
-      }
+      validateUUID(args.milestoneId, "milestone id");
+      const emoji = validateEmoji(args.emoji);
 
       // Atomic toggle inside transaction — existence check included.
       return await db.transaction(async (tx) => {
@@ -357,7 +354,16 @@ builder.mutationFields((t) => ({
           return null;
         }
 
-        // Enforce per-user reaction limit (max 8 distinct emoji per milestone)
+        // Enforce per-user reaction limit (max 8 distinct emoji per
+        // milestone). The COUNT/INSERT pair still races under READ
+        // COMMITTED — the count-bounded path here predates the
+        // SELECT FOR UPDATE convention in
+        // `.claude/rules/backend-implementation.md`. Tracked as a
+        // separate Phase 1 hardening Issue (linked from this PR's
+        // description) so the present PR can stay scoped to the emoji
+        // expansion. The ON CONFLICT clause below at least makes "two
+        // callers add the same emoji at once" race-safe (idempotent
+        // toggle on); only the 8-limit overrun remains.
         const [{ count }] = await tx
           .select({ count: sql<number>`count(*)::int` })
           .from(milestoneReactions)
@@ -371,7 +377,11 @@ builder.mutationFields((t) => ({
           throw new GraphQLError("Maximum 8 reactions per milestone");
         }
 
-        // Was off → now on
+        // Was off → now on. ON CONFLICT DO NOTHING tolerates the narrow
+        // race where two parallel "toggle on" requests for the same
+        // (milestone, user, emoji) survive the DELETE branch above and
+        // both reach INSERT — without it, the second one surfaces a
+        // unique-constraint 500 to the client.
         const [reaction] = await tx
           .insert(milestoneReactions)
           .values({
@@ -379,8 +389,37 @@ builder.mutationFields((t) => ({
             userId: ctx.authUser!.userId,
             emoji,
           })
+          .onConflictDoNothing({
+            target: [
+              milestoneReactions.milestoneId,
+              milestoneReactions.userId,
+              milestoneReactions.emoji,
+            ],
+          })
           .returning();
-        return reaction;
+        if (reaction) return reaction;
+
+        // ON CONFLICT swallowed the INSERT — read the existing row so
+        // the GraphQL contract (returns the active reaction object)
+        // still holds.
+        const [existing] = await tx
+          .select()
+          .from(milestoneReactions)
+          .where(
+            and(
+              eq(milestoneReactions.milestoneId, args.milestoneId),
+              eq(milestoneReactions.userId, ctx.authUser!.userId),
+              eq(milestoneReactions.emoji, emoji),
+            ),
+          )
+          .limit(1);
+        if (!existing) {
+          // Should not happen — DELETE returned 0 above and ON CONFLICT
+          // implies a row exists — but surface a generic error rather
+          // than an undefined return.
+          throw new GraphQLError("Failed to toggle reaction");
+        }
+        return existing;
       });
     },
   }),

@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:math' show Random;
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
@@ -17,7 +19,18 @@ import '../common/related_post_picker.dart';
 import 'seed_art_painter.dart';
 import '../../l10n/l10n.dart';
 
+/// Curated quick-pick palette. Only 3 of these are surfaced at a time
+/// (`_randomPresets`) — the rest live behind the "+" button which opens
+/// the full Unicode-wide picker via [showModalBottomSheet]. The list
+/// itself stays small so each per-post-open shuffle still feels
+/// purposeful rather than chaotic.
 const _reactionPresets = ['🔥', '❤️', '👏', '✨', '😍', '🎵', '💪', '🎸'];
+
+/// Number of [_reactionPresets] surfaced inline in the detail view's
+/// reaction row before the "+" button. Tied to [tapTargetMin]-sized cells
+/// — bumping this up significantly will overflow narrow viewports
+/// (mobile portrait, 420 px desktop side panel).
+const _inlineQuickPickCount = 3;
 
 /// Show the post detail bottom sheet (mobile).
 void showPostDetailSheet(
@@ -173,6 +186,15 @@ class _PostDetailContentState extends State<PostDetailContent> {
   bool _isConnecting = false;
   List<Post>? _cachedSyncedPosts;
 
+  /// Quick-pick emojis surfaced inline next to the "+" button. Drawn once
+  /// per detail-screen-open from [_reactionPresets] so users see a
+  /// rotating hint of "what other people might react with" without
+  /// having to open the picker. Stable for the lifetime of this State,
+  /// not regenerated in [build] (Random allocation in build() is banned
+  /// by `.claude/rules/frontend-implementation.md > "build() 内で
+  /// リソースオブジェクトを生成しない"`).
+  late List<String> _randomPresets;
+
   // Multi-image carousel (initialized in initState, reset in didUpdateWidget)
   late PageController _pageController;
   int _currentPage = 0;
@@ -273,6 +295,9 @@ class _PostDetailContentState extends State<PostDetailContent> {
     _myReactions = Set.from(widget.post.myReactions);
     _outgoingConnections = List.from(widget.post.outgoingConnections);
     _incomingConnections = List.from(widget.post.incomingConnections);
+    _randomPresets = ([
+      ..._reactionPresets,
+    ]..shuffle(Random())).take(_inlineQuickPickCount).toList();
     _pageController = PageController();
     // Initialize Quill resources for delta posts
     if (widget.post.bodyFormat == BodyFormat.delta &&
@@ -294,6 +319,14 @@ class _PostDetailContentState extends State<PostDetailContent> {
       _pageController.dispose();
       _pageController = PageController();
       _currentPage = 0;
+      // Re-roll the inline quick-pick emojis when the same Widget is
+      // recycled for a different post (desktop side panel reuses one
+      // PostDetailContent State across multiple post.id values). Without
+      // this, the user keeps seeing the previous post's three random
+      // emojis on the new one.
+      _randomPresets = ([
+        ..._reactionPresets,
+      ]..shuffle(Random())).take(_inlineQuickPickCount).toList();
     }
   }
 
@@ -397,13 +430,20 @@ class _PostDetailContentState extends State<PostDetailContent> {
       if (success) {
         final wasActive = _myReactions.contains(emoji);
         setState(() {
+          // Replace the Set instance instead of mutating it in place —
+          // matches the immutable `_reactionCounts` update pattern in
+          // `_updateCount`. Without this, downstream consumers that
+          // diff by Set identity (rather than contents) would skip
+          // their rebuild.
+          final next = Set<String>.from(_myReactions);
           if (wasActive) {
-            _myReactions.remove(emoji);
+            next.remove(emoji);
             _updateCount(emoji, -1);
           } else {
-            _myReactions.add(emoji);
+            next.add(emoji);
             _updateCount(emoji, 1);
           }
+          _myReactions = next;
         });
         widget.onReactionsChanged?.call(
           widget.post.id,
@@ -416,19 +456,28 @@ class _PostDetailContentState extends State<PostDetailContent> {
     }
   }
 
+  /// Apply [delta] (+1 / -1) to the local count for [emoji].
+  ///
+  /// Always rebuilds the list as a fresh instance instead of mutating
+  /// the existing `_reactionCounts` in place. Same-reference list
+  /// updates can cause Flutter to skip rebuilds for downstream
+  /// consumers — see `.claude/rules/frontend-implementation.md > "リスト
+  /// state の更新は新しいインスタンスで"`.
   void _updateCount(String emoji, int delta) {
     final idx = _reactionCounts.indexWhere((r) => r.emoji == emoji);
+    final next = [..._reactionCounts];
     if (idx >= 0) {
-      final newCount = _reactionCounts[idx].count + delta;
+      final newCount = next[idx].count + delta;
       if (newCount <= 0) {
-        _reactionCounts.removeAt(idx);
+        next.removeAt(idx);
       } else {
-        _reactionCounts[idx] = ReactionCount(emoji: emoji, count: newCount);
+        next[idx] = ReactionCount(emoji: emoji, count: newCount);
       }
     } else if (delta > 0) {
-      _reactionCounts.add(ReactionCount(emoji: emoji, count: 1));
+      next.add(ReactionCount(emoji: emoji, count: 1));
     }
-    _reactionCounts.sort((a, b) => b.count.compareTo(a.count));
+    next.sort((a, b) => b.count.compareTo(a.count));
+    _reactionCounts = next;
   }
 
   @override
@@ -731,87 +780,268 @@ class _PostDetailContentState extends State<PostDetailContent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Existing reactions (compact pills)
+        // Existing reactions (compact pills). Wrapped in the same
+        // Opacity / hit-test guard as the quick-pick row so a slow
+        // mutation reply can't be raced by re-tapping a count pill —
+        // the pill would otherwise invert its own optimistic update
+        // mid-flight.
         if (_reactionCounts.isNotEmpty) ...[
-          Wrap(
-            spacing: spaceXs,
-            runSpacing: spaceXs,
-            children: _reactionCounts.map((r) {
-              final canInteract = widget.onToggleReaction != null;
-              final isActive = canInteract && _myReactions.contains(r.emoji);
-              return GestureDetector(
-                onTap: canInteract ? () => _toggleReaction(r.emoji) : null,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: spaceSm,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? trackColor.withValues(alpha: opacitySubtle)
-                        : colorSurface2,
-                    borderRadius: BorderRadius.circular(radiusXl),
-                    border: Border.all(
+          Opacity(
+            opacity: _isToggling ? opacityDisabled : 1.0,
+            child: Wrap(
+              spacing: spaceXs,
+              runSpacing: spaceXs,
+              children: _reactionCounts.map((r) {
+                final canInteract = widget.onToggleReaction != null;
+                final isActive = canInteract && _myReactions.contains(r.emoji);
+                return GestureDetector(
+                  onTap: (canInteract && !_isToggling)
+                      ? () => _toggleReaction(r.emoji)
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: spaceSm,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
                       color: isActive
-                          ? trackColor.withValues(alpha: opacityBorder)
-                          : colorBorder,
+                          ? trackColor.withValues(alpha: opacitySubtle)
+                          : colorSurface2,
+                      borderRadius: BorderRadius.circular(radiusXl),
+                      border: Border.all(
+                        color: isActive
+                            ? trackColor.withValues(alpha: opacityBorder)
+                            : colorBorder,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          r.emoji,
+                          style: const TextStyle(fontSize: fontSizeLg),
+                        ),
+                        const SizedBox(width: spaceXs),
+                        Text(
+                          '${r.count}',
+                          style: TextStyle(
+                            color: isActive ? trackColor : colorTextMuted,
+                            fontSize: fontSizeMd,
+                            fontWeight: weightSemibold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        r.emoji,
-                        style: const TextStyle(fontSize: fontSizeLg),
-                      ),
-                      const SizedBox(width: spaceXs),
-                      Text(
-                        '${r.count}',
-                        style: TextStyle(
-                          color: isActive ? trackColor : colorTextMuted,
-                          fontSize: fontSizeMd,
-                          fontWeight: weightSemibold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+                );
+              }).toList(),
+            ),
           ),
           const SizedBox(height: spaceSm),
         ],
-        // Emoji picker — only shown when reactions are interactive
+        // Quick-pick row: 3 random presets + "+" button. Only rendered
+        // when reactions are interactive (fan-mode read-only views pass
+        // a null `onToggleReaction`).
         if (widget.onToggleReaction != null)
-          Wrap(
-            spacing: spaceXxs,
-            runSpacing: spaceXxs,
-            children: _reactionPresets.map((emoji) {
-              final isActive = _myReactions.contains(emoji);
-              return GestureDetector(
-                onTap: () => _toggleReaction(emoji),
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? trackColor.withValues(alpha: opacitySubtle)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(radiusMd),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    emoji,
-                    style: TextStyle(
-                      fontSize: fontSizeLg,
-                      color: isActive ? null : colorInteractiveMuted,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
+          Opacity(
+            opacity: _isToggling ? opacityDisabled : 1.0,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final emoji in _randomPresets) ...[
+                  _buildQuickPickButton(trackColor, emoji),
+                  const SizedBox(width: spaceXxs),
+                ],
+                _buildOpenPickerButton(),
+              ],
+            ),
           ),
       ],
+    );
+  }
+
+  Widget _buildQuickPickButton(Color trackColor, String emoji) {
+    final isActive = _myReactions.contains(emoji);
+    return Semantics(
+      button: true,
+      label: context.l10n.reactWith(emoji),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _isToggling ? null : () => _toggleReaction(emoji),
+        child: SizedBox(
+          width: tapTargetMin,
+          height: tapTargetMin,
+          child: Container(
+            margin: const EdgeInsets.all(spaceXxs),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? trackColor.withValues(alpha: opacitySubtle)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(radiusMd),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              emoji,
+              style: TextStyle(
+                fontSize: fontSizeLg,
+                color: isActive ? null : colorInteractiveMuted,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOpenPickerButton() {
+    return Semantics(
+      button: true,
+      label: context.l10n.reactionPickerTitle,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _isToggling ? null : () => _openEmojiPicker(),
+        child: SizedBox(
+          width: tapTargetMin,
+          height: tapTargetMin,
+          child: Container(
+            margin: const EdgeInsets.all(spaceXxs),
+            decoration: BoxDecoration(
+              color: colorSurface2,
+              borderRadius: BorderRadius.circular(radiusMd),
+              border: Border.all(color: colorBorder),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.add,
+              size: fontSizeLg,
+              color: colorInteractiveMuted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Open the full Unicode-wide emoji picker as a modal bottom sheet.
+  ///
+  /// The sheet is intentionally NOT auto-dismissed on selection —
+  /// `onEmojiSelected` only forwards to [_toggleReaction], which mutates
+  /// the parent detail view's local state so the count badge updates
+  /// behind the open sheet. Users close the sheet themselves with the
+  /// drag handle / system back gesture once they're done picking.
+  Future<void> _openEmojiPicker() async {
+    if (widget.onToggleReaction == null) return;
+    // Resolve l10n + Config from the State.context BEFORE opening the
+    // sheet so the sheet's Strings and EmojiPicker theme stay locked to
+    // the post being viewed. The DraggableScrollableSheet builder below
+    // shadows the outer `context` parameter as `sheetInnerContext` so
+    // we can never accidentally reach back through a stale ancestor.
+    final l10n = context.l10n;
+    final pickerConfig = _buildEmojiPickerConfig(l10n);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.92,
+          builder: (sheetInnerContext, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: colorSurface1,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(radiusSheet),
+                ),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: spaceSm),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colorBorder,
+                      borderRadius: BorderRadius.circular(radiusFull),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: spaceLg,
+                      vertical: spaceMd,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(l10n.reactionPickerTitle, style: textHeading),
+                        const SizedBox(height: spaceXxs),
+                        Text(l10n.reactionPickerHint, style: textCaption),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: EmojiPicker(
+                      scrollController: scrollController,
+                      onEmojiSelected: (_, emoji) {
+                        // Don't close the sheet — the user toggles
+                        // multiple emojis and dismisses themselves.
+                        _toggleReaction(emoji.emoji);
+                      },
+                      config: pickerConfig,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// EmojiPicker [Config] tuned for Gleisner's dark theme. Uses
+  /// `gleisner_tokens.dart` color tokens throughout — the library's
+  /// default theme is light-on-light and would look like a transplanted
+  /// keyboard on the surface-0 background. Receives `l10n` explicitly
+  /// so it can be invoked from the State.context BEFORE the sheet
+  /// opens (see [_openEmojiPicker]) and stays stable for the lifetime
+  /// of the open sheet.
+  Config _buildEmojiPickerConfig(AppLocalizations l10n) {
+    return Config(
+      height: 256,
+      checkPlatformCompatibility: true,
+      emojiViewConfig: const EmojiViewConfig(
+        backgroundColor: colorSurface1,
+        emojiSizeMax: 28,
+        verticalSpacing: spaceXxs,
+        horizontalSpacing: spaceXxs,
+      ),
+      categoryViewConfig: const CategoryViewConfig(
+        backgroundColor: colorSurface0,
+        iconColor: colorInteractiveMuted,
+        iconColorSelected: colorTextPrimary,
+        indicatorColor: colorAccentGold,
+        dividerColor: colorBorder,
+        backspaceColor: colorInteractiveMuted,
+      ),
+      bottomActionBarConfig: const BottomActionBarConfig(
+        backgroundColor: colorSurface0,
+        buttonColor: colorSurface2,
+        buttonIconColor: colorTextPrimary,
+        showBackspaceButton: false,
+      ),
+      searchViewConfig: SearchViewConfig(
+        backgroundColor: colorSurface1,
+        buttonIconColor: colorInteractiveMuted,
+        hintText: l10n.search,
+      ),
+      skinToneConfig: const SkinToneConfig(
+        dialogBackgroundColor: colorSurface2,
+        indicatorColor: colorAccentGold,
+      ),
     );
   }
 

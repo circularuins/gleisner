@@ -343,6 +343,140 @@ describe("Reaction GraphQL integration", () => {
       const reaction = result.data!.toggleReaction as Record<string, unknown>;
       expect(reaction.emoji).toBe("🎉");
     });
+
+    // Emoji column expansion (varchar(10) -> varchar(64)) and validateEmoji
+    // helper rollout. Each case exercises one branch of `validateEmoji` in
+    // GraphQL context; the helper itself is unit-tested in
+    // `validators.test.ts` so these only assert the integration path.
+
+    it("accepts a 64-character emoji string (maxlen boundary)", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "r7@example.com",
+        "ruser7",
+        "rartist7",
+      );
+      const postId = await createPostForTest(app, token);
+      const value = "a".repeat(64);
+
+      const result = await gql(
+        app,
+        TOGGLE_REACTION_MUTATION,
+        { postId, emoji: value },
+        token,
+      );
+      expect(result.errors).toBeUndefined();
+      const reaction = result.data!.toggleReaction as Record<string, unknown>;
+      expect(reaction.emoji).toBe(value);
+    });
+
+    it("rejects an emoji string longer than 64 characters", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "r8@example.com",
+        "ruser8",
+        "rartist8",
+      );
+      const postId = await createPostForTest(app, token);
+
+      const result = await gql(
+        app,
+        TOGGLE_REACTION_MUTATION,
+        { postId, emoji: "a".repeat(65) },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("64 characters or less");
+    });
+
+    it("accepts a ZWJ family emoji (👨‍👩‍👧‍👦 = 11 code units)", async () => {
+      // The whole motivation for the column expansion: this emoji is 11
+      // UTF-16 code units (4 surrogate pairs joined by 3 ZWJ chars), so
+      // the previous `varchar(10)` silently truncated it to a different
+      // glyph at the DB layer.
+      const token = await signupAndRegisterArtist(
+        app,
+        "r9@example.com",
+        "ruser9",
+        "rartist9",
+      );
+      const postId = await createPostForTest(app, token);
+      const family = "👨‍👩‍👧‍👦";
+
+      const result = await gql(
+        app,
+        TOGGLE_REACTION_MUTATION,
+        { postId, emoji: family },
+        token,
+      );
+      expect(result.errors).toBeUndefined();
+      const reaction = result.data!.toggleReaction as Record<string, unknown>;
+      expect(reaction.emoji).toBe(family);
+    });
+
+    it("rejects emoji containing control or bidi characters", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "r10@example.com",
+        "ruser10",
+        "rartist10",
+      );
+      const postId = await createPostForTest(app, token);
+
+      // Trojan Source / invisible-payload class. Picker UI cannot produce
+      // these, so any client sending them is already off-path.
+      const cases = [
+        "\u200B\uD83C\uDF89", // ZWSP + party-popper
+        "\uD83C\uDF89\u202E\uD83C\uDF89", // RLO bidi override sandwich
+        "\uD83C\uDF89\u0000\uD83C\uDF89", // NUL embedded
+        "\uD83C\uDF89\uFEFF\uD83C\uDF89", // ZWNBSP / BOM (mid-string; trim() would otherwise strip a leading/trailing BOM)
+      ];
+      for (const value of cases) {
+        const result = await gql(
+          app,
+          TOGGLE_REACTION_MUTATION,
+          { postId, emoji: value },
+          token,
+        );
+        expect(result.errors).toBeDefined();
+        expect(result.errors![0].message).toBe(
+          "Emoji contains disallowed characters",
+        );
+      }
+    });
+
+    it("is idempotent under concurrent toggle requests for the same emoji", async () => {
+      // Regression guard for the ON CONFLICT DO NOTHING refactor. The
+      // previous SELECT → DELETE/INSERT path could race past `existing`
+      // and surface a unique-constraint 500 ("Failed to create reaction")
+      // when two requests arrived in the same tick. Either ordering of
+      // INSERT-INSERT (one wins / one toggles off) is fine — what we
+      // assert here is "no GraphQL errors and the table converges to a
+      // deterministic state".
+      const token = await signupAndRegisterArtist(
+        app,
+        "r11@example.com",
+        "ruser11",
+        "rartist11",
+      );
+      const postId = await createPostForTest(app, token);
+
+      const results = await Promise.all([
+        gql(app, TOGGLE_REACTION_MUTATION, { postId, emoji: "🚀" }, token),
+        gql(app, TOGGLE_REACTION_MUTATION, { postId, emoji: "🚀" }, token),
+      ]);
+      for (const r of results) {
+        expect(r.errors).toBeUndefined();
+      }
+
+      // After two toggles by the same user, the row count must be 0 OR 1
+      // (depending on which call's INSERT succeeded first), but never 2 —
+      // the unique constraint prevents 2, and the helper must not
+      // surface that as an error.
+      const queryResult = await gql(app, REACTIONS_QUERY, { postId }, token);
+      const reactions = queryResult.data!.reactions as Array<unknown>;
+      expect([0, 1]).toContain(reactions.length);
+    });
   });
 
   describe("deleteReaction", () => {

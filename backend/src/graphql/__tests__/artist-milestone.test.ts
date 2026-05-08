@@ -44,6 +44,24 @@ const ARTIST_WITH_MILESTONES = `
   }
 `;
 
+const TOGGLE_MILESTONE_REACTION = `
+  mutation ToggleMilestoneReaction($milestoneId: String!, $emoji: String!) {
+    toggleMilestoneReaction(milestoneId: $milestoneId, emoji: $emoji) {
+      id emoji createdAt
+    }
+  }
+`;
+
+const ARTIST_MILESTONE_REACTIONS = `
+  query Artist($username: String!) {
+    artist(username: $username) {
+      milestones {
+        id reactionCounts { emoji count }
+      }
+    }
+  }
+`;
+
 describe("Artist Milestones", () => {
   let app: Awaited<ReturnType<typeof getTestApp>>;
 
@@ -242,6 +260,230 @@ describe("Artist Milestones", () => {
 
       const result = await gql(app, DELETE_MILESTONE, { id }, token);
       expect(result.errors).toBeUndefined();
+    });
+  });
+
+  // Milestone reactions exercise the same `validateEmoji` + ON CONFLICT
+  // refactor as `toggleReaction` (see `reaction.test.ts`). Until this PR
+  // there were NO integration tests for `toggleMilestoneReaction` at all,
+  // so this block also serves as basic-behavior coverage.
+  describe("toggleMilestoneReaction", () => {
+    async function createMilestone(
+      app: Awaited<ReturnType<typeof getTestApp>>,
+      token: string,
+    ): Promise<string> {
+      const result = await gql(
+        app,
+        CREATE_MILESTONE,
+        {
+          category: "release",
+          title: "Debut Single",
+          date: "2024-04-01",
+        },
+        token,
+      );
+      return (result.data!.createArtistMilestone as { id: string }).id;
+    }
+
+    it("toggles a reaction on, then off", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "mr1@test.com",
+        "mruser1",
+        "mrartist1",
+      );
+      const milestoneId = await createMilestone(app, token);
+
+      const onResult = await gql(
+        app,
+        TOGGLE_MILESTONE_REACTION,
+        { milestoneId, emoji: "🔥" },
+        token,
+      );
+      expect(onResult.errors).toBeUndefined();
+      const reaction = onResult.data!.toggleMilestoneReaction as Record<
+        string,
+        unknown
+      >;
+      expect(reaction.emoji).toBe("🔥");
+
+      const offResult = await gql(
+        app,
+        TOGGLE_MILESTONE_REACTION,
+        { milestoneId, emoji: "🔥" },
+        token,
+      );
+      expect(offResult.errors).toBeUndefined();
+      expect(offResult.data!.toggleMilestoneReaction).toBeNull();
+    });
+
+    it("accepts a 64-character emoji string (maxlen boundary)", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "mr2@test.com",
+        "mruser2",
+        "mrartist2",
+      );
+      const milestoneId = await createMilestone(app, token);
+      const value = "a".repeat(64);
+
+      const result = await gql(
+        app,
+        TOGGLE_MILESTONE_REACTION,
+        { milestoneId, emoji: value },
+        token,
+      );
+      expect(result.errors).toBeUndefined();
+      const reaction = result.data!.toggleMilestoneReaction as Record<
+        string,
+        unknown
+      >;
+      expect(reaction.emoji).toBe(value);
+    });
+
+    it("rejects an emoji string longer than 64 characters", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "mr3@test.com",
+        "mruser3",
+        "mrartist3",
+      );
+      const milestoneId = await createMilestone(app, token);
+
+      const result = await gql(
+        app,
+        TOGGLE_MILESTONE_REACTION,
+        { milestoneId, emoji: "a".repeat(65) },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toContain("64 characters or less");
+    });
+
+    it("accepts a ZWJ family emoji (👨‍👩‍👧‍👦)", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "mr4@test.com",
+        "mruser4",
+        "mrartist4",
+      );
+      const milestoneId = await createMilestone(app, token);
+      const family = "👨‍👩‍👧‍👦";
+
+      const result = await gql(
+        app,
+        TOGGLE_MILESTONE_REACTION,
+        { milestoneId, emoji: family },
+        token,
+      );
+      expect(result.errors).toBeUndefined();
+      const reaction = result.data!.toggleMilestoneReaction as Record<
+        string,
+        unknown
+      >;
+      expect(reaction.emoji).toBe(family);
+    });
+
+    it("rejects emoji containing control or bidi characters", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "mr5@test.com",
+        "mruser5",
+        "mrartist5",
+      );
+      const milestoneId = await createMilestone(app, token);
+
+      const result = await gql(
+        app,
+        TOGGLE_MILESTONE_REACTION,
+        { milestoneId, emoji: "​🔥" }, // ZWSP
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe(
+        "Emoji contains disallowed characters",
+      );
+    });
+
+    it("rejects unauthenticated request", async () => {
+      const result = await gql(app, TOGGLE_MILESTONE_REACTION, {
+        milestoneId: "00000000-0000-0000-0000-000000000000",
+        emoji: "🔥",
+      });
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe("Authentication required");
+    });
+
+    it("rejects malformed milestone id (validateUUID guard)", async () => {
+      const token = await signupAndRegisterArtist(
+        app,
+        "mr6@test.com",
+        "mruser6",
+        "mrartist6",
+      );
+
+      const result = await gql(
+        app,
+        TOGGLE_MILESTONE_REACTION,
+        { milestoneId: "not-a-uuid", emoji: "🔥" },
+        token,
+      );
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].message).toBe("Invalid milestone id");
+    });
+
+    it("is idempotent under concurrent toggle requests for the same emoji", async () => {
+      // ON CONFLICT DO NOTHING regression guard. Without it the second
+      // INSERT in a parallel pair would surface the unique-constraint
+      // violation as a generic 500.
+      const token = await signupAndRegisterArtist(
+        app,
+        "mr7@test.com",
+        "mruser7",
+        "mrartist7",
+      );
+      const milestoneId = await createMilestone(app, token);
+
+      const results = await Promise.all([
+        gql(
+          app,
+          TOGGLE_MILESTONE_REACTION,
+          { milestoneId, emoji: "🚀" },
+          token,
+        ),
+        gql(
+          app,
+          TOGGLE_MILESTONE_REACTION,
+          { milestoneId, emoji: "🚀" },
+          token,
+        ),
+      ]);
+      for (const r of results) {
+        expect(r.errors).toBeUndefined();
+      }
+
+      // Final state must be either 0 (both toggled — net cancel) or 1
+      // (one INSERT survived; the other is a no-op via ON CONFLICT) —
+      // never an error.
+      const finalQuery = await gql(
+        app,
+        ARTIST_MILESTONE_REACTIONS,
+        { username: "mrartist7" },
+        token,
+      );
+      const milestones = (
+        finalQuery.data!.artist as {
+          milestones: Array<{
+            id: string;
+            reactionCounts: Array<{ emoji: string; count: number }>;
+          }>;
+        }
+      ).milestones;
+      const target = milestones.find((m) => m.id === milestoneId)!;
+      const rocket = target.reactionCounts.find((c) => c.emoji === "🚀");
+      expect([undefined, { emoji: "🚀", count: 1 }]).toContainEqual(
+        rocket ?? undefined,
+      );
     });
   });
 

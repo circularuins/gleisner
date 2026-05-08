@@ -1303,4 +1303,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String colorPresetLabel(String hex) {
     return '色 $hex';
   }
+
+  @override
+  String get search => '検索';
+
+  @override
+  String get reactionPickerTitle => 'リアクションを追加';
+
+  @override
+  String get reactionPickerHint => '絵文字をタップで追加・解除';
+
+  @override
+  String reactWith(String emoji) {
+    return '$emoji でリアクション';
+  }
 }
