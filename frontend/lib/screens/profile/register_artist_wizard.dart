@@ -117,7 +117,16 @@ class _RegisterArtistWizardState extends ConsumerState<RegisterArtistWizard> {
       ),
       // AnimatedSwitcher removed: it caused TextFormField controller double-attach
       // on Flutter Web, making fields unresponsive after focus changes (#120).
-      body: _buildStep(),
+      //
+      // SafeArea(top: false): the AppBar already respects the top notch / status
+      // bar, but the bottom of the body must stay clear of the iOS home
+      // indicator AND the iOS Safari bottom toolbar — without this, the
+      // wizard's primary action button can render partially under the Safari
+      // chrome on small viewports (e.g. iPhone 12 mini), making it visible but
+      // not tappable. The Padding + viewPadding.bottom combo also keeps the
+      // button reachable when the keyboard is dismissed but viewInsets are 0
+      // (Scaffold.resizeToAvoidBottomInset handles the keyboard case itself).
+      body: SafeArea(top: false, child: _buildStep()),
     );
   }
 
@@ -356,45 +365,60 @@ class _StepIntro extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(spaceXl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            context.l10n.artistUpgradeExplain,
-            style: textBody.copyWith(color: colorTextSecondary),
+    // Column[Expanded(scroll content), bottom button] keeps the primary
+    // action visible regardless of viewport height. The previous layout
+    // used a non-scrollable Column with `Spacer()`, which on small Safari
+    // viewports (iPhone 12 mini) pushed the button below the visible area
+    // and rendered it as a non-tappable sliver under the Safari toolbar.
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(spaceXl, spaceXl, spaceXl, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  context.l10n.artistUpgradeExplain,
+                  style: textBody.copyWith(color: colorTextSecondary),
+                ),
+                const SizedBox(height: spaceXl),
+                _FeatureCard(
+                  icon: Icons.person,
+                  title: context.l10n.featureArtistPageTitle,
+                  description: context.l10n.featureArtistPageDesc,
+                ),
+                const SizedBox(height: spaceMd),
+                _FeatureCard(
+                  icon: Icons.graphic_eq,
+                  title: context.l10n.featureTracksTitle,
+                  description: context.l10n.featureTracksDesc,
+                ),
+                const SizedBox(height: spaceMd),
+                _FeatureCard(
+                  icon: Icons.cell_tower,
+                  title: context.l10n.featureBroadcastingTitle,
+                  description: context.l10n.featureBroadcastingDesc,
+                ),
+                const SizedBox(height: spaceXl),
+              ],
+            ),
           ),
-          const SizedBox(height: spaceXl),
-          _FeatureCard(
-            icon: Icons.person,
-            title: context.l10n.featureArtistPageTitle,
-            description: context.l10n.featureArtistPageDesc,
-          ),
-          const SizedBox(height: spaceMd),
-          _FeatureCard(
-            icon: Icons.graphic_eq,
-            title: context.l10n.featureTracksTitle,
-            description: context.l10n.featureTracksDesc,
-          ),
-          const SizedBox(height: spaceMd),
-          _FeatureCard(
-            icon: Icons.cell_tower,
-            title: context.l10n.featureBroadcastingTitle,
-            description: context.l10n.featureBroadcastingDesc,
-          ),
-          const Spacer(),
-          FilledButton(
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(spaceXl, 0, spaceXl, spaceXl),
+          child: FilledButton(
             onPressed: onNext,
             style: FilledButton.styleFrom(
               backgroundColor: colorAccentGold,
               foregroundColor: colorSurface0,
               padding: const EdgeInsets.symmetric(vertical: spaceLg),
+              minimumSize: const Size.fromHeight(0),
             ),
             child: Text(context.l10n.getStarted),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1212,87 +1236,109 @@ class _StepComplete extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(spaceXl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Icon(Icons.check_circle, color: colorAccentGold, size: 64),
-          const SizedBox(height: spaceXl),
-          Text(
-            context.l10n.artistProfileLive,
-            style: textTitle.copyWith(fontSize: fontSizeTitle),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: spaceMd),
-          Text(
-            '@$artistUsername',
-            style: textCaption.copyWith(fontSize: fontSizeMd),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: spaceXl),
-
-          // Mini preview
-          Container(
-            padding: const EdgeInsets.all(spaceLg),
-            decoration: BoxDecoration(
-              color: colorSurface1,
-              borderRadius: BorderRadius.circular(radiusLg),
-              border: Border.all(color: colorBorder),
-            ),
+    // Column[Expanded(scroll content), bottom button] — same small-viewport
+    // safety net as _StepIntro. Even though the success screen is
+    // generally short, a long list of tracks expands the mini preview
+    // beyond a 12 mini's body height; without scrolling the Spacer would
+    // again push the primary CTA off screen.
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(spaceXl, spaceXl, spaceXl, 0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const Icon(
+                  Icons.check_circle,
+                  color: colorAccentGold,
+                  size: 64,
+                ),
+                const SizedBox(height: spaceXl),
                 Text(
-                  displayName,
-                  style: const TextStyle(
-                    color: colorTextPrimary,
-                    fontSize: fontSizeLg,
-                    fontWeight: weightBold,
-                  ),
+                  context.l10n.artistProfileLive,
+                  style: textTitle.copyWith(fontSize: fontSizeTitle),
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: spaceMd),
-                const Text(
-                  'TRACKS',
-                  style: TextStyle(
-                    color: colorTextMuted,
-                    fontSize: fontSizeXs,
-                    fontWeight: weightSemibold,
-                    letterSpacing: 1,
+                Text(
+                  '@$artistUsername',
+                  style: textCaption.copyWith(fontSize: fontSizeMd),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: spaceXl),
+
+                // Mini preview
+                Container(
+                  padding: const EdgeInsets.all(spaceLg),
+                  decoration: BoxDecoration(
+                    color: colorSurface1,
+                    borderRadius: BorderRadius.circular(radiusLg),
+                    border: Border.all(color: colorBorder),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        style: const TextStyle(
+                          color: colorTextPrimary,
+                          fontSize: fontSizeLg,
+                          fontWeight: weightBold,
+                        ),
+                      ),
+                      const SizedBox(height: spaceMd),
+                      const Text(
+                        'TRACKS',
+                        style: TextStyle(
+                          color: colorTextMuted,
+                          fontSize: fontSizeXs,
+                          fontWeight: weightSemibold,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const SizedBox(height: spaceSm),
+                      Wrap(
+                        spacing: spaceSm,
+                        children: tracks.map((t) {
+                          final color = _TrackChip._parseColor(t.color);
+                          return Chip(
+                            label: Text(
+                              t.name,
+                              style: TextStyle(
+                                color: color,
+                                fontSize: fontSizeSm,
+                              ),
+                            ),
+                            backgroundColor: color.withValues(alpha: 0.1),
+                            side: BorderSide(
+                              color: color.withValues(alpha: 0.3),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: spaceSm),
-                Wrap(
-                  spacing: spaceSm,
-                  children: tracks.map((t) {
-                    final color = _TrackChip._parseColor(t.color);
-                    return Chip(
-                      label: Text(
-                        t.name,
-                        style: TextStyle(color: color, fontSize: fontSizeSm),
-                      ),
-                      backgroundColor: color.withValues(alpha: 0.1),
-                      side: BorderSide(color: color.withValues(alpha: 0.3)),
-                    );
-                  }).toList(),
-                ),
+                const SizedBox(height: spaceXl),
               ],
             ),
           ),
-
-          const Spacer(),
-
-          FilledButton(
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(spaceXl, 0, spaceXl, spaceXl),
+          child: FilledButton(
             onPressed: onDone,
             style: FilledButton.styleFrom(
               backgroundColor: colorAccentGold,
               foregroundColor: colorSurface0,
               padding: const EdgeInsets.symmetric(vertical: spaceLg),
+              minimumSize: const Size.fromHeight(0),
             ),
             child: Text(context.l10n.viewYourTimeline),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
