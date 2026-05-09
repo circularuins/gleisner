@@ -11,8 +11,19 @@ import '../../utils/month_names.dart';
 const _reactionPresets = ['🔥', '❤️', '👏', '✨', '😍', '🎵', '💪', '🎸'];
 
 /// Show the milestone detail bottom sheet.
-/// The sheet watches [timelineProvider] for live reaction state —
-/// no local state duplication.
+///
+/// Pass the milestone object directly so the sheet has a usable source of
+/// truth even on the public timeline (`/@username`), where the data lives in
+/// `publicTimelineProvider` rather than `timelineProvider`. When
+/// `onToggleReaction` is non-null (authenticated path), the sheet additionally
+/// watches `timelineProvider` for live reaction count / `myReactions` updates
+/// after a toggle. Unauthenticated viewers don't toggle, so the snapshot
+/// passed in is sufficient and we skip the provider watch entirely.
+///
+/// Previously the sheet looked up the milestone by id in `timelineProvider`,
+/// which is unloaded on `/@username`, so the build returned
+/// `SizedBox.shrink()` and the modal appeared to "not open" for unauthenticated
+/// viewers.
 void showMilestoneDetailSheet(
   BuildContext context,
   ArtistMilestone milestone, {
@@ -23,33 +34,37 @@ void showMilestoneDetailSheet(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (_) => _MilestoneDetailSheet(
-      milestoneId: milestone.id,
+      initialMilestone: milestone,
       onToggleReaction: onToggleReaction,
     ),
   );
 }
 
 class _MilestoneDetailSheet extends ConsumerWidget {
-  final String milestoneId;
+  final ArtistMilestone initialMilestone;
   final Future<bool?> Function(String milestoneId, String emoji)?
   onToggleReaction;
 
   const _MilestoneDetailSheet({
-    required this.milestoneId,
+    required this.initialMilestone,
     this.onToggleReaction,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch provider for live updates — single source of truth
-    final artist = ref.watch(timelineProvider).artist;
-    final milestone = artist?.milestones
-        .where((m) => m.id == milestoneId)
-        .firstOrNull;
-
-    if (milestone == null) {
-      return const SizedBox.shrink();
-    }
+    // The passed `initialMilestone` is the source of truth. We always
+    // `ref.watch(timelineProvider)` (Riverpod's rule against conditional
+    // watches) and only consult its data on the authenticated path —
+    // unauthenticated viewers run against `publicTimelineProvider` so the
+    // `timelineProvider.artist` they read is always null and the live data
+    // path harmlessly no-ops.
+    final timelineArtist = ref.watch(timelineProvider).artist;
+    final fresh = onToggleReaction != null
+        ? timelineArtist?.milestones
+              .where((m) => m.id == initialMilestone.id)
+              .firstOrNull
+        : null;
+    final milestone = fresh ?? initialMilestone;
 
     final reactionCounts = milestone.reactionCounts;
     final myReactions = milestone.myReactions.toSet();
@@ -184,7 +199,7 @@ class _MilestoneDetailSheet extends ConsumerWidget {
                           final isOwn = myReactions.contains(r.emoji);
                           return GestureDetector(
                             onTap: () =>
-                                onToggleReaction!(milestoneId, r.emoji),
+                                onToggleReaction!(milestone.id, r.emoji),
                             child: _ReactionPill(
                               emoji: r.emoji,
                               count: r.count,
@@ -202,7 +217,7 @@ class _MilestoneDetailSheet extends ConsumerWidget {
                       children: _reactionPresets.map((emoji) {
                         final isOwn = myReactions.contains(emoji);
                         return GestureDetector(
-                          onTap: () => onToggleReaction!(milestoneId, emoji),
+                          onTap: () => onToggleReaction!(milestone.id, emoji),
                           child: Container(
                             width: 36,
                             height: 36,
