@@ -97,7 +97,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     // Listen for pending artist (set by Artist Page after Tune In)
     // Using ref.listenManual avoids the multi-fire issue of ref.watch in build()
     ref.listenManual(pendingArtistProvider, (prev, next) {
-      if (next != null) {
+      // Guard against late listener fires after dispose. `_switchToArtist`
+      // now calls `Navigator.of(context).popUntil`; without this guard the
+      // call would land on a disposed `context`.
+      if (next != null && mounted) {
         ref.read(pendingArtistProvider.notifier).clear();
         ref.read(tuneInProvider.notifier).loadMyTuneIns();
         _switchToArtist(next);
@@ -152,6 +155,25 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
   }
 
   void _switchToArtist(String artistUsername) {
+    // Tear down any modal sheets/dialogs anchored on the previous artist's
+    // data before swapping `timelineProvider`. Without this, an open
+    // PostDetailSheet / MilestoneDetailSheet survives the switch, can no
+    // longer find its post in the new timeline, and renders an empty
+    // (visually black) modal that the user must close manually.
+    //
+    // `PopupRoute` is the common ancestor of `ModalBottomSheetRoute`,
+    // `DialogRoute`, and the menu routes used by `PopupMenuButton` /
+    // `DropdownButton`, so this clears all of them. The underlying
+    // TimelineScreen route is a `PageRoute`, so `popUntil` stops immediately
+    // when no modals are open.
+    //
+    // We use `Navigator.of(context)` (not `rootNavigator: true`) on purpose:
+    // every detail sheet / dialog spawned from this screen is opened with
+    // this same `context`, which resolves to the StatefulShellBranch's
+    // child Navigator. Targeting the root navigator would overshoot into
+    // GoRouter's own routes.
+    Navigator.of(context).popUntil((route) => route is! PopupRoute);
+
     if (_ownArtistUsername != null && artistUsername == _ownArtistUsername) {
       // Switch to own timeline (Artist Mode)
       _viewingArtistUsername = null;
@@ -299,6 +321,16 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                       onTap: () async {
                         final artistId = timeline.artist?.id;
                         if (artistId == null) return;
+                        // 0. Close any modal sheets/dialogs anchored on the
+                        //    current artist *before* awaiting the mutation,
+                        //    so the user can't fire a reaction toggle (or
+                        //    similar) against the soon-to-be-stale postId
+                        //    during the in-flight `toggleTuneIn`. The
+                        //    `popUntil` inside `_switchToArtist` below is a
+                        //    redundant safety net for non-Tune-Out paths.
+                        Navigator.of(
+                          context,
+                        ).popUntil((route) => route is! PopupRoute);
                         // 1. Tune out
                         await ref
                             .read(tuneInProvider.notifier)
