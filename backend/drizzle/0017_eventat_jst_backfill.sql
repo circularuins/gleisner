@@ -21,10 +21,24 @@
 --   would no longer hold — but by then the buggy code path is gone, so
 --   no further backfills are needed.
 --
--- Idempotency:
---   This is a one-shot data fix. Running it twice would double-shift the
---   data. The migration runner records this as applied in
---   drizzle.__drizzle_migrations, so it will not re-run on the same DB.
+-- Idempotency / scope-limiting:
+--   The Drizzle migration runner records this as applied in
+--   drizzle.__drizzle_migrations and won't re-run it on the same DB.
+--   But that table is per-DB; clones, restored backups, or environments
+--   that run the migration after the frontend fix has already shipped
+--   could in principle re-execute it. To make the SQL itself idempotent
+--   we also gate on `created_at < '<frontend-fix cutoff>'` — rows newer
+--   than the cutoff were written by the corrected (toUtc()) code path
+--   and must NOT be shifted, regardless of how many times this runs.
+--
+--   Cutoff: 2026-05-10T12:00:00Z (= 21:00 JST on the day of the fix).
+--   The PR is intended to deploy before that local-evening cutoff;
+--   anything created after is on the corrected path. If the deploy
+--   slips past 21:00 JST, push the cutoff forward and regenerate the
+--   migration before applying — do not apply the migration with a
+--   cutoff that's already in the past relative to live posts on the
+--   buggy code path.
 UPDATE "posts"
 SET "event_at" = "event_at" - INTERVAL '9 hours'
-WHERE "event_at" IS NOT NULL;
+WHERE "event_at" IS NOT NULL
+  AND "created_at" < '2026-05-10T12:00:00Z';

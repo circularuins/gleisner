@@ -414,6 +414,76 @@ void main() {
       // No state change at all — Riverpod's listener bus stays quiet.
       expect(identical(original, after), isTrue);
     });
+
+    // Regression for the JST-as-UTC eventAt bug. Mirrors the create_post
+    // side coverage in create_post_provider_test.dart but exercises the
+    // edit path: callers hand `updatePost` a local DateTime (what
+    // EventAtPicker.onChanged emits) and the provider must convert to
+    // UTC before serializing. A naive toIso8601String() on a local
+    // DateTime would drop the offset and the backend would store the
+    // wrong absolute time.
+    test('updatePost serializes eventAt as a UTC ISO-8601 string', () async {
+      final pair = _clientAndLinkWith(
+        data: {
+          '__typename': 'Mutation',
+          'updatePost': {
+            '__typename': 'Post',
+            'id': 'edit-target',
+            'mediaType': 'thought',
+            'title': 'updated',
+            'importance': 0.5,
+            'createdAt': '2026-05-10T05:00:00.000Z',
+            'updatedAt': '2026-05-10T05:00:00.000Z',
+            'eventAt': '2026-05-10T04:45:00.000Z',
+            'author': {
+              '__typename': 'PublicUser',
+              'id': 'u1',
+              'username': 'alice',
+            },
+          },
+        },
+      );
+      final container = _createContainer(client: pair.client);
+      addTearDown(container.dispose);
+
+      final notifier = container.read(timelineProvider.notifier);
+      // Seed state.posts so updatePost's `firstWhere` doesn't throw.
+      final existing = Post(
+        id: 'edit-target',
+        mediaType: MediaType.thought,
+        importance: 0.5,
+        createdAt: DateTime.utc(2026, 5, 10, 5),
+        updatedAt: DateTime.utc(2026, 5, 10, 5),
+        author: const PostAuthor(id: 'u1', username: 'alice'),
+      );
+      notifier.debugSetState(
+        container.read(timelineProvider).copyWith(posts: [existing]),
+      );
+
+      // What EventAtPicker.onChanged hands the screen: a naive local
+      // DateTime (isUtc == false).
+      final localEventAt = DateTime(2026, 5, 10, 13, 45);
+
+      await notifier.updatePost(id: 'edit-target', eventAt: localEventAt);
+
+      // Find the updatePost mutation among captured requests and check
+      // the eventAt variable.
+      final updateRequest = pair.link.requests.firstWhere(
+        (r) => r.variables.containsKey('eventAt'),
+      );
+      final serialized = updateRequest.variables['eventAt'] as String;
+
+      expect(
+        serialized.endsWith('Z'),
+        isTrue,
+        reason: 'eventAt must be UTC-serialized: got "$serialized"',
+      );
+      // Round-trip preserves the user's intended absolute moment.
+      expect(
+        DateTime.parse(serialized).millisecondsSinceEpoch,
+        localEventAt.millisecondsSinceEpoch,
+      );
+    });
   });
 
   // Regression tests for Issue #191. The backend fires OGP fetch

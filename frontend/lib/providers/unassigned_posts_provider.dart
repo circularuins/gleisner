@@ -67,7 +67,7 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
     bool clearThumbnail = false,
     int? duration,
     bool clearDuration = false,
-    String? eventAt,
+    DateTime? eventAt,
     bool clearEventAt = false,
     double? importance,
     String? visibility,
@@ -109,7 +109,10 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
             if (clearThumbnail) 'thumbnailUrl': null,
             'duration': ?duration,
             if (clearDuration) 'duration': null,
-            'eventAt': ?eventAt,
+            // See comment in TimelineNotifier.updatePost: callers pass a
+            // local DateTime; we centralize the toUtc().toIso8601String()
+            // conversion here.
+            if (eventAt != null) 'eventAt': eventAt.toUtc().toIso8601String(),
             if (clearEventAt) 'eventAt': null,
             'importance': ?importance,
             'visibility': ?visibility,

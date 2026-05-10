@@ -84,6 +84,32 @@ void main() {
       final post = Post.fromJson(json);
       expect(post.duration, isNull);
     });
+
+    test('parses Z-suffixed eventAt as a UTC DateTime', () {
+      // The backend serializes eventAt with `.toISOString()` which always
+      // yields a `Z`-suffixed UTC ISO string. The model must lift that to
+      // an `isUtc == true` DateTime so the rest of the app can use the
+      // toLocal()/toUtc() round-trip contract documented on EventAtPicker.
+      // Round-trip through 05:30 UTC = 14:30 JST (+09:00).
+      final json = {...validJson, 'eventAt': '2026-01-15T05:30:00.000Z'};
+      final post = Post.fromJson(json);
+      expect(post.eventAt, isNotNull);
+      expect(post.eventAt!.isUtc, isTrue);
+      expect(post.eventAt!.toUtc().hour, 5);
+      expect(post.eventAt!.toUtc().minute, 30);
+      // The absolute instant equals 05:30 UTC regardless of the test
+      // host's TZ — pin it via millisecondsSinceEpoch so the test does
+      // not rely on the runner's default zone.
+      expect(
+        post.eventAt!.millisecondsSinceEpoch,
+        DateTime.utc(2026, 1, 15, 5, 30).millisecondsSinceEpoch,
+      );
+    });
+
+    test('parses null eventAt', () {
+      final post = Post.fromJson({...validJson, 'eventAt': null});
+      expect(post.eventAt, isNull);
+    });
   });
 
   group('Post.formattedDuration', () {

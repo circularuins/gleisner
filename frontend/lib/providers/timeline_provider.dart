@@ -585,7 +585,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     bool clearThumbnail = false,
     int? duration,
     bool clearDuration = false,
-    String? eventAt,
+    DateTime? eventAt,
     bool clearEventAt = false,
     double? importance,
     String? visibility,
@@ -634,7 +634,10 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
             if (clearThumbnail) 'thumbnailUrl': null,
             'duration': ?duration,
             if (clearDuration) 'duration': null,
-            'eventAt': ?eventAt,
+            // Centralize UTC serialization here so callers can hand us a
+            // local-zone DateTime (what `EventAtPicker.onChanged` emits)
+            // without worrying about offset stripping.
+            if (eventAt != null) 'eventAt': eventAt.toUtc().toIso8601String(),
             if (clearEventAt) 'eventAt': null,
             'importance': ?importance,
             'articleGenre': ?articleGenre,
