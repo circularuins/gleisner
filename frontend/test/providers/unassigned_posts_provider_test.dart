@@ -202,6 +202,54 @@ void main() {
       },
     );
 
+    // Companion to the splice test: the `clearEventAt: true` flag tells
+    // the backend to NULL out eventAt, and the response carries
+    // `eventAt: null`. The splice path must propagate that null back
+    // into state so the UI doesn't keep showing the old timestamp.
+    test(
+      'splices null eventAt into state when clearEventAt clears it',
+      () async {
+        final pair = _clientAndLinkWith(
+          data: {
+            '__typename': 'Mutation',
+            'updatePost': _postJson(id: 'p-clear', eventAt: null),
+          },
+        );
+        final container = _createContainer(client: pair.client);
+        addTearDown(container.dispose);
+
+        final notifier = container.read(unassignedPostsProvider.notifier);
+        // Seed with a post that already has a non-null eventAt so we can
+        // observe the clear actually changing state, not just matching
+        // an already-null field.
+        final original = Post.fromJson(
+          _postJson(id: 'p-clear', eventAt: '2026-05-10T04:45:00.000Z'),
+        );
+        notifier.debugSetState(UnassignedPostsState(posts: [original]));
+        expect(
+          container.read(unassignedPostsProvider).posts.single.eventAt,
+          isNotNull,
+        );
+
+        await notifier.updatePost(id: 'p-clear', clearEventAt: true);
+
+        // The mutation request must carry an explicit `eventAt: null`
+        // (not a missing key — that would mean "no change").
+        final updateRequest = pair.link.requests.firstWhere(
+          (r) => r.operation.operationName != null,
+          orElse: () => pair.link.requests.first,
+        );
+        expect(updateRequest.variables.containsKey('eventAt'), isTrue);
+        expect(updateRequest.variables['eventAt'], isNull);
+
+        // And the splice must reflect the cleared value in state.
+        final after = container.read(unassignedPostsProvider).posts;
+        expect(after, hasLength(1));
+        expect(after.single.id, 'p-clear');
+        expect(after.single.eventAt, isNull);
+      },
+    );
+
     test('drops the post from state when trackId becomes non-null', () async {
       final pair = _clientAndLinkWith(
         data: {

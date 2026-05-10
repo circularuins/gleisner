@@ -30,6 +30,10 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
     return const UnassignedPostsState();
   }
 
+  /// Test-only state seed. See `TimelineNotifier.debugSetState` for the
+  /// rationale (avoiding graphql_flutter cache cross-talk between
+  /// `myUnassignedPosts` query fixtures and `updatePost` mutation
+  /// fixtures that share Post ids). Do NOT call from production paths.
   @visibleForTesting
   void debugSetState(UnassignedPostsState newState) => state = newState;
 
@@ -129,6 +133,11 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
       final data = result.data?['updatePost'] as Map<String, dynamic>?;
       if (data == null) return null;
       final updated = Post.fromJson(data);
+      // The mutation `await` may have been racing the user closing the
+      // edit sheet. If the Notifier got disposed in the meantime,
+      // writing to `state` (or calling `removePost` which also writes
+      // state) would throw `tried to use a disposed notifier`.
+      if (disposed) return updated;
       // If reassigned to a track, drop from the unassigned list. Otherwise
       // splice the updated post back into state so callers (e.g. edit
       // sheet on the unassigned list) immediately see the new eventAt /

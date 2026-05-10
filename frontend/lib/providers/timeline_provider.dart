@@ -91,7 +91,18 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
     return const TimelineState();
   }
 
-  /// For testing only — set state directly.
+  /// Test-only state seed.
+  ///
+  /// Used by tests that need a Notifier with pre-populated `posts` /
+  /// `artist` etc. without round-tripping through `loadArtist` and the
+  /// graphql_flutter normalizing cache (which conflates fixtures that
+  /// share a Post id across query + mutation responses).
+  ///
+  /// Do NOT call from production code paths. If you find yourself
+  /// reaching for this outside `test/`, the right answer is usually a
+  /// real action method on the Notifier (e.g. `addPost`, `loadArtist`).
+  /// Removable once Riverpod 3.x exposes a first-class
+  /// `ProviderContainer.overrideWithState` for `Notifier` subclasses.
   @visibleForTesting
   void debugSetState(TimelineState newState) => state = newState;
 
@@ -653,6 +664,11 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
       if (data == null) return null;
 
       final updated = Post.fromJson(data);
+
+      // The mutation `await` may have been racing the user closing the
+      // edit sheet. If the Notifier got disposed in the meantime,
+      // writing to `state` throws `tried to use a disposed notifier`.
+      if (disposed) return updated;
 
       // Replace post in local state
       final posts = state.posts.map((p) {
