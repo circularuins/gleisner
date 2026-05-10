@@ -31,9 +31,11 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
   }
 
   /// Test-only state seed. See `TimelineNotifier.debugSetState` for the
-  /// rationale (avoiding graphql_flutter cache cross-talk between
+  /// full rationale: avoiding graphql_flutter cache cross-talk between
   /// `myUnassignedPosts` query fixtures and `updatePost` mutation
-  /// fixtures that share Post ids). Do NOT call from production paths.
+  /// fixtures that share Post ids, plus the retirement condition once
+  /// Riverpod offers a first-class state override for `Notifier`
+  /// subclasses. Do NOT call from production paths.
   @visibleForTesting
   void debugSetState(UnassignedPostsState newState) => state = newState;
 

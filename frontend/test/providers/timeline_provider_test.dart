@@ -471,6 +471,11 @@ void main() {
       final updateRequest = pair.link.requests.firstWhere(
         (r) => r.variables.containsKey('eventAt'),
       );
+      // Explicit "key is present" assertion in addition to the
+      // firstWhere selector — keeps the contract visible as
+      // documentation (sending an explicit eventAt key is what makes
+      // the backend distinguish "set value" from "no change").
+      expect(updateRequest.variables.containsKey('eventAt'), isTrue);
       final serialized = updateRequest.variables['eventAt'] as String;
 
       expect(

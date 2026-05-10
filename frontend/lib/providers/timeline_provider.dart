@@ -101,8 +101,10 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   /// Do NOT call from production code paths. If you find yourself
   /// reaching for this outside `test/`, the right answer is usually a
   /// real action method on the Notifier (e.g. `addPost`, `loadArtist`).
-  /// Removable once Riverpod 3.x exposes a first-class
-  /// `ProviderContainer.overrideWithState` for `Notifier` subclasses.
+  /// Retire once Riverpod offers a first-class way to override a
+  /// `Notifier`'s state from `ProviderContainer.overrides` without
+  /// going through the public mutation API. (As of Riverpod 2.x there
+  /// is no such hook for `Notifier` subclasses.)
   @visibleForTesting
   void debugSetState(TimelineState newState) => state = newState;
 

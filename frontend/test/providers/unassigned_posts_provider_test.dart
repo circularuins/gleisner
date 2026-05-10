@@ -234,12 +234,13 @@ void main() {
         await notifier.updatePost(id: 'p-clear', clearEventAt: true);
 
         // The mutation request must carry an explicit `eventAt: null`
-        // (not a missing key — that would mean "no change").
+        // (not a missing key — that would mean "no change"). Select by
+        // `containsKey('eventAt')` rather than by operation name so the
+        // assertion stays precise even if a future test in this file
+        // adds a `load()` query before updatePost.
         final updateRequest = pair.link.requests.firstWhere(
-          (r) => r.operation.operationName != null,
-          orElse: () => pair.link.requests.first,
+          (r) => r.variables.containsKey('eventAt'),
         );
-        expect(updateRequest.variables.containsKey('eventAt'), isTrue);
         expect(updateRequest.variables['eventAt'], isNull);
 
         // And the splice must reflect the cleared value in state.
