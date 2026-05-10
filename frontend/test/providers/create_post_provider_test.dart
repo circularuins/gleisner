@@ -11,11 +11,16 @@ class _MockLink extends Link {
   final Map<String, dynamic>? data;
   final List<GraphQLError>? errors;
   final Exception? exception;
+  // Captures the variables of the most recent request, for tests that need
+  // to assert on the exact payload sent to the server (e.g. eventAt
+  // serialization).
+  final List<Map<String, dynamic>> capturedVariables = [];
 
   _MockLink({this.data, this.errors, this.exception});
 
   @override
   Stream<Response> request(Request request, [NextLink? forward]) {
+    capturedVariables.add(Map<String, dynamic>.from(request.variables));
     if (exception != null) return Stream.error(exception!);
     return Stream.value(
       Response(
@@ -35,6 +40,20 @@ GraphQLClient _clientWith({
   return GraphQLClient(
     link: _MockLink(data: data, errors: errors, exception: exception),
     cache: GraphQLCache(store: InMemoryStore()),
+  );
+}
+
+({GraphQLClient client, _MockLink link}) _capturingClient({
+  Map<String, dynamic>? data,
+  List<GraphQLError>? errors,
+}) {
+  final link = _MockLink(data: data, errors: errors);
+  return (
+    client: GraphQLClient(
+      link: link,
+      cache: GraphQLCache(store: InMemoryStore()),
+    ),
+    link: link,
   );
 }
 
@@ -204,6 +223,74 @@ void main() {
       final state = container.read(createPostProvider);
       expect(state.error, isNotNull);
       expect(state.isSubmitting, false);
+    });
+
+    test('submit serializes eventAt as a UTC ISO-8601 string', () async {
+      // Regression for the JST-as-UTC timeline ordering bug:
+      // EventAtPicker emits a local DateTime; calling toIso8601String() on
+      // a local DateTime drops the timezone offset, and Node.js then
+      // parses the naive string as server-local time (UTC on Railway),
+      // causing JST inputs to be stored 9 hours in the future.
+      // The fix is to call .toUtc() before .toIso8601String().
+      final captured = _capturingClient(
+        data: {
+          'createPost': {
+            'post': {
+              'id': 'post-1',
+              'mediaType': 'thought',
+              'title': 'Hello',
+              'importance': 0.5,
+              'createdAt': '2026-05-10T14:02:00.000Z',
+              'updatedAt': '2026-05-10T14:02:00.000Z',
+              'author': {'id': 'u1', 'username': 'me'},
+            },
+            'track': {
+              'id': 'track-1',
+              'name': 'Music',
+              'color': '#4A90D9',
+              'createdAt': '2026-01-01T00:00:00.000Z',
+            },
+          },
+        },
+      );
+      final container = _createContainer(client: captured.client);
+      addTearDown(container.dispose);
+
+      final notifier = container.read(createPostProvider.notifier);
+      notifier.selectTrack(_testTrack);
+      notifier.selectMediaType(MediaType.thought);
+
+      // A local DateTime — what EventAtPicker hands back to callers.
+      final localEventAt = DateTime(2026, 5, 10, 13, 45);
+
+      await notifier.submit(
+        title: 'Hello',
+        body: 'World',
+        mediaUrl: null,
+        eventAt: localEventAt,
+      );
+
+      // Two requests are issued: getUploadUrl (none for thought) and
+      // createPost. We only care about the one that carries eventAt.
+      final createCall = captured.link.capturedVariables.firstWhere(
+        (v) => v.containsKey('eventAt'),
+      );
+      final serialized = createCall['eventAt'] as String;
+
+      // Must end with `Z` so the backend's `new Date(...)` parses it as
+      // an absolute UTC instant rather than as server-local time.
+      expect(
+        serialized.endsWith('Z'),
+        isTrue,
+        reason: 'eventAt must be serialized in UTC: got "$serialized"',
+      );
+
+      // And the absolute moment must equal the local input — i.e. round-
+      // tripping must not shift the user's intended time.
+      expect(
+        DateTime.parse(serialized).millisecondsSinceEpoch,
+        localEventAt.millisecondsSinceEpoch,
+      );
     });
 
     test('copyWith preserves error when not explicitly set', () {

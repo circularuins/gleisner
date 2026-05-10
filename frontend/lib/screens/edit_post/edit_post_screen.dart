@@ -205,7 +205,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             duration: _durationSeconds,
             clearDuration:
                 _durationSeconds == null && widget.post.duration != null,
-            eventAt: _eventAt?.toIso8601String(),
+            // toUtc() before serialization: see comment in create_post_provider.dart
+            eventAt: _eventAt?.toUtc().toIso8601String(),
             clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,
             visibility: _visibility,
@@ -235,7 +236,8 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             duration: _durationSeconds,
             clearDuration:
                 _durationSeconds == null && widget.post.duration != null,
-            eventAt: _eventAt?.toIso8601String(),
+            // toUtc() before serialization: see comment in create_post_provider.dart
+            eventAt: _eventAt?.toUtc().toIso8601String(),
             clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,
             visibility: _visibility,
