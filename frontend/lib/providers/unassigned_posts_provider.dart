@@ -30,6 +30,15 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
     return const UnassignedPostsState();
   }
 
+  /// Test-only state seed. See `TimelineNotifier.debugSetState` for the
+  /// full rationale: avoiding graphql_flutter cache cross-talk between
+  /// `myUnassignedPosts` query fixtures and `updatePost` mutation
+  /// fixtures that share Post ids, plus the retirement condition once
+  /// Riverpod offers a first-class state override for `Notifier`
+  /// subclasses. Do NOT call from production paths.
+  @visibleForTesting
+  void debugSetState(UnassignedPostsState newState) => state = newState;
+
   Future<void> load() async {
     state = const UnassignedPostsState(isLoading: true);
     try {
@@ -67,7 +76,7 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
     bool clearThumbnail = false,
     int? duration,
     bool clearDuration = false,
-    String? eventAt,
+    DateTime? eventAt,
     bool clearEventAt = false,
     double? importance,
     String? visibility,
@@ -109,7 +118,10 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
             if (clearThumbnail) 'thumbnailUrl': null,
             'duration': ?duration,
             if (clearDuration) 'duration': null,
-            'eventAt': ?eventAt,
+            // See comment in TimelineNotifier.updatePost: callers pass a
+            // local DateTime; we centralize the toUtc().toIso8601String()
+            // conversion here.
+            if (eventAt != null) 'eventAt': eventAt.toUtc().toIso8601String(),
             if (clearEventAt) 'eventAt': null,
             'importance': ?importance,
             'visibility': ?visibility,
@@ -123,9 +135,24 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
       final data = result.data?['updatePost'] as Map<String, dynamic>?;
       if (data == null) return null;
       final updated = Post.fromJson(data);
-      // If reassigned to a track, remove from list
+      // The mutation `await` may have been racing the user closing the
+      // edit sheet. If the Notifier got disposed in the meantime,
+      // writing to `state` (or calling `removePost` which also writes
+      // state) would throw `tried to use a disposed notifier`.
+      if (disposed) return updated;
+      // If reassigned to a track, drop from the unassigned list. Otherwise
+      // splice the updated post back into state so callers (e.g. edit
+      // sheet on the unassigned list) immediately see the new eventAt /
+      // title / body without having to wait for the next load().
       if (updated.trackId != null) {
         removePost(updated.id);
+      } else {
+        state = UnassignedPostsState(
+          posts: state.posts
+              .map((p) => p.id == updated.id ? updated : p)
+              .toList(),
+          isLoading: state.isLoading,
+        );
       }
       return updated;
     } catch (e) {

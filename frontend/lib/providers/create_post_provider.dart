@@ -183,7 +183,11 @@ class CreatePostNotifier extends Notifier<CreatePostState>
             'mediaUrls': ?mediaUrls,
             'thumbnailUrl': ?thumbnailUrl,
             'duration': ?duration,
-            if (eventAt != null) 'eventAt': eventAt.toIso8601String(),
+            // Always serialize as UTC. `EventAtPicker` returns a local DateTime;
+            // `toIso8601String()` on a local DateTime omits the timezone offset,
+            // which the backend would interpret as server-local (UTC on Railway)
+            // and store the wrong absolute time. See PR / Issue for details.
+            if (eventAt != null) 'eventAt': eventAt.toUtc().toIso8601String(),
             'importance': state.importance,
             'visibility': state.visibility,
             if (state.articleGenre != null)

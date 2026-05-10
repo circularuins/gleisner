@@ -110,7 +110,11 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     _selectedTrackId = widget.post.trackId;
     _thumbnailUrl = widget.post.thumbnailUrl;
     _durationSeconds = widget.post.duration;
-    _eventAt = widget.post.eventAt;
+    // The backend returns eventAt as a `Z`-suffixed UTC ISO string, which
+    // `DateTime.parse` lifts to `isUtc == true`. The form holds a
+    // wall-clock local DateTime so the picker / formatter see the user's
+    // actual input time. We convert back to UTC at submit time.
+    _eventAt = widget.post.eventAt?.toLocal();
     _articleGenre = widget.post.articleGenre;
     _externalPublish = widget.post.externalPublish;
     _mediaUrls = List.of(widget.post.imageUrls);
@@ -205,7 +209,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             duration: _durationSeconds,
             clearDuration:
                 _durationSeconds == null && widget.post.duration != null,
-            eventAt: _eventAt?.toIso8601String(),
+            // Pass the local DateTime directly; the provider centralizes
+            // the toUtc() + ISO conversion to keep the type contract.
+            eventAt: _eventAt,
             clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,
             visibility: _visibility,
@@ -235,7 +241,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
             duration: _durationSeconds,
             clearDuration:
                 _durationSeconds == null && widget.post.duration != null,
-            eventAt: _eventAt?.toIso8601String(),
+            // Pass the local DateTime directly; the provider centralizes
+            // the toUtc() + ISO conversion to keep the type contract.
+            eventAt: _eventAt,
             clearEventAt: _eventAt == null && widget.post.eventAt != null,
             importance: _importance,
             visibility: _visibility,
