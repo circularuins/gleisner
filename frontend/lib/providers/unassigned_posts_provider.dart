@@ -30,6 +30,9 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
     return const UnassignedPostsState();
   }
 
+  @visibleForTesting
+  void debugSetState(UnassignedPostsState newState) => state = newState;
+
   Future<void> load() async {
     state = const UnassignedPostsState(isLoading: true);
     try {
@@ -126,9 +129,19 @@ class UnassignedPostsNotifier extends Notifier<UnassignedPostsState>
       final data = result.data?['updatePost'] as Map<String, dynamic>?;
       if (data == null) return null;
       final updated = Post.fromJson(data);
-      // If reassigned to a track, remove from list
+      // If reassigned to a track, drop from the unassigned list. Otherwise
+      // splice the updated post back into state so callers (e.g. edit
+      // sheet on the unassigned list) immediately see the new eventAt /
+      // title / body without having to wait for the next load().
       if (updated.trackId != null) {
         removePost(updated.id);
+      } else {
+        state = UnassignedPostsState(
+          posts: state.posts
+              .map((p) => p.id == updated.id ? updated : p)
+              .toList(),
+          isLoading: state.isLoading,
+        );
       }
       return updated;
     } catch (e) {

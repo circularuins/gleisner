@@ -38,6 +38,20 @@
 --   migration before applying — do not apply the migration with a
 --   cutoff that's already in the past relative to live posts on the
 --   buggy code path.
+-- Runtime safety net: refuse to run if the cutoff is already in the past
+-- relative to the migration apply time. This forces an explicit bump of
+-- the cutoff (and a regenerated migration) rather than silently shifting
+-- post-deploy rows that are already on the corrected code path.
+DO $$
+BEGIN
+  IF '2026-05-10T12:00:00Z'::timestamptz <= now() THEN
+    RAISE EXCEPTION
+      'Backfill 0017 aborted: cutoff 2026-05-10T12:00:00Z is no longer in the future (now = %). '
+      'Bump the cutoff in this migration to a time after the deploy and regenerate before applying.',
+      now();
+  END IF;
+END $$;
+--> statement-breakpoint
 UPDATE "posts"
 SET "event_at" = "event_at" - INTERVAL '9 hours'
 WHERE "event_at" IS NOT NULL
