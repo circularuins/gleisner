@@ -8,7 +8,13 @@ import {
 import { env } from "../env.js";
 
 const ALG = "EdDSA";
-const TOKEN_EXPIRY = "24h";
+// Phase 0: 30d single-token TTL is a pragmatic trade-off until #409
+// (refresh-token rotation, PR-D of the Phase 1 authz batch). The previous
+// 24h TTL caused daily forced re-login on iPad child accounts where the
+// parent had switched to a child profile via switchToChild — the TTL clock
+// started at switch time, not at last activity, so a child using the iPad
+// once per evening was almost certain to be logged out by the next day.
+const TOKEN_EXPIRY = "30d";
 
 let privateKey: CryptoKey;
 let publicKey: CryptoKey;
