@@ -3,11 +3,13 @@ FROM node:25.9-bookworm-slim
 
 WORKDIR /app
 
-# Runtime native deps + corepack for pnpm
+# Runtime native deps + enable Node-bundled corepack for pnpm.
+# Note: we intentionally do NOT `npm i -g corepack@latest` here because
+# node:25.9-bookworm-slim already ships corepack along with a yarn shim,
+# and `npm i -g` would EEXIST-fail when re-installing the yarn shim.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends libatomic1 \
   && rm -rf /var/lib/apt/lists/* \
-  && npm i -g corepack@latest \
   && corepack enable
 
 # Install dependencies. pnpm version is resolved from package.json's
