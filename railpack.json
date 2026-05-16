@@ -1,6 +1,0 @@
-{
-  "$schema": "https://schema.railpack.com",
-  "packages": {
-    "pnpm": "10.32.1"
-  }
-}
