@@ -106,6 +106,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     // the draft on the way out; this listener prevents us from re-writing
     // it 1.5s later from a debounced timer.
     _authSub = ref.listenManual(authProvider, (prev, next) {
+      // Defensive: dispose() closes this subscription, but a late-delivered
+      // change-notification could otherwise touch a torn-down widget.
+      if (!mounted) return;
       final prevId = prev?.user?.id;
       final nextId = next.user?.id;
       if (prevId != nextId) {
@@ -158,11 +161,13 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     final draft = await ref
         .read(createPostProvider.notifier)
         .loadDraft(user.id);
+    // Mark loaded BEFORE the mounted check. Otherwise a widget that is
+    // briefly unmounted during draft load and then survives (e.g. a parent
+    // animation that triggered the early return raced with a remount) would
+    // leave `_draftLoaded` false forever, silently disabling autosave.
+    _draftLoaded = true;
     if (!mounted) return;
-    if (draft == null) {
-      _draftLoaded = true;
-      return;
-    }
+    if (draft == null) return;
     // Resolve the track from the user's own tracks. A null result means the
     // track was deleted between save and load — `restoreFromDraft` will
     // clamp the step back to 0 in that case.
@@ -210,7 +215,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       _durationSeconds = draft.durationSeconds;
       _eventAt = draft.eventAt;
     });
-    _draftLoaded = true;
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -497,23 +501,40 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             icon: const Icon(Icons.arrow_back),
             onPressed: () async {
               if (state.step == 2) {
-                // Going from form step back to media-type step would clear the
-                // form inputs; confirm with the user first.
+                // Going from form step back to media-type step would clear
+                // the form inputs; confirm with the user first.
                 if (!await _confirmDiscard()) return;
                 if (!mounted) return;
-                _pickMediaGeneration++; // invalidate any in-flight upload
-                _titleController.clear();
-                _bodyController.clear();
-                _mediaUrlController.clear();
-                _quillController.clear();
-                setState(() {
-                  _thumbnailUrl = null;
-                  _durationSeconds = null;
-                  _eventAt = null;
-                  _mediaUrls = [];
+                // The user explicitly chose to throw away the form. Tear
+                // down the persisted draft synchronously BEFORE clearing
+                // the controllers — otherwise the `.clear()` calls below
+                // would fire the controller listeners → schedule a save →
+                // 1.5s later we'd silently overwrite the draft with empty
+                // values, making the next composer-open feel like the
+                // discard never happened.
+                _saveDebounce?.cancel();
+                final userId = _activeUserId;
+                if (userId != null) {
+                  await ref
+                      .read(createPostProvider.notifier)
+                      .clearDraft(userId);
+                }
+                if (!mounted) return;
+                _withSuppressedSave(() {
+                  _pickMediaGeneration++; // invalidate any in-flight upload
+                  _titleController.clear();
+                  _bodyController.clear();
+                  _mediaUrlController.clear();
+                  _quillController.clear();
+                  setState(() {
+                    _thumbnailUrl = null;
+                    _durationSeconds = null;
+                    _eventAt = null;
+                    _mediaUrls = [];
+                  });
+                  ref.read(createPostProvider.notifier).clearFormState();
+                  ref.read(createPostProvider.notifier).goBack();
                 });
-                ref.read(createPostProvider.notifier).clearFormState();
-                ref.read(createPostProvider.notifier).goBack();
               } else if (state.step > 0) {
                 // step 1 → 0 just changes the selected media type; no input is
                 // lost so no confirmation is needed.
