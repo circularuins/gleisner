@@ -668,5 +668,25 @@
   "yourReactions": "Your reactions",
   "@yourReactions": {
     "description": "Section label inside the emoji picker bottom sheet, above a chip row that shows the emojis the current viewer has already reacted with on this post. Tapping a chip removes that reaction. Lets users see what they've already selected so the picker feels persistent rather than fire-and-forget."
+  },
+  "discardPostConfirmTitle": "Discard draft?",
+  "@discardPostConfirmTitle": {
+    "description": "Title of the confirmation dialog shown when the user tries to leave the post composer (close button, browser back, system back, dialog dismiss) while there is unsaved input. The 'draft' here refers to the in-progress post being composed."
+  },
+  "discardPostConfirmMessage": "You have unsaved input. Discard it?",
+  "@discardPostConfirmMessage": {
+    "description": "Body text of the discard-draft confirmation dialog. Asks the user to choose between throwing away the in-progress post or returning to continue editing."
+  },
+  "discardButton": "Discard",
+  "@discardButton": {
+    "description": "Confirm action on the discard-draft dialog. Tapping this throws away the in-progress post and closes the composer. Styled as a destructive action."
+  },
+  "keepEditingButton": "Keep editing",
+  "@keepEditingButton": {
+    "description": "Cancel action on the discard-draft dialog. Tapping this dismisses the dialog and returns the user to the composer with their input intact."
+  },
+  "draftRestoredSnackbar": "Restored your previous draft.",
+  "@draftRestoredSnackbar": {
+    "description": "Snackbar shown when the post composer opens and finds a previously-saved draft for the current user. Confirms to the user that text and selections they entered before an unexpected closure are now back."
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,7 +9,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../models/post.dart';
 import '../../models/track.dart' show Track, parseHexColor;
+import '../../providers/auth_provider.dart';
 import '../../providers/create_post_provider.dart';
+import '../../providers/my_artist_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../utils/ime_safe_focus.dart';
@@ -58,18 +61,45 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   // Multi-image support for image type posts
   List<String> _mediaUrls = [];
 
+  // Draft autosave ---------------------------------------------------------
+  // Userid captured from `authProvider` after the first frame. All save/load/
+  // clear calls are scoped to this id so a leftover draft from a previous
+  // session cannot be re-applied to another account.
+  String? _activeUserId;
+  // Drains controller-listener events into a single deferred save so we
+  // don't hit shared_preferences on every keystroke.
+  Timer? _saveDebounce;
+  static const _saveDebounceDuration = Duration(milliseconds: 1500);
+  // True while submit is in-flight or just succeeded — prevents the listener
+  // from re-saving stale state after we have already cleared the draft.
+  bool _suppressPersistence = false;
+  // True after `_initDraft` finishes so subsequent state changes know it is
+  // safe to write (we don't want to overwrite a not-yet-loaded draft).
+  bool _draftLoaded = false;
+
   @override
   void initState() {
     super.initState();
-    // Clear stale upload error/progress from a previous screen visit. The
-    // provider is shared (non-autoDispose) so state otherwise persists.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.read(mediaUploadProvider.notifier).reset();
+    _titleController.addListener(_scheduleSave);
+    _bodyController.addListener(_scheduleSave);
+    _mediaUrlController.addListener(_scheduleSave);
+    _quillController.addListener(_scheduleSave);
+    // Persist on every meta-state change (track, mediaType, visibility, etc).
+    // We use listenManual + initState because watch-in-build would cause
+    // repeated scheduling on every rebuild.
+    ref.listenManual(createPostProvider, (_, _) => _scheduleSave());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      // Clear stale upload error/progress from a previous screen visit. The
+      // provider is shared (non-autoDispose) so state otherwise persists.
+      ref.read(mediaUploadProvider.notifier).reset();
+      await _initDraft();
     });
   }
 
   @override
   void dispose() {
+    _saveDebounce?.cancel();
     _pickMediaGeneration++; // invalidate any in-flight upload
     _titleController.dispose();
     _bodyController.dispose();
@@ -81,6 +111,181 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     // Provider reset is handled in _submit() success path.
     // autoDispose cleans up when no watchers remain.
     super.dispose();
+  }
+
+  /// Restore a previously-saved draft (if any) for the current user. Called
+  /// once after the first frame. The user's own tracks are resolved through
+  /// `myArtistProvider` rather than `timelineProvider`, since the latter
+  /// holds whichever artist the user is currently browsing (fan mode would
+  /// otherwise resolve to someone else's tracks).
+  Future<void> _initDraft() async {
+    final user = ref.read(authProvider).user;
+    if (user == null) {
+      _draftLoaded = true;
+      return;
+    }
+    _activeUserId = user.id;
+    final draft = await ref
+        .read(createPostProvider.notifier)
+        .loadDraft(user.id);
+    if (!mounted) {
+      _draftLoaded = true;
+      return;
+    }
+    if (draft == null) {
+      _draftLoaded = true;
+      return;
+    }
+    // Resolve the track from the user's own tracks. A null result means the
+    // track was deleted between save and load — `restoreFromDraft` will
+    // clamp the step back to 0 in that case.
+    final myArtist = ref.read(myArtistProvider);
+    final track = (draft.selectedTrackId != null && myArtist != null)
+        ? myArtist.tracks
+              .where((t) => t.id == draft.selectedTrackId)
+              .firstOrNull
+        : null;
+    ref
+        .read(createPostProvider.notifier)
+        .restoreFromDraft(draft, resolvedTrack: track);
+    // Hydrate text fields. Removing then re-adding the listener avoids an
+    // immediate re-save round-trip.
+    _titleController.removeListener(_scheduleSave);
+    _bodyController.removeListener(_scheduleSave);
+    _mediaUrlController.removeListener(_scheduleSave);
+    _quillController.removeListener(_scheduleSave);
+    _titleController.text = draft.title;
+    _bodyController.text = draft.body;
+    _mediaUrlController.text = draft.mediaUrl ?? '';
+    if (draft.bodyFormat == 'delta' && draft.body.isNotEmpty) {
+      try {
+        final delta = jsonDecode(draft.body);
+        if (delta is List) {
+          _quillController.document = Document.fromJson(delta);
+        }
+      } catch (_) {
+        // Malformed delta — fall back to plain body in the body field.
+      }
+    }
+    _titleController.addListener(_scheduleSave);
+    _bodyController.addListener(_scheduleSave);
+    _mediaUrlController.addListener(_scheduleSave);
+    _quillController.addListener(_scheduleSave);
+
+    setState(() {
+      _mediaUrls = draft.mediaUrls ?? [];
+      _thumbnailUrl = draft.thumbnailUrl;
+      _durationSeconds = draft.durationSeconds;
+      _eventAt = draft.eventAt;
+    });
+    _draftLoaded = true;
+    // Surface restoration so the user knows their input came back.
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.draftRestoredSnackbar)),
+      );
+    }
+  }
+
+  void _scheduleSave() {
+    if (_suppressPersistence) return;
+    if (!_draftLoaded) return;
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(_saveDebounceDuration, _persistDraftNow);
+  }
+
+  Future<void> _persistDraftNow() async {
+    if (!mounted) return;
+    final userId = _activeUserId;
+    if (userId == null) return;
+    if (_suppressPersistence) return;
+    await ref
+        .read(createPostProvider.notifier)
+        .persistDraft(
+          userId: userId,
+          title: _titleController.text,
+          body: _isArticleSelected()
+              ? jsonEncode(_quillController.document.toDelta().toJson())
+              : _bodyController.text,
+          bodyFormat: _isArticleSelected() ? 'delta' : null,
+          mediaUrl: _mediaUrlController.text.isEmpty
+              ? null
+              : _mediaUrlController.text,
+          mediaUrls: _mediaUrls.isEmpty ? null : _mediaUrls,
+          thumbnailUrl: _thumbnailUrl,
+          durationSeconds: _durationSeconds,
+          eventAt: _eventAt,
+        );
+  }
+
+  bool _isArticleSelected() =>
+      ref.read(createPostProvider).selectedMediaType == MediaType.article;
+
+  /// True when at least one composer input has user-entered content. Used to
+  /// decide whether the back/dismiss path needs a discard confirmation.
+  bool _hasMeaningfulInput() {
+    final state = ref.read(createPostProvider);
+    if (state.step > 0) return true;
+    if (state.selectedTrack != null) return true;
+    if (_titleController.text.isNotEmpty) return true;
+    if (_bodyController.text.isNotEmpty) return true;
+    if (_mediaUrlController.text.isNotEmpty) return true;
+    if (_mediaUrls.isNotEmpty) return true;
+    if (!_quillController.document.isEmpty()) return true;
+    return false;
+  }
+
+  /// Show the discard confirmation. Returns true when the user chose to
+  /// throw away their input, false when they chose to keep editing.
+  /// Returns true immediately when there is nothing to throw away.
+  Future<bool> _confirmDiscard() async {
+    if (!_hasMeaningfulInput()) return true;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.l10n.discardPostConfirmTitle),
+        content: Text(context.l10n.discardPostConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.l10n.keepEditingButton),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              context.l10n.discardButton,
+              style: const TextStyle(color: colorError),
+            ),
+          ),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
+  /// Confirm + clear the draft + close the composer. Used both by the
+  /// AppBar back button at step 0 and the system-back path via [PopScope].
+  Future<void> _discardAndClose() async {
+    final ok = await _confirmDiscard();
+    if (!ok || !mounted) return;
+    _suppressPersistence = true;
+    _saveDebounce?.cancel();
+    final userId = _activeUserId;
+    if (userId != null) {
+      await ref.read(createPostProvider.notifier).clearDraft(userId);
+    }
+    if (!mounted) return;
+    ref.read(createPostProvider.notifier).reset();
+    if (widget.onSuccess != null) {
+      // Dialog presentation — onSuccess pops the dialog AND refreshes the
+      // timeline. For an explicit discard we just want to close the dialog,
+      // so pop directly instead.
+      Navigator.of(context).pop();
+    } else if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go('/timeline');
+    }
   }
 
   Future<void> _pickMedia(MediaType mediaType) async {
@@ -196,6 +401,16 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
     if (result != null && mounted) {
       final (postedTrack, post) = result;
+      // Block the persistence listener before clearing — otherwise the
+      // ensureTrackSelected / addPost calls below could re-schedule a save
+      // and re-write the draft we are about to delete.
+      _suppressPersistence = true;
+      _saveDebounce?.cancel();
+      final userId = _activeUserId;
+      if (userId != null) {
+        await ref.read(createPostProvider.notifier).clearDraft(userId);
+      }
+      if (!mounted) return;
       final notifier = ref.read(timelineProvider.notifier);
       notifier.ensureTrackSelected(postedTrack.id);
       notifier.addPost(post);
@@ -219,67 +434,81 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     final timeline = ref.watch(timelineProvider);
     final tracks = timeline.artist?.tracks ?? [];
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (state.step > 0) {
-              // Clear form inputs when going back from form step
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        await _discardAndClose();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () async {
               if (state.step == 2) {
+                // Going from form step back to media-type step would clear the
+                // form inputs; confirm with the user first.
+                if (!await _confirmDiscard()) return;
+                if (!mounted) return;
                 _pickMediaGeneration++; // invalidate any in-flight upload
                 _titleController.clear();
                 _bodyController.clear();
                 _mediaUrlController.clear();
                 _quillController.clear();
-                _thumbnailUrl = null;
-                _durationSeconds = null;
-                _eventAt = null;
-                _mediaUrls = [];
+                setState(() {
+                  _thumbnailUrl = null;
+                  _durationSeconds = null;
+                  _eventAt = null;
+                  _mediaUrls = [];
+                });
                 ref.read(createPostProvider.notifier).clearFormState();
+                ref.read(createPostProvider.notifier).goBack();
+              } else if (state.step > 0) {
+                // step 1 → 0 just changes the selected media type; no input is
+                // lost so no confirmation is needed.
+                ref.read(createPostProvider.notifier).goBack();
+              } else {
+                await _discardAndClose();
               }
-              ref.read(createPostProvider.notifier).goBack();
-            } else {
-              context.go('/timeline');
-            }
-          },
-        ),
-        title: Text(context.l10n.newPost),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: LinearProgressIndicator(
-            value: (state.step + 1) / 3,
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.surfaceContainerHighest,
+            },
+          ),
+          title: Text(context.l10n.newPost),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(4),
+            child: LinearProgressIndicator(
+              value: (state.step + 1) / 3,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+            ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: switch (state.step) {
-            0 => _TrackStep(tracks: tracks),
-            1 => const _MediaTypeStep(),
-            _ => _FormStep(
-              formKey: _formKey,
-              titleController: _titleController,
-              bodyController: _bodyController,
-              quillController: _quillController,
-              mediaUrlController: _mediaUrlController,
-              thumbnailUrl: _thumbnailUrl,
-              durationSeconds: _durationSeconds,
-              urlFocusNode: _urlFocusNode,
-              linkTitleFocusNode: _linkTitleFocusNode,
-              linkCaptionFocusNode: _linkCaptionFocusNode,
-              eventAt: _eventAt,
-              onEventAtChanged: (dt) => setState(() => _eventAt = dt),
-              onSubmit: _submit,
-              onPickMedia: _pickMedia,
-              mediaUrls: _mediaUrls,
-              onMediaUrlsChanged: (urls) => setState(() => _mediaUrls = urls),
-            ),
-          },
+        body: SafeArea(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: switch (state.step) {
+              0 => _TrackStep(tracks: tracks),
+              1 => const _MediaTypeStep(),
+              _ => _FormStep(
+                formKey: _formKey,
+                titleController: _titleController,
+                bodyController: _bodyController,
+                quillController: _quillController,
+                mediaUrlController: _mediaUrlController,
+                thumbnailUrl: _thumbnailUrl,
+                durationSeconds: _durationSeconds,
+                urlFocusNode: _urlFocusNode,
+                linkTitleFocusNode: _linkTitleFocusNode,
+                linkCaptionFocusNode: _linkCaptionFocusNode,
+                eventAt: _eventAt,
+                onEventAtChanged: (dt) => setState(() => _eventAt = dt),
+                onSubmit: _submit,
+                onPickMedia: _pickMedia,
+                mediaUrls: _mediaUrls,
+                onMediaUrlsChanged: (urls) => setState(() => _mediaUrls = urls),
+              ),
+            },
+          ),
         ),
       ),
     );

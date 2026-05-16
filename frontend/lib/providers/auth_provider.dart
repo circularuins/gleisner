@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
+import 'create_post_draft_provider.dart';
 import 'disposable_notifier.dart';
 import 'featured_artist_provider.dart';
 import '../graphql/queries/auth.dart';
@@ -214,6 +215,14 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
   }
 
   Future<void> logout() async {
+    // Clear any in-progress post draft for the user we're logging out as,
+    // so an attacker who logs in next on the same device cannot recover
+    // it. The composer's user-id-scoped load path is the primary defense
+    // (it rejects mismatched drafts); this is the secondary cleanup.
+    final outgoingUserId = state.user?.id;
+    if (outgoingUserId != null) {
+      await ref.read(createPostDraftServiceProvider).clear(outgoingUserId);
+    }
     await _storage.delete(key: 'jwt');
     _client.cache.store.reset();
     ref.invalidate(featuredArtistProvider);

@@ -1363,4 +1363,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get yourReactions => 'Your reactions';
+
+  @override
+  String get discardPostConfirmTitle => 'Discard draft?';
+
+  @override
+  String get discardPostConfirmMessage => 'You have unsaved input. Discard it?';
+
+  @override
+  String get discardButton => 'Discard';
+
+  @override
+  String get keepEditingButton => 'Keep editing';
+
+  @override
+  String get draftRestoredSnackbar => 'Restored your previous draft.';
 }

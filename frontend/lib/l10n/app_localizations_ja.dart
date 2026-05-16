@@ -1320,4 +1320,19 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get yourReactions => 'あなたのリアクション';
+
+  @override
+  String get discardPostConfirmTitle => '下書きを破棄しますか？';
+
+  @override
+  String get discardPostConfirmMessage => '入力中の内容があります。破棄してよろしいですか？';
+
+  @override
+  String get discardButton => '破棄する';
+
+  @override
+  String get keepEditingButton => '編集を続ける';
+
+  @override
+  String get draftRestoredSnackbar => '前回の入力内容を復元しました';
 }
