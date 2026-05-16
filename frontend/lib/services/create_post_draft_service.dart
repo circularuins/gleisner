@@ -9,21 +9,47 @@ import '../models/create_post_draft.dart';
 /// logout path is bypassed (e.g. JWT expiry).
 ///
 /// All exceptions are swallowed: a corrupted or unreadable draft must never
-/// block the post composer from opening.
+/// block the post composer from opening. Specifically, if
+/// `SharedPreferences.getInstance()` itself throws — possible on Web when
+/// localStorage is disabled (private/incognito with strict cookie blocking,
+/// some embedded browsers) — every method below becomes a quiet no-op
+/// instead of cascading failures up into the composer.
 class CreatePostDraftService {
   static const String _keyPrefix = 'create_post_draft_';
 
-  final Future<SharedPreferences> Function() _prefsFactory;
+  /// Eagerly-started, cached future. Initialization runs once per instance
+  /// and the same `Future` is awaited by every save/load/clear call.
+  /// Resolves to `null` when the underlying store is unavailable, which
+  /// switches every operation into a no-op.
+  final Future<SharedPreferences?> _prefs;
 
   CreatePostDraftService({Future<SharedPreferences> Function()? prefsFactory})
-    : _prefsFactory = prefsFactory ?? SharedPreferences.getInstance;
+    : _prefs = _initialize(prefsFactory ?? SharedPreferences.getInstance);
+
+  static Future<SharedPreferences?> _initialize(
+    Future<SharedPreferences> Function() factory,
+  ) async {
+    try {
+      return await factory();
+    } catch (e) {
+      // One log line on init failure — every subsequent save/load/clear
+      // becomes a silent no-op so we don't spam logs for a known-broken
+      // environment.
+      debugPrint(
+        '[CreatePostDraftService] SharedPreferences unavailable, '
+        'draft autosave disabled: $e',
+      );
+      return null;
+    }
+  }
 
   String _keyFor(String userId) => '$_keyPrefix$userId';
 
   /// Save (overwrite) the draft for [draft.userId].
   Future<void> save(CreatePostDraft draft) async {
+    final prefs = await _prefs;
+    if (prefs == null) return;
     try {
-      final prefs = await _prefsFactory();
       await prefs.setString(_keyFor(draft.userId), draft.toJsonString());
     } catch (e) {
       debugPrint('[CreatePostDraftService] save failed: $e');
@@ -33,8 +59,9 @@ class CreatePostDraftService {
   /// Load the draft for [userId]. Returns null if no draft is stored, the
   /// payload is malformed, or the stored `userId` does not match.
   Future<CreatePostDraft?> load(String userId) async {
+    final prefs = await _prefs;
+    if (prefs == null) return null;
     try {
-      final prefs = await _prefsFactory();
       final raw = prefs.getString(_keyFor(userId));
       if (raw == null || raw.isEmpty) return null;
       final draft = CreatePostDraft.tryDecode(raw, expectedUserId: userId);
@@ -54,8 +81,9 @@ class CreatePostDraftService {
   /// Clear the draft for [userId]. Called on submit success, explicit
   /// discard, and logout.
   Future<void> clear(String userId) async {
+    final prefs = await _prefs;
+    if (prefs == null) return;
     try {
-      final prefs = await _prefsFactory();
       await prefs.remove(_keyFor(userId));
     } catch (e) {
       debugPrint('[CreatePostDraftService] clear failed: $e');

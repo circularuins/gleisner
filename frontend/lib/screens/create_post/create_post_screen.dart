@@ -70,12 +70,21 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   // don't hit shared_preferences on every keystroke.
   Timer? _saveDebounce;
   static const _saveDebounceDuration = Duration(milliseconds: 1500);
-  // True while submit is in-flight or just succeeded — prevents the listener
-  // from re-saving stale state after we have already cleared the draft.
+  // Persistence gate. Set true to immediately block any pending or future
+  // save. Read by `_scheduleSave` AND `_persistDraftNow` — the latter
+  // matters because a Timer that has already fired cannot be cancelled,
+  // so the guard inside the callback is the final safety net for
+  // dispose/logout/submit-success races.
   bool _suppressPersistence = false;
   // True after `_initDraft` finishes so subsequent state changes know it is
   // safe to write (we don't want to overwrite a not-yet-loaded draft).
   bool _draftLoaded = false;
+  // Held subscriptions for explicit close on dispose. Riverpod's automatic
+  // cleanup is best-effort across ConsumerStatefulWidget; an in-flight
+  // notification on a disposed Element can still reach the listener if we
+  // don't tear these down ourselves.
+  ProviderSubscription<CreatePostState>? _composerSub;
+  ProviderSubscription<AuthState>? _authSub;
 
   @override
   void initState() {
@@ -85,9 +94,25 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     _mediaUrlController.addListener(_scheduleSave);
     _quillController.addListener(_scheduleSave);
     // Persist on every meta-state change (track, mediaType, visibility, etc).
-    // We use listenManual + initState because watch-in-build would cause
-    // repeated scheduling on every rebuild.
-    ref.listenManual(createPostProvider, (_, _) => _scheduleSave());
+    // listenManual (not watch-in-build) avoids re-registering the listener
+    // on every rebuild.
+    _composerSub = ref.listenManual(
+      createPostProvider,
+      (_, _) => _scheduleSave(),
+    );
+    // If the authenticated user changes mid-session (logout / account
+    // switch / forced JWT expiry), stop persisting immediately so we don't
+    // re-save a draft for the outgoing user. `auth_provider.logout()` clears
+    // the draft on the way out; this listener prevents us from re-writing
+    // it 1.5s later from a debounced timer.
+    _authSub = ref.listenManual(authProvider, (prev, next) {
+      final prevId = prev?.user?.id;
+      final nextId = next.user?.id;
+      if (prevId != nextId) {
+        _suppressPersistence = true;
+        _saveDebounce?.cancel();
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       // Clear stale upload error/progress from a previous screen visit. The
@@ -99,7 +124,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   @override
   void dispose() {
+    // Block any in-flight Timer callback that already escaped `cancel()`
+    // BEFORE tearing down the controllers it would read from.
+    _suppressPersistence = true;
     _saveDebounce?.cancel();
+    _composerSub?.close();
+    _authSub?.close();
     _pickMediaGeneration++; // invalidate any in-flight upload
     _titleController.dispose();
     _bodyController.dispose();
@@ -128,10 +158,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     final draft = await ref
         .read(createPostProvider.notifier)
         .loadDraft(user.id);
-    if (!mounted) {
-      _draftLoaded = true;
-      return;
-    }
+    if (!mounted) return;
     if (draft == null) {
       _draftLoaded = true;
       return;
@@ -148,30 +175,35 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     ref
         .read(createPostProvider.notifier)
         .restoreFromDraft(draft, resolvedTrack: track);
-    // Hydrate text fields. Removing then re-adding the listener avoids an
-    // immediate re-save round-trip.
-    _titleController.removeListener(_scheduleSave);
-    _bodyController.removeListener(_scheduleSave);
-    _mediaUrlController.removeListener(_scheduleSave);
-    _quillController.removeListener(_scheduleSave);
-    _titleController.text = draft.title;
-    _bodyController.text = draft.body;
-    _mediaUrlController.text = draft.mediaUrl ?? '';
-    if (draft.bodyFormat == 'delta' && draft.body.isNotEmpty) {
-      try {
-        final delta = jsonDecode(draft.body);
-        if (delta is List) {
-          _quillController.document = Document.fromJson(delta);
+    // Hydrate text fields while persistence is suppressed so we don't
+    // immediately re-write what we just loaded. `_scheduleSave` and
+    // `_persistDraftNow` both early-return on `_suppressPersistence`.
+    _withSuppressedSave(() {
+      _titleController.text = draft.title;
+      _mediaUrlController.text = draft.mediaUrl ?? '';
+      // The body store is format-dependent — delta JSON belongs to the Quill
+      // controller and must NOT leak into the plain-text body controller,
+      // otherwise switching from `article` to another media type would
+      // surface raw JSON to the user.
+      if (draft.bodyFormat == 'delta') {
+        _bodyController.text = '';
+        if (draft.body.isNotEmpty) {
+          try {
+            final delta = jsonDecode(draft.body);
+            if (delta is List) {
+              _quillController.document = Document.fromJson(delta);
+            }
+          } catch (_) {
+            // Malformed delta — leave the Quill doc empty rather than show
+            // raw JSON in the rich-text editor.
+          }
         }
-      } catch (_) {
-        // Malformed delta — fall back to plain body in the body field.
+      } else {
+        _bodyController.text = draft.body;
       }
-    }
-    _titleController.addListener(_scheduleSave);
-    _bodyController.addListener(_scheduleSave);
-    _mediaUrlController.addListener(_scheduleSave);
-    _quillController.addListener(_scheduleSave);
+    });
 
+    if (!mounted) return;
     setState(() {
       _mediaUrls = draft.mediaUrls ?? [];
       _thumbnailUrl = draft.thumbnailUrl;
@@ -179,11 +211,26 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       _eventAt = draft.eventAt;
     });
     _draftLoaded = true;
-    // Surface restoration so the user knows their input came back.
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.draftRestoredSnackbar)),
+        SnackBar(
+          content: Text(context.l10n.draftRestoredSnackbar),
+          duration: const Duration(seconds: 2),
+        ),
       );
+    }
+  }
+
+  /// Run [fn] with persistence suppressed and restore the previous state
+  /// after. Used during hydration so the controller setters we trigger
+  /// don't kick off a write of the data we just loaded.
+  void _withSuppressedSave(VoidCallback fn) {
+    final prev = _suppressPersistence;
+    _suppressPersistence = true;
+    try {
+      fn();
+    } finally {
+      _suppressPersistence = prev;
     }
   }
 
@@ -195,10 +242,14 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   Future<void> _persistDraftNow() async {
+    // Order matters: check the gate FIRST, then mounted. A Timer that fired
+    // microseconds before dispose() ran will still execute this callback,
+    // but `dispose()` set `_suppressPersistence` to true synchronously
+    // before tearing down the controllers below us.
+    if (_suppressPersistence) return;
     if (!mounted) return;
     final userId = _activeUserId;
     if (userId == null) return;
-    if (_suppressPersistence) return;
     await ref
         .read(createPostProvider.notifier)
         .persistDraft(

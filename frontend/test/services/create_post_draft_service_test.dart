@@ -92,4 +92,37 @@ void main() {
     final loaded = await service.load('user-1');
     expect(loaded?.title, 'second');
   });
+
+  group('SharedPreferences unavailable (Web localStorage disabled etc.)', () {
+    // Simulates the case where `SharedPreferences.getInstance()` throws —
+    // private/incognito browsers with strict cookie blocking, embedded
+    // webviews with disabled storage, etc. The service must downgrade to
+    // a quiet no-op rather than cascading the exception into the composer.
+    late CreatePostDraftService unavailable;
+
+    setUp(() {
+      unavailable = CreatePostDraftService(
+        prefsFactory: () =>
+            Future.error(StateError('SharedPreferences unavailable for test')),
+      );
+    });
+
+    test('save does not throw when prefs are unavailable', () async {
+      await expectLater(
+        unavailable.save(
+          CreatePostDraft(userId: 'user-1', savedAt: DateTime.utc(2026, 5, 16)),
+        ),
+        completes,
+      );
+    });
+
+    test('load returns null when prefs are unavailable', () async {
+      final loaded = await unavailable.load('user-1');
+      expect(loaded, isNull);
+    });
+
+    test('clear does not throw when prefs are unavailable', () async {
+      await expectLater(unavailable.clear('user-1'), completes);
+    });
+  });
 }
