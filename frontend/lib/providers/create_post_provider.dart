@@ -2,11 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
+import 'create_post_draft_provider.dart';
 import 'disposable_notifier.dart';
 import '../graphql/mutations/connection.dart';
 import '../graphql/mutations/post.dart';
+import '../models/create_post_draft.dart';
 import '../models/post.dart';
 import '../models/track.dart';
+import '../services/create_post_draft_service.dart';
 import '../utils/sentinel.dart';
 
 /// A pending connection: target post + connection type.
@@ -73,13 +76,84 @@ class CreatePostState {
 class CreatePostNotifier extends Notifier<CreatePostState>
     with DisposableNotifier {
   late GraphQLClient _client;
+  late CreatePostDraftService _draftService;
 
   @override
   CreatePostState build() {
     _client = ref.watch(graphqlClientProvider);
+    _draftService = ref.watch(createPostDraftServiceProvider);
     initDisposable();
     return const CreatePostState();
   }
+
+  /// Restore meta-state (track, mediaType, visibility, etc.) from a draft.
+  /// Text fields (title/body/quill/media URLs) are restored by the screen
+  /// directly into its TextEditingControllers — the Notifier does not own
+  /// them. [resolvedTrack] is looked up by the screen from the user's own
+  /// tracks; if null (the track was deleted since the draft was saved),
+  /// the draft is restored with no track selected and step clamped to 0.
+  void restoreFromDraft(CreatePostDraft draft, {Track? resolvedTrack}) {
+    final track = resolvedTrack;
+    final mediaType = draft.selectedMediaType;
+    // Clamp step backward when the upstream selections are missing so the
+    // form doesn't try to render step 2 without a track.
+    var step = draft.step;
+    if (track == null) {
+      step = 0;
+    } else if (mediaType == null && step >= 2) {
+      step = 1;
+    }
+    state = CreatePostState(
+      step: step,
+      selectedTrack: track,
+      selectedMediaType: mediaType,
+      visibility: draft.visibility,
+      importance: draft.importance,
+      articleGenre: draft.articleGenre,
+      externalPublish: draft.externalPublish,
+      selectedConnections: const [],
+    );
+  }
+
+  /// Persist the current composer state alongside text-field values from
+  /// the screen. Debounce is owned by the screen.
+  Future<void> persistDraft({
+    required String userId,
+    required String title,
+    required String body,
+    String? bodyFormat,
+    String? mediaUrl,
+    List<String>? mediaUrls,
+    String? thumbnailUrl,
+    int? durationSeconds,
+    DateTime? eventAt,
+  }) async {
+    final draft = CreatePostDraft(
+      userId: userId,
+      step: state.step,
+      selectedTrackId: state.selectedTrack?.id,
+      selectedMediaType: state.selectedMediaType,
+      visibility: state.visibility,
+      importance: state.importance,
+      articleGenre: state.articleGenre,
+      externalPublish: state.externalPublish,
+      title: title,
+      body: body,
+      bodyFormat: bodyFormat,
+      mediaUrl: mediaUrl,
+      mediaUrls: mediaUrls,
+      thumbnailUrl: thumbnailUrl,
+      durationSeconds: durationSeconds,
+      eventAt: eventAt,
+      savedAt: DateTime.now().toUtc(),
+    );
+    await _draftService.save(draft);
+  }
+
+  Future<CreatePostDraft?> loadDraft(String userId) =>
+      _draftService.load(userId);
+
+  Future<void> clearDraft(String userId) => _draftService.clear(userId);
 
   void selectTrack(Track track) {
     state = state.copyWith(selectedTrack: track, step: 1, error: null);

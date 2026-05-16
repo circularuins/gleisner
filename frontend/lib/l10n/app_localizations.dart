@@ -2515,6 +2515,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your reactions'**
   String get yourReactions;
+
+  /// Title of the confirmation dialog shown when the user tries to leave the post composer (close button, browser back, system back, dialog dismiss) while there is unsaved input. The 'draft' here refers to the in-progress post being composed.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard draft?'**
+  String get discardPostConfirmTitle;
+
+  /// Body text of the discard-draft confirmation dialog. Asks the user to choose between throwing away the in-progress post or returning to continue editing.
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved input. Discard it?'**
+  String get discardPostConfirmMessage;
+
+  /// Confirm action on the discard-draft dialog. Tapping this throws away the in-progress post and closes the composer. Styled as a destructive action.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get discardButton;
+
+  /// Cancel action on the discard-draft dialog. Tapping this dismisses the dialog and returns the user to the composer with their input intact.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get keepEditingButton;
+
+  /// Snackbar shown when the post composer opens and finds a previously-saved draft for the current user. Confirms to the user that text and selections they entered before an unexpected closure are now back.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored your previous draft.'**
+  String get draftRestoredSnackbar;
 }
 
 class _AppLocalizationsDelegate

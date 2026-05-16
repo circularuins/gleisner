@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 
 import '../graphql/client.dart';
+import 'create_post_draft_provider.dart';
 import 'disposable_notifier.dart';
 import 'featured_artist_provider.dart';
 import '../graphql/queries/auth.dart';
@@ -214,10 +215,31 @@ class AuthNotifier extends Notifier<AuthState> with DisposableNotifier {
   }
 
   Future<void> logout() async {
+    // Capture the id BEFORE we tear down state — once `state` flips to
+    // unauthenticated, `state.user` is gone and we can no longer scope
+    // the draft cleanup below to the outgoing account.
+    final outgoingUserId = state.user?.id;
+    // 1. Tear down auth state first. Any listener that watches
+    //    `authProvider` (e.g. the composer's listenManual) will see the
+    //    user change synchronously and stop persisting its own draft
+    //    BEFORE step 2 runs. This avoids a window in which the JWT is
+    //    gone but a composer's debounce timer is still alive.
     await _storage.delete(key: 'jwt');
     _client.cache.store.reset();
     ref.invalidate(featuredArtistProvider);
     state = const AuthState(status: AuthStatus.unauthenticated);
+    // 2. Best-effort draft cleanup. The composer's per-user key +
+    //    load-time userId check is the primary defense — this is a
+    //    redundant cleanup so users who never reopen the composer still
+    //    don't leave a draft behind. Failures here must not cascade into
+    //    a half-logged-out state, so swallow + log.
+    if (outgoingUserId != null) {
+      try {
+        await ref.read(createPostDraftServiceProvider).clear(outgoingUserId);
+      } catch (e) {
+        debugPrint('[Auth] post-logout draft clear failed: $e');
+      }
+    }
   }
 
   /// Delete the current user's account. Requires password re-confirmation.

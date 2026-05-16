@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,7 +9,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../models/post.dart';
 import '../../models/track.dart' show Track, parseHexColor;
+import '../../providers/auth_provider.dart';
 import '../../providers/create_post_provider.dart';
+import '../../providers/my_artist_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../utils/ime_safe_focus.dart';
@@ -58,18 +61,85 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   // Multi-image support for image type posts
   List<String> _mediaUrls = [];
 
+  // Draft autosave ---------------------------------------------------------
+  // Userid captured from `authProvider` after the first frame. All save/load/
+  // clear calls are scoped to this id so a leftover draft from a previous
+  // session cannot be re-applied to another account.
+  String? _activeUserId;
+  // Drains controller-listener events into a single deferred save so we
+  // don't hit shared_preferences on every keystroke.
+  Timer? _saveDebounce;
+  static const _saveDebounceDuration = Duration(milliseconds: 1500);
+  // Persistence gate. Set true to immediately block any pending or future
+  // save. Read by `_scheduleSave` AND `_persistDraftNow` — the latter
+  // matters because a Timer that has already fired cannot be cancelled,
+  // so the guard inside the callback is the final safety net for
+  // dispose/logout/submit-success races.
+  bool _suppressPersistence = false;
+  // True after `_initDraft` finishes so subsequent state changes know it is
+  // safe to write (we don't want to overwrite a not-yet-loaded draft).
+  bool _draftLoaded = false;
+  // Held subscriptions for explicit close on dispose. Riverpod's automatic
+  // cleanup is best-effort across ConsumerStatefulWidget; an in-flight
+  // notification on a disposed Element can still reach the listener if we
+  // don't tear these down ourselves.
+  ProviderSubscription<CreatePostState>? _composerSub;
+  ProviderSubscription<AuthState>? _authSub;
+  // Subscribed to `_quillController.document.changes` rather than the
+  // controller itself: `QuillController` extends ChangeNotifier and fires
+  // on every cursor/selection change too, which would re-arm the debounce
+  // Timer on each keystroke navigation and churn the GC for long article
+  // editing sessions on Web CanvasKit. We only care about document edits.
+  StreamSubscription<DocChange>? _quillChangesSub;
+
   @override
   void initState() {
     super.initState();
-    // Clear stale upload error/progress from a previous screen visit. The
-    // provider is shared (non-autoDispose) so state otherwise persists.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.read(mediaUploadProvider.notifier).reset();
+    _titleController.addListener(_scheduleSave);
+    _bodyController.addListener(_scheduleSave);
+    _mediaUrlController.addListener(_scheduleSave);
+    _subscribeToQuillChanges();
+    // Persist on every meta-state change (track, mediaType, visibility, etc).
+    // listenManual (not watch-in-build) avoids re-registering the listener
+    // on every rebuild.
+    _composerSub = ref.listenManual(
+      createPostProvider,
+      (_, _) => _scheduleSave(),
+    );
+    // If the authenticated user changes mid-session (logout / account
+    // switch / forced JWT expiry), stop persisting immediately so we don't
+    // re-save a draft for the outgoing user. `auth_provider.logout()` clears
+    // the draft on the way out; this listener prevents us from re-writing
+    // it 1.5s later from a debounced timer.
+    _authSub = ref.listenManual(authProvider, (prev, next) {
+      // Defensive: dispose() closes this subscription, but a late-delivered
+      // change-notification could otherwise touch a torn-down widget.
+      if (!mounted) return;
+      final prevId = prev?.user?.id;
+      final nextId = next.user?.id;
+      if (prevId != nextId) {
+        _suppressPersistence = true;
+        _saveDebounce?.cancel();
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      // Clear stale upload error/progress from a previous screen visit. The
+      // provider is shared (non-autoDispose) so state otherwise persists.
+      ref.read(mediaUploadProvider.notifier).reset();
+      await _initDraft();
     });
   }
 
   @override
   void dispose() {
+    // Block any in-flight Timer callback that already escaped `cancel()`
+    // BEFORE tearing down the controllers it would read from.
+    _suppressPersistence = true;
+    _saveDebounce?.cancel();
+    _composerSub?.close();
+    _authSub?.close();
+    _quillChangesSub?.cancel();
     _pickMediaGeneration++; // invalidate any in-flight upload
     _titleController.dispose();
     _bodyController.dispose();
@@ -81,6 +151,241 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     // Provider reset is handled in _submit() success path.
     // autoDispose cleans up when no watchers remain.
     super.dispose();
+  }
+
+  /// (Re-)subscribe to the current Quill document's change stream. Called
+  /// from `initState` and after we swap in a hydrated document in
+  /// `_initDraft` (Document instances are immutable per assignment, so the
+  /// previous stream stops emitting once we reassign).
+  void _subscribeToQuillChanges() {
+    _quillChangesSub?.cancel();
+    _quillChangesSub = _quillController.document.changes.listen(
+      (_) => _scheduleSave(),
+    );
+  }
+
+  /// Restore a previously-saved draft (if any) for the current user. Called
+  /// once after the first frame. The user's own tracks are resolved through
+  /// `myArtistProvider` rather than `timelineProvider`, since the latter
+  /// holds whichever artist the user is currently browsing (fan mode would
+  /// otherwise resolve to someone else's tracks).
+  Future<void> _initDraft() async {
+    final user = ref.read(authProvider).user;
+    if (user == null) {
+      _draftLoaded = true;
+      return;
+    }
+    _activeUserId = user.id;
+    final draft = await ref
+        .read(createPostProvider.notifier)
+        .loadDraft(user.id);
+    // Mark loaded BEFORE the mounted check. Otherwise a widget that is
+    // briefly unmounted during draft load and then survives (e.g. a parent
+    // animation that triggered the early return raced with a remount) would
+    // leave `_draftLoaded` false forever, silently disabling autosave.
+    _draftLoaded = true;
+    if (!mounted) return;
+    if (draft == null) return;
+    // Resolve the track from the user's own tracks. A null result means the
+    // track was deleted between save and load — `restoreFromDraft` will
+    // clamp the step back to 0 in that case.
+    final myArtist = ref.read(myArtistProvider);
+    final track = (draft.selectedTrackId != null && myArtist != null)
+        ? myArtist.tracks
+              .where((t) => t.id == draft.selectedTrackId)
+              .firstOrNull
+        : null;
+    // Hydrate all of: Riverpod meta state, text controllers, the Quill
+    // document — all while persistence is suppressed. Including the
+    // `restoreFromDraft` call in here matters because `_composerSub`
+    // listens on createPostProvider and would otherwise schedule one
+    // unneeded save the moment we restore. Both `_scheduleSave` and
+    // `_persistDraftNow` short-circuit on `_suppressPersistence`.
+    var quillDocReplaced = false;
+    _withSuppressedSave(() {
+      ref
+          .read(createPostProvider.notifier)
+          .restoreFromDraft(draft, resolvedTrack: track);
+      _titleController.text = draft.title;
+      _mediaUrlController.text = draft.mediaUrl ?? '';
+      // The body store is format-dependent — delta JSON belongs to the Quill
+      // controller and must NOT leak into the plain-text body controller,
+      // otherwise switching from `article` to another media type would
+      // surface raw JSON to the user.
+      if (draft.bodyFormat == 'delta') {
+        _bodyController.text = '';
+        if (draft.body.isNotEmpty) {
+          try {
+            final delta = jsonDecode(draft.body);
+            if (delta is List) {
+              _quillController.document = Document.fromJson(delta);
+              quillDocReplaced = true;
+            }
+          } catch (_) {
+            // Malformed delta — leave the Quill doc empty rather than show
+            // raw JSON in the rich-text editor.
+          }
+        }
+      } else {
+        _bodyController.text = draft.body;
+      }
+    });
+    // The previous subscription was bound to the old Document instance.
+    // After `_quillController.document = ...`, that stream is detached —
+    // re-subscribe so subsequent edits still trigger autosave.
+    if (quillDocReplaced) {
+      _subscribeToQuillChanges();
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _mediaUrls = draft.mediaUrls ?? [];
+      _thumbnailUrl = draft.thumbnailUrl;
+      _durationSeconds = draft.durationSeconds;
+      _eventAt = draft.eventAt;
+    });
+    // setState above already guards on mounted; no second check needed here.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.draftRestoredSnackbar),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Run [fn] with persistence suppressed and restore the previous state
+  /// after. Used for any block that programmatically mutates the
+  /// controllers / Riverpod state without wanting to fire autosave:
+  ///
+  /// - draft hydration in `_initDraft` (we just loaded the data, no point
+  ///   re-saving it)
+  /// - step-2 discard back path (we already called `clearDraft` and the
+  ///   `.clear()` calls below would otherwise re-save an empty draft 1.5s
+  ///   later)
+  ///
+  /// The previous value is restored on exit instead of being hardcoded to
+  /// `false` so this can nest inside an outer suppress block (e.g.
+  /// `dispose()` permanent suppress) without unintentionally re-enabling
+  /// saves halfway through teardown.
+  void _withSuppressedSave(VoidCallback fn) {
+    final prev = _suppressPersistence;
+    _suppressPersistence = true;
+    try {
+      fn();
+    } finally {
+      _suppressPersistence = prev;
+    }
+  }
+
+  void _scheduleSave() {
+    if (_suppressPersistence) return;
+    if (!_draftLoaded) return;
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(_saveDebounceDuration, _persistDraftNow);
+  }
+
+  Future<void> _persistDraftNow() async {
+    // Order matters: check the gate FIRST, then mounted. A Timer that fired
+    // microseconds before dispose() ran will still execute this callback,
+    // but `dispose()` set `_suppressPersistence` to true synchronously
+    // before tearing down the controllers below us.
+    if (_suppressPersistence) return;
+    if (!mounted) return;
+    final userId = _activeUserId;
+    if (userId == null) return;
+    // All controller / state reads happen synchronously BEFORE the await
+    // so they capture the value at call time. The await below only writes
+    // to shared_preferences via the (lifetime-independent) draft service —
+    // it does not touch any widget state on return, so it is safe even if
+    // the widget is disposed mid-await. If `persistDraft` ever grows to
+    // touch the widget after the await, add another mounted check here.
+    await ref
+        .read(createPostProvider.notifier)
+        .persistDraft(
+          userId: userId,
+          title: _titleController.text,
+          body: _isArticleSelected()
+              ? jsonEncode(_quillController.document.toDelta().toJson())
+              : _bodyController.text,
+          bodyFormat: _isArticleSelected() ? 'delta' : null,
+          mediaUrl: _mediaUrlController.text.isEmpty
+              ? null
+              : _mediaUrlController.text,
+          mediaUrls: _mediaUrls.isEmpty ? null : _mediaUrls,
+          thumbnailUrl: _thumbnailUrl,
+          durationSeconds: _durationSeconds,
+          eventAt: _eventAt,
+        );
+  }
+
+  bool _isArticleSelected() =>
+      ref.read(createPostProvider).selectedMediaType == MediaType.article;
+
+  /// True when at least one composer input has user-entered content. Used to
+  /// decide whether the back/dismiss path needs a discard confirmation.
+  bool _hasMeaningfulInput() {
+    final state = ref.read(createPostProvider);
+    if (state.step > 0) return true;
+    if (state.selectedTrack != null) return true;
+    if (_titleController.text.isNotEmpty) return true;
+    if (_bodyController.text.isNotEmpty) return true;
+    if (_mediaUrlController.text.isNotEmpty) return true;
+    if (_mediaUrls.isNotEmpty) return true;
+    if (!_quillController.document.isEmpty()) return true;
+    return false;
+  }
+
+  /// Show the discard confirmation. Returns true when the user chose to
+  /// throw away their input, false when they chose to keep editing.
+  /// Returns true immediately when there is nothing to throw away.
+  Future<bool> _confirmDiscard() async {
+    if (!_hasMeaningfulInput()) return true;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.l10n.discardPostConfirmTitle),
+        content: Text(context.l10n.discardPostConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.l10n.keepEditingButton),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              context.l10n.discardButton,
+              style: const TextStyle(color: colorError),
+            ),
+          ),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
+  /// Confirm + clear the draft + close the composer. Used both by the
+  /// AppBar back button at step 0 and the system-back path via [PopScope].
+  Future<void> _discardAndClose() async {
+    final ok = await _confirmDiscard();
+    if (!ok || !mounted) return;
+    _suppressPersistence = true;
+    _saveDebounce?.cancel();
+    final userId = _activeUserId;
+    if (userId != null) {
+      await ref.read(createPostProvider.notifier).clearDraft(userId);
+    }
+    if (!mounted) return;
+    ref.read(createPostProvider.notifier).reset();
+    if (widget.onSuccess != null) {
+      // Dialog presentation — onSuccess pops the dialog AND refreshes the
+      // timeline. For an explicit discard we just want to close the dialog,
+      // so pop directly instead.
+      Navigator.of(context).pop();
+    } else if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go('/timeline');
+    }
   }
 
   Future<void> _pickMedia(MediaType mediaType) async {
@@ -196,6 +501,16 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
     if (result != null && mounted) {
       final (postedTrack, post) = result;
+      // Block the persistence listener before clearing — otherwise the
+      // ensureTrackSelected / addPost calls below could re-schedule a save
+      // and re-write the draft we are about to delete.
+      _suppressPersistence = true;
+      _saveDebounce?.cancel();
+      final userId = _activeUserId;
+      if (userId != null) {
+        await ref.read(createPostProvider.notifier).clearDraft(userId);
+      }
+      if (!mounted) return;
       final notifier = ref.read(timelineProvider.notifier);
       notifier.ensureTrackSelected(postedTrack.id);
       notifier.addPost(post);
@@ -219,67 +534,103 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     final timeline = ref.watch(timelineProvider);
     final tracks = timeline.artist?.tracks ?? [];
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (state.step > 0) {
-              // Clear form inputs when going back from form step
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        await _discardAndClose();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () async {
               if (state.step == 2) {
-                _pickMediaGeneration++; // invalidate any in-flight upload
-                _titleController.clear();
-                _bodyController.clear();
-                _mediaUrlController.clear();
-                _quillController.clear();
-                _thumbnailUrl = null;
-                _durationSeconds = null;
-                _eventAt = null;
-                _mediaUrls = [];
-                ref.read(createPostProvider.notifier).clearFormState();
+                // Going from form step back to media-type step would clear
+                // the form inputs; confirm with the user first.
+                if (!await _confirmDiscard()) return;
+                if (!mounted) return;
+                // The user explicitly chose to throw away the form. Tear
+                // down the persisted draft synchronously BEFORE clearing
+                // the controllers — otherwise the `.clear()` calls below
+                // would fire the controller listeners → schedule a save →
+                // 1.5s later we'd silently overwrite the draft with empty
+                // values, making the next composer-open feel like the
+                // discard never happened.
+                _saveDebounce?.cancel();
+                final userId = _activeUserId;
+                if (userId != null) {
+                  await ref
+                      .read(createPostProvider.notifier)
+                      .clearDraft(userId);
+                }
+                if (!mounted) return;
+                // Wrap in `_withSuppressedSave` (not a permanent suppress)
+                // so autosave resumes for the new step. The user is still
+                // editing the same post — they may pick a different media
+                // type next and we want changes from that point on to be
+                // persisted normally.
+                _withSuppressedSave(() {
+                  _pickMediaGeneration++; // invalidate any in-flight upload
+                  _titleController.clear();
+                  _bodyController.clear();
+                  _mediaUrlController.clear();
+                  _quillController.clear();
+                  setState(() {
+                    _thumbnailUrl = null;
+                    _durationSeconds = null;
+                    _eventAt = null;
+                    _mediaUrls = [];
+                  });
+                  ref.read(createPostProvider.notifier).clearFormState();
+                  ref.read(createPostProvider.notifier).goBack();
+                });
+              } else if (state.step > 0) {
+                // step 1 → 0 just changes the selected media type; no input is
+                // lost so no confirmation is needed.
+                ref.read(createPostProvider.notifier).goBack();
+              } else {
+                await _discardAndClose();
               }
-              ref.read(createPostProvider.notifier).goBack();
-            } else {
-              context.go('/timeline');
-            }
-          },
-        ),
-        title: Text(context.l10n.newPost),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: LinearProgressIndicator(
-            value: (state.step + 1) / 3,
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.surfaceContainerHighest,
+            },
+          ),
+          title: Text(context.l10n.newPost),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(4),
+            child: LinearProgressIndicator(
+              value: (state.step + 1) / 3,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+            ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: switch (state.step) {
-            0 => _TrackStep(tracks: tracks),
-            1 => const _MediaTypeStep(),
-            _ => _FormStep(
-              formKey: _formKey,
-              titleController: _titleController,
-              bodyController: _bodyController,
-              quillController: _quillController,
-              mediaUrlController: _mediaUrlController,
-              thumbnailUrl: _thumbnailUrl,
-              durationSeconds: _durationSeconds,
-              urlFocusNode: _urlFocusNode,
-              linkTitleFocusNode: _linkTitleFocusNode,
-              linkCaptionFocusNode: _linkCaptionFocusNode,
-              eventAt: _eventAt,
-              onEventAtChanged: (dt) => setState(() => _eventAt = dt),
-              onSubmit: _submit,
-              onPickMedia: _pickMedia,
-              mediaUrls: _mediaUrls,
-              onMediaUrlsChanged: (urls) => setState(() => _mediaUrls = urls),
-            ),
-          },
+        body: SafeArea(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: switch (state.step) {
+              0 => _TrackStep(tracks: tracks),
+              1 => const _MediaTypeStep(),
+              _ => _FormStep(
+                formKey: _formKey,
+                titleController: _titleController,
+                bodyController: _bodyController,
+                quillController: _quillController,
+                mediaUrlController: _mediaUrlController,
+                thumbnailUrl: _thumbnailUrl,
+                durationSeconds: _durationSeconds,
+                urlFocusNode: _urlFocusNode,
+                linkTitleFocusNode: _linkTitleFocusNode,
+                linkCaptionFocusNode: _linkCaptionFocusNode,
+                eventAt: _eventAt,
+                onEventAtChanged: (dt) => setState(() => _eventAt = dt),
+                onSubmit: _submit,
+                onPickMedia: _pickMedia,
+                mediaUrls: _mediaUrls,
+                onMediaUrlsChanged: (urls) => setState(() => _mediaUrls = urls),
+              ),
+            },
+          ),
         ),
       ),
     );
