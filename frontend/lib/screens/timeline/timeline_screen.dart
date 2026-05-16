@@ -420,6 +420,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                       if (isDesktop(screenWidth)) {
                         showDialog(
                           context: context,
+                          barrierDismissible: false,
                           builder: (dialogContext) => Dialog(
                             backgroundColor: colorSurface0,
                             insetPadding: const EdgeInsets.symmetric(
@@ -901,6 +902,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     if (isDesktop(screenWidth)) {
       showDialog(
         context: context,
+        barrierDismissible: false,
         builder: (dialogContext) => Dialog(
           backgroundColor: colorSurface0,
           insetPadding: const EdgeInsets.symmetric(
