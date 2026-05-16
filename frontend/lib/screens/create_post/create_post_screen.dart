@@ -85,6 +85,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   // don't tear these down ourselves.
   ProviderSubscription<CreatePostState>? _composerSub;
   ProviderSubscription<AuthState>? _authSub;
+  // Subscribed to `_quillController.document.changes` rather than the
+  // controller itself: `QuillController` extends ChangeNotifier and fires
+  // on every cursor/selection change too, which would re-arm the debounce
+  // Timer on each keystroke navigation and churn the GC for long article
+  // editing sessions on Web CanvasKit. We only care about document edits.
+  StreamSubscription<DocChange>? _quillChangesSub;
 
   @override
   void initState() {
@@ -92,7 +98,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     _titleController.addListener(_scheduleSave);
     _bodyController.addListener(_scheduleSave);
     _mediaUrlController.addListener(_scheduleSave);
-    _quillController.addListener(_scheduleSave);
+    _subscribeToQuillChanges();
     // Persist on every meta-state change (track, mediaType, visibility, etc).
     // listenManual (not watch-in-build) avoids re-registering the listener
     // on every rebuild.
@@ -133,6 +139,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     _saveDebounce?.cancel();
     _composerSub?.close();
     _authSub?.close();
+    _quillChangesSub?.cancel();
     _pickMediaGeneration++; // invalidate any in-flight upload
     _titleController.dispose();
     _bodyController.dispose();
@@ -144,6 +151,17 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     // Provider reset is handled in _submit() success path.
     // autoDispose cleans up when no watchers remain.
     super.dispose();
+  }
+
+  /// (Re-)subscribe to the current Quill document's change stream. Called
+  /// from `initState` and after we swap in a hydrated document in
+  /// `_initDraft` (Document instances are immutable per assignment, so the
+  /// previous stream stops emitting once we reassign).
+  void _subscribeToQuillChanges() {
+    _quillChangesSub?.cancel();
+    _quillChangesSub = _quillController.document.changes.listen(
+      (_) => _scheduleSave(),
+    );
   }
 
   /// Restore a previously-saved draft (if any) for the current user. Called
@@ -177,13 +195,17 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               .where((t) => t.id == draft.selectedTrackId)
               .firstOrNull
         : null;
-    ref
-        .read(createPostProvider.notifier)
-        .restoreFromDraft(draft, resolvedTrack: track);
-    // Hydrate text fields while persistence is suppressed so we don't
-    // immediately re-write what we just loaded. `_scheduleSave` and
-    // `_persistDraftNow` both early-return on `_suppressPersistence`.
+    // Hydrate all of: Riverpod meta state, text controllers, the Quill
+    // document — all while persistence is suppressed. Including the
+    // `restoreFromDraft` call in here matters because `_composerSub`
+    // listens on createPostProvider and would otherwise schedule one
+    // unneeded save the moment we restore. Both `_scheduleSave` and
+    // `_persistDraftNow` short-circuit on `_suppressPersistence`.
+    var quillDocReplaced = false;
     _withSuppressedSave(() {
+      ref
+          .read(createPostProvider.notifier)
+          .restoreFromDraft(draft, resolvedTrack: track);
       _titleController.text = draft.title;
       _mediaUrlController.text = draft.mediaUrl ?? '';
       // The body store is format-dependent — delta JSON belongs to the Quill
@@ -197,6 +219,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             final delta = jsonDecode(draft.body);
             if (delta is List) {
               _quillController.document = Document.fromJson(delta);
+              quillDocReplaced = true;
             }
           } catch (_) {
             // Malformed delta — leave the Quill doc empty rather than show
@@ -207,6 +230,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         _bodyController.text = draft.body;
       }
     });
+    // The previous subscription was bound to the old Document instance.
+    // After `_quillController.document = ...`, that stream is detached —
+    // re-subscribe so subsequent edits still trigger autosave.
+    if (quillDocReplaced) {
+      _subscribeToQuillChanges();
+    }
 
     if (!mounted) return;
     setState(() {
@@ -215,19 +244,29 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       _durationSeconds = draft.durationSeconds;
       _eventAt = draft.eventAt;
     });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.draftRestoredSnackbar),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
+    // setState above already guards on mounted; no second check needed here.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.draftRestoredSnackbar),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   /// Run [fn] with persistence suppressed and restore the previous state
-  /// after. Used during hydration so the controller setters we trigger
-  /// don't kick off a write of the data we just loaded.
+  /// after. Used for any block that programmatically mutates the
+  /// controllers / Riverpod state without wanting to fire autosave:
+  ///
+  /// - draft hydration in `_initDraft` (we just loaded the data, no point
+  ///   re-saving it)
+  /// - step-2 discard back path (we already called `clearDraft` and the
+  ///   `.clear()` calls below would otherwise re-save an empty draft 1.5s
+  ///   later)
+  ///
+  /// The previous value is restored on exit instead of being hardcoded to
+  /// `false` so this can nest inside an outer suppress block (e.g.
+  /// `dispose()` permanent suppress) without unintentionally re-enabling
+  /// saves halfway through teardown.
   void _withSuppressedSave(VoidCallback fn) {
     final prev = _suppressPersistence;
     _suppressPersistence = true;
@@ -254,6 +293,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     if (!mounted) return;
     final userId = _activeUserId;
     if (userId == null) return;
+    // All controller / state reads happen synchronously BEFORE the await
+    // so they capture the value at call time. The await below only writes
+    // to shared_preferences via the (lifetime-independent) draft service —
+    // it does not touch any widget state on return, so it is safe even if
+    // the widget is disposed mid-await. If `persistDraft` ever grows to
+    // touch the widget after the await, add another mounted check here.
     await ref
         .read(createPostProvider.notifier)
         .persistDraft(
@@ -520,6 +565,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                       .clearDraft(userId);
                 }
                 if (!mounted) return;
+                // Wrap in `_withSuppressedSave` (not a permanent suppress)
+                // so autosave resumes for the new step. The user is still
+                // editing the same post — they may pick a different media
+                // type next and we want changes from that point on to be
+                // persisted normally.
                 _withSuppressedSave(() {
                   _pickMediaGeneration++; // invalidate any in-flight upload
                   _titleController.clear();
