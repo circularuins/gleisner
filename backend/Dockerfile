@@ -3,23 +3,25 @@ FROM node:25.9-bookworm-slim
 
 WORKDIR /app
 
-# Runtime native deps + enable Node-bundled corepack for pnpm.
-# Note: we intentionally do NOT `npm i -g corepack@latest` here because
-# node:25.9-bookworm-slim already ships corepack along with a yarn shim,
-# and `npm i -g` would EEXIST-fail when re-installing the yarn shim.
+# Runtime native deps + pnpm. We install pnpm globally via npm rather
+# than going through corepack:
+# - node:25.9-bookworm-slim does NOT ship the `corepack` CLI (only a
+#   yarn shim under /usr/local/bin/yarn). `corepack enable` fails with
+#   "corepack: not found".
+# - `npm i -g corepack@latest` would re-create the yarn shim and
+#   EEXIST-fail, and corepack@0.35 also requires Node >=26.
+# Installing pnpm directly side-steps both problems and gives us a
+# stable, version-pinned binary.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends libatomic1 \
   && rm -rf /var/lib/apt/lists/* \
-  && corepack enable
+  && npm i -g pnpm@10.32.1
 
-# Install dependencies. pnpm version is resolved from package.json's
-# `packageManager` field via corepack, so we avoid mise / aqua-registry
-# entirely (which has been broken upstream for pnpm 11.x asset naming).
+# Install dependencies (cached layer when lockfile unchanged).
 COPY package.json pnpm-lock.yaml ./
-RUN corepack prepare --activate \
-  && pnpm install --frozen-lockfile --prefer-offline
+RUN pnpm install --frozen-lockfile --prefer-offline
 
-# Build (tsc -> dist/)
+# Build (tsc -> dist/).
 COPY . .
 RUN pnpm build
 
