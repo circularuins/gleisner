@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/post.dart';
@@ -9,6 +10,12 @@ import '../../utils/constellation_layout.dart';
 import '../../utils/reading_time.dart';
 import 'post_detail_sheet.dart';
 import 'seed_art_painter.dart';
+
+/// Presentation-only flag: an image post that should render as a scattered
+/// polaroid pile instead of a single full-bleed thumbnail.
+extension _PostPilePresentation on Post {
+  bool get isPhotoPile => mediaType == MediaType.image && imageUrls.length > 1;
+}
 
 /// Border radius by media type.
 BorderRadius _borderForType(MediaType type) {
@@ -111,8 +118,7 @@ class _NodeCardState extends State<NodeCard>
     // Multi-image image posts render as a free-floating photo pile — no
     // surrounding frame, fill, or hard clip so individual photos can extend
     // past the rectangular node bounds for a casual "tossed photos" feel.
-    final isPhotoPile =
-        post.mediaType == MediaType.image && post.imageUrls.length > 1;
+    final isPhotoPile = post.isPhotoPile;
 
     Widget card = GestureDetector(
       onTap: widget.onTap ?? () => showPostDetailSheet(context, post),
@@ -523,7 +529,7 @@ class _ImageContent extends StatelessWidget {
     final totalH = node.mediaHeight + (showInfo ? 30 : 0);
     final hasTitle = post.title != null && post.title!.isNotEmpty;
 
-    final isPhotoPile = hasImage && imageCount > 1;
+    final isPhotoPile = post.isPhotoPile;
 
     // The image fills the entire node — text overlays on top.
     // For photo piles, allow tiles to extend slightly past the node bounds.
@@ -644,7 +650,11 @@ class _ImageContent extends StatelessWidget {
 /// Up to [_maxLayers] photos are rendered back-to-front with deterministic
 /// rotation and offset derived from [seed], so layout is stable across rebuilds.
 /// urls[0] is the top photo (least rotated, near-centered).
-class _ScatteredPhotos extends StatelessWidget {
+///
+/// Stateful so the per-tile scatter (angle/offset) is computed once on
+/// init/didUpdate rather than on every parent rebuild — the timeline can
+/// rebuild this widget on every constellation pan/zoom frame.
+class _ScatteredPhotos extends StatefulWidget {
   final List<String> urls;
   final double width;
   final double height;
@@ -668,24 +678,52 @@ class _ScatteredPhotos extends StatelessWidget {
   static const int _maxLayers = 4;
 
   @override
-  Widget build(BuildContext context) {
-    final visible = urls.length > _maxLayers
-        ? urls.take(_maxLayers).toList()
-        : urls;
+  State<_ScatteredPhotos> createState() => _ScatteredPhotosState();
+}
+
+class _ScatteredPhotosState extends State<_ScatteredPhotos> {
+  /// Photo tile size as a fraction of the node's width/height. Smaller than
+  /// the node so each tile reads as a discrete photograph and the scatter
+  /// has room to extend past the node bounds.
+  static const double _tileScale = 0.82;
+
+  late List<_TileLayout> _layouts;
+  late double _photoW;
+  late double _photoH;
+  late int _cacheW;
+  late int _cacheH;
+
+  @override
+  void initState() {
+    super.initState();
+    _recompute();
+  }
+
+  @override
+  void didUpdateWidget(_ScatteredPhotos old) {
+    super.didUpdateWidget(old);
+    if (old.seed != widget.seed ||
+        old.width != widget.width ||
+        old.height != widget.height ||
+        !listEquals(old.urls, widget.urls)) {
+      _recompute();
+    }
+  }
+
+  void _recompute() {
+    final visible = widget.urls.take(_ScatteredPhotos._maxLayers).toList();
     final count = visible.length;
+    _photoW = widget.width * _tileScale;
+    _photoH = widget.height * _tileScale;
+    _cacheW = (_photoW * 2).toInt();
+    _cacheH = (_photoH * 2).toInt();
 
-    // Photo size — smaller than node so each tile reads as a distinct
-    // photograph rather than a full-bleed slice.
-    final photoW = width * 0.82;
-    final photoH = height * 0.82;
-    final cacheW = (photoW * 2).toInt();
-
-    final layers = <Widget>[];
+    final layouts = <_TileLayout>[];
     // i=0 → front (urls[0], on top). i=count-1 → back. Add back first so
     // Stack paint order places urls[0] last (= on top).
     for (int i = count - 1; i >= 0; i--) {
       final depth = count > 1 ? i / (count - 1) : 0.0;
-      final r = Random('$seed#$i'.hashCode);
+      final r = Random('${widget.seed}#$i'.hashCode);
 
       // Rotation grows with depth: ~±2.5° front, ~±10° back.
       final angleSign = r.nextBool() ? 1.0 : -1.0;
@@ -698,42 +736,75 @@ class _ScatteredPhotos extends StatelessWidget {
       final dySign = r.nextBool() ? 1.0 : -1.0;
       final dx =
           dxSign *
-          (width * 0.03 + width * 0.13 * depth) *
+          (widget.width * 0.03 + widget.width * 0.13 * depth) *
           (0.65 + r.nextDouble() * 0.35);
       final dy =
           dySign *
-          (height * 0.025 + height * 0.10 * depth) *
+          (widget.height * 0.025 + widget.height * 0.10 * depth) *
           (0.65 + r.nextDouble() * 0.35);
 
-      layers.add(
-        Center(
-          child: Transform.translate(
-            offset: Offset(dx, dy),
-            child: Transform.rotate(
-              angle: angle,
-              child: _PhotoTile(
-                url: visible[i],
-                width: photoW,
-                height: photoH,
-                cacheWidth: cacheW,
-                isFront: i == 0,
-                depth: depth,
-                importance: importance,
-                trackColor: trackColor,
-                fallbackSeed: fallbackSeed,
-              ),
-            ),
-          ),
+      layouts.add(
+        _TileLayout(
+          url: visible[i],
+          angle: angle,
+          dx: dx,
+          dy: dy,
+          depth: depth,
         ),
       );
     }
+    _layouts = layouts;
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       clipBehavior: Clip.none,
-      children: layers,
+      children: [
+        for (final layout in _layouts)
+          Center(
+            child: Transform.translate(
+              offset: Offset(layout.dx, layout.dy),
+              child: Transform.rotate(
+                angle: layout.angle,
+                child: _PhotoTile(
+                  url: layout.url,
+                  width: _photoW,
+                  height: _photoH,
+                  cacheWidth: _cacheW,
+                  cacheHeight: _cacheH,
+                  isFront: layout.depth == 0.0,
+                  depth: layout.depth,
+                  importance: widget.importance,
+                  trackColor: widget.trackColor,
+                  fallbackSeed: widget.fallbackSeed,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
+}
+
+/// Cached transform + identity for a single tile in [_ScatteredPhotos].
+class _TileLayout {
+  final String url;
+  final double angle;
+  final double dx;
+  final double dy;
+
+  /// 0.0 = front (on top), 1.0 = back.
+  final double depth;
+
+  const _TileLayout({
+    required this.url,
+    required this.angle,
+    required this.dx,
+    required this.dy,
+    required this.depth,
+  });
 }
 
 /// A single tile in [_ScatteredPhotos]. Renders as a polaroid-style frame:
@@ -748,6 +819,7 @@ class _PhotoTile extends StatelessWidget {
   final double width;
   final double height;
   final int cacheWidth;
+  final int cacheHeight;
   final bool isFront;
   final double depth; // 0.0 = front, 1.0 = back
   final double importance;
@@ -759,6 +831,7 @@ class _PhotoTile extends StatelessWidget {
     required this.width,
     required this.height,
     required this.cacheWidth,
+    required this.cacheHeight,
     required this.isFront,
     required this.depth,
     required this.importance,
@@ -789,58 +862,64 @@ class _PhotoTile extends StatelessWidget {
     final dropAlpha = isFront ? 0.55 : 0.4;
     final dropDy = isFront ? 4.0 : 2.0;
 
-    return Container(
-      width: width,
-      height: height,
-      padding: EdgeInsets.all(borderThickness),
-      decoration: BoxDecoration(
-        color: paperColor,
-        borderRadius: BorderRadius.circular(radiusSm),
-        boxShadow: [
-          // Track-color halo behind the tile.
-          BoxShadow(
-            color: trackColor.withValues(alpha: glowAlpha),
-            blurRadius: glowBlur,
-            spreadRadius: glowSpread,
-          ),
-          // Black drop shadow for elevation.
-          BoxShadow(
-            color: Colors.black.withValues(alpha: dropAlpha),
-            blurRadius: dropBlur,
-            offset: Offset(0, dropDy),
-          ),
-        ],
-      ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.network(
-            url,
-            fit: BoxFit.cover,
-            cacheWidth: cacheWidth,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Container(color: colorSurface2);
-            },
-            errorBuilder: (_, _, _) => SeedArtCanvas(
-              width: width - borderThickness * 2,
-              height: height - borderThickness * 2,
-              trackColor: trackColor,
-              seed: fallbackSeed,
-              mediaType: MediaType.image,
+    // RepaintBoundary cuts the repaint chain so timeline-wide rebuilds (pan,
+    // hover, neighbor reactions) don't traverse Transform.translate +
+    // Transform.rotate + the wear painter on every frame.
+    return RepaintBoundary(
+      child: Container(
+        width: width,
+        height: height,
+        padding: EdgeInsets.all(borderThickness),
+        decoration: BoxDecoration(
+          color: paperColor,
+          borderRadius: BorderRadius.circular(radiusSm),
+          boxShadow: [
+            // Track-color halo behind the tile.
+            BoxShadow(
+              color: trackColor.withValues(alpha: glowAlpha),
+              blurRadius: glowBlur,
+              spreadRadius: glowSpread,
             ),
-          ),
-          // Sepia / dustiness wash over the image — alpha varies per tile.
-          IgnorePointer(
-            child: Container(
-              color: colorPaperAgingTint.withValues(alpha: tintAlpha),
+            // Black drop shadow for elevation.
+            BoxShadow(
+              color: Colors.black.withValues(alpha: dropAlpha),
+              blurRadius: dropBlur,
+              offset: Offset(0, dropDy),
             ),
-          ),
-          // Faint crease + vignette baked from a per-tile seed.
-          IgnorePointer(
-            child: CustomPaint(painter: _PaperWearPainter(seed: url)),
-          ),
-        ],
+          ],
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.network(
+              url,
+              fit: BoxFit.cover,
+              cacheWidth: cacheWidth,
+              cacheHeight: cacheHeight,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(color: colorSurface2);
+              },
+              errorBuilder: (_, _, _) => SeedArtCanvas(
+                width: width - borderThickness * 2,
+                height: height - borderThickness * 2,
+                trackColor: trackColor,
+                seed: fallbackSeed,
+                mediaType: MediaType.image,
+              ),
+            ),
+            // Sepia / dustiness wash over the image — alpha varies per tile.
+            IgnorePointer(
+              child: Container(
+                color: colorPaperAgingTint.withValues(alpha: tintAlpha),
+              ),
+            ),
+            // Faint crease + vignette baked from a per-tile seed.
+            IgnorePointer(
+              child: CustomPaint(painter: _PaperWearPainter(seed: url)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -849,10 +928,15 @@ class _PhotoTile extends StatelessWidget {
 /// Subtle wear overlay for [_PhotoTile]: 1–2 faint crease lines and a soft
 /// vignette at the corners. Stable per [seed] so the wear is the same across
 /// rebuilds for a given photo.
+///
+/// ⚠ When adding fields here, also extend the constructor and
+/// [shouldRepaint] to compare them — otherwise tiles may render with stale
+/// wear after a rebuild. See `frontend-implementation.md` —
+/// "CustomPainter フィールド追加チェックリスト".
 class _PaperWearPainter extends CustomPainter {
   final String seed;
 
-  _PaperWearPainter({required this.seed});
+  const _PaperWearPainter({required this.seed});
 
   @override
   void paint(Canvas canvas, Size size) {
