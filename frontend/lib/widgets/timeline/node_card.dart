@@ -690,8 +690,6 @@ class _ScatteredPhotosState extends State<_ScatteredPhotos> {
   late List<_TileLayout> _layouts;
   late double _photoW;
   late double _photoH;
-  late int _cacheW;
-  late int _cacheH;
 
   @override
   void initState() {
@@ -715,8 +713,6 @@ class _ScatteredPhotosState extends State<_ScatteredPhotos> {
     final count = visible.length;
     _photoW = widget.width * _tileScale;
     _photoH = widget.height * _tileScale;
-    _cacheW = (_photoW * 2).toInt();
-    _cacheH = (_photoH * 2).toInt();
 
     final layouts = <_TileLayout>[];
     // i=0 → front (urls[0], on top). i=count-1 → back. Add back first so
@@ -758,6 +754,15 @@ class _ScatteredPhotosState extends State<_ScatteredPhotos> {
 
   @override
   Widget build(BuildContext context) {
+    // cacheWidth/cacheHeight are derived from the runtime device pixel ratio
+    // (rather than a fixed 2x) so Retina-class displays get sharp tiles and
+    // DPR=1 displays don't pay for over-decoded buffers. They live in build()
+    // rather than _recompute() because DPR can change without seed/url/size
+    // changes (e.g., window dragged between monitors).
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final cacheW = (_photoW * dpr).ceil();
+    final cacheH = (_photoH * dpr).ceil();
+
     return Stack(
       fit: StackFit.expand,
       clipBehavior: Clip.none,
@@ -772,8 +777,8 @@ class _ScatteredPhotosState extends State<_ScatteredPhotos> {
                   url: layout.url,
                   width: _photoW,
                   height: _photoH,
-                  cacheWidth: _cacheW,
-                  cacheHeight: _cacheH,
+                  cacheWidth: cacheW,
+                  cacheHeight: cacheH,
                   isFront: layout.depth == 0.0,
                   depth: layout.depth,
                   importance: widget.importance,

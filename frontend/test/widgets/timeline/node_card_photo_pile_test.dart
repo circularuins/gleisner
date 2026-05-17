@@ -1,7 +1,8 @@
 // Regression tests for the multi-image photo-pile rendering path in
 // NodeCard. Single-image image posts must still render a single full-bleed
-// thumbnail, multi-image posts must render one tile per image, and the
-// `_maxLayers = 4` cap must hold for posts with more than four images.
+// thumbnail, multi-image posts must render one tile per image, the
+// `_maxLayers` cap must hold for posts with more than that many images, and
+// the importance boundaries must not throw.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,11 +14,21 @@ import 'package:gleisner_web/widgets/timeline/node_card.dart';
 
 PostAuthor _author() => const PostAuthor(id: 'u1', username: 'test_user');
 
-Post _imagePost({String id = 'p1', required int imageCount}) {
+/// Mirrors the private `_ScatteredPhotos._maxLayers` cap used by the
+/// production widget. Kept here so the truncation assertion below names
+/// the constraint instead of an opaque literal — keep these two in sync if
+/// `_maxLayers` changes.
+const int _expectedMaxLayers = 4;
+
+Post _imagePost({
+  String id = 'p1',
+  required int imageCount,
+  double importance = 0.4,
+}) {
   return Post(
     id: id,
     mediaType: MediaType.image,
-    importance: 0.4,
+    importance: importance,
     createdAt: DateTime.utc(2026, 1, 1),
     updatedAt: DateTime.utc(2026, 1, 1),
     author: _author(),
@@ -72,14 +83,31 @@ void main() {
       expect(find.byType(Image), findsNWidgets(3));
     });
 
-    testWidgets('multi-image post (6) is capped at _maxLayers (4) tiles', (
+    testWidgets('multi-image post is capped at _maxLayers tiles', (
       tester,
     ) async {
-      final post = _imagePost(imageCount: 6);
+      final post = _imagePost(imageCount: _expectedMaxLayers + 2);
       await tester.pumpWidget(_host(NodeCard(node: _nodeFor(post), index: 0)));
       await tester.pump();
 
-      expect(find.byType(Image), findsNWidgets(4));
+      expect(find.byType(Image), findsNWidgets(_expectedMaxLayers));
+    });
+
+    // Boundary check: the glow / drop-shadow math in _PhotoTile scales with
+    // `importance`. Exercise the 0.0 / 1.0 edges to catch regressions where
+    // a coefficient flips negative or trips an alpha-out-of-range assertion.
+    testWidgets('renders without crashing at importance boundaries', (
+      tester,
+    ) async {
+      for (final imp in const [0.0, 1.0]) {
+        final post = _imagePost(id: 'imp-$imp', imageCount: 3, importance: imp);
+        await tester.pumpWidget(
+          _host(NodeCard(node: _nodeFor(post), index: 0)),
+        );
+        await tester.pump();
+
+        expect(find.byType(Image), findsNWidgets(3));
+      }
     });
   });
 }
