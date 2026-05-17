@@ -896,9 +896,14 @@ class _PhotoTile extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
+            // BoxFit.contain preserves the source aspect ratio so the photo
+            // is shown whole — any unused tile area becomes additional paper
+            // border, the same way a real polaroid frames an off-aspect print.
+            // The downstream sepia / wear overlays still cover the full tile,
+            // which reads as "the paper is aged too", not as misalignment.
             Image.network(
               url,
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
               cacheWidth: cacheWidth,
               cacheHeight: cacheHeight,
               loadingBuilder: (context, child, loadingProgress) {
