@@ -39,6 +39,18 @@ const colorAccentGold = Color(0xFFd4af37);
 /// Fallback
 const colorTrackFallback = Color(0xFF808080);
 
+/// Warm off-white "paper" color used for polaroid-style photo frames in the
+/// multi-image timeline pile (fresh / newer polaroid tone).
+const colorPaperWhite = Color(0xFFf5f0e2);
+
+/// Yellowed paper tone for aged polaroid frames. Per-tile lerp between
+/// [colorPaperWhite] and this gives each photo in the pile its own age.
+const colorPaperAged = Color(0xFFe8d3a8);
+
+/// Base color for the sepia / haze overlay laid on top of polaroid images
+/// (applied at low alpha to simulate fading and dustiness).
+const colorPaperAgingTint = Color(0xFF8b6e3f);
+
 // ---------------------------------------------------------------------------
 // Typography — Font sizes (6-step scale)
 // ---------------------------------------------------------------------------
