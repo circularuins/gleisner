@@ -1,7 +1,7 @@
 import { GraphQLError } from "graphql";
 import { builder } from "../builder.js";
 import { db } from "../../db/index.js";
-import { artists, artistGenres } from "../../db/schema/index.js";
+import { artists, artistGenres, posts, users } from "../../db/schema/index.js";
 import { and, eq, desc, asc, sql } from "drizzle-orm";
 import {
   validateProfileVisibility,
@@ -26,6 +26,17 @@ export const ArtistType = builder.objectRef<{
   tunedInCount: number;
   createdAt: Date;
   updatedAt: Date;
+  // Prefetched by `discoverArtists` to avoid N+1 on the pulse beacon. Only
+  // present on the Discover list path; field resolver falls back to a
+  // per-artist MAX query when undefined. Layer-0/Layer-1/visibility filters
+  // are applied inside the JOIN so this value already represents the
+  // viewer-safe public timestamp (Idea 032).
+  //
+  // Typed as `string` because postgres.js does NOT auto-parse aggregate
+  // (MAX/MIN) results to Date — only declared `timestamp` columns. The
+  // field resolver normalizes via `new Date(...).toISOString()` so wire
+  // output stays ISO 8601 regardless of driver quirks.
+  _lastPostedAt?: string | null;
 }>("Artist");
 
 ArtistType.implement({
@@ -370,6 +381,65 @@ builder.queryFields((t) => ({
 
       const publicOnly = eq(artists.profileVisibility, "public");
 
+      // Pulse beacon prefetch (Idea 032): MAX(created_at) per author, with
+      // the same Layer-0 / Layer-1 / visibility / track filters used by
+      // `recentPosts` so the pulse can never reveal activity that the post
+      // resolvers would hide. Applied to all 3 discover paths to avoid N+1
+      // on `Artist.lastPostedAt`.
+      //
+      // Defense in depth: the outer query already gates by
+      // `artists.profileVisibility = 'public'` (publicOnly below), but the
+      // subquery joins `artists` and filters again so the prefetched value
+      // stays correct even if a future refactor relaxes the outer filter.
+      // The extra INNER JOIN is also a perf win — it caps the GROUP BY to
+      // users who actually have an artist row.
+      //
+      // Note: the sub-query aggregates across all matching posts on every
+      // `discoverArtists` call. Issue #431 tracks materialising
+      // `artists.last_posted_at` so the GROUP BY can be replaced with a
+      // direct column read once Phase 1 scale demands it.
+      const lastPostSq = db
+        .select({
+          authorId: posts.authorId,
+          // postgres.js does not auto-parse aggregate results to Date —
+          // keep raw `string | null` and let the field resolver normalize
+          // (see _lastPostedAt typing on ArtistType).
+          lastPostedAt: sql<string | null>`MAX(${posts.createdAt})`.as(
+            "last_posted_at",
+          ),
+        })
+        .from(posts)
+        .innerJoin(users, eq(users.id, posts.authorId))
+        .innerJoin(artists, eq(artists.userId, posts.authorId))
+        .where(
+          and(
+            eq(posts.visibility, "public"),
+            eq(users.profileVisibility, "public"),
+            eq(artists.profileVisibility, "public"),
+            sql`${posts.trackId} IS NOT NULL`,
+          ),
+        )
+        .groupBy(posts.authorId)
+        .as("last_post_sq");
+
+      const artistCols = {
+        id: artists.id,
+        userId: artists.userId,
+        artistUsername: artists.artistUsername,
+        displayName: artists.displayName,
+        bio: artists.bio,
+        tagline: artists.tagline,
+        location: artists.location,
+        activeSince: artists.activeSince,
+        avatarUrl: artists.avatarUrl,
+        coverImageUrl: artists.coverImageUrl,
+        profileVisibility: artists.profileVisibility,
+        tunedInCount: artists.tunedInCount,
+        createdAt: artists.createdAt,
+        updatedAt: artists.updatedAt,
+        _lastPostedAt: lastPostSq.lastPostedAt,
+      } as const;
+
       // Genre filter: single JOIN query instead of 2-query split
       if (args.genreId) {
         const textFilter = pattern
@@ -377,27 +447,13 @@ builder.queryFields((t) => ({
           : sql``;
 
         return db
-          .select({
-            id: artists.id,
-            userId: artists.userId,
-            artistUsername: artists.artistUsername,
-            displayName: artists.displayName,
-            bio: artists.bio,
-            tagline: artists.tagline,
-            location: artists.location,
-            activeSince: artists.activeSince,
-            avatarUrl: artists.avatarUrl,
-            coverImageUrl: artists.coverImageUrl,
-            profileVisibility: artists.profileVisibility,
-            tunedInCount: artists.tunedInCount,
-            createdAt: artists.createdAt,
-            updatedAt: artists.updatedAt,
-          })
+          .select(artistCols)
           .from(artists)
           .innerJoin(
             artistGenres,
             sql`${artistGenres.artistId} = ${artists.id} AND ${artistGenres.genreId} = ${args.genreId}`,
           )
+          .leftJoin(lastPostSq, eq(lastPostSq.authorId, artists.userId))
           .where(sql`${artists.profileVisibility} = 'public'${textFilter}`)
           .orderBy(desc(artists.tunedInCount))
           .limit(limit)
@@ -407,8 +463,9 @@ builder.queryFields((t) => ({
       // Text search only
       if (pattern) {
         return db
-          .select()
+          .select(artistCols)
           .from(artists)
+          .leftJoin(lastPostSq, eq(lastPostSq.authorId, artists.userId))
           .where(
             and(
               publicOnly,
@@ -422,8 +479,9 @@ builder.queryFields((t) => ({
 
       // No filters — all public artists by popularity
       return db
-        .select()
+        .select(artistCols)
         .from(artists)
+        .leftJoin(lastPostSq, eq(lastPostSq.authorId, artists.userId))
         .where(publicOnly)
         .orderBy(desc(artists.tunedInCount))
         .limit(limit)
