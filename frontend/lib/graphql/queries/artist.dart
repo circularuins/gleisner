@@ -104,11 +104,11 @@ $_artistFields
   }
 ''';
 
-// `activitySeries(days: 14)` powers the discover-card sparkline (Idea
-// 032). 14 days is what the sparkline renders; clamping at the
-// backend lets Phase 0 keep payloads small (<14 entries × ~30 bytes
-// per artist row) without N+1ing each card. `lastPostedAt` is dropped
-// because today's bar in the sparkline already conveys recency.
+// `lastPostedAt` is all the discover-card ActivityWave needs — it
+// picks the recency tier (24h / 7d / 30d / flat) and the wave's
+// amplitude / brightness / speed are driven by that tier alone. No
+// per-day data is fetched here; the artist page heatmap is where the
+// per-day series lives.
 const discoverArtistsQuery = r'''
   query DiscoverArtists($genreId: String, $query: String, $limit: Int, $offset: Int) {
     discoverArtists(genreId: $genreId, query: $query, limit: $limit, offset: $offset) {
@@ -120,10 +120,7 @@ const discoverArtistsQuery = r'''
       coverImageUrl
       profileVisibility
       tunedInCount
-      activitySeries(days: 14) {
-        date
-        count
-      }
+      lastPostedAt
       genres {
         position
         genre {

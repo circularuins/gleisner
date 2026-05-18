@@ -13,7 +13,7 @@ import '../../providers/discover_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/deterministic_rng.dart';
-import '../../widgets/discover/activity_sparkline.dart';
+import '../../widgets/discover/activity_wave.dart';
 import '../../widgets/media/avatar_image.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
@@ -421,16 +421,17 @@ class _ArtistCard extends StatelessWidget {
                       size: 32,
                     ),
                   ),
-                  // Activity sparkline — 14-day mini bar chart
-                  // showing how the artist's posting frequency has
-                  // moved recently (Idea 032). Sits in its own
-                  // RepaintBoundary so the rightmost-bar pulse can't
-                  // trigger repaints on the cover image or avatar.
+                  // Activity wave — a heartbeat-monitor-style
+                  // traveling sin wave whose amplitude / brightness /
+                  // speed all scale with the recency of the artist's
+                  // last public post (Idea 032). RepaintBoundary
+                  // isolates the phase scroll from the cover image
+                  // and avatar.
                   Positioned(
                     top: spaceSm,
                     right: spaceSm,
                     child: RepaintBoundary(
-                      child: ActivitySparkline(series: artist.activitySeries),
+                      child: ActivityWave(lastPostedAt: artist.lastPostedAt),
                     ),
                   ),
                 ],
