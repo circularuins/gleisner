@@ -91,5 +91,16 @@ export const posts = pgTable(
       table.visibility,
       table.updatedAt,
     ),
+    // Activity heatmap (Idea 032 / ADR 013 + ADR 021): per-author daily post
+    // count aggregation. Same (author_id, visibility) leading columns as the
+    // updated_at index above, but trails on created_at because the heatmap
+    // groups by created_at::date and ranges by created_at >= fromDate. The
+    // existing _updated_idx is not reusable here because GROUP BY on
+    // created_at would force a sort even after the index seek.
+    index("posts_author_visibility_created_idx").on(
+      table.authorId,
+      table.visibility,
+      table.createdAt,
+    ),
   ],
 );

@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { UserType, userColumns } from "./user.js";
 import "./auth.js";
 import "./artist.js";
+import "./artist-activity.js";
 import "./track.js";
 import "./post.js";
 import "./reaction.js";
