@@ -1354,9 +1354,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get activityEmpty => 'これから星が灯ります';
-
-  @override
   String get activityLegendLess => '少';
 
   @override

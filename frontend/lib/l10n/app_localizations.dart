@@ -2564,12 +2564,6 @@ abstract class AppLocalizations {
   /// **'{count, plural, =0{No posts in the last year} =1{1 post in the last year} other{{count} posts in the last year}}'**
   String activitySummary(int count);
 
-  /// Tiny encouraging copy shown beneath the grid when the artist has zero posts in the visible window. The phrasing keeps the universe metaphor without baking it into the section title.
-  ///
-  /// In en, this message translates to:
-  /// **'Your stars will light up here.'**
-  String get activityEmpty;
-
   /// Left side of the colour-intensity legend below the activity grid. Mirrors GitHub's 'Less' label. Keep short — one word.
   ///
   /// In en, this message translates to:

@@ -1398,9 +1398,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get activityEmpty => 'Your stars will light up here.';
-
-  @override
   String get activityLegendLess => 'Less';
 
   @override

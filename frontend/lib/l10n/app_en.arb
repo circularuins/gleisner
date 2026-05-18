@@ -704,10 +704,6 @@
       "count": { "type": "int" }
     }
   },
-  "activityEmpty": "Your stars will light up here.",
-  "@activityEmpty": {
-    "description": "Tiny encouraging copy shown beneath the grid when the artist has zero posts in the visible window. The phrasing keeps the universe metaphor without baking it into the section title."
-  },
   "activityLegendLess": "Less",
   "@activityLegendLess": {
     "description": "Left side of the colour-intensity legend below the activity grid. Mirrors GitHub's 'Less' label. Keep short — one word."
