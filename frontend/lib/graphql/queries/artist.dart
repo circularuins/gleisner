@@ -104,6 +104,9 @@ $_artistFields
   }
 ''';
 
+// `lastPostedAt` is exposed here for recency indicators on discover
+// cards (Idea 032). No per-day series is needed — the heatmap window
+// belongs to the artist-page query.
 const discoverArtistsQuery = r'''
   query DiscoverArtists($genreId: String, $query: String, $limit: Int, $offset: Int) {
     discoverArtists(genreId: $genreId, query: $query, limit: $limit, offset: $offset) {
@@ -115,6 +118,7 @@ const discoverArtistsQuery = r'''
       coverImageUrl
       profileVisibility
       tunedInCount
+      lastPostedAt
       genres {
         position
         genre {
