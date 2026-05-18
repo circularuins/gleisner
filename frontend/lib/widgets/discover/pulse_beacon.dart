@@ -103,8 +103,7 @@ class _PulseBeaconState extends State<PulseBeacon>
   @override
   void didUpdateWidget(PulseBeacon old) {
     super.didUpdateWidget(old);
-    if (widget.lastPostedAt != old.lastPostedAt ||
-        widget.clock != old.clock) {
+    if (widget.lastPostedAt != old.lastPostedAt || widget.clock != old.clock) {
       final next = PulseBeacon.stateFor(
         widget.lastPostedAt,
         clock: widget.clock,
