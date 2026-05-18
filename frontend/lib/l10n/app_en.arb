@@ -728,16 +728,4 @@
       "count": { "type": "int" }
     }
   },
-  "pulseBeaconActiveDay": "Active within the last day",
-  "@pulseBeaconActiveDay": {
-    "description": "Accessibility label for the brightest pulse dot on a Discover artist card. Shown when the artist has a public post within the last 24 hours."
-  },
-  "pulseBeaconActiveWeek": "Active within the last week",
-  "@pulseBeaconActiveWeek": {
-    "description": "Accessibility label for the mid-brightness pulse dot on a Discover artist card. Shown when the artist's most recent public post is between 1 and 7 days old."
-  },
-  "pulseBeaconActiveMonth": "Active within the last month",
-  "@pulseBeaconActiveMonth": {
-    "description": "Accessibility label for the dim pulse dot on a Discover artist card. Shown when the artist's most recent public post is between 7 and 30 days old."
-  }
 }

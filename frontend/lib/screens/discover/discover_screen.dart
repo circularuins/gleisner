@@ -13,7 +13,7 @@ import '../../providers/discover_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../theme/gleisner_tokens.dart';
 import '../../utils/deterministic_rng.dart';
-import '../../widgets/discover/pulse_beacon.dart';
+import '../../widgets/discover/activity_sparkline.dart';
 import '../../widgets/media/avatar_image.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
@@ -421,15 +421,16 @@ class _ArtistCard extends StatelessWidget {
                       size: 32,
                     ),
                   ),
-                  // Pulse beacon — recency-of-last-post indicator
-                  // (Idea 032). Sits in its own RepaintBoundary so
-                  // the breathing animation can't trigger repaints on
-                  // the cover image or avatar layered below.
+                  // Activity sparkline — 14-day mini bar chart
+                  // showing how the artist's posting frequency has
+                  // moved recently (Idea 032). Sits in its own
+                  // RepaintBoundary so the rightmost-bar pulse can't
+                  // trigger repaints on the cover image or avatar.
                   Positioned(
                     top: spaceSm,
                     right: spaceSm,
                     child: RepaintBoundary(
-                      child: PulseBeacon(lastPostedAt: artist.lastPostedAt),
+                      child: ActivitySparkline(series: artist.activitySeries),
                     ),
                   ),
                 ],

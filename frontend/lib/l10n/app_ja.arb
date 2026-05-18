@@ -466,8 +466,5 @@
   "activityLegendLess": "少",
   "activityLegendMore": "多",
   "activityPostsForDate": "{date} · {count, plural, other{{count} 件の投稿}}",
-  "dayPostsHeader": "{date} の投稿 ({count, plural, other{{count} 件}})",
-  "pulseBeaconActiveDay": "24時間以内に投稿",
-  "pulseBeaconActiveWeek": "1週間以内に投稿",
-  "pulseBeaconActiveMonth": "1ヶ月以内に投稿"
+  "dayPostsHeader": "{date} の投稿 ({count, plural, other{{count} 件}})"
 }

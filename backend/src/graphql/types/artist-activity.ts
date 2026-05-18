@@ -120,12 +120,23 @@ builder.objectFields(ArtistType, (t) => ({
     description:
       "Daily post counts for the activity heatmap (Idea 032). Returns " +
       "only days with at least one matching post, from the later of " +
-      "`artist.createdAt` or 365 days ago to today.",
-    resolve: async (artist, _args, ctx) => {
+      "`artist.createdAt` or `days` days ago to today. `days` defaults " +
+      "to 365 (the heatmap window) and clamps to [1, 365] — the smaller " +
+      "value is for surfaces that only need a short recent window " +
+      "(e.g. Discover sparkline at 14 days).",
+    args: { days: t.arg.int() },
+    resolve: async (artist, args, ctx) => {
       const access = await resolveActivityAccess(artist, ctx);
       if (!access) return [];
 
-      const horizon = new Date(Date.now() - ACTIVITY_PERIOD_DAYS * MS_PER_DAY);
+      // Clamp to [1, 365] — protects against DoS-by-huge-window if a
+      // future caller misuses the arg, and against zero / negative
+      // values that would invert the WHERE clause.
+      const days = Math.max(
+        1,
+        Math.min(args.days ?? ACTIVITY_PERIOD_DAYS, ACTIVITY_PERIOD_DAYS),
+      );
+      const horizon = new Date(Date.now() - days * MS_PER_DAY);
       const fromDate =
         artist.createdAt.getTime() > horizon.getTime()
           ? artist.createdAt
