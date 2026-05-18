@@ -508,6 +508,79 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                       const SizedBox(height: spaceLg),
                                     ],
 
+                                    // Profile metadata strip — tagline,
+                                    // location, active-since. Split out
+                                    // of the About section so the
+                                    // identity-defining fields sit in
+                                    // the first view next to Genres.
+                                    // Bio stays under the "ABOUT" header
+                                    // below; the edit sheet still edits
+                                    // all four fields together.
+                                    if (artist.tagline != null ||
+                                        artist.location != null ||
+                                        artist.activeSince != null) ...[
+                                      if (artist.location != null ||
+                                          artist.activeSince != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: spaceSm,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              if (artist.location != null) ...[
+                                                const Icon(
+                                                  Icons.place_outlined,
+                                                  size: 14,
+                                                  color: colorTextMuted,
+                                                ),
+                                                const SizedBox(width: spaceXxs),
+                                                Text(
+                                                  artist.location!,
+                                                  style: const TextStyle(
+                                                    color: colorTextMuted,
+                                                    fontSize: fontSizeSm,
+                                                  ),
+                                                ),
+                                              ],
+                                              if (artist.location != null &&
+                                                  artist.activeSince != null)
+                                                const Text(
+                                                  ' · ',
+                                                  style: TextStyle(
+                                                    color: colorTextMuted,
+                                                  ),
+                                                ),
+                                              if (artist.activeSince != null)
+                                                Text(
+                                                  context.l10n.activeSince(
+                                                    artist.activeSince!,
+                                                  ),
+                                                  style: const TextStyle(
+                                                    color: colorTextMuted,
+                                                    fontSize: fontSizeSm,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      if (artist.tagline != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: spaceSm,
+                                          ),
+                                          child: Text(
+                                            artist.tagline!,
+                                            style: const TextStyle(
+                                              color: colorTextSecondary,
+                                              fontSize: fontSizeMd,
+                                              fontStyle: FontStyle.italic,
+                                              height: 1.5,
+                                            ),
+                                          ),
+                                        ),
+                                      const SizedBox(height: spaceSm),
+                                    ],
+
                                     // Tune In button (not shown on own page)
                                     if (isAuthenticated && !isSelf)
                                       _TuneInButton(
@@ -599,12 +672,17 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                       },
                                     ),
 
-                                    // About section
-                                    if (isSelf ||
-                                        artist.location != null ||
-                                        artist.activeSince != null ||
-                                        artist.tagline != null ||
-                                        artist.bio != null) ...[
+                                    // About section — bio only. Tagline /
+                                    // location / active-since render in
+                                    // the profile metadata strip above.
+                                    // The edit button still opens the
+                                    // same sheet that edits all four
+                                    // fields, matching the Genres /
+                                    // Milestones pattern of keeping a
+                                    // single owner-facing entry point
+                                    // even when the section content is
+                                    // empty.
+                                    if (isSelf || artist.bio != null) ...[
                                       const SizedBox(height: spaceXl),
                                       if (isSelf)
                                         Row(
@@ -635,68 +713,6 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                             ),
                                           ],
                                         ),
-                                      // Location + Active since
-                                      if (artist.location != null ||
-                                          artist.activeSince != null)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: spaceSm,
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              if (artist.location != null) ...[
-                                                const Icon(
-                                                  Icons.place_outlined,
-                                                  size: 14,
-                                                  color: colorTextMuted,
-                                                ),
-                                                const SizedBox(width: spaceXxs),
-                                                Text(
-                                                  artist.location!,
-                                                  style: const TextStyle(
-                                                    color: colorTextMuted,
-                                                    fontSize: fontSizeSm,
-                                                  ),
-                                                ),
-                                              ],
-                                              if (artist.location != null &&
-                                                  artist.activeSince != null)
-                                                const Text(
-                                                  ' · ',
-                                                  style: TextStyle(
-                                                    color: colorTextMuted,
-                                                  ),
-                                                ),
-                                              if (artist.activeSince != null)
-                                                Text(
-                                                  context.l10n.activeSince(
-                                                    artist.activeSince!,
-                                                  ),
-                                                  style: const TextStyle(
-                                                    color: colorTextMuted,
-                                                    fontSize: fontSizeSm,
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      // Tagline
-                                      if (artist.tagline != null)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: spaceSm,
-                                          ),
-                                          child: Text(
-                                            artist.tagline!,
-                                            style: const TextStyle(
-                                              color: colorTextSecondary,
-                                              fontSize: fontSizeMd,
-                                              fontStyle: FontStyle.italic,
-                                              height: 1.5,
-                                            ),
-                                          ),
-                                        ),
-                                      // Bio
                                       if (artist.bio != null)
                                         Text(
                                           artist.bio!,
