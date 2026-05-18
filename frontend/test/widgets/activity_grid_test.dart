@@ -253,6 +253,213 @@ void main() {
     });
   });
 
+  group('ActivityGridPainter.mondayOf', () {
+    test('returns the same date for a Monday', () {
+      // 2026-05-18 is a Monday (weekday == 1).
+      final mon = DateTime.utc(2026, 5, 18);
+      expect(ActivityGridPainter.mondayOf(mon), mon);
+    });
+
+    test('rolls a mid-week date back to its Monday', () {
+      // 2026-05-21 is a Thursday → Monday is 2026-05-18.
+      final thu = DateTime.utc(2026, 5, 21);
+      expect(ActivityGridPainter.mondayOf(thu), DateTime.utc(2026, 5, 18));
+    });
+
+    test('rolls a Sunday back six days, not forward to the next Monday', () {
+      // 2026-05-17 is a Sunday (weekday == 7). Its ISO week starts on
+      // Monday 2026-05-11, so `mondayOf` must roll back six days.
+      // Without ISO-week semantics, naively snapping to the *next* Monday
+      // would land on 2026-05-18 and visually shove Sunday cells into
+      // the wrong column.
+      final sun = DateTime.utc(2026, 5, 17);
+      expect(ActivityGridPainter.mondayOf(sun), DateTime.utc(2026, 5, 11));
+    });
+
+    test('discards the time-of-day portion (returns UTC midnight)', () {
+      // Late-evening UTC timestamp on a Wednesday must still collapse
+      // to that week's Monday midnight, so the helper composes safely
+      // with `formatYYYYMMDD` and the painter's date arithmetic.
+      final wedAfternoon = DateTime.utc(2026, 5, 20, 18, 30);
+      expect(
+        ActivityGridPainter.mondayOf(wedAfternoon),
+        DateTime.utc(2026, 5, 18),
+      );
+    });
+  });
+
+  group('ActivityGridPainter.weeksToCoverJoin', () {
+    test('returns 1 when today equals the join day', () {
+      final today = DateTime.utc(2026, 5, 19);
+      expect(
+        ActivityGridPainter.weeksToCoverJoin(
+          today: today,
+          joinedDay: today,
+          maxWeeks: 52,
+        ),
+        1,
+      );
+    });
+
+    test('returns 1 when both fall in the same ISO week', () {
+      // today = Tue 2026-05-19, join = Mon 2026-05-18 → same week.
+      expect(
+        ActivityGridPainter.weeksToCoverJoin(
+          today: DateTime.utc(2026, 5, 19),
+          joinedDay: DateTime.utc(2026, 5, 18),
+          maxWeeks: 52,
+        ),
+        1,
+      );
+    });
+
+    test('returns 2 when the join falls in the previous ISO week', () {
+      // today = Tue 2026-05-19 (week of 5/18), join = Sun 2026-05-17
+      // (week of 5/11). The Sunday cell lives in column 0 row 6, so
+      // the grid needs exactly two columns to keep it visible.
+      expect(
+        ActivityGridPainter.weeksToCoverJoin(
+          today: DateTime.utc(2026, 5, 19),
+          joinedDay: DateTime.utc(2026, 5, 17),
+          maxWeeks: 52,
+        ),
+        2,
+      );
+    });
+
+    test(
+      'returns 3 for the Phase 0 launch scenario (today Tue, join Wed 13d ago)',
+      () {
+        // Regression for the bug this PR fixes: an artist registered on
+        // the Phase 0 launch day (2026-05-06, Wed) viewed on
+        // 2026-05-19 (Tue) used to compute weeks = ceil(14/7) = 2,
+        // which made the leftmost cell 2026-05-11 and dropped
+        // 2026-05-06..2026-05-10 out of the grid entirely. The
+        // Monday-aligned formula returns 3 so the leftmost column is
+        // the join day's week (2026-05-04 .. 2026-05-10).
+        expect(
+          ActivityGridPainter.weeksToCoverJoin(
+            today: DateTime.utc(2026, 5, 19),
+            joinedDay: DateTime.utc(2026, 5, 6),
+            maxWeeks: 52,
+          ),
+          3,
+        );
+      },
+    );
+
+    test('counts whole calendar weeks regardless of weekday combo', () {
+      // 5 calendar weeks apart on the Monday axis: join 2026-04-15
+      // (Wed, week of 4/13), today 2026-05-19 (Tue, week of 5/18).
+      // Monday distance = (5/18 - 4/13) / 7 = 35/7 = 5 → weeks = 6.
+      expect(
+        ActivityGridPainter.weeksToCoverJoin(
+          today: DateTime.utc(2026, 5, 19),
+          joinedDay: DateTime.utc(2026, 4, 15),
+          maxWeeks: 52,
+        ),
+        6,
+      );
+    });
+
+    test('clamps to maxWeeks when the artist is older than the window', () {
+      // Two-year-old artist viewed today: way past 52 weeks.
+      expect(
+        ActivityGridPainter.weeksToCoverJoin(
+          today: DateTime.utc(2026, 5, 19),
+          joinedDay: DateTime.utc(2024, 1, 1),
+          maxWeeks: 52,
+        ),
+        52,
+      );
+    });
+
+    test('falls back to 1 if joinedDay is in the future (defensive)', () {
+      // Callers gate this case via `canRenderGrid`, but the helper
+      // stays correct in isolation so it can be reused without that
+      // outer guard.
+      expect(
+        ActivityGridPainter.weeksToCoverJoin(
+          today: DateTime.utc(2026, 5, 19),
+          joinedDay: DateTime.utc(2026, 5, 20),
+          maxWeeks: 52,
+        ),
+        1,
+      );
+    });
+
+    test('today on Monday is its own ISO week (edge case)', () {
+      // Boundary check: when `todayWeekday == 1`, the offset term
+      // `(todayWeekday - 1)` drops to zero, so the leftmost-Monday
+      // formula collapses to `(weeks - 1) * 7`. Make sure the helper
+      // doesn't over- or under-allocate columns in that case.
+      // today = Mon 2026-05-18, join = previous Wed 2026-05-13
+      // (week of 5/11). Distance between Mondays = 7 → weeks = 2.
+      expect(
+        ActivityGridPainter.weeksToCoverJoin(
+          today: DateTime.utc(2026, 5, 18),
+          joinedDay: DateTime.utc(2026, 5, 13),
+          maxWeeks: 52,
+        ),
+        2,
+      );
+      // And join = today (Mon) collapses to a single column with no
+      // off-by-one creeping in.
+      expect(
+        ActivityGridPainter.weeksToCoverJoin(
+          today: DateTime.utc(2026, 5, 18),
+          joinedDay: DateTime.utc(2026, 5, 18),
+          maxWeeks: 52,
+        ),
+        1,
+      );
+    });
+
+    test(
+      "leftmost column reaches the join day's week for every weekday combo",
+      () {
+        // Painter formula: leftmost cell (col=0, row=0) is
+        //   today - ((weeks - 1) * 7 + (todayWeekday - 1))
+        // i.e. the Monday of today's leftmost rendered week. The grid
+        // is correct iff that Monday is on-or-before the join day's
+        // Monday. Sweep every (today-weekday, join-weekday) pair.
+        for (int todayOffset = 0; todayOffset < 7; todayOffset++) {
+          // Anchor a Monday and walk forward to land on each weekday.
+          final today = DateTime.utc(
+            2026,
+            5,
+            18,
+          ).add(Duration(days: todayOffset));
+          for (int daysBack = 0; daysBack < 40; daysBack++) {
+            final joinedDay = today.subtract(Duration(days: daysBack));
+            final weeks = ActivityGridPainter.weeksToCoverJoin(
+              today: today,
+              joinedDay: joinedDay,
+              maxWeeks: 52,
+            );
+            // Mirror the painter's `daysFromToday` math for (col=0, row=0):
+            //   daysFromToday = (weeks - 1) * 7 + (todayWeekday - 1)
+            // → leftmost rendered cell sits this many days before today.
+            // Subtracting it gives the Monday at the top of column 0.
+            final leftmostMondayDays = (weeks - 1) * 7 + (today.weekday - 1);
+            final leftmostMonday = today.subtract(
+              Duration(days: leftmostMondayDays),
+            );
+            final joinMonday = ActivityGridPainter.mondayOf(joinedDay);
+            expect(
+              leftmostMonday.isAtSameMomentAs(joinMonday) ||
+                  leftmostMonday.isBefore(joinMonday),
+              isTrue,
+              reason:
+                  'today=$today joinedDay=$joinedDay weeks=$weeks '
+                  'leftmostMonday=$leftmostMonday joinMonday=$joinMonday',
+            );
+          }
+        }
+      },
+    );
+  });
+
   group('ActivityGridPainter.tierForCount', () {
     test('maps counts to the 5-tier ramp', () {
       expect(ActivityGridPainter.tierForCount(0), 0);

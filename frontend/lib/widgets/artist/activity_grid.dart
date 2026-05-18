@@ -143,9 +143,16 @@ class _ActivityGridState extends State<ActivityGrid>
     final canRenderGrid = joinedDay != null && !joinedDay.isAfter(today);
     int weeks = 0;
     if (canRenderGrid) {
-      final daysSinceJoin = today.difference(joinedDay).inDays + 1;
-      final clampedDays = daysSinceJoin.clamp(1, _maxWeeks * 7);
-      weeks = (clampedDays / 7).ceil();
+      // Each grid column is a Monday–Sunday week, right-aligned with
+      // today. The leftmost column must reach the join day's own
+      // week — `ceil(daysSinceJoin / 7)` doesn't do that when today's
+      // weekday is earlier than the join day's, so we instead diff
+      // the two weeks' Mondays. See `ActivityGridPainter.weeksToCoverJoin`.
+      weeks = ActivityGridPainter.weeksToCoverJoin(
+        today: today,
+        joinedDay: joinedDay,
+        maxWeeks: _maxWeeks,
+      );
     }
 
     final reduced = MediaQuery.disableAnimationsOf(context);
@@ -779,6 +786,62 @@ class ActivityGridPainter extends CustomPainter {
     final m = d.month.toString().padLeft(2, '0');
     final day = d.day.toString().padLeft(2, '0');
     return '$y-$m-$day';
+  }
+
+  /// Return the UTC Monday of the ISO week that contains [d] — the
+  /// midnight at the start of that Monday. Used by the widget to
+  /// align grid columns to whole calendar weeks (Mon–Sun) and by
+  /// tests to pin the expected leftmost column of the grid.
+  ///
+  /// Accepts either a local or UTC [d]; only the `year` / `month` /
+  /// `day` fields are read, so the time-of-day and the timezone tag
+  /// don't matter. The result is always a UTC midnight DateTime so
+  /// callers can compare with other `mondayOf` results or with
+  /// `DateTime.utc(...)` values without timezone drift.
+  static DateTime mondayOf(DateTime d) {
+    final day = DateTime.utc(d.year, d.month, d.day);
+    // Use the normalized `day`'s weekday rather than `d.weekday` so
+    // the calculation stays internally consistent if a future
+    // refactor changes how `d` is constructed. Both yield the same
+    // weekday today (proleptic Gregorian calendar gives a single
+    // weekday per y/m/d), but reading from `day` makes that explicit.
+    return day.subtract(Duration(days: day.weekday - 1));
+  }
+
+  /// Number of week columns the grid needs to cover the span from
+  /// [joinedDay] through [today] inclusive, given that each column
+  /// represents one Monday–Sunday week and the grid is right-aligned
+  /// with today (so the join day's column is the leftmost).
+  ///
+  /// The naïve `ceil(daysSinceJoin / 7)` is wrong because it assumes
+  /// the leftmost column starts `weeks * 7` days before today —
+  /// whereas the painter's leftmost cell is actually
+  /// `(weeks - 1) * 7 + (todayWeekday - 1)` days before today
+  /// (see `ActivityGridPainter.paint`). When today's weekday is
+  /// earlier in the week than the join day's, that off-by-one
+  /// silently drops the join day and the few days following it out
+  /// of the rendered grid even though the backend returned them.
+  ///
+  /// Computing the difference between the two weeks' Mondays makes
+  /// the alignment explicit and matches what the painter actually
+  /// draws, so the leftmost column is always the join day's week.
+  /// Clamped to [1, maxWeeks]. Returns 1 defensively when
+  /// [joinedDay] is after [today] (callers gate this case via
+  /// `canRenderGrid`).
+  ///
+  /// [maxWeeks] must be ≥ 1 — a grid with zero columns is undefined
+  /// (the painter would paint nothing while the header still claims
+  /// "activity, N posts"). The assert encodes that contract.
+  static int weeksToCoverJoin({
+    required DateTime today,
+    required DateTime joinedDay,
+    required int maxWeeks,
+  }) {
+    assert(maxWeeks >= 1, 'maxWeeks must be >= 1, got $maxWeeks');
+    if (joinedDay.isAfter(today)) return 1;
+    final weekDiff =
+        mondayOf(today).difference(mondayOf(joinedDay)).inDays ~/ 7;
+    return (weekDiff + 1).clamp(1, maxWeeks);
   }
 
   @override
