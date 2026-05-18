@@ -267,7 +267,8 @@ void main() {
     });
 
     test('rolls a Sunday back six days, not forward to the next Monday', () {
-      // 2026-05-17 is a Sunday (weekday == 7) — same week as 2026-05-11.
+      // 2026-05-17 is a Sunday (weekday == 7). Its ISO week starts on
+      // Monday 2026-05-11, so `mondayOf` must roll back six days.
       // Without ISO-week semantics, naively snapping to the *next* Monday
       // would land on 2026-05-18 and visually shove Sunday cells into
       // the wrong column.
@@ -387,6 +388,33 @@ void main() {
       );
     });
 
+    test('today on Monday is its own ISO week (edge case)', () {
+      // Boundary check: when `todayWeekday == 1`, the offset term
+      // `(todayWeekday - 1)` drops to zero, so the leftmost-Monday
+      // formula collapses to `(weeks - 1) * 7`. Make sure the helper
+      // doesn't over- or under-allocate columns in that case.
+      // today = Mon 2026-05-18, join = previous Wed 2026-05-13
+      // (week of 5/11). Distance between Mondays = 7 → weeks = 2.
+      expect(
+        ActivityGridPainter.weeksToCoverJoin(
+          today: DateTime.utc(2026, 5, 18),
+          joinedDay: DateTime.utc(2026, 5, 13),
+          maxWeeks: 52,
+        ),
+        2,
+      );
+      // And join = today (Mon) collapses to a single column with no
+      // off-by-one creeping in.
+      expect(
+        ActivityGridPainter.weeksToCoverJoin(
+          today: DateTime.utc(2026, 5, 18),
+          joinedDay: DateTime.utc(2026, 5, 18),
+          maxWeeks: 52,
+        ),
+        1,
+      );
+    });
+
     test(
       "leftmost column reaches the join day's week for every weekday combo",
       () {
@@ -409,6 +437,10 @@ void main() {
               joinedDay: joinedDay,
               maxWeeks: 52,
             );
+            // Mirror the painter's `daysFromToday` math for (col=0, row=0):
+            //   daysFromToday = (weeks - 1) * 7 + (todayWeekday - 1)
+            // → leftmost rendered cell sits this many days before today.
+            // Subtracting it gives the Monday at the top of column 0.
             final leftmostMondayDays = (weeks - 1) * 7 + (today.weekday - 1);
             final leftmostMonday = today.subtract(
               Duration(days: leftmostMondayDays),

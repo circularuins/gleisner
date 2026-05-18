@@ -792,9 +792,20 @@ class ActivityGridPainter extends CustomPainter {
   /// midnight at the start of that Monday. Used by the widget to
   /// align grid columns to whole calendar weeks (Mon–Sun) and by
   /// tests to pin the expected leftmost column of the grid.
+  ///
+  /// Accepts either a local or UTC [d]; only the `year` / `month` /
+  /// `day` fields are read, so the time-of-day and the timezone tag
+  /// don't matter. The result is always a UTC midnight DateTime so
+  /// callers can compare with other `mondayOf` results or with
+  /// `DateTime.utc(...)` values without timezone drift.
   static DateTime mondayOf(DateTime d) {
     final day = DateTime.utc(d.year, d.month, d.day);
-    return day.subtract(Duration(days: d.weekday - 1));
+    // Use the normalized `day`'s weekday rather than `d.weekday` so
+    // the calculation stays internally consistent if a future
+    // refactor changes how `d` is constructed. Both yield the same
+    // weekday today (proleptic Gregorian calendar gives a single
+    // weekday per y/m/d), but reading from `day` makes that explicit.
+    return day.subtract(Duration(days: day.weekday - 1));
   }
 
   /// Number of week columns the grid needs to cover the span from
@@ -817,11 +828,16 @@ class ActivityGridPainter extends CustomPainter {
   /// Clamped to [1, maxWeeks]. Returns 1 defensively when
   /// [joinedDay] is after [today] (callers gate this case via
   /// `canRenderGrid`).
+  ///
+  /// [maxWeeks] must be ≥ 1 — a grid with zero columns is undefined
+  /// (the painter would paint nothing while the header still claims
+  /// "activity, N posts"). The assert encodes that contract.
   static int weeksToCoverJoin({
     required DateTime today,
     required DateTime joinedDay,
     required int maxWeeks,
   }) {
+    assert(maxWeeks >= 1, 'maxWeeks must be >= 1, got $maxWeeks');
     if (joinedDay.isAfter(today)) return 1;
     final weekDiff =
         mondayOf(today).difference(mondayOf(joinedDay)).inDays ~/ 7;
