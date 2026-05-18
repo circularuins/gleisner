@@ -115,6 +115,7 @@ const discoverArtistsQuery = r'''
       coverImageUrl
       profileVisibility
       tunedInCount
+      lastPostedAt
       genres {
         position
         genre {

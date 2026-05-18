@@ -2587,6 +2587,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 post} other{{count} posts}} on {date}'**
   String dayPostsHeader(String date, int count);
+
+  /// Accessibility label for the brightest pulse dot on a Discover artist card. Shown when the artist has a public post within the last 24 hours.
+  ///
+  /// In en, this message translates to:
+  /// **'Active within the last day'**
+  String get pulseBeaconActiveDay;
+
+  /// Accessibility label for the mid-brightness pulse dot on a Discover artist card. Shown when the artist's most recent public post is between 1 and 7 days old.
+  ///
+  /// In en, this message translates to:
+  /// **'Active within the last week'**
+  String get pulseBeaconActiveWeek;
+
+  /// Accessibility label for the dim pulse dot on a Discover artist card. Shown when the artist's most recent public post is between 7 and 30 days old.
+  ///
+  /// In en, this message translates to:
+  /// **'Active within the last month'**
+  String get pulseBeaconActiveMonth;
 }
 
 class _AppLocalizationsDelegate
