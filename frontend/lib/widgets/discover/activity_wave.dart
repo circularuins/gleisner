@@ -269,6 +269,21 @@ class ActivityWavePainter extends CustomPainter {
 
   const ActivityWavePainter({required this.tier, required this.phase});
 
+  // Reusable paints — instantiating these every `paint()` call (60fps
+  // × N visible cards) churns the GC. Static + `..color = ...` per
+  // call keeps allocation off the hot path. `MaskFilter.blur` is the
+  // most expensive piece to recreate, so it especially benefits.
+  static final Paint _barPaint = Paint();
+  static final Paint _wavePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.2
+    ..strokeCap = StrokeCap.round;
+  static final Paint _glowPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.5
+    ..strokeCap = StrokeCap.round
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.6);
+
   @override
   void paint(Canvas canvas, Size size) {
     final color = ActivityWave.colorFor(tier);
@@ -323,7 +338,7 @@ class ActivityWavePainter extends CustomPainter {
     required double phaseOffset,
     required double maxBarHeight,
   }) {
-    final paint = Paint()..color = color;
+    _barPaint.color = color;
     final twoPi = math.pi * 2;
     for (int i = 0; i < ActivityWave.kEqBarsPerSide; i++) {
       // Per-bar phase offset — 0.83 rad ≈ 47°. Picked because it's
@@ -353,7 +368,7 @@ class ActivityWavePainter extends CustomPainter {
           rect,
           Radius.circular(ActivityWave.kEqBarWidth / 2),
         ),
-        paint,
+        _barPaint,
       );
     }
   }
@@ -366,19 +381,14 @@ class ActivityWavePainter extends CustomPainter {
     required double endX,
     required double midY,
   }) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round;
-
+    _wavePaint.color = color;
     final width = endX - startX;
     if (width <= 0) return;
 
     // Flat-tier shortcut — single baseline line. Skips the path
     // build entirely for dormant artists.
     if (amplitude <= 0) {
-      canvas.drawLine(Offset(startX, midY), Offset(endX, midY), paint);
+      canvas.drawLine(Offset(startX, midY), Offset(endX, midY), _wavePaint);
       return;
     }
 
@@ -399,18 +409,15 @@ class ActivityWavePainter extends CustomPainter {
         path.lineTo(x, y);
       }
     }
-    canvas.drawPath(path, paint);
+    canvas.drawPath(path, _wavePaint);
 
     // Soft halo on the very-recent tier — reinforces "this artist
-    // is hot right now" without flooding the card visually.
+    // is hot right now" without flooding the card visually. The
+    // glow paint (with its expensive MaskFilter.blur) is static-
+    // cached too; only its colour changes per draw.
     if (tier == ActivityWaveTier.veryRecent) {
-      final glowPaint = Paint()
-        ..color = color.withValues(alpha: 0.35)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.6);
-      canvas.drawPath(path, glowPaint);
+      _glowPaint.color = color.withValues(alpha: 0.35);
+      canvas.drawPath(path, _glowPaint);
     }
   }
 

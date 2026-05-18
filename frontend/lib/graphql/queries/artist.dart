@@ -104,11 +104,9 @@ $_artistFields
   }
 ''';
 
-// `lastPostedAt` is all the discover-card ActivityWave needs — it
-// picks the recency tier (24h / 7d / 30d / flat) and the wave's
-// amplitude / brightness / speed are driven by that tier alone. No
-// per-day data is fetched here; the artist page heatmap is where the
-// per-day series lives.
+// `lastPostedAt` is exposed here for recency indicators on discover
+// cards (Idea 032). No per-day series is needed — the heatmap window
+// belongs to the artist-page query.
 const discoverArtistsQuery = r'''
   query DiscoverArtists($genreId: String, $query: String, $limit: Int, $offset: Int) {
     discoverArtists(genreId: $genreId, query: $query, limit: $limit, offset: $offset) {
