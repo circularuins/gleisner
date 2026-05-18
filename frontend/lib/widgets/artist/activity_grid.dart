@@ -71,10 +71,15 @@ class _ActivityGridState extends State<ActivityGrid>
     _ingestSeries(widget.series);
     // Slow pulse drives the top-tier sparkle so the brightest cells
     // breathe instead of staring flat. The lower tiers don't move.
+    // Started here at mount time; `didChangeDependencies` only
+    // *stops* it for reduced-motion users (and resumes if the
+    // setting flips back). Avoids the "every dependency change
+    // calls repeat()" reentry that would otherwise occur whenever
+    // an ancestor InheritedWidget rebuilt.
     _pulse = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2400),
-    );
+    )..repeat();
   }
 
   @override
@@ -88,11 +93,14 @@ class _ActivityGridState extends State<ActivityGrid>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Reduced-motion may flip on/off mid-session (the OS setting is
+    // observable). Pause/resume the controller in response — without
+    // re-starting it on every unrelated dependency change.
     final reduced = MediaQuery.disableAnimationsOf(context);
-    if (reduced) {
-      if (_pulse.isAnimating) _pulse.stop();
-    } else {
-      if (!_pulse.isAnimating) _pulse.repeat();
+    if (reduced && _pulse.isAnimating) {
+      _pulse.stop();
+    } else if (!reduced && !_pulse.isAnimating) {
+      _pulse.repeat();
     }
   }
 
@@ -112,7 +120,11 @@ class _ActivityGridState extends State<ActivityGrid>
       for (final d in series)
         if (d.date.isNotEmpty) d.date: d.count,
     };
-    _totalCount = series.fold<int>(0, (sum, d) => sum + d.count);
+    // Sum from the already-filtered map so the displayed "X posts in
+    // the last year" stays consistent with what the grid actually
+    // renders. Folding the raw series would count phantom
+    // empty-string entries that don't appear as cells.
+    _totalCount = _countByDate.values.fold<int>(0, (sum, c) => sum + c);
   }
 
   @override
@@ -138,68 +150,86 @@ class _ActivityGridState extends State<ActivityGrid>
 
     final reduced = MediaQuery.disableAnimationsOf(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section title in the same uppercase / muted style as
-        // GENRES / ABOUT / LINKS to read as a peer section header.
-        Text(
-          l10n.activityTitle.toUpperCase(),
-          style: const TextStyle(
-            color: colorTextMuted,
-            fontSize: fontSizeXs,
-            fontWeight: weightSemibold,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: spaceXs),
-        // GitHub-style total. Doubles as the most obvious affordance
-        // for "this is a count of posts per day" — the label alone is
-        // ambiguous, the count makes it concrete.
-        Text(
-          l10n.activitySummary(_totalCount),
-          style: const TextStyle(
-            color: colorTextSecondary,
-            fontSize: fontSizeMd,
-          ),
-        ),
-        const SizedBox(height: spaceMd),
-        if (canRenderGrid)
-          _GridSection(
-            weeks: weeks,
-            today: today,
-            countByDate: _countByDate,
-            pulse: _pulse,
-            twinkleEnabled: !reduced,
-            localeTag: localeTag,
-            selectedDate: widget.selectedDate,
-            onDateSelected: widget.onDateSelected,
-          ),
-        if (canRenderGrid)
-          Padding(
-            padding: const EdgeInsets.only(top: spaceSm),
-            child: _Legend(
-              less: l10n.activityLegendLess,
-              more: l10n.activityLegendMore,
-            ),
-          ),
-        // Empty-state copy is for "joined but hasn't posted yet" only.
-        // When `joinedDate` is null we're either still loading the
-        // artist or the query path didn't project `createdAt`; either
-        // way the calling screen owns the loading / error surface and
-        // we should stay silent rather than show "stars will light up".
-        if (joinedDay != null && widget.series.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: spaceSm),
+    // Wrap the whole section in a Semantics container so VoiceOver /
+    // TalkBack announce it as "Activity, N posts in the last year"
+    // rather than dropping the user into 364 unlabelled cells. Per-cell
+    // Semantics is deferred until Phase 1 wires tap-to-open-day-posts
+    // — the ARB key `activityPostsForDate` is reserved for that.
+    return Semantics(
+      label: '${l10n.activityTitle}, ${l10n.activitySummary(_totalCount)}',
+      container: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section title in the same uppercase / muted style as
+          // GENRES / ABOUT / LINKS to read as a peer section header.
+          // `excludeSemantics` on the visible texts so the screen
+          // reader doesn't read the title + summary twice (once via
+          // the Semantics container above, once via the Text widgets).
+          ExcludeSemantics(
             child: Text(
-              l10n.activityEmpty,
+              l10n.activityTitle.toUpperCase(),
               style: const TextStyle(
-                fontSize: fontSizeSm,
                 color: colorTextMuted,
+                fontSize: fontSizeXs,
+                fontWeight: weightSemibold,
+                letterSpacing: 1,
               ),
             ),
           ),
-      ],
+          const SizedBox(height: spaceXs),
+          // GitHub-style total. Doubles as the most obvious affordance
+          // for "this is a count of posts per day" — the label alone is
+          // ambiguous, the count makes it concrete. Hidden from
+          // semantics tree because the outer container already
+          // announces the same string.
+          ExcludeSemantics(
+            child: Text(
+              l10n.activitySummary(_totalCount),
+              style: const TextStyle(
+                color: colorTextSecondary,
+                fontSize: fontSizeMd,
+              ),
+            ),
+          ),
+          const SizedBox(height: spaceMd),
+          if (canRenderGrid)
+            _GridSection(
+              weeks: weeks,
+              today: today,
+              countByDate: _countByDate,
+              pulse: _pulse,
+              twinkleEnabled: !reduced,
+              localeTag: localeTag,
+              selectedDate: widget.selectedDate,
+              onDateSelected: widget.onDateSelected,
+            ),
+          if (canRenderGrid)
+            Padding(
+              padding: const EdgeInsets.only(top: spaceSm),
+              child: _Legend(
+                less: l10n.activityLegendLess,
+                more: l10n.activityLegendMore,
+              ),
+            ),
+          // Empty-state copy is for "joined but hasn't posted yet" only.
+          // When `joinedDate` is null we're either still loading the
+          // artist or the query path didn't project `createdAt`; either
+          // way the calling screen owns the loading / error surface and
+          // we should stay silent rather than show "stars will light up".
+          if (joinedDay != null && widget.series.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: spaceSm),
+              child: Text(
+                l10n.activityEmpty,
+                style: const TextStyle(
+                  fontSize: fontSizeSm,
+                  color: colorTextMuted,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -429,7 +459,8 @@ class _Legend extends StatelessWidget {
         const SizedBox(width: spaceXs),
         for (final tier in swatches) ...[
           _LegendSwatch(tier: tier),
-          if (tier < swatches.last) const SizedBox(width: 2),
+          if (tier < swatches.last)
+            const SizedBox(width: _ActivityGridMetrics.legendSwatchGap),
         ],
         const SizedBox(width: spaceXs),
         Text(
@@ -471,13 +502,26 @@ class _LegendSwatch extends StatelessWidget {
 
 /// Shared layout numbers — kept in one place so the widget and the
 /// painter agree on cell size, gaps, and the band reserved for month
-/// labels above the grid.
+/// labels above the grid. Also covers the legend's tighter-than-cells
+/// swatch gap and the selection ring's offset / stroke so visual
+/// tweaks (e.g. a thicker selection ring for accessibility) flow
+/// through one source.
 class _ActivityGridMetrics {
   static const double cellSize = 11;
   static const double cellGap = 3;
   static const double cellPitch = cellSize + cellGap;
   static const double cellCornerRadius = 2.5;
   static const double monthLabelHeight = 16;
+
+  /// Gap between adjacent legend swatches. Smaller than the grid gap
+  /// so the swatches read as a connected gradient.
+  static const double legendSwatchGap = 2;
+
+  /// How far the selection ring sits outside the cell, and its stroke
+  /// width. The +2 pads enough that the gold accent reads as a halo
+  /// rather than overlapping the body of the cell.
+  static const double selectionRingInflate = 2;
+  static const double selectionRingStroke = 1.5;
 }
 
 class ActivityGridPainter extends CustomPainter {
@@ -546,10 +590,7 @@ class ActivityGridPainter extends CustomPainter {
     final daysFromToday = (weeks - 1 - col) * 7 + (todayWeekday - 1 - row);
     if (daysFromToday < 0) return null;
     final cellDate = today.subtract(Duration(days: daysFromToday));
-    final y = cellDate.year.toString().padLeft(4, '0');
-    final m = cellDate.month.toString().padLeft(2, '0');
-    final d = cellDate.day.toString().padLeft(2, '0');
-    final dateStr = '$y-$m-$d';
+    final dateStr = formatYYYYMMDD(cellDate);
     final count = countByDate[dateStr] ?? 0;
     if (count == 0) return null;
     return dateStr;
@@ -645,7 +686,7 @@ class ActivityGridPainter extends CustomPainter {
           continue;
         }
         final cellDate = today.subtract(Duration(days: daysFromToday));
-        final dateStr = _formatYYYYMMDD(cellDate);
+        final dateStr = formatYYYYMMDD(cellDate);
         final count = countByDate[dateStr] ?? 0;
         _paintCell(canvas, rect, count, dateStr: dateStr);
       }
@@ -714,12 +755,14 @@ class ActivityGridPainter extends CustomPainter {
     // unambiguous even at the brightest tier. Uses the product accent
     // gold so it reads as "user-controlled" rather than "more data".
     if (selectedDate != null && dateStr == selectedDate) {
-      final ringRect = rect.inflate(2);
-      final ringRadius = Radius.circular(cellCornerRadius + 2);
+      const inflate = _ActivityGridMetrics.selectionRingInflate;
+      const stroke = _ActivityGridMetrics.selectionRingStroke;
+      final ringRect = rect.inflate(inflate);
+      final ringRadius = Radius.circular(cellCornerRadius + inflate);
       final ringPaint = Paint()
         ..color = colorAccentGold
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5;
+        ..strokeWidth = stroke;
       canvas.drawRRect(
         RRect.fromRectAndRadius(ringRect, ringRadius),
         ringPaint,
@@ -727,7 +770,11 @@ class ActivityGridPainter extends CustomPainter {
     }
   }
 
-  String _formatYYYYMMDD(DateTime d) {
+  /// Shared `YYYY-MM-DD` formatter for the painter, hit-tester, and
+  /// any consumer (e.g. `artist_page_screen._utcDateStr`) that needs
+  /// to match against ActivityDay.date strings. Public + static so
+  /// the three call sites can converge without exporting the painter.
+  static String formatYYYYMMDD(DateTime d) {
     final y = d.year.toString().padLeft(4, '0');
     final m = d.month.toString().padLeft(2, '0');
     final day = d.day.toString().padLeft(2, '0');

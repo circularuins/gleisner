@@ -74,6 +74,34 @@ void main() {
       expect(find.text(_l10n(tester).activitySummary(8)), findsOneWidget);
     });
 
+    testWidgets(
+      'summary excludes counts from empty-date entries (consistency '
+      'with the filtered grid)',
+      (tester) async {
+        // An empty-string date can sneak in via the lenient
+        // `ActivityDay.fromJson` path. The grid filters it out so it
+        // never renders a cell; the summary count has to follow suit
+        // or the visible total stops matching the visible cells.
+        await tester.pumpWidget(
+          _harness(
+            child: ActivityGrid(
+              series: const [
+                ActivityDay(date: '2026-05-01', count: 3),
+                ActivityDay(date: '', count: 99), // phantom entry
+                ActivityDay(date: '2026-05-02', count: 5),
+              ],
+              joinedDate: DateTime.utc(2026, 1, 1),
+            ),
+          ),
+        );
+        await tester.pump();
+        // Only 3 + 5 = 8 should be visible; the phantom 99 must not
+        // leak into the summary string.
+        expect(find.text(_l10n(tester).activitySummary(8)), findsOneWidget);
+        expect(find.text(_l10n(tester).activitySummary(107)), findsNothing);
+      },
+    );
+
     testWidgets('shows the empty-state copy when the series is empty', (
       tester,
     ) async {

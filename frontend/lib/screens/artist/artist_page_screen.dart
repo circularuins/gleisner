@@ -53,6 +53,15 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
   /// returning visitors always land on "what they posted last".
   String? _selectedDate;
 
+  /// Memoised `{ YYYY-MM-DD → posts }` grouping of the artist's
+  /// windowedPosts. Rebuilt whenever the underlying list reference
+  /// changes (which the provider does on every refetch). Without this
+  /// cache the day-posts builder runs an O(N) filter on every
+  /// AnimatedBuilder tick of the activity grid pulse — 500 posts × 60
+  /// fps on lower-end devices is visible.
+  Map<String, List<Post>> _postsByDate = const {};
+  List<Post>? _postsByDateSource;
+
   @override
   void initState() {
     super.initState();
@@ -71,6 +80,19 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
     });
   }
 
+  @override
+  void didUpdateWidget(ArtistPageScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Navigating to a different artist must clear the selected-day
+    // state — otherwise a future PageView / cached-route setup would
+    // filter the new artist's posts by the previous artist's date.
+    // The next build picks up `_effectiveSelectedDate`'s default
+    // (most recent active day of the new artist).
+    if (oldWidget.username != widget.username) {
+      _selectedDate = null;
+    }
+  }
+
   void _openPostDetail(Post post) {
     final screenWidth = MediaQuery.of(context).size.width;
     if (isDesktop(screenWidth)) {
@@ -83,23 +105,47 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
   /// Resolve which day the day-posts section should show. Falls back to
   /// the most recent active day from the heatmap series so first-load
   /// always lands somewhere concrete, but a user tap on a cell wins.
+  ///
+  /// We don't rely on backend ordering (`activitySeries[last]`) here.
+  /// `YYYY-MM-DD` strings sort identically to their date semantics, so
+  /// `compareTo`-max gives the right answer even if a future resolver
+  /// change emits the series in a different order, or if a
+  /// hypothetically empty-string date sneaks past `fromJson`.
   String? _effectiveSelectedDate(Artist artist) {
     if (_selectedDate != null) return _selectedDate;
-    if (artist.activitySeries.isEmpty) return null;
-    // activitySeries comes back from the backend already sorted ASC by
-    // date, so `last` is the most recent active day.
-    return artist.activitySeries.last.date;
+    String? maxDate;
+    for (final d in artist.activitySeries) {
+      if (d.date.isEmpty) continue;
+      if (maxDate == null || d.date.compareTo(maxDate) > 0) {
+        maxDate = d.date;
+      }
+    }
+    return maxDate;
   }
 
   /// UTC `YYYY-MM-DD` of a DateTime — used to match `Post.createdAt`
   /// against the date strings the heatmap (and the selection state)
-  /// speak in.
-  static String _utcDateStr(DateTime d) {
-    final utc = d.toUtc();
-    final y = utc.year.toString().padLeft(4, '0');
-    final m = utc.month.toString().padLeft(2, '0');
-    final day = utc.day.toString().padLeft(2, '0');
-    return '$y-$m-$day';
+  /// speak in. Delegates to the painter's shared formatter so all
+  /// three call sites (painter, hit-tester, day-posts filter) agree
+  /// on the exact representation.
+  static String _utcDateStr(DateTime d) =>
+      ActivityGridPainter.formatYYYYMMDD(d.toUtc());
+
+  /// Rebuild `_postsByDate` only when the windowedPosts list itself
+  /// changes reference. Provider gives us a fresh list on every
+  /// refetch, so reference equality is exactly the signal we want;
+  /// the AnimatedBuilder ticks of the activity grid pulse never
+  /// allocate a new list and therefore never re-run the grouping.
+  Map<String, List<Post>> _postsByDateFor(List<Post> posts) {
+    if (identical(_postsByDateSource, posts)) return _postsByDate;
+    final next = <String, List<Post>>{};
+    for (final p in posts) {
+      final key = _utcDateStr(p.createdAt);
+      (next[key] ??= <Post>[]).add(p);
+    }
+    _postsByDate = next;
+    _postsByDateSource = posts;
+    return _postsByDate;
   }
 
   Widget _buildSidePanel(ArtistPageState state) {
@@ -406,17 +452,17 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                       builder: (context) {
                                         final effectiveDate =
                                             _effectiveSelectedDate(artist);
+                                        // O(1) lookup against the
+                                        // memoised grouping. Recomputes
+                                        // only when the windowedPosts
+                                        // list reference changes.
+                                        final byDate = _postsByDateFor(
+                                          state.windowedPosts,
+                                        );
                                         final dayPosts = effectiveDate == null
                                             ? const <Post>[]
-                                            : state.windowedPosts
-                                                  .where(
-                                                    (p) =>
-                                                        _utcDateStr(
-                                                          p.createdAt,
-                                                        ) ==
-                                                        effectiveDate,
-                                                  )
-                                                  .toList();
+                                            : (byDate[effectiveDate] ??
+                                                  const <Post>[]);
                                         return Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,

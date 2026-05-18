@@ -1596,14 +1596,23 @@ builder.objectFields(ArtistType, (t) => ({
     description:
       "Posts within the activity heatmap's 365-day window, most recent " +
       "first. Same authorization as `recentPosts`. Capped at 500 rows " +
-      "(Phase 0 bound).",
+      "for self (own artist page may legitimately have a year of " +
+      "drafts + publics) and at 60 rows for non-self / anonymous " +
+      "viewers — that's still ~2 posts/day for the busiest realistic " +
+      "Phase-0 artists while limiting the R2 metadata fan-out for " +
+      "third-party readers.",
     resolve: async (artist, _args, ctx) => {
       // Deep-path guard — recompute access even when the parent artist
       // was prefetched without authorization (#250 sec-1).
       const access = await checkArtistAccess(artist.id, ctx.authUser);
       if (!access.accessible) return [];
+      // `sql\`true\`` instead of `undefined` so the type-level shape of
+      // the WHERE clause is "always-present condition" rather than
+      // "implementation-dependent absence". Drizzle's `and(undefined)`
+      // happens to skip the term, but expressing the no-op explicitly
+      // makes a future refactor of `checkArtistAccess` safer.
       const visibilityFilter = access.isSelf
-        ? undefined
+        ? sql`true`
         : eq(posts.visibility, "public");
 
       const horizon = new Date(Date.now() - 365 * 86_400_000);
@@ -1611,6 +1620,11 @@ builder.objectFields(ArtistType, (t) => ({
         artist.createdAt.getTime() > horizon.getTime()
           ? artist.createdAt
           : horizon;
+
+      // Phase-0 cap: self can pull the full year; non-self viewers
+      // get a tighter cap that still covers the densest realistic
+      // posting cadence (~2/day for 30 days, or 1/day for ~2 months).
+      const limit = access.isSelf ? 500 : 60;
 
       const rows = await selectPostsWithTrackAndAuthor()
         .where(
@@ -1621,7 +1635,7 @@ builder.objectFields(ArtistType, (t) => ({
           ),
         )
         .orderBy(desc(posts.createdAt))
-        .limit(500);
+        .limit(limit);
       // Hide posts authored by child / non-public users from third
       // parties (#250) — same `filterByAuthorVisibility` step as
       // `recentPosts` so the two fields stay strictly aligned.
