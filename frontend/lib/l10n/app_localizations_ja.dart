@@ -1335,4 +1335,20 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get draftRestoredSnackbar => '前回の入力内容を復元しました';
+
+  @override
+  String get starCalendarTitle => '星暦';
+
+  @override
+  String get starCalendarEmpty => 'これから星が灯ります';
+
+  @override
+  String starCalendarPostsForDate(String date, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count件の投稿',
+    );
+    return '$date · $_temp0';
+  }
 }

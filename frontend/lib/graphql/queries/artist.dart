@@ -10,6 +10,12 @@ const _artistFields = '''
       coverImageUrl
       profileVisibility
       tunedInCount
+      createdAt
+      activitySeries {
+        date
+        count
+      }
+      lastPostedAt
       tracks {
         id
         name

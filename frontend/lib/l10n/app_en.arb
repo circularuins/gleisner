@@ -688,5 +688,21 @@
   "draftRestoredSnackbar": "Restored your previous draft.",
   "@draftRestoredSnackbar": {
     "description": "Snackbar shown when the post composer opens and finds a previously-saved draft for the current user. Confirms to the user that text and selections they entered before an unexpected closure are now back."
+  },
+  "starCalendarTitle": "Star Calendar",
+  "@starCalendarTitle": {
+    "description": "Section header above the activity heatmap on the artist page. The heatmap reinterprets the artist's daily posting activity as a night sky — empty days are voids and posted days are stars whose brightness scales with post count."
+  },
+  "starCalendarEmpty": "Your stars will light up here.",
+  "@starCalendarEmpty": {
+    "description": "Empty-state message shown inside the star calendar when the artist has registered but has not posted anything yet. Tone is encouraging — implies activity will eventually appear — not apologetic."
+  },
+  "starCalendarPostsForDate": "{date} · {count, plural, =1{1 post} other{{count} posts}}",
+  "@starCalendarPostsForDate": {
+    "description": "Per-cell label for the star calendar (date + post count for that day). Currently unused at the UI level — the heatmap is decoration-only in Phase 0 — but kept ahead of the Phase 1 'tap a cell to open that day's posts' interaction, which will surface this string as both the cell's tooltip and its semantics label. Pluralises 'post'/'posts' in English; Japanese omits the distinction.",
+    "placeholders": {
+      "date": { "type": "String" },
+      "count": { "type": "int" }
+    }
   }
 }

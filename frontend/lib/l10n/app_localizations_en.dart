@@ -1378,4 +1378,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get draftRestoredSnackbar => 'Restored your previous draft.';
+
+  @override
+  String get starCalendarTitle => 'Star Calendar';
+
+  @override
+  String get starCalendarEmpty => 'Your stars will light up here.';
+
+  @override
+  String starCalendarPostsForDate(String date, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count posts',
+      one: '1 post',
+    );
+    return '$date · $_temp0';
+  }
 }

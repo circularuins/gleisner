@@ -52,6 +52,36 @@ const colorPaperAged = Color(0xFFe8d3a8);
 const colorPaperAgingTint = Color(0xFF8b6e3f);
 
 // ---------------------------------------------------------------------------
+// Star calendar palette (Idea 032)
+// ---------------------------------------------------------------------------
+// The activity heatmap reinterprets the GitHub contribution grid as a star
+// chart. Empty cells are voids of deep space; posted days are stars whose
+// brightness scales with the post count, with high-activity days tinted
+// cyan/violet to read as small nebulae.
+
+/// Deep-space void color for cells with zero posts. Sits one shade below
+/// `colorSurface0` so the calendar grid feels like a window onto the sky
+/// rather than another panel on the artist page.
+const colorStarVoid = Color(0xFF0a0e1a);
+
+/// Single faint star — 1 post in a day. Low-opacity white.
+const colorStarFaint = Color(0xFFccccdd);
+
+/// Brighter star — 2-3 posts. Off-white with subtle warmth.
+const colorStarBright = Color(0xFFe8e8f0);
+
+/// Brightest single star — 4-6 posts. Reads almost pure white at fill.
+const colorStarBrightest = Color(0xFFf5f5fa);
+
+/// Nebula tint for the brightest cluster (7+ posts). Cyan signals
+/// streak-level activity; mixed at low alpha over the brightest star color.
+const colorStarNebulaCyan = Color(0xFF22d3ee);
+
+/// Alternative nebula tint, reserved for future opt-in palettes
+/// (themes, special days). Not used in the v1 heatmap.
+const colorStarNebulaViolet = Color(0xFF8b88ff);
+
+// ---------------------------------------------------------------------------
 // Typography — Font sizes (6-step scale)
 // ---------------------------------------------------------------------------
 

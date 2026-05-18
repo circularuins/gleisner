@@ -2545,6 +2545,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restored your previous draft.'**
   String get draftRestoredSnackbar;
+
+  /// Section header above the activity heatmap on the artist page. The heatmap reinterprets the artist's daily posting activity as a night sky — empty days are voids and posted days are stars whose brightness scales with post count.
+  ///
+  /// In en, this message translates to:
+  /// **'Star Calendar'**
+  String get starCalendarTitle;
+
+  /// Empty-state message shown inside the star calendar when the artist has registered but has not posted anything yet. Tone is encouraging — implies activity will eventually appear — not apologetic.
+  ///
+  /// In en, this message translates to:
+  /// **'Your stars will light up here.'**
+  String get starCalendarEmpty;
+
+  /// Per-cell label for the star calendar (date + post count for that day). Currently unused at the UI level — the heatmap is decoration-only in Phase 0 — but kept ahead of the Phase 1 'tap a cell to open that day's posts' interaction, which will surface this string as both the cell's tooltip and its semantics label. Pluralises 'post'/'posts' in English; Japanese omits the distinction.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} · {count, plural, =1{1 post} other{{count} posts}}'**
+  String starCalendarPostsForDate(String date, int count);
 }
 
 class _AppLocalizationsDelegate

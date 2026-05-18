@@ -20,6 +20,7 @@ import '../../theme/gleisner_tokens.dart';
 import '../../providers/media_upload_provider.dart';
 import '../../widgets/common/artist_not_found_view.dart';
 import '../../widgets/media/avatar_image.dart';
+import '../../widgets/artist/star_calendar.dart';
 import '../../widgets/media/cover_image.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
@@ -357,6 +358,17 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                           }
                                         },
                                       ),
+
+                                    // Star Calendar (Idea 032) — daily
+                                    // activity heatmap themed as a night
+                                    // sky. Visible to every viewer; the
+                                    // backend resolver clamps the series
+                                    // to public posts for non-self.
+                                    const SizedBox(height: spaceXl),
+                                    StarCalendar(
+                                      series: artist.activitySeries,
+                                      joinedDate: artist.createdAt,
+                                    ),
 
                                     // Genres
                                     if (artist.genres.isNotEmpty || isSelf) ...[

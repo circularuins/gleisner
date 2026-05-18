@@ -81,6 +81,55 @@ class ArtistMilestone {
   }
 }
 
+/// A single day of artist posting activity (Idea 032).
+/// `date` is a UTC date in ISO short form (`YYYY-MM-DD`). The `count`
+/// reflects only posts the viewer is permitted to see.
+class ActivityDay {
+  final String date;
+  final int count;
+
+  const ActivityDay({required this.date, required this.count});
+
+  /// Parse the date string to DateTime at noon UTC for layout positioning.
+  /// Noon avoids the timezone-boundary off-by-one that would otherwise put
+  /// a YYYY-MM-DD cell on the wrong day when the device clock crosses
+  /// midnight relative to UTC.
+  DateTime get utcDate {
+    final parts = date.split('-');
+    return DateTime.utc(
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+      12,
+    );
+  }
+
+  factory ActivityDay.fromJson(Map<String, dynamic> json) {
+    // Lenient casts (`num?` → `toInt()`, `String?`) so a malformed
+    // response or a future field-type drift doesn't crash the entire
+    // artist page. Days that fail to parse silently collapse to an
+    // empty cell, which is the right UX trade-off for a decorative
+    // surface (Idea 032).
+    return ActivityDay(
+      date: (json['date'] as String?) ?? '',
+      count: (json['count'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// Lenient ISO 8601 parser. Returns null on `FormatException` rather than
+/// crashing the caller — used for optional timestamp fields that arrive on
+/// the wire (createdAt, lastPostedAt) where a corrupt value should
+/// degrade gracefully rather than blank the whole artist page.
+DateTime? _tryParseUtc(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  try {
+    return DateTime.parse(raw).toUtc();
+  } on FormatException {
+    return null;
+  }
+}
+
 class Artist {
   final String id;
   final String artistUsername;
@@ -98,6 +147,16 @@ class Artist {
   final List<ArtistGenre> genres;
   final List<ArtistLink> links;
   final List<ArtistMilestone> milestones;
+  // Idea 032 — activity heatmap surface. `createdAt` anchors the star
+  // calendar to the artist's registration day so the leftmost column lines
+  // up with the day the artist joined. Nullable because not every query
+  // (e.g. `discoverArtistsQuery`) requests it; callers that need a
+  // calendar (StarCalendar) treat null as "skip the grid" rather than
+  // backfilling a sentinel epoch date which would render as 52 weeks of
+  // empty cells.
+  final DateTime? createdAt;
+  final List<ActivityDay> activitySeries;
+  final DateTime? lastPostedAt;
 
   const Artist({
     required this.id,
@@ -115,6 +174,9 @@ class Artist {
     this.genres = const [],
     this.links = const [],
     this.milestones = const [],
+    this.createdAt,
+    this.activitySeries = const [],
+    this.lastPostedAt,
   });
 
   Artist withTrack(Track track) => Artist(
@@ -133,6 +195,9 @@ class Artist {
     genres: genres,
     links: links,
     milestones: milestones,
+    createdAt: createdAt,
+    activitySeries: activitySeries,
+    lastPostedAt: lastPostedAt,
   );
 
   Artist copyWithMilestones(List<ArtistMilestone> newMilestones) => Artist(
@@ -151,6 +216,9 @@ class Artist {
     genres: genres,
     links: links,
     milestones: newMilestones,
+    createdAt: createdAt,
+    activitySeries: activitySeries,
+    lastPostedAt: lastPostedAt,
   );
 
   factory Artist.fromJson(Map<String, dynamic> json) {
@@ -186,6 +254,16 @@ class Artist {
               ?.map((m) => ArtistMilestone.fromJson(m as Map<String, dynamic>))
               .toList() ??
           [],
+      // Both timestamps go through `_tryParseUtc` so a malformed wire
+      // value (corrupt cache, future schema drift) returns null rather
+      // than throwing FormatException and blanking the artist page.
+      createdAt: _tryParseUtc(json['createdAt'] as String?),
+      activitySeries:
+          (json['activitySeries'] as List<dynamic>?)
+              ?.map((a) => ActivityDay.fromJson(a as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      lastPostedAt: _tryParseUtc(json['lastPostedAt'] as String?),
     );
   }
 }
