@@ -1337,18 +1337,45 @@ class AppLocalizationsJa extends AppLocalizations {
   String get draftRestoredSnackbar => '前回の入力内容を復元しました';
 
   @override
-  String get starCalendarTitle => '星暦';
+  String get activityTitle => 'アクティビティ';
 
   @override
-  String get starCalendarEmpty => 'これから星が灯ります';
-
-  @override
-  String starCalendarPostsForDate(String date, int count) {
+  String activitySummary(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count件の投稿',
+      other: '過去 1 年で $count 件の投稿',
+      zero: '過去 1 年で投稿はありません',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get activityEmpty => 'これから星が灯ります';
+
+  @override
+  String get activityLegendLess => '少';
+
+  @override
+  String get activityLegendMore => '多';
+
+  @override
+  String activityPostsForDate(String date, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 件の投稿',
     );
     return '$date · $_temp0';
+  }
+
+  @override
+  String dayPostsHeader(String date, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 件',
+    );
+    return '$date の投稿 ($_temp0)';
   }
 }

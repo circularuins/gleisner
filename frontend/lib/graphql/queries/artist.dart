@@ -51,8 +51,13 @@ const _artistFields = '''
       }
 ''';
 
-const _recentPostFields = '''
-      recentPosts(limit: 6) {
+// Every post visible inside the 365-day activity window. Replaces the
+// old `recentPosts(limit: 6)` field on the artist page so a single
+// query feeds both the heatmap and the per-day post list under it
+// (Idea 032). Same shape as `_recentPostFields` was — the consumer
+// (`DayPostsSection`) renders the same cards.
+const _windowedPostFields = '''
+      windowedPosts {
         id
         mediaType
         title
@@ -85,7 +90,7 @@ const artistQuery =
   query Artist(\$username: String!) {
     artist(username: \$username) {
 $_artistFields
-$_recentPostFields
+$_windowedPostFields
     }
   }
 ''';

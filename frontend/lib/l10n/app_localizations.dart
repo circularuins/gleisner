@@ -2546,23 +2546,47 @@ abstract class AppLocalizations {
   /// **'Restored your previous draft.'**
   String get draftRestoredSnackbar;
 
-  /// Section header above the activity heatmap on the artist page. The heatmap reinterprets the artist's daily posting activity as a night sky — empty days are voids and posted days are stars whose brightness scales with post count.
+  /// Section header above the GitHub-style activity grid on the artist page. Plain and direct — the grid below speaks for itself.
   ///
   /// In en, this message translates to:
-  /// **'Star Calendar'**
-  String get starCalendarTitle;
+  /// **'Activity'**
+  String get activityTitle;
 
-  /// Empty-state message shown inside the star calendar when the artist has registered but has not posted anything yet. Tone is encouraging — implies activity will eventually appear — not apologetic.
+  /// Subtitle beneath the Activity heading, summarising total post count over the heatmap window. Mirrors GitHub's 'N contributions in the last year' line. Pluralises post/posts.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No posts in the last year} =1{1 post in the last year} other{{count} posts in the last year}}'**
+  String activitySummary(int count);
+
+  /// Tiny encouraging copy shown beneath the grid when the artist has zero posts in the visible window. The phrasing keeps the universe metaphor without baking it into the section title.
   ///
   /// In en, this message translates to:
   /// **'Your stars will light up here.'**
-  String get starCalendarEmpty;
+  String get activityEmpty;
 
-  /// Per-cell label for the star calendar (date + post count for that day). Currently unused at the UI level — the heatmap is decoration-only in Phase 0 — but kept ahead of the Phase 1 'tap a cell to open that day's posts' interaction, which will surface this string as both the cell's tooltip and its semantics label. Pluralises 'post'/'posts' in English; Japanese omits the distinction.
+  /// Left side of the colour-intensity legend below the activity grid. Mirrors GitHub's 'Less' label. Keep short — one word.
+  ///
+  /// In en, this message translates to:
+  /// **'Less'**
+  String get activityLegendLess;
+
+  /// Right side of the colour-intensity legend below the activity grid. Mirrors GitHub's 'More' label. Keep short — one word.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get activityLegendMore;
+
+  /// Per-cell label for the activity grid (date + post count for that day). Currently unused at the UI level — the grid is decoration-only in Phase 0 — but kept ahead of the Phase 1 'tap a cell to open that day's posts' interaction, which will surface this string as both the cell's tooltip and its semantics label. Pluralises 'post'/'posts' in English; Japanese omits the distinction.
   ///
   /// In en, this message translates to:
   /// **'{date} · {count, plural, =1{1 post} other{{count} posts}}'**
-  String starCalendarPostsForDate(String date, int count);
+  String activityPostsForDate(String date, int count);
+
+  /// Header for the post list under the activity grid. Shown when the user taps an active cell — or on first load for the most recent active day. `date` is preformatted as yyyy/MM/dd by the widget, so no further locale handling here. Pluralises post/posts in English; Japanese flips the word order to put the date first.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 post} other{{count} posts}} on {date}'**
+  String dayPostsHeader(String date, int count);
 }
 
 class _AppLocalizationsDelegate

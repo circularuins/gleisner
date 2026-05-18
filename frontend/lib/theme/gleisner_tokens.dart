@@ -52,34 +52,33 @@ const colorPaperAged = Color(0xFFe8d3a8);
 const colorPaperAgingTint = Color(0xFF8b6e3f);
 
 // ---------------------------------------------------------------------------
-// Star calendar palette (Idea 032)
+// Activity grid palette (Idea 032)
 // ---------------------------------------------------------------------------
-// The activity heatmap reinterprets the GitHub contribution grid as a star
-// chart. Empty cells are voids of deep space; posted days are stars whose
-// brightness scales with the post count, with high-activity days tinted
-// cyan/violet to read as small nebulae.
+// GitHub-style contribution grid reinterpreted in Gleisner's universe
+// vocabulary: cells are calendar squares for legibility, but active ones
+// glow with the same track-palette cyan/violet that the rest of the
+// product uses for "alive" surfaces. Tier brightness is achieved by
+// alpha-layering the base hue over a dark empty cell; the top tier
+// blends toward violet to read as a small nebula.
 
-/// Deep-space void color for cells with zero posts. Sits one shade below
-/// `colorSurface0` so the calendar grid feels like a window onto the sky
-/// rather than another panel on the artist page.
-const colorStarVoid = Color(0xFF0a0e1a);
+/// Empty / inactive cell. Sits one shade above `colorSurface1` so the
+/// grid reads as a discrete shape rather than transparent voids, but
+/// stays muted enough that the active cells dominate visually.
+const colorActivityEmpty = Color(0xFF1f1f2e);
 
-/// Single faint star — 1 post in a day. Low-opacity white.
-const colorStarFaint = Color(0xFFccccdd);
+/// Base hue for active cells — track-palette cyan. Layered at rising
+/// alpha across the four post-count tiers and blended toward
+/// `colorActivityHigh` at the nebula tier.
+const colorActivityBase = Color(0xFF22d3ee);
 
-/// Brighter star — 2-3 posts. Off-white with subtle warmth.
-const colorStarBright = Color(0xFFe8e8f0);
+/// Top-tier accent — track-palette violet. Used for the 7+ posts
+/// nebula tier's cell tint, its outer halo, and the legend's
+/// rightmost swatch.
+const colorActivityHigh = Color(0xFF8b5cf6);
 
-/// Brightest single star — 4-6 posts. Reads almost pure white at fill.
-const colorStarBrightest = Color(0xFFf5f5fa);
-
-/// Nebula tint for the brightest cluster (7+ posts). Cyan signals
-/// streak-level activity; mixed at low alpha over the brightest star color.
-const colorStarNebulaCyan = Color(0xFF22d3ee);
-
-/// Alternative nebula tint, reserved for future opt-in palettes
-/// (themes, special days). Not used in the v1 heatmap.
-const colorStarNebulaViolet = Color(0xFF8b88ff);
+/// Tiny inner sparkle drawn on top-tier cells to give them a star /
+/// lens-flare quality without sacrificing the calendar shape.
+const colorActivitySparkle = Color(0xFFf5f5fa);
 
 // ---------------------------------------------------------------------------
 // Typography — Font sizes (6-step scale)

@@ -460,7 +460,11 @@
   "discardButton": "破棄する",
   "keepEditingButton": "編集を続ける",
   "draftRestoredSnackbar": "前回の入力内容を復元しました",
-  "starCalendarTitle": "星暦",
-  "starCalendarEmpty": "これから星が灯ります",
-  "starCalendarPostsForDate": "{date} · {count, plural, other{{count}件の投稿}}"
+  "activityTitle": "アクティビティ",
+  "activitySummary": "{count, plural, =0{過去 1 年で投稿はありません} other{過去 1 年で {count} 件の投稿}}",
+  "activityEmpty": "これから星が灯ります",
+  "activityLegendLess": "少",
+  "activityLegendMore": "多",
+  "activityPostsForDate": "{date} · {count, plural, other{{count} 件の投稿}}",
+  "dayPostsHeader": "{date} の投稿 ({count, plural, other{{count} 件}})"
 }
