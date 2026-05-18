@@ -1424,13 +1424,4 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0 on $date';
   }
-
-  @override
-  String get pulseBeaconActiveDay => 'Active within the last day';
-
-  @override
-  String get pulseBeaconActiveWeek => 'Active within the last week';
-
-  @override
-  String get pulseBeaconActiveMonth => 'Active within the last month';
 }

@@ -1378,13 +1378,4 @@ class AppLocalizationsJa extends AppLocalizations {
     );
     return '$date の投稿 ($_temp0)';
   }
-
-  @override
-  String get pulseBeaconActiveDay => '24時間以内に投稿';
-
-  @override
-  String get pulseBeaconActiveWeek => '1週間以内に投稿';
-
-  @override
-  String get pulseBeaconActiveMonth => '1ヶ月以内に投稿';
 }

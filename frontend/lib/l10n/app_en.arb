@@ -727,5 +727,5 @@
       "date": { "type": "String" },
       "count": { "type": "int" }
     }
-  },
+  }
 }
