@@ -190,9 +190,10 @@ builder.objectFields(ArtistType, (t) => ({
 
       // Fallback path (artist / myArtist / featuredArtist / TuneInType.artist).
       // No 365-day clamp here — see field description. The
-      // `posts_author_visibility_created_idx` makes `MAX(created_at)` an
-      // index-only seek per author, so a full-time scan is constant-cost
-      // even on long-lived artists.
+      // `posts_author_visibility_created_idx` covers most of the WHERE
+      // clause; `trackId IS NOT NULL` still costs a heap fetch per
+      // candidate row, which is bounded by posts-per-author. Issue #430
+      // tracks switching to a partial index that drops the heap fetch.
       //
       // postgres.js does not auto-parse aggregate (MAX) results to Date;
       // keep the raw `string | null` and normalize via `new Date(...)`.

@@ -393,6 +393,11 @@ builder.queryFields((t) => ({
       // stays correct even if a future refactor relaxes the outer filter.
       // The extra INNER JOIN is also a perf win — it caps the GROUP BY to
       // users who actually have an artist row.
+      //
+      // Note: the sub-query aggregates across all matching posts on every
+      // `discoverArtists` call. Issue #431 tracks materialising
+      // `artists.last_posted_at` so the GROUP BY can be replaced with a
+      // direct column read once Phase 1 scale demands it.
       const lastPostSq = db
         .select({
           authorId: posts.authorId,

@@ -33,9 +33,12 @@ import {
 
 type App = Awaited<ReturnType<typeof getTestApp>>;
 
-/** Shape returned by ARTIST_ACTIVITY_QUERY — used to DRY up casts. */
+/**
+ * Shape returned by ARTIST_ACTIVITY_QUERY — used to DRY up casts. `id` is
+ * returned by the query but never asserted in this file, so it's omitted
+ * from the type to keep assertions focused on the activity surface.
+ */
 interface ArtistActivityResult {
-  id: string;
   activitySeries: Array<{ date: string; count: number }>;
   lastPostedAt: string | null;
 }

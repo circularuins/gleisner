@@ -48,9 +48,12 @@ export interface GraphQLContext {
    * Per-request cache for `Artist.activitySeries` / `Artist.lastPostedAt`
    * authorization checks (Idea 032). Both fields run the same
    * `checkArtistAccess` + Layer-0 author lookup; without this cache, a
-   * client querying both fields on N artists fires 4N round-trips. Key
-   * is `${artistId}:${viewerUserId ?? "anon"}`. Stores `null` for
-   * authorization denials so we don't re-prove them on the second field.
+   * client querying both fields on N artists (where N = the number of
+   * `Artist` rows resolved in the request, typically 1 for an artist
+   * page or up to `discoverArtists.limit` for the Discover list) fires
+   * 4N round-trips. Key is `${artistId}:${viewerUserId ?? "anon"}`.
+   * Stores `null` for authorization denials so we don't re-prove them
+   * on the second field.
    */
   activityAccessCache?: Map<string, { baseConditions: SQL[] } | null>;
 }
