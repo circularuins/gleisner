@@ -20,6 +20,7 @@ import '../../theme/gleisner_tokens.dart';
 import '../../providers/media_upload_provider.dart';
 import '../../widgets/common/artist_not_found_view.dart';
 import '../../widgets/media/avatar_image.dart';
+import '../../widgets/artist/activity_grid.dart';
 import '../../widgets/media/cover_image.dart';
 import '../../providers/unassigned_posts_provider.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
@@ -46,6 +47,21 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
   /// Post shown in the desktop side panel (null = panel closed).
   String? _sidePanelPostId;
 
+  /// `YYYY-MM-DD` of the day the day-posts section is currently
+  /// showing. `null` until the first artist load resolves; on load it
+  /// defaults to the most-recent active day from the heatmap series so
+  /// returning visitors always land on "what they posted last".
+  String? _selectedDate;
+
+  /// Memoised `{ YYYY-MM-DD → posts }` grouping of the artist's
+  /// windowedPosts. Rebuilt whenever the underlying list reference
+  /// changes (which the provider does on every refetch). Without this
+  /// cache the day-posts builder runs an O(N) filter on every
+  /// AnimatedBuilder tick of the activity grid pulse — 500 posts × 60
+  /// fps on lower-end devices is visible.
+  Map<String, List<Post>> _postsByDate = const {};
+  List<Post>? _postsByDateSource;
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +80,19 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
     });
   }
 
+  @override
+  void didUpdateWidget(ArtistPageScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Navigating to a different artist must clear the selected-day
+    // state — otherwise a future PageView / cached-route setup would
+    // filter the new artist's posts by the previous artist's date.
+    // The next build picks up `_effectiveSelectedDate`'s default
+    // (most recent active day of the new artist).
+    if (oldWidget.username != widget.username) {
+      _selectedDate = null;
+    }
+  }
+
   void _openPostDetail(Post post) {
     final screenWidth = MediaQuery.of(context).size.width;
     if (isDesktop(screenWidth)) {
@@ -73,8 +102,54 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
     showPostDetailSheet(context, post);
   }
 
+  /// Resolve which day the day-posts section should show. Falls back to
+  /// the most recent active day from the heatmap series so first-load
+  /// always lands somewhere concrete, but a user tap on a cell wins.
+  ///
+  /// We don't rely on backend ordering (`activitySeries[last]`) here.
+  /// `YYYY-MM-DD` strings sort identically to their date semantics, so
+  /// `compareTo`-max gives the right answer even if a future resolver
+  /// change emits the series in a different order, or if a
+  /// hypothetically empty-string date sneaks past `fromJson`.
+  String? _effectiveSelectedDate(Artist artist) {
+    if (_selectedDate != null) return _selectedDate;
+    String? maxDate;
+    for (final d in artist.activitySeries) {
+      if (d.date.isEmpty) continue;
+      if (maxDate == null || d.date.compareTo(maxDate) > 0) {
+        maxDate = d.date;
+      }
+    }
+    return maxDate;
+  }
+
+  /// UTC `YYYY-MM-DD` of a DateTime — used to match `Post.createdAt`
+  /// against the date strings the heatmap (and the selection state)
+  /// speak in. Delegates to the painter's shared formatter so all
+  /// three call sites (painter, hit-tester, day-posts filter) agree
+  /// on the exact representation.
+  static String _utcDateStr(DateTime d) =>
+      ActivityGridPainter.formatYYYYMMDD(d.toUtc());
+
+  /// Rebuild `_postsByDate` only when the windowedPosts list itself
+  /// changes reference. Provider gives us a fresh list on every
+  /// refetch, so reference equality is exactly the signal we want;
+  /// the AnimatedBuilder ticks of the activity grid pulse never
+  /// allocate a new list and therefore never re-run the grouping.
+  Map<String, List<Post>> _postsByDateFor(List<Post> posts) {
+    if (identical(_postsByDateSource, posts)) return _postsByDate;
+    final next = <String, List<Post>>{};
+    for (final p in posts) {
+      final key = _utcDateStr(p.createdAt);
+      (next[key] ??= <Post>[]).add(p);
+    }
+    _postsByDate = next;
+    _postsByDateSource = posts;
+    return _postsByDate;
+  }
+
   Widget _buildSidePanel(ArtistPageState state) {
-    final post = state.recentPosts
+    final post = state.windowedPosts
         .where((p) => p.id == _sidePanelPostId)
         .firstOrNull;
     if (post == null) return const SizedBox.shrink();
@@ -105,7 +180,7 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
           Expanded(
             child: PostDetailContent(
               post: post,
-              allPosts: state.recentPosts,
+              allPosts: state.windowedPosts,
               embedded: true,
             ),
           ),
@@ -357,6 +432,76 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                           }
                                         },
                                       ),
+
+                                    // Activity grid (Idea 032) — daily
+                                    // post heatmap. GitHub-style cells
+                                    // with track-palette glow. Visible
+                                    // to every viewer; the backend
+                                    // resolver clamps the series to
+                                    // public posts for non-self.
+                                    //
+                                    // Tapping an active cell switches
+                                    // the day-posts section below.
+                                    // `_effectiveSelectedDate` falls
+                                    // back to the most recent active
+                                    // day so first-load users always
+                                    // see something concrete under the
+                                    // grid.
+                                    const SizedBox(height: spaceXl),
+                                    Builder(
+                                      builder: (context) {
+                                        final effectiveDate =
+                                            _effectiveSelectedDate(artist);
+                                        // O(1) lookup against the
+                                        // memoised grouping. Recomputes
+                                        // only when the windowedPosts
+                                        // list reference changes.
+                                        final byDate = _postsByDateFor(
+                                          state.windowedPosts,
+                                        );
+                                        final dayPosts = effectiveDate == null
+                                            ? const <Post>[]
+                                            : (byDate[effectiveDate] ??
+                                                  const <Post>[]);
+                                        return Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            ActivityGrid(
+                                              series: artist.activitySeries,
+                                              joinedDate: artist.createdAt,
+                                              selectedDate: effectiveDate,
+                                              onDateSelected: (date) =>
+                                                  setState(
+                                                    () => _selectedDate = date,
+                                                  ),
+                                            ),
+                                            // Day-posts list (Idea 032) —
+                                            // sits flush against the
+                                            // activity grid above so the
+                                            // selected-cell → post-list
+                                            // connection reads at a glance.
+                                            // Hidden when the artist has no
+                                            // posts or when the selected
+                                            // day somehow has none (race
+                                            // between activitySeries and
+                                            // windowedPosts).
+                                            if (effectiveDate != null &&
+                                                dayPosts.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: spaceLg,
+                                                ),
+                                                child: _DayPostsSection(
+                                                  selectedDate: effectiveDate,
+                                                  posts: dayPosts,
+                                                  onPostTap: _openPostDetail,
+                                                ),
+                                              ),
+                                          ],
+                                        );
+                                      },
+                                    ),
 
                                     // Genres
                                     if (artist.genres.isNotEmpty || isSelf) ...[
@@ -646,45 +791,6 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                             dot: true,
                                           );
                                         }).toList(),
-                                      ),
-                                    ],
-
-                                    // Recent Posts section
-                                    if (state.recentPosts.isNotEmpty) ...[
-                                      const SizedBox(height: spaceXl),
-                                      Text(
-                                        context.l10n.recentPosts.toUpperCase(),
-                                        style: const TextStyle(
-                                          color: colorTextMuted,
-                                          fontSize: fontSizeXs,
-                                          fontWeight: weightSemibold,
-                                          letterSpacing: 1,
-                                        ),
-                                      ),
-                                      const SizedBox(height: spaceMd),
-                                      const SizedBox(height: spaceSm),
-                                      LayoutBuilder(
-                                        builder: (context, constraints) {
-                                          final cardWidth =
-                                              (constraints.maxWidth - spaceSm) /
-                                              2;
-                                          return Wrap(
-                                            spacing: spaceSm,
-                                            runSpacing: spaceSm,
-                                            children: state.recentPosts
-                                                .map(
-                                                  (p) => SizedBox(
-                                                    width: cardWidth,
-                                                    child: _RecentPostCard(
-                                                      post: p,
-                                                      onTap: () =>
-                                                          _openPostDetail(p),
-                                                    ),
-                                                  ),
-                                                )
-                                                .toList(),
-                                          );
-                                        },
                                       ),
                                     ],
 
@@ -1393,6 +1499,70 @@ class _RecentPostCard extends StatelessWidget {
   static Color _parseHex(String hex) {
     final h = hex.replaceFirst('#', '');
     return Color(int.parse('FF$h', radix: 16));
+  }
+}
+
+/// Post list under the activity grid showing whichever day the user
+/// (or the most-recent-active default) has selected. Reuses
+/// [_RecentPostCard] so the card visuals stay aligned with the rest of
+/// the artist page.
+class _DayPostsSection extends StatelessWidget {
+  final String selectedDate; // YYYY-MM-DD (UTC)
+  final List<Post> posts;
+  final void Function(Post post) onPostTap;
+
+  const _DayPostsSection({
+    required this.selectedDate,
+    required this.posts,
+    required this.onPostTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Header date is rendered in `yyyy/MM/dd` regardless of locale —
+    // matches the format the product owner used when designing the
+    // section and stays unambiguous across en/ja.
+    final parts = selectedDate.split('-');
+    final formattedDate = parts.length == 3
+        ? '${parts[0]}/${parts[1]}/${parts[2]}'
+        : selectedDate;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          context.l10n.dayPostsHeader(formattedDate, posts.length),
+          style: const TextStyle(
+            color: colorTextSecondary,
+            fontSize: fontSizeMd,
+            fontWeight: weightSemibold,
+          ),
+        ),
+        const SizedBox(height: spaceMd),
+        // Same 2-column wrap that Recent Posts used. LayoutBuilder so
+        // tablet / desktop widths use the available space without us
+        // hard-coding a card width.
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cardWidth = (constraints.maxWidth - spaceSm) / 2;
+            return Wrap(
+              spacing: spaceSm,
+              runSpacing: spaceSm,
+              children: posts
+                  .map(
+                    (p) => SizedBox(
+                      width: cardWidth,
+                      child: _RecentPostCard(
+                        post: p,
+                        onTap: () => onPostTap(p),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            );
+          },
+        ),
+      ],
+    );
   }
 }
 

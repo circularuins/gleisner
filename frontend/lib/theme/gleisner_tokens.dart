@@ -52,6 +52,35 @@ const colorPaperAged = Color(0xFFe8d3a8);
 const colorPaperAgingTint = Color(0xFF8b6e3f);
 
 // ---------------------------------------------------------------------------
+// Activity grid palette (Idea 032)
+// ---------------------------------------------------------------------------
+// GitHub-style contribution grid reinterpreted in Gleisner's universe
+// vocabulary: cells are calendar squares for legibility, but active ones
+// glow with the same track-palette cyan/violet that the rest of the
+// product uses for "alive" surfaces. Tier brightness is achieved by
+// alpha-layering the base hue over a dark empty cell; the top tier
+// blends toward violet to read as a small nebula.
+
+/// Empty / inactive cell. Sits one shade above `colorSurface1` so the
+/// grid reads as a discrete shape rather than transparent voids, but
+/// stays muted enough that the active cells dominate visually.
+const colorActivityEmpty = Color(0xFF1f1f2e);
+
+/// Base hue for active cells — track-palette cyan. Layered at rising
+/// alpha across the four post-count tiers and blended toward
+/// `colorActivityHigh` at the nebula tier.
+const colorActivityBase = Color(0xFF22d3ee);
+
+/// Top-tier accent — track-palette violet. Used for the 7+ posts
+/// nebula tier's cell tint, its outer halo, and the legend's
+/// rightmost swatch.
+const colorActivityHigh = Color(0xFF8b5cf6);
+
+/// Tiny inner sparkle drawn on top-tier cells to give them a star /
+/// lens-flare quality without sacrificing the calendar shape.
+const colorActivitySparkle = Color(0xFFf5f5fa);
+
+// ---------------------------------------------------------------------------
 // Typography — Font sizes (6-step scale)
 // ---------------------------------------------------------------------------
 

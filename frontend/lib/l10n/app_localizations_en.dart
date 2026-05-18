@@ -1378,4 +1378,50 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get draftRestoredSnackbar => 'Restored your previous draft.';
+
+  @override
+  String get activityTitle => 'Activity';
+
+  @override
+  String activitySummary(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count posts in the last year',
+      one: '1 post in the last year',
+      zero: 'No posts in the last year',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get activityEmpty => 'Your stars will light up here.';
+
+  @override
+  String get activityLegendLess => 'Less';
+
+  @override
+  String get activityLegendMore => 'More';
+
+  @override
+  String activityPostsForDate(String date, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count posts',
+      one: '1 post',
+    );
+    return '$date · $_temp0';
+  }
+
+  @override
+  String dayPostsHeader(String date, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count posts',
+      one: '1 post',
+    );
+    return '$_temp0 on $date';
+  }
 }

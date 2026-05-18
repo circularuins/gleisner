@@ -688,5 +688,44 @@
   "draftRestoredSnackbar": "Restored your previous draft.",
   "@draftRestoredSnackbar": {
     "description": "Snackbar shown when the post composer opens and finds a previously-saved draft for the current user. Confirms to the user that text and selections they entered before an unexpected closure are now back."
+  },
+  "activityTitle": "Activity",
+  "@activityTitle": {
+    "description": "Section header above the GitHub-style activity grid on the artist page. Plain and direct — the grid below speaks for itself."
+  },
+  "activitySummary": "{count, plural, =0{No posts in the last year} =1{1 post in the last year} other{{count} posts in the last year}}",
+  "@activitySummary": {
+    "description": "Subtitle beneath the Activity heading, summarising total post count over the heatmap window. Mirrors GitHub's 'N contributions in the last year' line. Pluralises post/posts.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "activityEmpty": "Your stars will light up here.",
+  "@activityEmpty": {
+    "description": "Tiny encouraging copy shown beneath the grid when the artist has zero posts in the visible window. The phrasing keeps the universe metaphor without baking it into the section title."
+  },
+  "activityLegendLess": "Less",
+  "@activityLegendLess": {
+    "description": "Left side of the colour-intensity legend below the activity grid. Mirrors GitHub's 'Less' label. Keep short — one word."
+  },
+  "activityLegendMore": "More",
+  "@activityLegendMore": {
+    "description": "Right side of the colour-intensity legend below the activity grid. Mirrors GitHub's 'More' label. Keep short — one word."
+  },
+  "activityPostsForDate": "{date} · {count, plural, =1{1 post} other{{count} posts}}",
+  "@activityPostsForDate": {
+    "description": "Per-cell label for the activity grid (date + post count for that day). Currently unused at the UI level — the grid is decoration-only in Phase 0 — but kept ahead of the Phase 1 'tap a cell to open that day's posts' interaction, which will surface this string as both the cell's tooltip and its semantics label. Pluralises 'post'/'posts' in English; Japanese omits the distinction.",
+    "placeholders": {
+      "date": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "dayPostsHeader": "{count, plural, =1{1 post} other{{count} posts}} on {date}",
+  "@dayPostsHeader": {
+    "description": "Header for the post list under the activity grid. Shown when the user taps an active cell — or on first load for the most recent active day. `date` is preformatted as yyyy/MM/dd by the widget, so no further locale handling here. Pluralises post/posts in English; Japanese flips the word order to put the date first.",
+    "placeholders": {
+      "date": { "type": "String" },
+      "count": { "type": "int" }
+    }
   }
 }

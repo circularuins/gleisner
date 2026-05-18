@@ -10,20 +10,20 @@ import 'disposable_notifier.dart';
 
 class ArtistPageState {
   final Artist? artist;
-  final List<Post> recentPosts;
+  final List<Post> windowedPosts;
   final bool isLoading;
   final String? error;
 
   const ArtistPageState({
     this.artist,
-    this.recentPosts = const [],
+    this.windowedPosts = const [],
     this.isLoading = false,
     this.error,
   });
 
   ArtistPageState copyWith({
     Artist? artist,
-    List<Post>? recentPosts,
+    List<Post>? windowedPosts,
     bool? isLoading,
     String? error,
     bool clearError = false,
@@ -31,7 +31,7 @@ class ArtistPageState {
   }) {
     return ArtistPageState(
       artist: clearArtist ? null : (artist ?? this.artist),
-      recentPosts: recentPosts ?? this.recentPosts,
+      windowedPosts: windowedPosts ?? this.windowedPosts,
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
     );
@@ -83,16 +83,20 @@ class ArtistPageNotifier extends Notifier<ArtistPageState>
       final jsonData = data as Map<String, dynamic>;
       final artist = Artist.fromJson(jsonData);
 
-      // Parse recentPosts from the same query response (single RTT, #63)
-      final recentPosts =
-          (jsonData['recentPosts'] as List<dynamic>?)
+      // Parse `windowedPosts` from the same query response (single RTT,
+      // #63). The full 365-day window is loaded eagerly so cell taps on
+      // the activity grid can switch the day-posts list without an
+      // additional round-trip — at Phase 0 scale (~40 posts / artist /
+      // year) this stays cheap.
+      final windowedPosts =
+          (jsonData['windowedPosts'] as List<dynamic>?)
               ?.map((p) => Post.fromJson(p as Map<String, dynamic>))
               .toList() ??
           [];
 
       state = state.copyWith(
         artist: artist,
-        recentPosts: recentPosts,
+        windowedPosts: windowedPosts,
         isLoading: false,
       );
     } catch (e) {

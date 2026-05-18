@@ -8,7 +8,7 @@ import {
   tracks,
   users,
 } from "../../db/schema/index.js";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
 import { TrackType } from "./track.js";
 import type { PublicUserShape } from "./user.js";
@@ -1568,6 +1568,77 @@ builder.objectFields(ArtistType, (t) => ({
         .orderBy(desc(posts.createdAt))
         .limit(limit);
       // Hide posts authored by child / non-public users from third parties (#250).
+      const visibleRows = filterByAuthorVisibility(
+        rows,
+        ctx.authUser?.userId ?? null,
+      );
+      const results = visibleRows.map((r) => ({
+        ...r.post,
+        _track: r.track,
+        _author: r.author,
+      }));
+      await attachPostMedia(results);
+      return results;
+    },
+  }),
+}));
+
+// Add windowedPosts field to ArtistType — drives the per-day post list
+// under the activity heatmap (Idea 032). Same authorization chain as
+// `recentPosts`, but returns every post inside the 365-day window in
+// one request so the client can group by day without paying a
+// round-trip per cell tap. The 500-row cap is a Phase-0 DoS bound — at
+// current scale (~40 posts / artist / year) it's never reached;
+// Phase 1 will paginate if the cap ever becomes restrictive.
+builder.objectFields(ArtistType, (t) => ({
+  windowedPosts: t.field({
+    type: [PostType],
+    description:
+      "Posts within the activity heatmap's 365-day window, most recent " +
+      "first. Same authorization as `recentPosts`. Capped at 500 rows " +
+      "for self (own artist page may legitimately have a year of " +
+      "drafts + publics) and at 60 rows for non-self / anonymous " +
+      "viewers — that's still ~2 posts/day for the busiest realistic " +
+      "Phase-0 artists while limiting the R2 metadata fan-out for " +
+      "third-party readers.",
+    resolve: async (artist, _args, ctx) => {
+      // Deep-path guard — recompute access even when the parent artist
+      // was prefetched without authorization (#250 sec-1).
+      const access = await checkArtistAccess(artist.id, ctx.authUser);
+      if (!access.accessible) return [];
+      // `sql\`true\`` instead of `undefined` so the type-level shape of
+      // the WHERE clause is "always-present condition" rather than
+      // "implementation-dependent absence". Drizzle's `and(undefined)`
+      // happens to skip the term, but expressing the no-op explicitly
+      // makes a future refactor of `checkArtistAccess` safer.
+      const visibilityFilter = access.isSelf
+        ? sql`true`
+        : eq(posts.visibility, "public");
+
+      const horizon = new Date(Date.now() - 365 * 86_400_000);
+      const fromDate =
+        artist.createdAt.getTime() > horizon.getTime()
+          ? artist.createdAt
+          : horizon;
+
+      // Phase-0 cap: self can pull the full year; non-self viewers
+      // get a tighter cap that still covers the densest realistic
+      // posting cadence (~2/day for 30 days, or 1/day for ~2 months).
+      const limit = access.isSelf ? 500 : 60;
+
+      const rows = await selectPostsWithTrackAndAuthor()
+        .where(
+          and(
+            eq(tracks.artistId, artist.id),
+            visibilityFilter,
+            gte(posts.createdAt, fromDate),
+          ),
+        )
+        .orderBy(desc(posts.createdAt))
+        .limit(limit);
+      // Hide posts authored by child / non-public users from third
+      // parties (#250) — same `filterByAuthorVisibility` step as
+      // `recentPosts` so the two fields stay strictly aligned.
       const visibleRows = filterByAuthorVisibility(
         rows,
         ctx.authUser?.userId ?? null,
