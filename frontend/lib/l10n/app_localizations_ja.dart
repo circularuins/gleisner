@@ -812,6 +812,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get manageTracks => 'トラック管理';
 
   @override
+  String get tracksSectionTitle => 'トラック';
+
+  @override
   String tracksCount(int count) {
     return '$count/10 トラック';
   }

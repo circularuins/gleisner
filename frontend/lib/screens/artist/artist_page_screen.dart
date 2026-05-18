@@ -319,98 +319,194 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const SizedBox(height: spaceLg),
-                                    // Avatar
-                                    AvatarImage(
-                                      imageUrl: artist.avatarUrl,
-                                      seed: artist.artistUsername,
-                                      size: 72,
-                                      onTap: isSelf
-                                          ? () => _showAvatarMenu(
-                                              context,
-                                              artist.avatarUrl != null,
-                                            )
-                                          : null,
-                                    ),
-                                    const SizedBox(height: spaceMd),
-
-                                    // Header: name + username + tuned in count
+                                    // Avatar + identity block laid out
+                                    // side-by-side so the about / links
+                                    // sections stay above the fold. The
+                                    // identity column wraps long names
+                                    // up to 2 lines before falling back
+                                    // to an ellipsis — past that the
+                                    // column would push taller than the
+                                    // 72 px avatar and the row would
+                                    // start wasting the saved space.
                                     Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
                                       children: [
-                                        Flexible(
-                                          child: GestureDetector(
-                                            onTap: isSelf
-                                                ? () => _showEditDisplayName(
-                                                    context,
-                                                    artist,
-                                                  )
-                                                : null,
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Flexible(
-                                                  child: Text(
-                                                    artist.displayName ??
-                                                        artist.artistUsername,
-                                                    style: const TextStyle(
-                                                      color: colorTextPrimary,
-                                                      fontSize: fontSizeTitle,
-                                                      fontWeight: weightBold,
-                                                    ),
-                                                  ),
-                                                ),
-                                                if (isSelf) ...[
-                                                  const SizedBox(
-                                                    width: spaceXs,
-                                                  ),
-                                                  const Icon(
-                                                    Icons.edit_outlined,
-                                                    size: 14,
-                                                    color: colorTextMuted,
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                        if (artist.profileVisibility ==
-                                            'private') ...[
-                                          const SizedBox(width: spaceSm),
-                                          const Icon(
-                                            Icons.lock_outline,
-                                            size: 18,
-                                            color: colorTextMuted,
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                    const SizedBox(height: spaceXxs),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          '@${artist.artistUsername}',
-                                          style: const TextStyle(
-                                            color: colorTextMuted,
-                                            fontSize: fontSizeMd,
-                                          ),
+                                        AvatarImage(
+                                          imageUrl: artist.avatarUrl,
+                                          seed: artist.artistUsername,
+                                          size: 72,
+                                          onTap: isSelf
+                                              ? () => _showAvatarMenu(
+                                                  context,
+                                                  artist.avatarUrl != null,
+                                                )
+                                              : null,
                                         ),
                                         const SizedBox(width: spaceMd),
-                                        const Icon(
-                                          Icons.headphones,
-                                          size: 13,
-                                          color: colorTextMuted,
-                                        ),
-                                        const SizedBox(width: spaceXxs),
-                                        Text(
-                                          '${artist.tunedInCount}',
-                                          style: const TextStyle(
-                                            color: colorTextMuted,
-                                            fontSize: fontSizeSm,
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Flexible(
+                                                    child: GestureDetector(
+                                                      onTap: isSelf
+                                                          ? () =>
+                                                                _showEditDisplayName(
+                                                                  context,
+                                                                  artist,
+                                                                )
+                                                          : null,
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Flexible(
+                                                            child: Text(
+                                                              artist.displayName ??
+                                                                  artist
+                                                                      .artistUsername,
+                                                              maxLines: 2,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                              style: const TextStyle(
+                                                                color:
+                                                                    colorTextPrimary,
+                                                                fontSize:
+                                                                    fontSizeXl,
+                                                                fontWeight:
+                                                                    weightBold,
+                                                                height: 1.2,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          if (isSelf) ...[
+                                                            const SizedBox(
+                                                              width: spaceXs,
+                                                            ),
+                                                            const Icon(
+                                                              Icons
+                                                                  .edit_outlined,
+                                                              size: 14,
+                                                              color:
+                                                                  colorTextMuted,
+                                                            ),
+                                                          ],
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (artist
+                                                          .profileVisibility ==
+                                                      'private') ...[
+                                                    const SizedBox(
+                                                      width: spaceSm,
+                                                    ),
+                                                    const Icon(
+                                                      Icons.lock_outline,
+                                                      size: 16,
+                                                      color: colorTextMuted,
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                              const SizedBox(height: spaceXxs),
+                                              Row(
+                                                children: [
+                                                  Flexible(
+                                                    child: Text(
+                                                      '@${artist.artistUsername}',
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        color: colorTextMuted,
+                                                        fontSize: fontSizeSm,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(
+                                                    width: spaceSm,
+                                                  ),
+                                                  const Icon(
+                                                    Icons.headphones,
+                                                    size: 13,
+                                                    color: colorTextMuted,
+                                                  ),
+                                                  const SizedBox(
+                                                    width: spaceXxs,
+                                                  ),
+                                                  Text(
+                                                    '${artist.tunedInCount}',
+                                                    style: const TextStyle(
+                                                      color: colorTextMuted,
+                                                      fontSize: fontSizeSm,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ],
                                     ),
 
                                     const SizedBox(height: spaceLg),
+
+                                    // Genres — kept above the activity
+                                    // grid + Tune In button so the
+                                    // identity-defining tags read first.
+                                    // Activity / about / links sit below.
+                                    if (artist.genres.isNotEmpty || isSelf) ...[
+                                      if (isSelf)
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                context.l10n.genres
+                                                    .toUpperCase(),
+                                                style: const TextStyle(
+                                                  color: colorTextMuted,
+                                                  fontSize: fontSizeXs,
+                                                  fontWeight: weightSemibold,
+                                                  letterSpacing: 1,
+                                                ),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit_outlined,
+                                                size: 18,
+                                                color: colorTextMuted,
+                                              ),
+                                              onPressed: () =>
+                                                  _showEditGenresSheet(
+                                                    context,
+                                                    artist,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      if (artist.genres.isNotEmpty)
+                                        Wrap(
+                                          spacing: spaceSm,
+                                          runSpacing: spaceSm,
+                                          children: artist.genres.map((ag) {
+                                            return _Chip(
+                                              label: ag.genre.name,
+                                              color: colorTextSecondary,
+                                              bgColor: colorSurface2,
+                                              borderColor: colorBorder,
+                                            );
+                                          }).toList(),
+                                        ),
+                                      const SizedBox(height: spaceLg),
+                                    ],
 
                                     // Tune In button (not shown on own page)
                                     if (isAuthenticated && !isSelf)
@@ -502,53 +598,6 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                         );
                                       },
                                     ),
-
-                                    // Genres
-                                    if (artist.genres.isNotEmpty || isSelf) ...[
-                                      const SizedBox(height: spaceXl),
-                                      if (isSelf)
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                context.l10n.genres
-                                                    .toUpperCase(),
-                                                style: const TextStyle(
-                                                  color: colorTextMuted,
-                                                  fontSize: fontSizeXs,
-                                                  fontWeight: weightSemibold,
-                                                  letterSpacing: 1,
-                                                ),
-                                              ),
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.edit_outlined,
-                                                size: 18,
-                                                color: colorTextMuted,
-                                              ),
-                                              onPressed: () =>
-                                                  _showEditGenresSheet(
-                                                    context,
-                                                    artist,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                      if (artist.genres.isNotEmpty)
-                                        Wrap(
-                                          spacing: spaceSm,
-                                          runSpacing: spaceSm,
-                                          children: artist.genres.map((ag) {
-                                            return _Chip(
-                                              label: ag.genre.name,
-                                              color: colorTextSecondary,
-                                              bgColor: colorSurface2,
-                                              borderColor: colorBorder,
-                                            );
-                                          }).toList(),
-                                        ),
-                                    ],
 
                                     // About section
                                     if (isSelf ||
@@ -743,7 +792,13 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              context.l10n.manageTracks
+                                              (isSelf
+                                                      ? context
+                                                            .l10n
+                                                            .manageTracks
+                                                      : context
+                                                            .l10n
+                                                            .tracksSectionTitle)
                                                   .toUpperCase(),
                                               style: const TextStyle(
                                                 color: colorTextMuted,
@@ -768,14 +823,20 @@ class _ArtistPageScreenState extends ConsumerState<ArtistPageScreen> {
                                             ),
                                         ],
                                       ),
-                                      const SizedBox(height: spaceXxs),
-                                      Text(
-                                        context.l10n.selectTracksProfile,
-                                        style: const TextStyle(
-                                          color: colorTextMuted,
-                                          fontSize: fontSizeXs,
+                                      // "Select Tracks for Your Profile"
+                                      // is owner-only guidance — visitors
+                                      // shouldn't see it on someone else's
+                                      // page.
+                                      if (isSelf) ...[
+                                        const SizedBox(height: spaceXxs),
+                                        Text(
+                                          context.l10n.selectTracksProfile,
+                                          style: const TextStyle(
+                                            color: colorTextMuted,
+                                            fontSize: fontSizeXs,
+                                          ),
                                         ),
-                                      ),
+                                      ],
                                       const SizedBox(height: spaceMd),
                                       Wrap(
                                         spacing: spaceSm,
@@ -1502,6 +1563,19 @@ class _RecentPostCard extends StatelessWidget {
   }
 }
 
+/// Fixed compact card width for the horizontal day-posts strip. Narrower
+/// than the previous 2-column layout (~152 px on mobile, ~300 px on
+/// desktop) so the about / links / milestones sections stay above the
+/// fold on first view. Title wraps to 2 lines aggressively at this
+/// width — `_RecentPostCard` is designed for it.
+const double _dayPostCardWidth = 100;
+
+/// Fixed row height that fits a card with a track-name header, a 2-line
+/// title, and an optional reaction row. Cards without reactions show a
+/// small bottom gap, which is preferable to row misalignment across
+/// cards with different content shapes.
+const double _dayPostCardHeight = 112;
+
 /// Post list under the activity grid showing whichever day the user
 /// (or the most-recent-active default) has selected. Reuses
 /// [_RecentPostCard] so the card visuals stay aligned with the rest of
@@ -1538,28 +1612,25 @@ class _DayPostsSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: spaceMd),
-        // Same 2-column wrap that Recent Posts used. LayoutBuilder so
-        // tablet / desktop widths use the available space without us
-        // hard-coding a card width.
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final cardWidth = (constraints.maxWidth - spaceSm) / 2;
-            return Wrap(
-              spacing: spaceSm,
-              runSpacing: spaceSm,
-              children: posts
-                  .map(
-                    (p) => SizedBox(
-                      width: cardWidth,
-                      child: _RecentPostCard(
-                        post: p,
-                        onTap: () => onPostTap(p),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            );
-          },
+        // Horizontal scrollable strip — keeps the about / links / etc.
+        // sections above the fold by capping the day-posts area to a
+        // single card row instead of a growing 2-column wrap. Cards
+        // share a fixed compact width so the row scrolls naturally
+        // regardless of viewport.
+        SizedBox(
+          height: _dayPostCardHeight,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: posts.length,
+            separatorBuilder: (_, _) => const SizedBox(width: spaceSm),
+            itemBuilder: (context, i) => SizedBox(
+              width: _dayPostCardWidth,
+              child: _RecentPostCard(
+                post: posts[i],
+                onTap: () => onPostTap(posts[i]),
+              ),
+            ),
+          ),
         ),
       ],
     );

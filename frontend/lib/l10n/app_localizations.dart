@@ -1592,6 +1592,12 @@ abstract class AppLocalizations {
   /// **'Manage Tracks'**
   String get manageTracks;
 
+  /// Tracks section header on another artist's page (visitor view). Self view uses `manageTracks` instead.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracks'**
+  String get tracksSectionTitle;
+
   /// No description provided for @tracksCount.
   ///
   /// In en, this message translates to:

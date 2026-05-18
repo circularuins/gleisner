@@ -275,6 +275,7 @@
   "current": "現在",
   "available": "利用可能",
   "manageTracks": "トラック管理",
+  "tracksSectionTitle": "トラック",
   "tracksCount": "{count}/10 トラック",
   "noTracksYet": "トラックがありません。+をタップして追加してください。",
   "deleteTrackConfirm": "{trackName} を削除しますか？",

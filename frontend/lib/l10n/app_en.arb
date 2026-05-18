@@ -303,6 +303,10 @@
   "current": "CURRENT",
   "available": "AVAILABLE",
   "manageTracks": "Manage Tracks",
+  "tracksSectionTitle": "Tracks",
+  "@tracksSectionTitle": {
+    "description": "Tracks section header on another artist's page (visitor view). Self view uses `manageTracks` instead."
+  },
   "tracksCount": "{count}/10 tracks",
   "@tracksCount": { "placeholders": { "count": { "type": "int" } } },
   "noTracksYet": "No tracks yet. Tap + to add one.",

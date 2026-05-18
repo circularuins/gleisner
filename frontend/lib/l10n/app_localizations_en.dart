@@ -841,6 +841,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get manageTracks => 'Manage Tracks';
 
   @override
+  String get tracksSectionTitle => 'Tracks';
+
+  @override
   String tracksCount(int count) {
     return '$count/10 tracks';
   }
