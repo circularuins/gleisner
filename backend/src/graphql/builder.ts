@@ -1,4 +1,5 @@
 import SchemaBuilder from "@pothos/core";
+import type { SQL } from "drizzle-orm";
 import type { AuthUser } from "../auth/middleware.js";
 import type { artists } from "../db/schema/index.js";
 // `import type` erases at compile time, so this does not create a runtime
@@ -43,6 +44,15 @@ export interface GraphQLContext {
    * `publicUserColumns` shape here.
    */
   tuneInUserCache?: Map<string, PublicUserShape>;
+  /**
+   * Per-request cache for `Artist.activitySeries` / `Artist.lastPostedAt`
+   * authorization checks (Idea 032). Both fields run the same
+   * `checkArtistAccess` + Layer-0 author lookup; without this cache, a
+   * client querying both fields on N artists fires 4N round-trips. Key
+   * is `${artistId}:${viewerUserId ?? "anon"}`. Stores `null` for
+   * authorization denials so we don't re-prove them on the second field.
+   */
+  activityAccessCache?: Map<string, { baseConditions: SQL[] } | null>;
 }
 
 export const builder = new SchemaBuilder<{

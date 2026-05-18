@@ -32,6 +32,7 @@ import { and, eq, gte, sql, type SQL } from "drizzle-orm";
 import { ArtistType } from "./artist.js";
 import { checkArtistAccess, isAuthorVisibleToViewer } from "../access.js";
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ACTIVITY_PERIOD_DAYS = 365;
 
 /** Internal shape used for the GROUP BY result. */
@@ -58,27 +59,35 @@ export const ActivityDayType = builder
  *
  * Returns `null` when the viewer is forbidden from seeing any activity at
  * all (private artist + non-tuned-in, or Layer-0 hidden author). Returns
- * the `(isSelf, baseConditions)` pair otherwise — `baseConditions` is an
- * array of `SQL` predicates already including the visibility gate when
- * applicable. Callers spread it into `and(...)` alongside their own
- * conditions, avoiding the `and(undefined)` pattern (relies on a Drizzle
- * implementation detail and degrades gracefully but silently if it ever
- * changes). Same authorization chain as `recentPosts`.
+ * `{ baseConditions }` — an array of `SQL` predicates already including the
+ * visibility gate when applicable — otherwise. Callers spread it into
+ * `and(...)` alongside their own conditions, avoiding `and(undefined)`
+ * (Drizzle implementation detail). Same authorization chain as
+ * `recentPosts`.
+ *
+ * Cached per-request on `ctx.activityAccessCache` so the two activity
+ * fields don't double the auth round-trips on the same artist. Cache
+ * stores `null` for denials so a second field on the same artist doesn't
+ * re-prove access.
  */
 async function resolveActivityAccess(
-  artistId: string,
-  artistUserId: string,
-  authUser: GraphQLContext["authUser"],
-): Promise<{
-  isSelf: boolean;
-  baseConditions: SQL[];
-} | null> {
-  const access = await checkArtistAccess(artistId, authUser);
-  if (!access.accessible) return null;
+  artist: { id: string; userId: string },
+  ctx: GraphQLContext,
+): Promise<{ baseConditions: SQL[] } | null> {
+  ctx.activityAccessCache ??= new Map();
+  const cacheKey = `${artist.id}:${ctx.authUser?.userId ?? "anon"}`;
+  const cached = ctx.activityAccessCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const access = await checkArtistAccess(artist.id, ctx.authUser);
+  if (!access.accessible) {
+    ctx.activityAccessCache.set(cacheKey, null);
+    return null;
+  }
 
   // Layer 0: hide child / non-public-user authors from non-self viewers.
-  // checkArtistAccess only inspects `artists.profileVisibility` (Layer 1) so
-  // an explicit users-row lookup is required here.
+  // checkArtistAccess only inspects `artists.profileVisibility` (Layer 1)
+  // so an explicit users-row lookup is required here.
   const [author] = await db
     .select({
       userId: users.id,
@@ -86,16 +95,23 @@ async function resolveActivityAccess(
       profileVisibility: users.profileVisibility,
     })
     .from(users)
-    .where(eq(users.id, artistUserId))
+    .where(eq(users.id, artist.userId))
     .limit(1);
-  if (!author) return null;
-  if (!isAuthorVisibleToViewer(author, authUser?.userId ?? null)) return null;
+  if (
+    !author ||
+    !isAuthorVisibleToViewer(author, ctx.authUser?.userId ?? null)
+  ) {
+    ctx.activityAccessCache.set(cacheKey, null);
+    return null;
+  }
 
-  const baseConditions: SQL[] = [eq(posts.authorId, artistUserId)];
+  const baseConditions: SQL[] = [eq(posts.authorId, artist.userId)];
   if (!access.isSelf) {
     baseConditions.push(eq(posts.visibility, "public"));
   }
-  return { isSelf: access.isSelf, baseConditions };
+  const result = { baseConditions };
+  ctx.activityAccessCache.set(cacheKey, result);
+  return result;
 }
 
 builder.objectFields(ArtistType, (t) => ({
@@ -106,23 +122,18 @@ builder.objectFields(ArtistType, (t) => ({
       "only days with at least one matching post, from the later of " +
       "`artist.createdAt` or 365 days ago to today.",
     resolve: async (artist, _args, ctx) => {
-      const access = await resolveActivityAccess(
-        artist.id,
-        artist.userId,
-        ctx.authUser,
-      );
+      const access = await resolveActivityAccess(artist, ctx);
       if (!access) return [];
 
-      const horizon = new Date(Date.now() - ACTIVITY_PERIOD_DAYS * 86_400_000);
+      const horizon = new Date(Date.now() - ACTIVITY_PERIOD_DAYS * MS_PER_DAY);
       const fromDate =
         artist.createdAt.getTime() > horizon.getTime()
           ? artist.createdAt
           : horizon;
 
-      // Bucket key is reused in SELECT / GROUP BY / ORDER BY — define once
-      // as a SELECT alias and reference the alias to avoid silent drift if
-      // the expression ever changes (matches tune-in.ts MAX(updatedAt)
-      // alias pattern).
+      // Bucket key is reused across SELECT / GROUP BY / ORDER BY — define
+      // once as a SELECT alias to keep the three call sites in sync
+      // (tune-in.ts MAX(updatedAt) pattern).
       const bucketExpr = sql<string>`to_char((${posts.createdAt} AT TIME ZONE 'UTC')::date, 'YYYY-MM-DD')`;
       const rows = await db
         .select({
@@ -154,27 +165,35 @@ builder.objectFields(ArtistType, (t) => ({
       "heatmap window — the pulse should still surface artists who " +
       "posted >1y ago, even when the heatmap shows nothing.",
     resolve: async (artist, _args, ctx) => {
-      // Discover prefetch path: `_lastPostedAt` is already filtered to
-      // public posts + non-null trackId + public author + public artist.
-      // Even when the viewer is the artist owner, the discover surface
-      // clamps the pulse to public posts on purpose — the beacon should
-      // mean the same thing to everyone, and drafts belong on the artist
-      // page heatmap (where `resolveActivityAccess` adds the self
-      // exemption). `null` is a legitimate prefetch result (no matching
-      // posts), so we check for `undefined` rather than truthy.
+      // Run authorization first — even when `_lastPostedAt` is prefetched
+      // — so any caller who attaches the prefetch field on a different
+      // Artist path (e.g. a future TuneInType.artist that JOINs the same
+      // aggregate) cannot bypass Layer 0/1 checks. The auth result is
+      // cached per request, so this stays cheap when `activitySeries`
+      // also queried.
+      const access = await resolveActivityAccess(artist, ctx);
+      if (!access) return null;
+
+      // Discover prefetch path: `_lastPostedAt` is filtered inside the
+      // outer query to public posts + non-null trackId + public author +
+      // public artist. The same value is the right answer for non-self
+      // and self viewers on Discover by design — the beacon should mean
+      // the same thing to everyone, and drafts belong on the artist
+      // page heatmap (where the fallback below + auth-side baseConditions
+      // add the self exemption). `null` is a legitimate prefetch result,
+      // so we check `undefined`.
       if (artist._lastPostedAt !== undefined) {
         return artist._lastPostedAt
           ? new Date(artist._lastPostedAt).toISOString()
           : null;
       }
 
-      const access = await resolveActivityAccess(
-        artist.id,
-        artist.userId,
-        ctx.authUser,
-      );
-      if (!access) return null;
-
+      // Fallback path (artist / myArtist / featuredArtist / TuneInType.artist).
+      // No 365-day clamp here — see field description. The
+      // `posts_author_visibility_created_idx` makes `MAX(created_at)` an
+      // index-only seek per author, so a full-time scan is constant-cost
+      // even on long-lived artists.
+      //
       // postgres.js does not auto-parse aggregate (MAX) results to Date;
       // keep the raw `string | null` and normalize via `new Date(...)`.
       const [row] = await db

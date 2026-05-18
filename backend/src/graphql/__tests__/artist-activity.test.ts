@@ -33,6 +33,13 @@ import {
 
 type App = Awaited<ReturnType<typeof getTestApp>>;
 
+/** Shape returned by ARTIST_ACTIVITY_QUERY — used to DRY up casts. */
+interface ArtistActivityResult {
+  id: string;
+  activitySeries: Array<{ date: string; count: number }>;
+  lastPostedAt: string | null;
+}
+
 const UPDATE_ME_MUTATION = `
   mutation UpdateMe($profileVisibility: String) {
     updateMe(profileVisibility: $profileVisibility) { id profileVisibility }
@@ -185,10 +192,7 @@ describe("artist activity heatmap authorization (Idea 032)", () => {
         username: author.artistUsername,
       });
       expect(resp.errors).toBeUndefined();
-      const artist = resp.data!.artist as {
-        activitySeries: Array<{ date: string; count: number }>;
-        lastPostedAt: string | null;
-      };
+      const artist = resp.data!.artist as ArtistActivityResult;
       expect(artist.activitySeries).toHaveLength(1);
       expect(artist.activitySeries[0].count).toBe(2);
       expect(artist.lastPostedAt).not.toBeNull();
@@ -207,9 +211,7 @@ describe("artist activity heatmap authorization (Idea 032)", () => {
       const resp = await gql(app, ARTIST_ACTIVITY_QUERY, {
         username: author.artistUsername,
       });
-      const artist = resp.data!.artist as {
-        activitySeries: Array<{ count: number }>;
-      };
+      const artist = resp.data!.artist as ArtistActivityResult;
       expect(artist.activitySeries[0].count).toBe(1);
     });
 
@@ -229,9 +231,7 @@ describe("artist activity heatmap authorization (Idea 032)", () => {
         { username: author.artistUsername },
         author.token,
       );
-      const artist = resp.data!.artist as {
-        activitySeries: Array<{ count: number }>;
-      };
+      const artist = resp.data!.artist as ArtistActivityResult;
       expect(artist.activitySeries[0].count).toBe(2);
     });
   });
@@ -297,9 +297,7 @@ describe("artist activity heatmap authorization (Idea 032)", () => {
         { username: author.artistUsername },
         fanToken,
       );
-      const artist = resp.data!.artist as {
-        activitySeries: Array<{ count: number }>;
-      };
+      const artist = resp.data!.artist as ArtistActivityResult;
       expect(artist).not.toBeNull();
       expect(artist.activitySeries[0].count).toBe(1);
     });
@@ -319,10 +317,7 @@ describe("artist activity heatmap authorization (Idea 032)", () => {
       const resp = await gql(app, ARTIST_ACTIVITY_QUERY, {
         username: author.artistUsername,
       });
-      const artist = resp.data!.artist as {
-        activitySeries: Array<unknown>;
-        lastPostedAt: string | null;
-      };
+      const artist = resp.data!.artist as ArtistActivityResult;
       // Artist row still resolvable (artists.profileVisibility=public by default),
       // but activity is blanked because the *user* is private.
       expect(artist.activitySeries).toEqual([]);
@@ -345,10 +340,7 @@ describe("artist activity heatmap authorization (Idea 032)", () => {
         { username: author.artistUsername },
         author.token,
       );
-      const artist = resp.data!.artist as {
-        activitySeries: Array<{ count: number }>;
-        lastPostedAt: string | null;
-      };
+      const artist = resp.data!.artist as ArtistActivityResult;
       expect(artist.activitySeries[0].count).toBe(1);
       expect(artist.lastPostedAt).not.toBeNull();
     });
@@ -365,7 +357,7 @@ describe("artist activity heatmap authorization (Idea 032)", () => {
         guardianToken,
         childId,
       );
-      const artistResp = await gql(
+      await gql(
         app,
         REGISTER_ARTIST_MUTATION,
         { artistUsername: "kiddo_artist", displayName: "Kiddo Artist" },
@@ -380,21 +372,16 @@ describe("artist activity heatmap authorization (Idea 032)", () => {
       const trackId = (trackResp.data!.createTrack as { id: string }).id;
       await createPost(app, childToken, trackId, "child post");
 
-      // Even an anon viewer should see empty activity. (artist row may be
-      // unreachable depending on Tier setting, but if reachable the
-      // activity must be empty.)
-      void (artistResp.data!.registerArtist as { id: string });
+      // Anon viewer: the artist row may be unreachable depending on Tier
+      // settings, but if it is reachable the activity surface must be
+      // empty (Layer 0 hides child posts from third parties).
       const resp = await gql(app, ARTIST_ACTIVITY_QUERY, {
         username: "kiddo_artist",
       });
-      const artist = resp.data!.artist;
+      const artist = resp.data!.artist as ArtistActivityResult | null;
       if (artist !== null) {
-        const a = artist as {
-          activitySeries: unknown[];
-          lastPostedAt: string | null;
-        };
-        expect(a.activitySeries).toEqual([]);
-        expect(a.lastPostedAt).toBeNull();
+        expect(artist.activitySeries).toEqual([]);
+        expect(artist.lastPostedAt).toBeNull();
       }
     });
   });
@@ -417,10 +404,7 @@ describe("artist activity heatmap authorization (Idea 032)", () => {
         { username: author.artistUsername },
         author.token,
       );
-      const artist = resp.data!.artist as {
-        activitySeries: unknown[];
-        lastPostedAt: string | null;
-      };
+      const artist = resp.data!.artist as ArtistActivityResult;
       expect(artist.activitySeries).toEqual([]);
       expect(artist.lastPostedAt).toBeNull();
     });
