@@ -100,36 +100,6 @@ void main() {
       expect(find.text(_l10n(tester).activitySummary(107)), findsNothing);
     });
 
-    testWidgets('shows the empty-state copy when the series is empty', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _harness(
-          child: ActivityGrid(
-            series: const [],
-            joinedDate: DateTime.utc(2026, 1, 1),
-          ),
-        ),
-      );
-      await tester.pump();
-      expect(find.text(_l10n(tester).activityEmpty), findsOneWidget);
-    });
-
-    testWidgets('hides the empty-state copy once the series has data', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _harness(
-          child: ActivityGrid(
-            series: const [ActivityDay(date: '2026-05-01', count: 3)],
-            joinedDate: DateTime.utc(2026, 1, 1),
-          ),
-        ),
-      );
-      await tester.pump();
-      expect(find.text(_l10n(tester).activityEmpty), findsNothing);
-    });
-
     testWidgets('renders Less / More legend labels under the grid', (
       tester,
     ) async {
@@ -156,9 +126,6 @@ void main() {
       // …but no legend (legend lives inside the grid section)
       expect(find.text(l10n.activityLegendLess), findsNothing);
       expect(find.text(l10n.activityLegendMore), findsNothing);
-      // …and no empty-state copy either — that copy is for the
-      // "joined but no posts yet" case, not loading / null joinedDate.
-      expect(find.text(l10n.activityEmpty), findsNothing);
     });
 
     testWidgets('reduced motion stops the pulse controller', (tester) async {

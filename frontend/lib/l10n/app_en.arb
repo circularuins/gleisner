@@ -303,6 +303,10 @@
   "current": "CURRENT",
   "available": "AVAILABLE",
   "manageTracks": "Manage Tracks",
+  "tracksSectionTitle": "Tracks",
+  "@tracksSectionTitle": {
+    "description": "Tracks section header on another artist's page (visitor view). Self view uses `manageTracks` instead."
+  },
   "tracksCount": "{count}/10 tracks",
   "@tracksCount": { "placeholders": { "count": { "type": "int" } } },
   "noTracksYet": "No tracks yet. Tap + to add one.",
@@ -699,10 +703,6 @@
     "placeholders": {
       "count": { "type": "int" }
     }
-  },
-  "activityEmpty": "Your stars will light up here.",
-  "@activityEmpty": {
-    "description": "Tiny encouraging copy shown beneath the grid when the artist has zero posts in the visible window. The phrasing keeps the universe metaphor without baking it into the section title."
   },
   "activityLegendLess": "Less",
   "@activityLegendLess": {

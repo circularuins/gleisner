@@ -219,22 +219,6 @@ class _ActivityGridState extends State<ActivityGrid>
                 more: l10n.activityLegendMore,
               ),
             ),
-          // Empty-state copy is for "joined but hasn't posted yet" only.
-          // When `joinedDate` is null we're either still loading the
-          // artist or the query path didn't project `createdAt`; either
-          // way the calling screen owns the loading / error surface and
-          // we should stay silent rather than show "stars will light up".
-          if (joinedDay != null && widget.series.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: spaceSm),
-              child: Text(
-                l10n.activityEmpty,
-                style: const TextStyle(
-                  fontSize: fontSizeSm,
-                  color: colorTextMuted,
-                ),
-              ),
-            ),
         ],
       ),
     );

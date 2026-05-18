@@ -841,6 +841,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get manageTracks => 'Manage Tracks';
 
   @override
+  String get tracksSectionTitle => 'Tracks';
+
+  @override
   String tracksCount(int count) {
     return '$count/10 tracks';
   }
@@ -1393,9 +1396,6 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
-
-  @override
-  String get activityEmpty => 'Your stars will light up here.';
 
   @override
   String get activityLegendLess => 'Less';
