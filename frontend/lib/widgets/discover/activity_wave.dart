@@ -59,15 +59,29 @@ class ActivityWave extends StatefulWidget {
   const ActivityWave({super.key, required this.lastPostedAt, this.clock});
 
   /// Published dimensions — the parent's `Positioned(top:, right:)`
-  /// can offset against these. Roughly two and a half full
-  /// wavelengths fit across the width when amplitude is at its peak.
-  static const double kWidth = 36;
+  /// can offset against these. Layout is
+  /// `[EQ bars] [gap] [sin wave] [gap] [EQ bars]` so the trace reads
+  /// as a tiny vibration sensor rather than a single worm-like line.
+  static const double kWidth = 44;
   static const double kHeight = 12;
 
-  /// Number of sin-wave cycles drawn across the width. Higher = more
-  /// dense oscillation; this value feels like a heartbeat trace at
-  /// this size.
-  static const double kCycles = 1.5;
+  // EQ-bar section knobs. Two bars on each side, narrow and rounded,
+  // animated by the same controller as the wave so the whole strip
+  // moves in sync. Tier-driven amplitude scales bar heights too.
+  static const int kEqBarsPerSide = 2;
+  static const double kEqBarWidth = 1.5;
+  static const double kEqBarGap = 1.5;
+  static const double kEqSectionGap = 2.5; // EQ section ↔ wave
+
+  /// Number of sin-wave cycles drawn across the *wave* section
+  /// (between the two EQ sections), not the whole widget. Tuned so
+  /// the central wave still reads as a heartbeat trace after losing
+  /// horizontal real estate to the EQ bars.
+  static const double kCycles = 1.4;
+
+  /// Width of one EQ section (two bars + one gap).
+  static double get _eqSectionWidth =>
+      kEqBarsPerSide * kEqBarWidth + (kEqBarsPerSide - 1) * kEqBarGap;
 
   /// Map a `lastPostedAt` (UTC or local — we normalise) to a tier.
   /// Public so tests can pin the boundaries without instantiating
@@ -243,10 +257,11 @@ class _ActivityWaveState extends State<ActivityWave>
   }
 }
 
-/// Public for tests — paints a single horizontal sin-wave trace.
-/// `phase` is a 0..1 progress through one full wavelength shift, so
-/// the wave appears to scroll to the right when `phase` rises
-/// linearly from 0 → 1 → wraps.
+/// Public for tests — paints the hybrid sensor: two EQ bars on each
+/// side bracket a central traveling sin wave. `phase` is a 0..1
+/// progress that drives both the wave's horizontal scroll and each
+/// EQ bar's vertical oscillation so the whole strip animates in
+/// sync.
 @visibleForTesting
 class ActivityWavePainter extends CustomPainter {
   final ActivityWaveTier tier;
@@ -256,37 +271,128 @@ class ActivityWavePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final amplitude = ActivityWave.amplitudeFor(tier);
     final color = ActivityWave.colorFor(tier);
     if (color.a == 0) return;
 
+    final amplitude = ActivityWave.amplitudeFor(tier);
     final midY = size.height / 2;
+    final eqWidth = ActivityWave._eqSectionWidth;
+    final waveStartX = eqWidth + ActivityWave.kEqSectionGap;
+    final waveEndX = size.width - eqWidth - ActivityWave.kEqSectionGap;
+
+    // Left EQ section — phase 0.
+    _paintEqBars(
+      canvas,
+      color: color,
+      amplitude: amplitude,
+      startX: 0,
+      midY: midY,
+      phaseOffset: 0,
+      maxBarHeight: size.height - 1,
+    );
+
+    // Centre wave between the two EQ sections.
+    _paintWave(
+      canvas,
+      color: color,
+      amplitude: amplitude,
+      startX: waveStartX,
+      endX: waveEndX,
+      midY: midY,
+    );
+
+    // Right EQ section — phase offset by π so the two sides don't
+    // pulse in lockstep with each other (slight visual interest).
+    _paintEqBars(
+      canvas,
+      color: color,
+      amplitude: amplitude,
+      startX: size.width - eqWidth,
+      midY: midY,
+      phaseOffset: math.pi,
+      maxBarHeight: size.height - 1,
+    );
+  }
+
+  void _paintEqBars(
+    Canvas canvas, {
+    required Color color,
+    required double amplitude,
+    required double startX,
+    required double midY,
+    required double phaseOffset,
+    required double maxBarHeight,
+  }) {
+    final paint = Paint()..color = color;
+    final twoPi = math.pi * 2;
+    for (int i = 0; i < ActivityWave.kEqBarsPerSide; i++) {
+      // Per-bar phase offset — 0.83 rad ≈ 47°. Picked because it's
+      // not a simple fraction of π, so adjacent bars never look like
+      // they're moving in formation.
+      final barPhase = phaseOffset + i * 0.83;
+      final t = math.sin(phase * twoPi + barPhase);
+      final normalized = 0.5 + 0.5 * t; // 0..1
+      // Baseline 2px + tier-driven amplitude. Flat tier collapses
+      // to 2px stubs (consistent with the wave's flatline shortcut).
+      // `.clamp` returns `num` when bounds are int literals — the
+      // explicit `.toDouble()` keeps Flutter's strict types happy.
+      final height = (2 + amplitude * 1.4 * normalized)
+          .clamp(1.0, maxBarHeight)
+          .toDouble();
+
+      final x =
+          startX + i * (ActivityWave.kEqBarWidth + ActivityWave.kEqBarGap);
+      final rect = Rect.fromLTWH(
+        x,
+        midY - height / 2,
+        ActivityWave.kEqBarWidth,
+        height,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          rect,
+          Radius.circular(ActivityWave.kEqBarWidth / 2),
+        ),
+        paint,
+      );
+    }
+  }
+
+  void _paintWave(
+    Canvas canvas, {
+    required Color color,
+    required double amplitude,
+    required double startX,
+    required double endX,
+    required double midY,
+  }) {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2
       ..strokeCap = StrokeCap.round;
 
-    // Flat-tier shortcut: draw a single horizontal line. Cheap and
-    // visually correct (zero amplitude would render the same with
-    // the sin loop below, just wastefully).
+    final width = endX - startX;
+    if (width <= 0) return;
+
+    // Flat-tier shortcut — single baseline line. Skips the path
+    // build entirely for dormant artists.
     if (amplitude <= 0) {
-      canvas.drawLine(Offset(0, midY), Offset(size.width, midY), paint);
+      canvas.drawLine(Offset(startX, midY), Offset(endX, midY), paint);
       return;
     }
 
     final path = Path();
-    final steps = size.width.ceil() * 2; // 2 samples per logical px
+    final steps = width.ceil() * 2; // 2 samples per logical px
     final twoPi = math.pi * 2;
     final cycles = ActivityWave.kCycles;
     final phaseOffset = phase * twoPi;
     for (int i = 0; i <= steps; i++) {
-      final x = size.width * i / steps;
-      // Wave function: y = midY - amplitude * sin(2π·cycles·(x/width) + phase)
-      // Negative because canvas y grows downward — using minus keeps
-      // a rising-wave crest read as "up" intuitively.
-      final t = (x / size.width) * twoPi * cycles + phaseOffset;
+      final localX = width * i / steps;
+      final t = (localX / width) * twoPi * cycles + phaseOffset;
+      // Negative so a crest reads as "up" — canvas y grows downward.
       final y = midY - amplitude * math.sin(t);
+      final x = startX + localX;
       if (i == 0) {
         path.moveTo(x, y);
       } else {
@@ -295,8 +401,8 @@ class ActivityWavePainter extends CustomPainter {
     }
     canvas.drawPath(path, paint);
 
-    // Soft halo for the very-recent tier so the right edge picks up
-    // a subtle glow — reinforces "this artist is hot right now".
+    // Soft halo on the very-recent tier — reinforces "this artist
+    // is hot right now" without flooding the card visually.
     if (tier == ActivityWaveTier.veryRecent) {
       final glowPaint = Paint()
         ..color = color.withValues(alpha: 0.35)
@@ -311,8 +417,8 @@ class ActivityWavePainter extends CustomPainter {
   @override
   bool shouldRepaint(ActivityWavePainter old) {
     if (tier != old.tier) return true;
-    // Skip phase comparison for the flat / hidden tiers — they're
-    // static lines and won't repaint.
+    // Static tiers — wave is a baseline line and EQ bars sit at
+    // their floor height. No phase comparison needed.
     if (!ActivityWave.hasMovement(tier)) return false;
     return phase != old.phase;
   }
