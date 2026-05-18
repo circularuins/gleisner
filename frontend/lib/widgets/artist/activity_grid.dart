@@ -103,7 +103,15 @@ class _ActivityGridState extends State<ActivityGrid>
   }
 
   void _ingestSeries(List<ActivityDay> series) {
-    _countByDate = {for (final d in series) d.date: d.count};
+    // Empty-string dates can sneak in via `ActivityDay.fromJson`'s
+    // lenient cast (intentionally tolerant so a malformed wire value
+    // doesn't blank the page). Filter them here so the lookup map
+    // never carries a `''` key that would silently collide with a
+    // legit zero-counts cell.
+    _countByDate = {
+      for (final d in series)
+        if (d.date.isNotEmpty) d.date: d.count,
+    };
     _totalCount = series.fold<int>(0, (sum, d) => sum + d.count);
   }
 
@@ -113,13 +121,12 @@ class _ActivityGridState extends State<ActivityGrid>
     final localeTag = Localizations.localeOf(context).toLanguageTag();
     final nowUtc = DateTime.now().toUtc();
     final today = DateTime.utc(nowUtc.year, nowUtc.month, nowUtc.day);
-    final joinedDay = widget.joinedDate == null
+    // Resolve `joinedDate` to UTC once so the three component reads
+    // below don't hit `toUtc()` three times each frame.
+    final joinedUtc = widget.joinedDate?.toUtc();
+    final joinedDay = joinedUtc == null
         ? null
-        : DateTime.utc(
-            widget.joinedDate!.toUtc().year,
-            widget.joinedDate!.toUtc().month,
-            widget.joinedDate!.toUtc().day,
-          );
+        : DateTime.utc(joinedUtc.year, joinedUtc.month, joinedUtc.day);
 
     final canRenderGrid = joinedDay != null && !joinedDay.isAfter(today);
     int weeks = 0;
@@ -176,7 +183,12 @@ class _ActivityGridState extends State<ActivityGrid>
               more: l10n.activityLegendMore,
             ),
           ),
-        if (widget.series.isEmpty)
+        // Empty-state copy is for "joined but hasn't posted yet" only.
+        // When `joinedDate` is null we're either still loading the
+        // artist or the query path didn't project `createdAt`; either
+        // way the calling screen owns the loading / error surface and
+        // we should stay silent rather than show "stars will light up".
+        if (joinedDay != null && widget.series.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: spaceSm),
             child: Text(
@@ -475,6 +487,27 @@ class ActivityGridPainter extends CustomPainter {
   static const double cellPitch = _ActivityGridMetrics.cellPitch;
   static const double cellCornerRadius = _ActivityGridMetrics.cellCornerRadius;
 
+  // ── Brightness-tier knobs ────────────────────────────────────────
+  // Five tiers map post counts to visual treatment. Boundaries and
+  // each tier's alpha / halo numbers are collected here so a spec
+  // change ("bump tier 2 to 4 posts", "darken nebula tier") flows
+  // through one constant rather than four inline literals.
+  static const int _tierFaintMax = 1; // 1 post → tier 1
+  static const int _tierBrightMax = 3; // 2–3 posts → tier 2
+  static const int _tierBrightestMax = 6; // 4–6 posts → tier 3
+  // > _tierBrightestMax → nebula tier (4)
+
+  static const double _alphaTier1Mix = 0.35;
+  static const double _alphaTier2Mix = 0.65;
+  // tier 3 = base hue, no mix
+  static const double _alphaTier4Mix = 0.45; // cyan → violet blend
+  static const double _glowAlphaTier2 = 0.30;
+  static const double _glowAlphaTier3 = 0.45;
+  static const double _glowAlphaTier4 = 0.55;
+  static const double _glowBlurTier2 = 3;
+  static const double _glowBlurTier3 = 5;
+  static const double _glowBlurTier4 = 7;
+
   final Map<String, int> countByDate;
   final DateTime today;
   final int weeks;
@@ -523,12 +556,13 @@ class ActivityGridPainter extends CustomPainter {
   }
 
   /// Map a per-day post count to a brightness tier. Five tiers total:
-  /// `0` = empty cell, `1..4` rising activity.
+  /// `0` = empty cell, `1..4` rising activity. Boundaries are the
+  /// `_tier*Max` constants above so a spec tweak only edits one place.
   static int tierForCount(int count) {
     if (count <= 0) return 0;
-    if (count == 1) return 1;
-    if (count <= 3) return 2;
-    if (count <= 6) return 3;
+    if (count <= _tierFaintMax) return 1;
+    if (count <= _tierBrightMax) return 2;
+    if (count <= _tierBrightestMax) return 3;
     return 4;
   }
 
@@ -540,14 +574,26 @@ class ActivityGridPainter extends CustomPainter {
       case 0:
         return colorActivityEmpty;
       case 1:
-        return Color.lerp(colorActivityEmpty, colorActivityBase, 0.35)!;
+        return Color.lerp(
+          colorActivityEmpty,
+          colorActivityBase,
+          _alphaTier1Mix,
+        )!;
       case 2:
-        return Color.lerp(colorActivityEmpty, colorActivityBase, 0.65)!;
+        return Color.lerp(
+          colorActivityEmpty,
+          colorActivityBase,
+          _alphaTier2Mix,
+        )!;
       case 3:
         return colorActivityBase;
       case 4:
       default:
-        return Color.lerp(colorActivityBase, colorActivityHigh, 0.45)!;
+        return Color.lerp(
+          colorActivityBase,
+          colorActivityHigh,
+          _alphaTier4Mix,
+        )!;
     }
   }
 
@@ -556,11 +602,11 @@ class ActivityGridPainter extends CustomPainter {
   static Color glowColorForTier(int tier) {
     switch (tier) {
       case 2:
-        return colorActivityBase.withValues(alpha: 0.30);
+        return colorActivityBase.withValues(alpha: _glowAlphaTier2);
       case 3:
-        return colorActivityBase.withValues(alpha: 0.45);
+        return colorActivityBase.withValues(alpha: _glowAlphaTier3);
       case 4:
-        return colorActivityHigh.withValues(alpha: 0.55);
+        return colorActivityHigh.withValues(alpha: _glowAlphaTier4);
       default:
         return Colors.transparent;
     }
@@ -570,11 +616,11 @@ class ActivityGridPainter extends CustomPainter {
   static double glowBlurForTier(int tier) {
     switch (tier) {
       case 2:
-        return 3;
+        return _glowBlurTier2;
       case 3:
-        return 5;
+        return _glowBlurTier3;
       case 4:
-        return 7;
+        return _glowBlurTier4;
       default:
         return 0;
     }
@@ -690,11 +736,17 @@ class ActivityGridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(ActivityGridPainter old) {
-    return countByDate != old.countByDate ||
+    if (countByDate != old.countByDate ||
         today != old.today ||
         weeks != old.weeks ||
         twinkleEnabled != old.twinkleEnabled ||
-        animationValue != old.animationValue ||
-        selectedDate != old.selectedDate;
+        selectedDate != old.selectedDate) {
+      return true;
+    }
+    // Reduced-motion path is a static image — skip the animationValue
+    // comparison so the painter doesn't repaint every frame when no
+    // tier actually animates. (Tier 1-3 are always static; tier 4
+    // only animates when twinkleEnabled.)
+    return twinkleEnabled && animationValue != old.animationValue;
   }
 }

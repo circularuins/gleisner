@@ -130,6 +130,9 @@ void main() {
       // …but no legend (legend lives inside the grid section)
       expect(find.text(l10n.activityLegendLess), findsNothing);
       expect(find.text(l10n.activityLegendMore), findsNothing);
+      // …and no empty-state copy either — that copy is for the
+      // "joined but no posts yet" case, not loading / null joinedDate.
+      expect(find.text(l10n.activityEmpty), findsNothing);
     });
 
     testWidgets('reduced motion stops the pulse controller', (tester) async {
@@ -237,6 +240,72 @@ void main() {
     });
   });
 
+  // The brightness ramp is the visual contract the design depends on
+  // (review-2 Important #6). These tests don't paint pixels — they
+  // pin the *relationships* between tiers so a future tweak to one
+  // constant has to be deliberate.
+  group('ActivityGridPainter tier visuals', () {
+    test('cell colors get progressively brighter from tier 1 to tier 3', () {
+      // Computed luminance rises monotonically across the alpha ramp.
+      final tier0 = ActivityGridPainter.cellColorForTier(0).computeLuminance();
+      final tier1 = ActivityGridPainter.cellColorForTier(1).computeLuminance();
+      final tier2 = ActivityGridPainter.cellColorForTier(2).computeLuminance();
+      final tier3 = ActivityGridPainter.cellColorForTier(3).computeLuminance();
+      expect(tier0, lessThan(tier1));
+      expect(tier1, lessThan(tier2));
+      expect(tier2, lessThan(tier3));
+    });
+
+    test('tier 4 cell color is distinct from tier 3 (nebula blend)', () {
+      // Top tier is a cyan→violet blend, not just brighter cyan, so
+      // its hue moves rather than its luminance. Just assert
+      // inequality — the colour itself is a token blend that may
+      // be tweaked.
+      expect(
+        ActivityGridPainter.cellColorForTier(4),
+        isNot(equals(ActivityGridPainter.cellColorForTier(3))),
+      );
+    });
+
+    test('tiers 0 and 1 do not glow; tiers 2-4 do', () {
+      expect(
+        ActivityGridPainter.glowBlurForTier(0),
+        0,
+        reason: 'empty cell has no halo',
+      );
+      expect(
+        ActivityGridPainter.glowBlurForTier(1),
+        0,
+        reason: 'single-post tier reads as a faint star, no halo',
+      );
+      expect(ActivityGridPainter.glowBlurForTier(2), greaterThan(0));
+      expect(ActivityGridPainter.glowBlurForTier(3), greaterThan(0));
+      expect(ActivityGridPainter.glowBlurForTier(4), greaterThan(0));
+    });
+
+    test('halo blur grows with tier', () {
+      expect(
+        ActivityGridPainter.glowBlurForTier(2),
+        lessThan(ActivityGridPainter.glowBlurForTier(3)),
+      );
+      expect(
+        ActivityGridPainter.glowBlurForTier(3),
+        lessThan(ActivityGridPainter.glowBlurForTier(4)),
+      );
+    });
+
+    test('tiers 0 and 1 have transparent halo color', () {
+      expect(ActivityGridPainter.glowColorForTier(0).a, 0);
+      expect(ActivityGridPainter.glowColorForTier(1).a, 0);
+    });
+
+    test('tiers 2-4 have non-transparent halo color', () {
+      expect(ActivityGridPainter.glowColorForTier(2).a, greaterThan(0));
+      expect(ActivityGridPainter.glowColorForTier(3).a, greaterThan(0));
+      expect(ActivityGridPainter.glowColorForTier(4).a, greaterThan(0));
+    });
+  });
+
   group('ActivityGridPainter.shouldRepaint', () {
     ActivityGridPainter makePainter({
       Map<String, int>? countByDate,
@@ -274,11 +343,38 @@ void main() {
       expect(b.shouldRepaint(a), isFalse);
     });
 
-    test('returns true when animationValue changes', () {
+    test('returns true when animationValue changes and twinkle is on', () {
       final shared = <String, int>{'2026-05-18': 1};
-      final a = makePainter(countByDate: shared, animationValue: 0.1);
-      final b = makePainter(countByDate: shared, animationValue: 0.6);
+      final a = makePainter(
+        countByDate: shared,
+        animationValue: 0.1,
+        twinkleEnabled: true,
+      );
+      final b = makePainter(
+        countByDate: shared,
+        animationValue: 0.6,
+        twinkleEnabled: true,
+      );
       expect(b.shouldRepaint(a), isTrue);
+    });
+
+    test('returns false when animationValue changes but twinkle is off', () {
+      // Reduced-motion path: tier 4 doesn't pulse, so the painter
+      // should NOT repaint just because a stale animationValue tick
+      // drifted in. Without this short-circuit the grid would
+      // repaint every frame even though no pixel changes.
+      final shared = <String, int>{'2026-05-18': 8};
+      final a = makePainter(
+        countByDate: shared,
+        animationValue: 0.1,
+        twinkleEnabled: false,
+      );
+      final b = makePainter(
+        countByDate: shared,
+        animationValue: 0.6,
+        twinkleEnabled: false,
+      );
+      expect(b.shouldRepaint(a), isFalse);
     });
 
     test('returns true when today changes', () {

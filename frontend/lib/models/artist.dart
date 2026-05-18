@@ -90,18 +90,23 @@ class ActivityDay {
 
   const ActivityDay({required this.date, required this.count});
 
-  /// Parse the date string to DateTime at noon UTC for layout positioning.
-  /// Noon avoids the timezone-boundary off-by-one that would otherwise put
-  /// a YYYY-MM-DD cell on the wrong day when the device clock crosses
-  /// midnight relative to UTC.
-  DateTime get utcDate {
+  /// Parse the date string to DateTime at noon UTC for layout
+  /// positioning. Returns `null` for malformed input rather than
+  /// throwing — every call site is on a hot UI path (heatmap layout,
+  /// Phase 1 cell tap) where a [FormatException] would blank the
+  /// artist page over what is, semantically, a decorative surface.
+  /// Noon avoids the timezone-boundary off-by-one that would
+  /// otherwise put a YYYY-MM-DD cell on the wrong day when the
+  /// device clock crosses midnight relative to UTC.
+  DateTime? get utcDateOrNull {
     final parts = date.split('-');
-    return DateTime.utc(
-      int.parse(parts[0]),
-      int.parse(parts[1]),
-      int.parse(parts[2]),
-      12,
-    );
+    if (parts.length < 3) return null;
+    final y = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    final d = int.tryParse(parts[2]);
+    if (y == null || m == null || d == null) return null;
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+    return DateTime.utc(y, m, d, 12);
   }
 
   factory ActivityDay.fromJson(Map<String, dynamic> json) {
@@ -109,7 +114,9 @@ class ActivityDay {
     // response or a future field-type drift doesn't crash the entire
     // artist page. Days that fail to parse silently collapse to an
     // empty cell, which is the right UX trade-off for a decorative
-    // surface (Idea 032).
+    // surface (Idea 032). Empty-string dates are still emitted here
+    // but filtered out at the widget level (see ActivityGrid's
+    // `_buildCountMap`) so they never pollute lookup tables.
     return ActivityDay(
       date: (json['date'] as String?) ?? '',
       count: (json['count'] as num?)?.toInt() ?? 0,
