@@ -152,34 +152,37 @@ void main() {
       }
     });
 
-    testWidgets(
-      'tapping a chip in the expanded view collapses back to marquee',
-      (tester) async {
-        final tracks = [
-          for (var i = 0; i < 12; i++) _track('t$i', 'LongTrackName$i'),
-        ];
-        String? toggledId;
-        await tester.pumpWidget(
-          _harness(
-            tracks: tracks,
-            posts: const [],
-            width: 200,
-            onToggleTrack: (id) => toggledId = id,
-          ),
-        );
-        await tester.pump();
-        await tester.tap(find.byType(Tooltip).first);
-        await tester.pump();
+    testWidgets('tapping a chip in the expanded view stays in expanded mode '
+        '(so multiple tracks can be toggled before idle collapses)', (
+      tester,
+    ) async {
+      final tracks = [
+        for (var i = 0; i < 12; i++) _track('t$i', 'LongTrackName$i'),
+      ];
+      final toggled = <String>[];
+      await tester.pumpWidget(
+        _harness(
+          tracks: tracks,
+          posts: const [],
+          width: 200,
+          onToggleTrack: toggled.add,
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.byType(Tooltip).first);
+      await tester.pump();
 
-        await tester.tap(find.text('LongTrackName3'));
-        await tester.pump();
+      await tester.tap(find.text('LongTrackName3'));
+      await tester.pump();
+      await tester.tap(find.text('LongTrackName5'));
+      await tester.pump();
 
-        expect(toggledId, 't3');
-        // After collapse, the rail goes back to marquee. The Tooltip
-        // wrapper is the marquee-mode marker.
-        expect(find.byType(Tooltip), findsWidgets);
-      },
-    );
+      expect(toggled, ['t3', 't5']);
+      // All chips still visible — rail did not collapse back to marquee.
+      for (var i = 0; i < 12; i++) {
+        expect(find.text('LongTrackName$i'), findsOneWidget);
+      }
+    });
 
     testWidgets('disableAnimations renders without throwing or hanging', (
       tester,

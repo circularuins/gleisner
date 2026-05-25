@@ -18,6 +18,12 @@ import '../../utils/track_activity.dart';
 /// for selection.
 enum _RailMode { automatic, expanded }
 
+/// Pixel height reserved for the marquee viewport. Sized to give the
+/// chip (~22 dp) plus ~7 dp on each side of headroom for the highlight
+/// glow's blur so the pulse is visible without the `ClipRect` shaving
+/// it off. Still ~10 dp shorter than the original two-row Wrap.
+const double _marqueeViewportHeight = 36;
+
 /// Replacement for the original `_TrackSelector` that stops the chip list
 /// from eating two or more rows of the timeline.
 ///
@@ -69,6 +75,23 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
   /// Memoized chip-width estimates keyed by label text. Rebuilt only when
   /// the label set changes between builds.
   Map<String, double> _chipWidthCache = const {};
+
+  /// Attached to the leading marquee chip-row so we can read its actual
+  /// laid-out width after the first frame. The text estimate is used to
+  /// pick "marquee vs static" before the real measurement is available,
+  /// but the marquee animation distance is the measured value — under-
+  /// estimating made the two copies overlap; over-estimating left a
+  /// visible blank gap at the wrap point.
+  final GlobalKey _measureKey = GlobalKey();
+
+  /// Most recent measured width of one chip-row, or `null` until the
+  /// first frame has been laid out.
+  double? _measuredChipRowWidth;
+
+  /// Most recent measured height of one chip-row. Used to center the
+  /// marquee chips inside the (taller) viewport so they align with the
+  /// pinned "All" chip on the same row.
+  double? _measuredChipRowHeight;
 
   // Snapshot of the last marquee parameters we asked the controller to
   // run with — used to avoid restarting the animation on every build.
@@ -130,6 +153,11 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
     if (_mode != _RailMode.expanded) return;
     _expandTimer?.cancel();
     _expandTimer = null;
+    // Clear any leftover hover-paused flag — the pointer state from
+    // before entering expanded mode would otherwise keep the marquee
+    // stopped after the timer fires (especially in DevTools mobile
+    // emulation where `onExit` does not fire on touch end).
+    _hoverPaused = false;
     setState(() => _mode = _RailMode.automatic);
   }
 
@@ -142,12 +170,14 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
 
   void _onChipTap(String trackId) {
     widget.onToggleTrack(trackId);
-    if (_mode == _RailMode.expanded) _exitExpanded();
+    // Stay in expanded mode so the user can keep toggling multiple
+    // tracks; just restart the idle timer.
+    if (_mode == _RailMode.expanded) _restartExpandTimer();
   }
 
   void _onAllChipTap() {
     widget.onToggleAll();
-    if (_mode == _RailMode.expanded) _exitExpanded();
+    if (_mode == _RailMode.expanded) _restartExpandTimer();
   }
 
   void _onHoverEnter() {
@@ -167,15 +197,55 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
   double _estimateChipWidth(String label, TextStyle style) {
     final cached = _chipWidthCache[label];
     if (cached != null) return cached;
+    // Measure with bold weight (FontWeight.w600). The selected chip
+    // renders bold, which is meaningfully wider than the unselected
+    // (w400) baseline — under-measuring made the two marquee copies
+    // overlap because the wrapping copy started before the first one
+    // visually ended.
     final tp = TextPainter(
-      text: TextSpan(text: label, style: style),
+      text: TextSpan(
+        text: label,
+        style: style.copyWith(fontWeight: FontWeight.w600),
+      ),
       textDirection: TextDirection.ltr,
       maxLines: 1,
     )..layout();
-    // Match _chip's horizontal padding (8 px each side) + border allowance.
-    final width = tp.width + 18;
+    // Chip horizontal padding (8 px each side) + 1 px border each side
+    // = 18 px geometric overhead. Extra slack (10 px) absorbs font
+    // metric differences between `TextPainter` and the rendered `Text`
+    // widget under CanvasKit / Flutter web, plus the halo blur radius
+    // when highlighted chips wrap past the end of the strip.
+    final width = tp.width + 28;
     _chipWidthCache[label] = width;
     return width;
+  }
+
+  /// Read the leading chip-row's actual laid-out size and, if it has
+  /// changed by more than 0.5 px, store it and request a rebuild so the
+  /// marquee animation cycle distance matches reality (no gap, no
+  /// overlap at the wrap point) and the chips stay vertically aligned
+  /// with the pinned "All" chip.
+  void _scheduleMeasureChipRow() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final box = _measureKey.currentContext?.findRenderObject() as RenderBox?;
+      if (box == null || !box.hasSize) return;
+      final measuredWidth = box.size.width;
+      final measuredHeight = box.size.height;
+      if (measuredWidth <= 0 || measuredHeight <= 0) return;
+      final widthChanged =
+          _measuredChipRowWidth == null ||
+          (_measuredChipRowWidth! - measuredWidth).abs() > 0.5;
+      final heightChanged =
+          _measuredChipRowHeight == null ||
+          (_measuredChipRowHeight! - measuredHeight).abs() > 0.5;
+      if (widthChanged || heightChanged) {
+        setState(() {
+          _measuredChipRowWidth = measuredWidth;
+          _measuredChipRowHeight = measuredHeight;
+        });
+      }
+    });
   }
 
   void _schedulePulse(bool disableAnimations) {
@@ -185,7 +255,11 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
         if (_pulseController.isAnimating) _pulseController.stop();
       } else {
         if (!_pulseController.isAnimating) {
-          _pulseController.repeat(reverse: true);
+          // Plain sawtooth, not `reverse: true`. Each chip computes
+          // its own triangular pulse from the raw controller value +
+          // a per-chip phase offset so neighboring highlighted chips
+          // do not synchronize and visually merge into one block.
+          _pulseController.repeat();
         }
       }
     });
@@ -214,6 +288,12 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
       final durationMs = (scrollDistance / motionMarqueeSpeedDp * 1000)
           .round()
           .clamp(1000, 120000);
+      // Fully reset before repeat — when the controller had been
+      // stopped mid-cycle (expand → idle 10s → marquee), repeat from
+      // the leftover value caused the visual scroll to start at the
+      // wrong offset and could appear frozen until the wrap copy
+      // caught up.
+      _marqueeController.reset();
       _marqueeController.duration = Duration(milliseconds: durationMs);
       _marqueeController.repeat();
     });
@@ -265,16 +345,22 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
             return _buildStatic(activity, chipStyle);
           }
 
+          // Prefer the measured chip-row width if we have one — the
+          // text-painter estimate ends up off by ~10 px on real Web
+          // builds, which is enough to either cover or expose the
+          // wrap-point between marquee copies.
+          final effectiveScrollDistance = _measuredChipRowWidth ?? tracksWidth;
           _scheduleMarquee(
             wantsMarquee: true,
-            scrollDistance: tracksWidth,
+            scrollDistance: effectiveScrollDistance,
             disableAnimations: disableAnimations,
           );
+          _scheduleMeasureChipRow();
           return _buildMarquee(
             activity,
             chipStyle,
             allChipWidth: allChipWidth,
-            scrollDistance: tracksWidth,
+            scrollDistance: effectiveScrollDistance,
             disableAnimations: disableAnimations,
           );
         },
@@ -328,7 +414,8 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
         ? widget.tracks
         : shuffleTracks(widget.tracks, widget.shuffleSeed);
 
-    Widget chipRow() => Row(
+    Widget chipRow({Key? key}) => Row(
+      key: key,
       mainAxisSize: MainAxisSize.min,
       children: [
         for (final track in shuffled)
@@ -339,37 +426,64 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
       ],
     );
 
-    final marqueeContent = LayoutBuilder(
-      builder: (context, marqueeConstraints) {
-        final viewportWidth = marqueeConstraints.maxWidth;
-        return ClipRect(
-          child: AnimatedBuilder(
-            animation: _marqueeController,
-            builder: (context, _) {
-              final progress = disableAnimations
-                  ? 0.0
-                  : _marqueeController.value;
-              final offset = -progress * scrollDistance;
-              return SizedBox(
-                width: viewportWidth,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned(left: offset, top: 0, child: chipRow()),
-                    // Wrapping copy keeps the strip seamless past the
-                    // viewport edge for any scroll distance.
-                    Positioned(
-                      left: offset + scrollDistance,
-                      top: 0,
-                      child: chipRow(),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        );
-      },
+    // Marquee viewport:
+    //   - `SizedBox(height: ...)` gives the Stack a finite height. A
+    //     Stack with only `Positioned` children otherwise inherits
+    //     `maxHeight: infinity` from the column above us and the
+    //     parent layout collapses the rail to 0 px — was visible as
+    //     the chips disappearing on narrow viewports (first round).
+    //   - `ClipRect` crops the painting horizontally so the chip-row
+    //     copies render only inside the viewport.
+    //   - Each chip-row copy is `Positioned(left, top)`. With only the
+    //     two coordinates set the child receives loose constraints,
+    //     so the `Row` lays out at its natural width without tripping
+    //     the parent's bounded-width constraint (no RenderFlex stripe).
+    //   - `IgnorePointer` swallows chip-level taps during the marquee
+    //     so the outer `GestureDetector` always wins and expands the
+    //     rail (otherwise the underlying chip would toggle its
+    //     selection without ever opening the expand view).
+    // Vertically center the chips inside the viewport so they line up
+    // with the pinned "All" chip (which the parent `Row` centers in
+    // the same available height). Falls back to top:0 on the very
+    // first frame before measurement lands; the next frame snaps
+    // into place.
+    final double chipTop = _measuredChipRowHeight == null
+        ? 0
+        : ((_marqueeViewportHeight - _measuredChipRowHeight!) / 2).clamp(
+            0.0,
+            _marqueeViewportHeight,
+          );
+
+    Widget marqueeChip(double translateX, {Key? key}) {
+      return Positioned(
+        left: translateX,
+        top: chipTop,
+        child: IgnorePointer(child: chipRow(key: key)),
+      );
+    }
+
+    final marqueeContent = SizedBox(
+      height: _marqueeViewportHeight,
+      child: ClipRect(
+        child: AnimatedBuilder(
+          animation: _marqueeController,
+          builder: (context, _) {
+            final progress = disableAnimations ? 0.0 : _marqueeController.value;
+            final offset = -progress * scrollDistance;
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Leading copy carries the measurement key so the next
+                // post-frame can read its real width.
+                marqueeChip(offset, key: _measureKey),
+                // Wrapping copy keeps the strip seamless past the
+                // viewport edge for any scroll distance.
+                marqueeChip(offset + scrollDistance),
+              ],
+            );
+          },
+        ),
+      ),
     );
 
     Widget marqueeArea = GestureDetector(
@@ -402,7 +516,13 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
     Map<String, TrackActivity> activity,
     TextStyle chipStyle,
   ) {
-    final sorted = sortByWeekActivity(widget.tracks, activity);
+    // Expanded uses the same shuffled order as the marquee so swapping
+    // between modes does not visually rearrange the chips under the
+    // user's finger. Activity-descending sort felt like a stronger
+    // signal in theory but read as a jarring reflow in practice.
+    final ordered = widget.shuffleSeed == 0
+        ? widget.tracks
+        : shuffleTracks(widget.tracks, widget.shuffleSeed);
     return Wrap(
       spacing: spaceXs,
       runSpacing: spaceXxs,
@@ -411,7 +531,8 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
           padding: const EdgeInsets.only(right: spaceSm),
           child: _buildAllChip(chipStyle),
         ),
-        for (final track in sorted) _buildTrackChip(track, activity, chipStyle),
+        for (final track in ordered)
+          _buildTrackChip(track, activity, chipStyle),
       ],
     );
   }
@@ -434,11 +555,17 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
   ) {
     final stats = activity[track.id] ?? TrackActivity.empty;
     final selected = widget.selectedTrackIds.contains(track.id);
+    // Deterministic phase offset in [0, 1) keyed on track id so the
+    // pulse never lands on the same beat for two chips at once. Using
+    // the hash mod-100 gives 100 distinct phases, well beyond what
+    // the eye can tell apart on a short rail.
+    final phaseOffset = (track.id.hashCode % 100).abs() / 100.0;
     return _HighlightedChip(
       pulseAnimation: _pulseController,
       disableAnimations: _lastDisableAnimations,
       activity: stats,
       trackColor: track.displayColor,
+      phaseOffset: phaseOffset,
       child: _Chip(
         label: track.name,
         selected: selected,
@@ -504,6 +631,7 @@ class _HighlightedChip extends StatelessWidget {
   final bool disableAnimations;
   final TrackActivity activity;
   final Color trackColor;
+  final double phaseOffset;
   final Widget child;
 
   const _HighlightedChip({
@@ -511,6 +639,7 @@ class _HighlightedChip extends StatelessWidget {
     required this.disableAnimations,
     required this.activity,
     required this.trackColor,
+    required this.phaseOffset,
     required this.child,
   });
 
@@ -523,9 +652,26 @@ class _HighlightedChip extends StatelessWidget {
     return AnimatedBuilder(
       animation: pulseAnimation,
       builder: (context, _) {
-        // Reduced-motion: settle on the midpoint of the pulse so the
-        // glow is visible without animating.
-        final t = disableAnimations ? 0.5 : pulseAnimation.value;
+        // The shared controller runs as a sawtooth 0 → 1. Each chip
+        // converts that to its own triangular pulse (0 → 1 → 0) using
+        // a per-chip `phaseOffset`, so highlighted neighbors never
+        // peak simultaneously and never blur into one big glow.
+        //
+        // Reduced-motion: settle on the midpoint so the glow is
+        // visible without animating.
+        final double t;
+        if (disableAnimations) {
+          t = 0.5;
+        } else {
+          final phase = (pulseAnimation.value + phaseOffset) % 1.0;
+          t = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
+        }
+
+        // Highlight is only an outer glow. The shadow is painted on a
+        // backing plate that is the **same opaque color as the page
+        // surface** so the bloom never bleeds through the chip's
+        // transparent (unselected) interior — that bleed was the
+        // "white text background" the user kept seeing.
         final shadows = <BoxShadow>[
           if (isActive)
             BoxShadow(
@@ -543,14 +689,27 @@ class _HighlightedChip extends StatelessWidget {
               blurRadius:
                   highlightFreshBlurMin +
                   (highlightFreshBlurMax - highlightFreshBlurMin) * t,
+              spreadRadius: 0.5,
             ),
         ];
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: shadows,
-          ),
-          child: child,
+
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  // Opaque plate that occludes the inner half of the
+                  // shadow. Matches the timeline canvas surface so it
+                  // is invisible against the page bg.
+                  color: colorSurface0,
+                  boxShadow: shadows,
+                ),
+              ),
+            ),
+            child,
+          ],
         );
       },
     );
