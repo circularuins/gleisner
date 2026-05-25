@@ -72,6 +72,14 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
   bool _hoverPaused = false;
   _RailMode _mode = _RailMode.automatic;
 
+  /// Wall-clock time of the last `AppLifecycleState.paused`, used to
+  /// debounce the resume-driven reshuffle. iOS / Android raise
+  /// `paused → resumed` for transient system events (notification
+  /// banners, biometric prompts, control center, etc.), so we only
+  /// treat a *meaningfully long* absence as a genuine "user came back
+  /// to the app" signal.
+  DateTime? _lastPausedAt;
+
   /// Memoized chip-width estimates keyed by label text. Rebuilt only when
   /// the label set changes between builds.
   Map<String, double> _chipWidthCache = const {};
@@ -128,7 +136,24 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _lastPausedAt = DateTime.now();
+      return;
+    }
     if (state != AppLifecycleState.resumed) return;
+    // Only fire on a meaningfully long absence — transient system
+    // events (notification banners, biometric prompts, control
+    // center, push notifications) raise paused → resumed within
+    // seconds and should NOT bump the shuffleSeed or collapse the
+    // expanded view (the user did not "return to the app" in their
+    // mental model).
+    final pausedAt = _lastPausedAt;
+    _lastPausedAt = null;
+    if (pausedAt == null ||
+        DateTime.now().difference(pausedAt) <
+            const Duration(seconds: 60)) {
+      return;
+    }
     // Defer to next frame: didChangeAppLifecycleState fires outside the
     // build phase, but parent rebuilds triggered by `onReshuffle` should
     // not race the resume-paint that Flutter is about to schedule.
@@ -248,10 +273,17 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
     });
   }
 
-  void _schedulePulse(bool disableAnimations) {
+  void _schedulePulse({
+    required bool disableAnimations,
+    required bool hasAnyHighlight,
+  }) {
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (disableAnimations) {
+      // Stop the ticker whenever the pulse would be invisible — no
+      // tracks have a fresh / active highlight, or the user has
+      // reduced-motion enabled. Idle artists (common in Phase 0)
+      // would otherwise spin a vsync-rate ticker forever.
+      if (disableAnimations || !hasAnyHighlight) {
         if (_pulseController.isAnimating) _pulseController.stop();
       } else {
         if (!_pulseController.isAnimating) {
@@ -288,23 +320,36 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
       final durationMs = (scrollDistance / motionMarqueeSpeedDp * 1000)
           .round()
           .clamp(1000, 120000);
-      // Fully reset before repeat — when the controller had been
-      // stopped mid-cycle (expand → idle 10s → marquee), repeat from
-      // the leftover value caused the visual scroll to start at the
-      // wrong offset and could appear frozen until the wrap copy
-      // caught up.
-      _marqueeController.reset();
-      _marqueeController.duration = Duration(milliseconds: durationMs);
-      _marqueeController.repeat();
+      final currentDurationMs =
+          _marqueeController.duration?.inMilliseconds ?? -1;
+      final needsReset =
+          !_marqueeController.isAnimating || currentDurationMs != durationMs;
+      if (needsReset) {
+        // Reset only when something material changed (cold start,
+        // viewport resized, expand → idle 10s collapse). Refreshes
+        // that only swap the shuffle order keep the scroll mid-cycle
+        // so the rail does not visibly jump back to its head.
+        _marqueeController.reset();
+        _marqueeController.duration = Duration(milliseconds: durationMs);
+      }
+      if (!_marqueeController.isAnimating) {
+        _marqueeController.repeat();
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
-    _schedulePulse(disableAnimations);
     final l10n = context.l10n;
     final activity = computeTrackActivity(widget.posts);
+    final hasAnyHighlight = activity.values.any(
+      (a) => a.isFresh || a.isActive,
+    );
+    _schedulePulse(
+      disableAnimations: disableAnimations,
+      hasAnyHighlight: hasAnyHighlight,
+    );
 
     // Reset chip-width cache if the label set changed between builds.
     final currentLabels = {l10n.all, for (final t in widget.tracks) t.name};
@@ -372,12 +417,10 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
     Map<String, TrackActivity> activity,
     TextStyle chipStyle,
   ) {
-    // Single-row layout used when all chips fit. We still apply the
-    // shuffleSeed so the order is consistent with what marquee mode
-    // would have shown if the screen had been narrower.
-    final shuffled = widget.shuffleSeed == 0
-        ? widget.tracks
-        : shuffleTracks(widget.tracks, widget.shuffleSeed);
+    // Single-row layout used when all chips fit. Use the backend order
+    // directly — a static row is a stable selector, so reshuffling on
+    // every pull-to-refresh / resume would only hurt muscle memory.
+    // The marquee path is the only place that benefits from rotation.
     return Row(
       children: [
         _buildAllChip(chipStyle),
@@ -390,7 +433,7 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
             physics: const ClampingScrollPhysics(),
             child: Row(
               children: [
-                for (final track in shuffled)
+                for (final track in widget.tracks)
                   Padding(
                     padding: const EdgeInsets.only(right: spaceXs),
                     child: _buildTrackChip(track, activity, chipStyle),
