@@ -150,8 +150,7 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
     final pausedAt = _lastPausedAt;
     _lastPausedAt = null;
     if (pausedAt == null ||
-        DateTime.now().difference(pausedAt) <
-            const Duration(seconds: 60)) {
+        DateTime.now().difference(pausedAt) < const Duration(seconds: 60)) {
       return;
     }
     // Defer to next frame: didChangeAppLifecycleState fires outside the
@@ -343,9 +342,7 @@ class _MarqueeTrackRailState extends State<MarqueeTrackRail>
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
     final l10n = context.l10n;
     final activity = computeTrackActivity(widget.posts);
-    final hasAnyHighlight = activity.values.any(
-      (a) => a.isFresh || a.isActive,
-    );
+    final hasAnyHighlight = activity.values.any((a) => a.isFresh || a.isActive);
     _schedulePulse(
       disableAnimations: disableAnimations,
       hasAnyHighlight: hasAnyHighlight,
