@@ -208,28 +208,47 @@ void main() {
       expect(find.byType(MarqueeTrackRail), findsOneWidget);
     });
 
-    testWidgets('highlight wraps fresh tracks in a DecoratedBox with shadow', (
-      tester,
-    ) async {
-      final freshPost = _post(
-        'p1',
-        't1',
-        DateTime.now().subtract(const Duration(hours: 1)),
-      );
-      await tester.pumpWidget(
-        _harness(
-          tracks: [_track('t1', 'A'), _track('t2', 'B')],
-          posts: [freshPost],
-          width: 600,
-          disableAnimations: true,
-        ),
-      );
-      await tester.pumpAndSettle(const Duration(seconds: 1));
+    testWidgets(
+      'fresh tracks get a non-empty boxShadow; non-fresh tracks do not',
+      (tester) async {
+        final freshPost = _post(
+          'p1',
+          't1',
+          DateTime.now().subtract(const Duration(hours: 1)),
+        );
+        await tester.pumpWidget(
+          _harness(
+            tracks: [_track('t1', 'A'), _track('t2', 'B')],
+            posts: [freshPost],
+            width: 600,
+            disableAnimations: true,
+          ),
+        );
+        await tester.pumpAndSettle(const Duration(seconds: 1));
 
-      // The highlight wrapper injects a DecoratedBox above the chip. It
-      // does not exist when no track is highlighted, so its presence
-      // here is the signal that the fresh path fired.
-      expect(find.byType(DecoratedBox), findsWidgets);
-    });
+        // `find.byType(DecoratedBox)` is too lax — the base `_Chip`
+        // also uses a DecoratedBox for its border, so the count is
+        // never zero. We need to look specifically at DecoratedBoxes
+        // that carry a non-empty `boxShadow`, which is the cue the
+        // `_HighlightedChip` wrapper paints behind a fresh / active
+        // chip. Exactly one chip is fresh (t1), so we expect exactly
+        // one matching plate.
+        final withShadow = tester
+            .widgetList<DecoratedBox>(find.byType(DecoratedBox))
+            .where((d) {
+              final dec = d.decoration;
+              return dec is BoxDecoration &&
+                  dec.boxShadow != null &&
+                  dec.boxShadow!.isNotEmpty;
+            })
+            .toList();
+
+        expect(
+          withShadow,
+          hasLength(1),
+          reason: 'only t1 is fresh — only one highlighted plate expected',
+        );
+      },
+    );
   });
 }
