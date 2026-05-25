@@ -112,27 +112,4 @@ void main() {
       expect(shuffleTracks(const [], 1), isEmpty);
     });
   });
-
-  group('sortByWeekActivity', () {
-    test('orders by descending weekPostCount, name as tiebreaker', () {
-      final t1 = _track('t1', 'Apple');
-      final t2 = _track('t2', 'Banana');
-      final t3 = _track('t3', 'Cherry');
-      final t4 = _track('t4', 'Date');
-
-      final activity = {
-        't1': const TrackActivity(isFresh: false, weekPostCount: 2),
-        't2': const TrackActivity(isFresh: false, weekPostCount: 5),
-        't3': const TrackActivity(isFresh: false, weekPostCount: 2),
-        // t4: no entry → treated as 0 → last
-      };
-
-      final sorted = sortByWeekActivity([t1, t2, t3, t4], activity);
-      expect(sorted.map((t) => t.id), ['t2', 't1', 't3', 't4']);
-    });
-
-    test('empty input returns empty list', () {
-      expect(sortByWeekActivity(const [], const {}), isEmpty);
-    });
-  });
 }

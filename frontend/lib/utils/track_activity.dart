@@ -5,8 +5,8 @@ import '../models/track.dart';
 
 /// Per-track activity statistics derived from a slice of recent posts.
 ///
-/// Used by `MarqueeTrackRail` to drive the highlight pulse / halo and
-/// the week-activity-descending sort order of the expanded view.
+/// Used by `MarqueeTrackRail` to drive the highlight pulse (fresh) and
+/// halo (active) cues.
 class TrackActivity {
   /// True when the track has at least one post in the last 24 hours.
   /// Drives the "fresh" white-pulse highlight.
@@ -69,30 +69,15 @@ Map<String, TrackActivity> computeTrackActivity(
 ///
 /// Used to vary the marquee order each time the timeline is reloaded
 /// (`pull-to-refresh`, foreground resume) without losing the ability to
-/// regenerate the exact same order in widget tests.
+/// regenerate the exact same order in widget tests. The expanded view
+/// reuses the same shuffled order so chips do not reflow when the user
+/// swaps between marquee and expanded modes — original design also
+/// shipped a `sortByWeekActivity` helper for an activity-descending
+/// expanded view, but manual QA showed the reflow was distracting and
+/// the helper was retired (see PR #444 discussion).
 List<Track> shuffleTracks(List<Track> tracks, int seed) {
   if (tracks.isEmpty) return const [];
   final result = List<Track>.from(tracks);
   result.shuffle(Random(seed));
-  return result;
-}
-
-/// Return a new list with [tracks] sorted by descending weekly post count.
-///
-/// Tracks with no activity entry fall to the end. Name comparison is the
-/// stable tiebreaker so the expanded view never reshuffles between
-/// rebuilds when activity counts are unchanged.
-List<Track> sortByWeekActivity(
-  List<Track> tracks,
-  Map<String, TrackActivity> activity,
-) {
-  if (tracks.isEmpty) return const [];
-  final result = List<Track>.from(tracks);
-  result.sort((a, b) {
-    final aCount = activity[a.id]?.weekPostCount ?? 0;
-    final bCount = activity[b.id]?.weekPostCount ?? 0;
-    if (bCount != aCount) return bCount.compareTo(aCount);
-    return a.name.compareTo(b.name);
-  });
   return result;
 }

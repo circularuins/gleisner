@@ -31,8 +31,10 @@ const double _marqueeViewportHeight = 36;
 ///   - When the full chip set fits on one row → static row, no animation.
 ///   - When it overflows → "All" stays pinned at the left, the rest scroll
 ///     leftward as a marquee.
-///   - Tapping the marquee region expands into a multi-row Wrap (week
-///     activity descending) for selection. Selecting a chip, idling for
+///   - Tapping the marquee region expands into a multi-row `Wrap` for
+///     selection. The expanded view reuses the same shuffled order as
+///     the marquee so chips do not visibly reflow when the user swaps
+///     between modes. Selecting a chip, idling for
 ///     `motionRailExpandedIdleTimeout`, or the app returning to the
 ///     foreground collapses it back to the marquee.
 ///   - Tracks with posts in the last 24h pulse with a white glow; tracks
