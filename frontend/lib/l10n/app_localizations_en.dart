@@ -685,6 +685,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get all => 'All';
 
   @override
+  String get trackRailExpandHint => 'Tap to see all tracks';
+
+  @override
   String get noPostsYet => 'No posts yet';
 
   @override

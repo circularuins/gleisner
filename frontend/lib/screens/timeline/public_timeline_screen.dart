@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/timeline_item.dart';
-import '../../models/track.dart';
 import '../../providers/analytics_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/public_timeline_provider.dart';
@@ -15,6 +14,7 @@ import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/constellation_painter.dart';
 import '../../widgets/timeline/milestone_detail_sheet.dart';
 import '../../widgets/timeline/milestone_node_card.dart';
+import '../../widgets/timeline/marquee_track_rail.dart';
 import '../../widgets/timeline/node_card.dart';
 import '../../widgets/timeline/post_detail_sheet.dart';
 import '../../theme/gleisner_assets.dart';
@@ -156,15 +156,19 @@ class _PublicTimelineScreenState extends ConsumerState<PublicTimelineScreen>
       body: Column(
         children: [
           if (timeline.artist != null && timeline.artist!.tracks.isNotEmpty)
-            _TrackSelector(
+            MarqueeTrackRail(
               tracks: timeline.artist!.tracks,
+              posts: timeline.posts,
               selectedTrackIds: timeline.selectedTrackIds,
               allSelected: timeline.allSelected,
+              shuffleSeed: timeline.shuffleSeed,
               onToggleTrack: (trackId) => ref
                   .read(publicTimelineProvider.notifier)
                   .toggleTrack(trackId),
               onToggleAll: () =>
                   ref.read(publicTimelineProvider.notifier).toggleAll(),
+              onReshuffle: () =>
+                  ref.read(publicTimelineProvider.notifier).reshuffleTracks(),
             ),
           if (timeline.error != null)
             Padding(
@@ -775,80 +779,6 @@ class _TuneInButton extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TrackSelector extends StatelessWidget {
-  final List<Track> tracks;
-  final Set<String> selectedTrackIds;
-  final bool allSelected;
-  final ValueChanged<String> onToggleTrack;
-  final VoidCallback onToggleAll;
-
-  const _TrackSelector({
-    required this.tracks,
-    required this.selectedTrackIds,
-    required this.allSelected,
-    required this.onToggleTrack,
-    required this.onToggleAll,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      child: Wrap(
-        spacing: 4,
-        runSpacing: 2,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: _chip(
-              label: context.l10n.all,
-              selected: allSelected,
-              onTap: onToggleAll,
-              selectedColor: colorInteractive,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          for (final track in tracks)
-            _chip(
-              label: track.name,
-              selected: selectedTrackIds.contains(track.id),
-              onTap: () => onToggleTrack(track.id),
-              selectedColor: track.displayColor,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _chip({
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-    required Color selectedColor,
-    BorderRadius? borderRadius,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          borderRadius: borderRadius ?? BorderRadius.circular(10),
-          color: selected ? selectedColor.withValues(alpha: 0.2) : null,
-          border: Border.all(color: selected ? selectedColor : colorBorder),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: selected ? selectedColor : colorInteractive,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-          ),
         ),
       ),
     );

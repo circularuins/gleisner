@@ -217,6 +217,64 @@ const opacitySubtle = 0.12;
 const opacityBorder = 0.3;
 
 // ---------------------------------------------------------------------------
+// Motion — Periods and speeds used by infinite/repeating animations.
+//
+// All durations follow `prefers-reduced-motion` (`MediaQuery.disableAnimationsOf`):
+// callers are expected to gate the animation start, not just the period.
+// ---------------------------------------------------------------------------
+
+/// Breathing-pulse period used by the `MarqueeTrackRail` highlight.
+/// Faster than the FAB pulse (2400 ms) because tracks read as a rhythm of
+/// many small stars rather than one focal accent.
+const motionPulsePeriod = Duration(milliseconds: 1800);
+
+/// Marquee scroll speed in logical pixels per second. Tuned for "reads
+/// without effort" at 11 dp chip text; raise to dial up urgency, lower
+/// to dial down attention draw.
+const motionMarqueeSpeedDp = 40.0;
+
+/// Idle duration before the expanded track rail collapses back to its
+/// marquee state. Reset by any chip tap so users can pick multiple
+/// tracks in one expanded session.
+const motionRailExpandedIdleTimeout = Duration(seconds: 5);
+
+// ---------------------------------------------------------------------------
+// Highlight — Track activity glow used by `MarqueeTrackRail`.
+//
+// Tuned so non-highlighted chips never read as "muted" / "disabled" — the
+// pulse is additive (adds a glow on top of the normal chip), never
+// subtractive.
+// ---------------------------------------------------------------------------
+
+/// Blur radius (in logical pixels) for the white pulse applied to tracks
+/// that have at least one post in the last 24h. Pulses between
+/// [highlightFreshBlurMin] and this value over `motionPulsePeriod`.
+/// Sized to fit inside the marquee viewport (~7 px above + 7 px below
+/// the chip) so the glow never gets clipped at its peak.
+const highlightFreshBlurMax = 8.0;
+
+/// Floor of the fresh-pulse blur. Even at the lowest point of the pulse
+/// the glow is still visible so reduced-motion users see the highlight
+/// clearly without any animation.
+const highlightFreshBlurMin = 4.0;
+
+/// Peak alpha of the fresh-track white pulse. Picked high enough that
+/// the highlighted chip clearly outshines the unhighlighted neighbors
+/// at the pulse peak, while still feeling like a glow rather than a
+/// solid fill.
+const highlightFreshAlphaMax = 0.95;
+const highlightFreshAlphaMin = 0.5;
+
+/// Steady-state blur of the colored halo applied to tracks with >= 5
+/// posts in the last week. Does not pulse — the color halo is a
+/// persistent activity signal, the pulse is reserved for freshness.
+const highlightActiveHaloBlur = 7.0;
+
+/// Alpha for the track-colored halo. Strong enough to read as
+/// "this track is busy" against the chip's own border + text.
+const highlightActiveHaloAlpha = 0.85;
+
+// ---------------------------------------------------------------------------
 // Common text styles (convenience)
 // ---------------------------------------------------------------------------
 

@@ -667,6 +667,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get all => 'すべて';
 
   @override
+  String get trackRailExpandHint => 'タップして全トラックを表示';
+
+  @override
   String get noPostsYet => 'まだ投稿がありません';
 
   @override

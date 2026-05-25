@@ -5,13 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../../models/artist.dart';
 import '../../models/post.dart';
 import '../../models/timeline_item.dart';
-import '../../models/track.dart';
 import '../../providers/my_artist_provider.dart';
 import '../../providers/pending_artist_provider.dart';
 import '../../providers/timeline_provider.dart';
 import '../../providers/tune_in_provider.dart';
 import '../../utils/constellation_layout.dart';
 import '../../widgets/timeline/avatar_rail.dart';
+import '../../widgets/timeline/marquee_track_rail.dart';
 import '../../l10n/l10n.dart';
 import '../../utils/month_names.dart';
 import '../../widgets/timeline/constellation_painter.dart';
@@ -459,15 +459,20 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                   children: [
                     if (timeline.artist != null &&
                         timeline.artist!.tracks.isNotEmpty)
-                      _TrackSelector(
+                      MarqueeTrackRail(
                         tracks: timeline.artist!.tracks,
+                        posts: timeline.posts,
                         selectedTrackIds: timeline.selectedTrackIds,
                         allSelected: timeline.allSelected,
+                        shuffleSeed: timeline.shuffleSeed,
                         onToggleTrack: (trackId) => ref
                             .read(timelineProvider.notifier)
                             .toggleTrack(trackId),
                         onToggleAll: () =>
                             ref.read(timelineProvider.notifier).toggleAll(),
+                        onReshuffle: () => ref
+                            .read(timelineProvider.notifier)
+                            .reshuffleTracks(),
                       ),
                     // Avatar rail — always visible (not inside scroll)
                     if (tuneIn.tunedInArtists.isNotEmpty ||
@@ -1316,80 +1321,6 @@ class _DateLabel extends StatelessWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _TrackSelector extends StatelessWidget {
-  final List<Track> tracks;
-  final Set<String> selectedTrackIds;
-  final bool allSelected;
-  final ValueChanged<String> onToggleTrack;
-  final VoidCallback onToggleAll;
-
-  const _TrackSelector({
-    required this.tracks,
-    required this.selectedTrackIds,
-    required this.allSelected,
-    required this.onToggleTrack,
-    required this.onToggleAll,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      child: Wrap(
-        spacing: 4,
-        runSpacing: 2,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: _chip(
-              label: context.l10n.all,
-              selected: allSelected,
-              onTap: onToggleAll,
-              selectedColor: colorInteractive,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          for (final track in tracks)
-            _chip(
-              label: track.name,
-              selected: selectedTrackIds.contains(track.id),
-              onTap: () => onToggleTrack(track.id),
-              selectedColor: track.displayColor,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _chip({
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-    required Color selectedColor,
-    BorderRadius? borderRadius,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          borderRadius: borderRadius ?? BorderRadius.circular(10),
-          color: selected ? selectedColor.withValues(alpha: 0.2) : null,
-          border: Border.all(color: selected ? selectedColor : colorBorder),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: selected ? selectedColor : colorInteractive,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-          ),
-        ),
       ),
     );
   }

@@ -251,6 +251,8 @@
   "constellationPostCount": "Constellation \u00b7 {count, plural, =1{1 post} other{{count} posts}}",
   "@constellationPostCount": { "placeholders": { "count": { "type": "int" } } },
   "all": "All",
+  "trackRailExpandHint": "Tap to see all tracks",
+  "@trackRailExpandHint": { "description": "Tooltip / semantic label on the auto-scrolling track marquee. Tapping the marquee expands it into a static multi-row view where individual tracks can be tapped to toggle the timeline filter." },
   "noPostsYet": "No posts yet",
   "yourTimeline": "Your Timeline",
   "noPostsFromArtist": "No posts from this artist yet",

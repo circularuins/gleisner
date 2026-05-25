@@ -33,6 +33,15 @@ class TimelineState {
   final String? highlightPostId;
   final Set<String>? constellationPostIds;
 
+  /// Seed for the marquee track rail's per-load random order.
+  ///
+  /// Bumped on `refresh()`, `loadArtist()`, and explicit `reshuffleTracks()`
+  /// calls (e.g. from the rail's app-foreground / pull-to-refresh hooks).
+  /// 0 is the "not yet seeded" sentinel — `MarqueeTrackRail` falls back to
+  /// the source order when seed is 0, which keeps widget tests deterministic
+  /// without forcing every test setup to inject a seed.
+  final int shuffleSeed;
+
   const TimelineState({
     this.artist,
     this.selectedTrackIds = const {},
@@ -42,6 +51,7 @@ class TimelineState {
     this.layout,
     this.highlightPostId,
     this.constellationPostIds,
+    this.shuffleSeed = 0,
   });
 
   bool get allSelected =>
@@ -60,6 +70,7 @@ class TimelineState {
     Object? layout = sentinel,
     Object? highlightPostId = sentinel,
     Object? constellationPostIds = sentinel,
+    int? shuffleSeed,
   }) {
     return TimelineState(
       artist: artist == sentinel ? this.artist : artist as Artist?,
@@ -74,8 +85,19 @@ class TimelineState {
       constellationPostIds: constellationPostIds == sentinel
           ? this.constellationPostIds
           : constellationPostIds as Set<String>?,
+      shuffleSeed: shuffleSeed ?? this.shuffleSeed,
     );
   }
+}
+
+/// Generate a fresh non-zero seed for the marquee track rail.
+///
+/// `0x7FFFFFFF` (signed-int max) is the safe upper bound that works on
+/// both the Dart VM and dart2js — `1 << 32` evaluates to `0` under
+/// JavaScript's 32-bit bitwise semantics and breaks `Random.nextInt`.
+int _newShuffleSeed() {
+  final raw = Random().nextInt(0x7FFFFFFF);
+  return raw == 0 ? 1 : raw;
 }
 
 class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
@@ -165,6 +187,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
         artist: artist,
         selectedTrackIds: allIds,
         isLoading: artist.tracks.isNotEmpty,
+        shuffleSeed: _newShuffleSeed(),
       );
 
       if (artist.tracks.isNotEmpty) {
@@ -212,6 +235,7 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
         artist: artist,
         selectedTrackIds: allIds,
         isLoading: artist.tracks.isNotEmpty,
+        shuffleSeed: _newShuffleSeed(),
       );
 
       if (artist.tracks.isNotEmpty) {
@@ -998,7 +1022,17 @@ class TimelineNotifier extends Notifier<TimelineState> with DisposableNotifier {
   }
 
   Future<void> refresh() async {
+    state = state.copyWith(shuffleSeed: _newShuffleSeed());
     await _loadSelectedPosts();
+  }
+
+  /// Bump the marquee track rail's `shuffleSeed` without re-fetching posts.
+  ///
+  /// Wired into the rail's app-foreground hook so returning to the app
+  /// rotates the order even when the network slice is unchanged. Does not
+  /// touch any other state field.
+  void reshuffleTracks() {
+    state = state.copyWith(shuffleSeed: _newShuffleSeed());
   }
 }
 

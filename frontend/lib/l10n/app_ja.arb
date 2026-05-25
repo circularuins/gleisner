@@ -225,6 +225,7 @@
   "discoverMoreArtists": "もっとアーティストを探す",
   "constellationPostCount": "コンステレーション · {count} 投稿",
   "all": "すべて",
+  "trackRailExpandHint": "タップして全トラックを表示",
   "noPostsYet": "まだ投稿がありません",
   "yourTimeline": "マイタイムライン",
   "noPostsFromArtist": "このアーティストの投稿はまだありません",

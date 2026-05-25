@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -72,6 +74,7 @@ class PublicTimelineNotifier extends Notifier<TimelineState>
         artist: artist,
         selectedTrackIds: allIds,
         isLoading: artist.tracks.isNotEmpty,
+        shuffleSeed: _newPublicShuffleSeed(),
       );
 
       if (artist.tracks.isNotEmpty) {
@@ -129,7 +132,15 @@ class PublicTimelineNotifier extends Notifier<TimelineState>
   }
 
   Future<void> refresh() async {
+    state = state.copyWith(shuffleSeed: _newPublicShuffleSeed());
     await _loadSelectedPosts();
+  }
+
+  /// See `TimelineNotifier.reshuffleTracks` — the public timeline mirrors
+  /// the rail-foreground / pull-to-refresh hook with identical semantics
+  /// (no backend mutation, local state-only).
+  void reshuffleTracks() {
+    state = state.copyWith(shuffleSeed: _newPublicShuffleSeed());
   }
 
   Future<void> _loadSelectedPosts() async {
@@ -208,6 +219,13 @@ class PublicTimelineNotifier extends Notifier<TimelineState>
     }
     state = state.copyWith(layout: result);
   }
+}
+
+int _newPublicShuffleSeed() {
+  // See `_newShuffleSeed` in timeline_provider.dart — `0x7FFFFFFF` is
+  // the dart2js-safe upper bound for `Random.nextInt`.
+  final raw = Random().nextInt(0x7FFFFFFF);
+  return raw == 0 ? 1 : raw;
 }
 
 /// Auto-disposed when no screen is watching. Navigating away from the public
