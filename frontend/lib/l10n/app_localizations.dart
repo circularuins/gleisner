@@ -1316,6 +1316,12 @@ abstract class AppLocalizations {
   /// **'All'**
   String get all;
 
+  /// Tooltip / semantic label on the auto-scrolling track marquee. Tapping the marquee expands it into a static multi-row view where individual tracks can be tapped to toggle the timeline filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to see all tracks'**
+  String get trackRailExpandHint;
+
   /// No description provided for @noPostsYet.
   ///
   /// In en, this message translates to:
