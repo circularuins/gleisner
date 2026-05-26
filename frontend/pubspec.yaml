@@ -48,7 +48,7 @@ dependencies:
   image_picker: ^1.2.2
   http: ^1.6.0
   video_player: ^2.11.1
-  flutter_quill: ^11.5.0
+  flutter_quill: ^11.5.1
   # Used directly via `dart:js_interop` in lib/utils/{audio_duration,heic_converter,
   # image_sanitizer,open_url_web,video_thumbnail,web_file_picker}.dart and
   # lib/widgets/timeline/post_detail_sheet.dart. Already a transitive dep via
