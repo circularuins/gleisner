@@ -67,3 +67,4 @@ build/
 # Claude Code worktrees & temporary plans
 .claude/worktrees/
 .claude/plans/
+.claude/auto-review-log/
